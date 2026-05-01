@@ -37,7 +37,7 @@ export function enqueueScan(hostIds: string[]): ScanJobRecord {
 export function resolveScan(
   id: string,
   status: "succeeded" | "failed",
-  detail: string,
+  detail?: string,
   driftCount?: number,
 ): void {
   const rec = jobs().get(id);
