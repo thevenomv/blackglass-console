@@ -8,7 +8,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 
 | File | Role |
 |------|------|
-| `package.json` / `package-lock.json` | Dependencies, scripts (`dev`, `build`, `verify:stage0`, `verify:staging`, `lint`, `check:openapi`, `test:e2e`, `test:e2e:live`) |
+| `package.json` / `package-lock.json` | Dependencies, scripts (`dev`, `build`, `verify:stage0`, `do:apply-stage0`, `verify:staging`, `lint`, `check:openapi`, `test:e2e`, `test:e2e:live`) |
 | `tsconfig.json` | TypeScript project |
 | `next.config.ts` | Next.js configuration |
 | `next-env.d.ts` | Next-generated types |
@@ -88,7 +88,9 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `export-zod-schemas.ts` | **`npm run schemas:export`** → `openapi/zod-schemas.json` |
 | `doppler-verify.mjs` | Doppler download API smoke (no PEM printed) |
 | `doppler-dev.ps1` | PATH refresh + **`npm run dev:doppler`** |
+| `run-do-apply-stage0.mjs` | npm launcher for `do_apply_stage0.py` (tries `py -3`, `python3`, `python`)  |
 | `verify-staging.mjs` | **`STAGING_URL`** health / hosts / audit (optional **`VERIFY_SECRETS_PROBE=1`**) |
+| `do_apply_stage0.py` | DO API: set **`AUTH_REQUIRED=true`** + **`AUTH_SESSION_SECRET`** on existing app |
 | `do_bootstrap_blackglass.py` | DO bootstrap |
 | `do-docker-push.ps1` / `do-prepare-app-spec.ps1` | Deployment helpers |
 

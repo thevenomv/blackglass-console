@@ -8,7 +8,7 @@ This is a **product and engineering** path from a single-tenant ops console to *
 
 **Goal:** One team, known hosts, manual onboarding.
 
-- Deploy with **`AUTH_REQUIRED=true`**, **`AUTH_SESSION_SECRET`** (strong random; platform secret type on DO), encrypted collector secrets (Doppler sync or env), **`NEXT_PUBLIC_USE_MOCK=false`**.
+- Deploy with **`AUTH_REQUIRED=true`**, **`AUTH_SESSION_SECRET`** (strong random; platform secret type on DO), encrypted collector secrets (Doppler sync or env), **`NEXT_PUBLIC_USE_MOCK=false`**. On DigitalOcean App Platform you can apply auth + session secret with **`DIGITALOCEAN_ACCESS_TOKEN`** and **`python scripts/do_apply_stage0.py`** (read the script header first).
 - Mount volumes for **`BASELINE_STORE_PATH`** / **`DRIFT_HISTORY_PATH`** if you care about restart survival.
 - Run **`npm run verify:stage0`** locally (same gates as CI minus Playwright) before merge; rely on GitHub Actions on **`main`**; after each deploy to a real host, **`STAGING_URL=… npm run verify:staging`** (or your production origin).
 - **Exit:** Stable baseline → scan → drift loop on real SSH; operators trust health + Settings runtime panel.

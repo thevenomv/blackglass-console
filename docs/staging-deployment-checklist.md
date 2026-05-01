@@ -14,6 +14,7 @@ Use before inviting external operators or pilots. Copy into a ticket and mark ea
 ## Automation (optional)
 
 - GitHub: add repository secret **`STAGING_URL`**, then run workflow **Staging smoke** (Actions → manual dispatch).
+- DigitalOcean (existing App Platform app): with **`DIGITALOCEAN_ACCESS_TOKEN`** set locally, run **`python scripts/do_apply_stage0.py`** to set **`AUTH_REQUIRED=true`** and ensure **`AUTH_SESSION_SECRET`** (generates one if missing). See script docstring for **`BLACKGLASS_APP_ID`** / **`AUTH_SESSION_SECRET`** overrides.
 
 ## Manual command
 
