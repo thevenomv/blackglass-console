@@ -1,0 +1,72 @@
+export type ScanJobStatus = "queued" | "running" | "succeeded" | "failed";
+
+export type ScanJobRecord = {
+  id: string;
+  createdAt: number;
+  hostIds: string[];
+};
+
+const GLOBAL_KEY = "__blackglass_scan_jobs_v1" as const;
+
+type GlobalWithJobs = typeof globalThis & {
+  [GLOBAL_KEY]?: Map<string, ScanJobRecord>;
+};
+
+function jobs(): Map<string, ScanJobRecord> {
+  const g = globalThis as GlobalWithJobs;
+  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = new Map();
+  return g[GLOBAL_KEY];
+}
+
+export function enqueueScan(hostIds: string[]): ScanJobRecord {
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `scan-${Date.now()}`;
+  const rec: ScanJobRecord = { id, createdAt: Date.now(), hostIds };
+  jobs().set(id, rec);
+  return rec;
+}
+
+export function getScanRecord(id: string): ScanJobRecord | undefined {
+  return jobs().get(id);
+}
+
+/** Derive live status from monotonic clock — stateless between polls. */
+export function projectScanJob(rec: ScanJobRecord): {
+  id: string;
+  status: ScanJobStatus;
+  progress: number;
+  detail: string;
+  host_ids: string[];
+} {
+  const elapsed = Date.now() - rec.createdAt;
+  let status: ScanJobStatus = "queued";
+  let progress = 0;
+  let detail = "Enqueueing collectors…";
+
+  if (elapsed > 250) {
+    status = "running";
+    progress = Math.min(99, Math.floor((elapsed - 250) / 35));
+    detail =
+      progress < 33
+        ? "Enumerating listeners and persistence…"
+        : progress < 66
+          ? "Collecting SSH, firewall, identity slices…"
+          : "Merging snapshot · computing drift…";
+  }
+
+  if (elapsed > 3500) {
+    status = "succeeded";
+    progress = 100;
+    detail = "Snapshot merged · drift engine idle";
+  }
+
+  return {
+    id: rec.id,
+    status,
+    progress,
+    detail,
+    host_ids: rec.hostIds,
+  };
+}

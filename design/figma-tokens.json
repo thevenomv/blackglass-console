@@ -1,0 +1,56 @@
+{
+  "$schema": "https://schemas.tokens.studio/0.0.1/token.schema.json",
+  "blackglass": {
+    "color": {
+      "bg-base": { "value": "#0F1419", "type": "color" },
+      "bg-sidebar": { "value": "#121922", "type": "color" },
+      "bg-panel": { "value": "#161D26", "type": "color" },
+      "bg-panel-elevated": { "value": "#1B2430", "type": "color" },
+      "border-default": { "value": "#2A3441", "type": "color" },
+      "border-subtle": { "value": "#222B36", "type": "color" },
+      "text-primary": { "value": "#F2F5F8", "type": "color" },
+      "text-muted": { "value": "#9AA5B1", "type": "color" },
+      "text-faint": { "value": "#6B7785", "type": "color" },
+      "accent-blue": { "value": "#3B82F6", "type": "color" },
+      "accent-blue-soft-bg": { "value": "#1E3A5F", "type": "color" },
+      "accent-blue-muted": { "value": "#1D4ED8", "type": "color" },
+      "success-green": { "value": "#22C55E", "type": "color" },
+      "success-green-soft-bg": { "value": "#163B28", "type": "color" },
+      "warning-amber": { "value": "#F59E0B", "type": "color" },
+      "warning-amber-soft-bg": { "value": "#3D3018", "type": "color" },
+      "danger-red": { "value": "#EF4444", "type": "color" },
+      "danger-red-soft-bg": { "value": "#3D1818", "type": "color" },
+      "progress-track": { "value": "#243041", "type": "color" }
+    },
+    "spacing": {
+      "0": { "value": "0", "type": "spacing" },
+      "1": { "value": "4px", "type": "spacing" },
+      "2": { "value": "8px", "type": "spacing" },
+      "3": { "value": "12px", "type": "spacing" },
+      "4": { "value": "16px", "type": "spacing" },
+      "6": { "value": "24px", "type": "spacing" },
+      "8": { "value": "32px", "type": "spacing" },
+      "12": { "value": "48px", "type": "spacing" }
+    },
+    "radius": {
+      "card": { "value": "6px", "type": "borderRadius" },
+      "pill": { "value": "999px", "type": "borderRadius" },
+      "progress": { "value": "4px", "type": "borderRadius" }
+    },
+    "typography": {
+      "fontSans": { "value": "IBM Plex Sans", "type": "fontFamilies" },
+      "fontMono": { "value": "IBM Plex Mono", "type": "fontFamilies" },
+      "kpi": { "value": "32px", "type": "fontSizes" },
+      "title": { "value": "18px", "type": "fontSizes" },
+      "body": { "value": "14px", "type": "fontSizes" },
+      "label": { "value": "12px", "type": "fontSizes" },
+      "mono": { "value": "13px", "type": "fontSizes" }
+    },
+    "shadow": {
+      "elevated": {
+        "value": "0 1px 2px rgba(0, 0, 0, 0.45)",
+        "type": "boxShadow"
+      }
+    }
+  }
+}

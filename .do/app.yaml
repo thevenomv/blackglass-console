@@ -1,0 +1,41 @@
+# DigitalOcean App Platform — Container Registry (DOCR) deploy.
+#
+# Prereqs:
+# 1. Create registry: doctl registry create <registry-name>
+# 2. Set DIGITALOCEAN_ACCESS_TOKEN in your shell (Personal Access Token with read/write).
+# 3. Build & push image (see scripts/do-docker-push.ps1 or docker commands below).
+# 4. Replace REGISTRY_NAME_PLACEHOLDER with your registry name, then:
+#    doctl apps create --spec .do/app.yaml
+#    # updates: doctl apps update <app-id> --spec .do/app.yaml
+#
+# After first deploy, set NEXT_PUBLIC_APP_URL to your live HTTPS URL and rebuild the image
+# (Next.js inlines NEXT_PUBLIC_* at build time).
+
+alerts:
+  - rule: DEPLOYMENT_FAILED
+ingress:
+  rules:
+    - component:
+        name: web
+      match:
+        path:
+          prefix: /
+name: blackglass-console
+region: nyc
+services:
+  - name: web
+    image:
+      registry_type: DOCR
+      registry: REGISTRY_NAME_PLACEHOLDER
+      repository: blackglass-console
+      tag: latest
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: NODE_ENV
+        value: production
+        scope: RUN_TIME
+      - key: AUTH_REQUIRED
+        value: "false"
+        scope: RUN_TIME

@@ -1,0 +1,51 @@
+# BLACKGLASS — staging (GitHub branch deploy)
+#
+# Typical pattern: separate App Platform app, smaller instance, branch staging.
+
+alerts:
+  - rule: DEPLOYMENT_FAILED
+name: blackglass-staging
+region: REGION_SLUG
+ingress:
+  rules:
+    - component:
+        name: web
+      match:
+        path:
+          prefix: /
+services:
+  - name: web
+    github:
+      repo: GITHUB_ORG/GITHUB_REPO
+      branch: staging
+      deploy_on_push: true
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    http_port: 3000
+    source_dir: /
+    build_command: npm ci && npm run build
+    run_command: npm run start
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 5
+    envs:
+      - key: NODE_ENV
+        value: production
+        scope: RUN_AND_BUILD_TIME
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://YOUR_STAGING_HOSTNAME
+        scope: RUN_AND_BUILD_TIME
+      - key: NEXT_PUBLIC_USE_MOCK
+        value: "false"
+        scope: RUN_AND_BUILD_TIME
+      - key: NEXT_PUBLIC_API_URL
+        value: ""
+        scope: RUN_AND_BUILD_TIME
+      - key: AUTH_REQUIRED
+        value: "false"
+        scope: RUN_TIME
