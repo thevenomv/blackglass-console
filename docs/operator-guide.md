@@ -10,6 +10,8 @@ BLACKGLASS is a server integrity console. It:
 
 **End-to-end spine:** baseline capture → scan job → drift findings → investigation (UI / audit) → evidence/export surfaces. See **`docs/architecture-flow.md`** for how this maps to routes and `src/lib/server/` (including **`services/`** orchestration helpers).
 
+**Staging / SaaS:** Before external pilots, run **`docs/staging-deployment-checklist.md`** and **`npm run verify:staging`** with **`STAGING_URL`**. Longer-term product phases: **`docs/saas-customer-roadmap.md`**.
+
 ---
 
 ## 2. Connecting a host

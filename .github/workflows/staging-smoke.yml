@@ -1,0 +1,18 @@
+# Optional: run against a deployed staging URL after you add repo secret STAGING_URL.
+name: Staging smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Verify staging
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+        run: node scripts/verify-staging.mjs

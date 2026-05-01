@@ -13,6 +13,7 @@
     "start": "next start",
     "start:doppler": "doppler run -- npm run start",
     "doppler:verify": "node scripts/doppler-verify.mjs",
+    "verify:staging": "node scripts/verify-staging.mjs",
     "lint": "next lint",
     "check:openapi": "node scripts/check-openapi-paths.mjs",
     "schemas:export": "tsx scripts/export-zod-schemas.ts",

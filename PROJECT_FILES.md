@@ -58,6 +58,8 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `operator-guide.md` | Runbook |
 | `architecture-flow.md` | **Five-step product spine**; baseline → scan → drift → investigate → export; health semantics |
 | `doppler-digitalocean-setup.md` | Doppler + DO App Platform |
+| `staging-deployment-checklist.md` | Pre-external pilot deploy gates |
+| `saas-customer-roadmap.md` | Stages 0–4: internal → multi-tenant → enterprise |
 
 ---
 
@@ -84,6 +86,9 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 |------|------|
 | `check-openapi-paths.mjs` | Verifies OpenAPI paths + `src/app/api/v1/**/route.ts` presence |
 | `export-zod-schemas.ts` | **`npm run schemas:export`** → `openapi/zod-schemas.json` |
+| `doppler-verify.mjs` | Doppler download API smoke (no PEM printed) |
+| `doppler-dev.ps1` | PATH refresh + **`npm run dev:doppler`** |
+| `verify-staging.mjs` | **`STAGING_URL`** health / hosts / audit (optional **`VERIFY_SECRETS_PROBE=1`**) |
 | `do_bootstrap_blackglass.py` | DO bootstrap |
 | `do-docker-push.ps1` / `do-prepare-app-spec.ps1` | Deployment helpers |
 
@@ -278,4 +283,4 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 
 ---
 
-*Last updated: `src/lib/server/collector/` modular package (barrel import unchanged).*
+*Last updated: SaaS staging docs + `verify-staging.mjs`; `src/lib/server/collector/` package.*
