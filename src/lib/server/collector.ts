@@ -64,12 +64,13 @@ export type HostSnapshot = {
 // SSH helpers
 // ---------------------------------------------------------------------------
 
-function sshConfig(): ConnectConfig & { hostId: string; displayName: string } {
-  const host = process.env.COLLECTOR_HOST_1;
+function buildSshConfig(
+  host: string,
+  hostIndex: number,
+): ConnectConfig & { hostId: string; displayName: string } {
   const user = process.env.COLLECTOR_USER ?? "blackglass";
   const privateKey = process.env.SSH_PRIVATE_KEY;
 
-  if (!host) throw new Error("COLLECTOR_HOST_1 env var not set");
   if (!privateKey) throw new Error("SSH_PRIVATE_KEY env var not set");
 
   // Normalize key: App Platform / CI may store newlines as literal \n or use CRLF.
@@ -80,7 +81,7 @@ function sshConfig(): ConnectConfig & { hostId: string; displayName: string } {
 
   return {
     hostId: `host-${host.replace(/\./g, "-")}`,
-    displayName: process.env.COLLECTOR_HOST_1_NAME ?? host,
+    displayName: process.env[`COLLECTOR_HOST_${hostIndex}_NAME`] ?? host,
     host,
     port: Number(process.env.COLLECTOR_PORT ?? 22),
     username: user,
@@ -89,6 +90,17 @@ function sshConfig(): ConnectConfig & { hostId: string; displayName: string } {
     // Never prompt; fail fast if key is wrong
     tryKeyboard: false,
   };
+}
+
+/** Returns SSH configs for every configured COLLECTOR_HOST_N. */
+function allSshConfigs(): Array<ConnectConfig & { hostId: string; displayName: string }> {
+  const cfgs = [];
+  for (let i = 1; i <= 9; i++) {
+    const host = process.env[`COLLECTOR_HOST_${i}`];
+    if (!host) break; // stop at first gap
+    cfgs.push(buildSshConfig(host, i));
+  }
+  return cfgs;
 }
 
 function exec(conn: Client, command: string): Promise<string> {
@@ -287,21 +299,62 @@ function parseFirewall(raw: string): FirewallStatus {
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Returns undefined when COLLECTOR_HOST_1 is not configured. */
+/** Returns true when at least COLLECTOR_HOST_1 and SSH_PRIVATE_KEY are set. */
 export function collectorConfigured(): boolean {
   return Boolean(process.env.COLLECTOR_HOST_1 && process.env.SSH_PRIVATE_KEY);
 }
 
-/** Collect a live snapshot from the configured host. Throws on SSH error. */
+/** Number of collector hosts currently configured (0 when not configured). */
+export function configuredHostCount(): number {
+  if (!collectorConfigured()) return 0;
+  return allSshConfigs().length;
+}
+
+/** Collect a live snapshot from COLLECTOR_HOST_1. Throws on SSH error. */
 const COLLECTION_TIMEOUT_MS = 20_000;
 
 export async function collectSnapshot(): Promise<HostSnapshot> {
-  const cfg = sshConfig();
+  const cfgs = allSshConfigs();
+  if (!cfgs.length) throw new Error("COLLECTOR_HOST_1 env var not set");
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(
       () => reject(new Error(`SSH collection timed out after ${COLLECTION_TIMEOUT_MS / 1000}s`)),
       COLLECTION_TIMEOUT_MS,
     ),
   );
-  return Promise.race([runCollection(cfg), timeout]);
+  return Promise.race([runCollection(cfgs[0]), timeout]);
+}
+
+/**
+ * Collect live snapshots from ALL configured COLLECTOR_HOST_N hosts in
+ * parallel.  Each result is a { snapshot, error } pair — a per-host failure
+ * does not abort the others.
+ */
+export async function collectAllSnapshots(): Promise<
+  Array<{ snapshot?: HostSnapshot; error?: string; hostId: string }>
+> {
+  const cfgs = allSshConfigs();
+  if (!cfgs.length) throw new Error("No collector hosts configured");
+
+  const timeout = (hostId: string) =>
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`SSH collection timed out for ${hostId}`)),
+        COLLECTION_TIMEOUT_MS,
+      ),
+    );
+
+  return Promise.all(
+    cfgs.map(async (cfg) => {
+      try {
+        const snapshot = await Promise.race([runCollection(cfg), timeout(cfg.hostId)]);
+        return { snapshot, hostId: cfg.hostId };
+      } catch (err) {
+        return {
+          hostId: cfg.hostId,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }),
+  );
 }

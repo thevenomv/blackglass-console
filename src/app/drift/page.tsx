@@ -1,13 +1,17 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { DriftEventsView } from "@/components/drift/DriftEventsView";
 import { TableSkeletonRows } from "@/components/ui/Skeleton";
-import { driftEvents, getDriftEvent } from "@/data/mock/drift";
-import { mockLatency } from "@/lib/mockLatency";
+import { driftEvents as mockDriftEvents } from "@/data/mock/drift";
+import { collectorConfigured } from "@/lib/server/collector";
+import { getDriftEvents, hasDriftData } from "@/lib/server/drift-engine";
 import { Suspense } from "react";
 
 async function DriftBody({ eventId }: { eventId?: string }) {
-  await mockLatency(240);
-  const selected = eventId ? getDriftEvent(eventId) : undefined;
+  const events =
+    collectorConfigured() && hasDriftData()
+      ? getDriftEvents()
+      : mockDriftEvents;
+  const selected = eventId ? events.find((e) => e.id === eventId) : undefined;
   return (
     <Suspense
       fallback={
@@ -16,7 +20,7 @@ async function DriftBody({ eventId }: { eventId?: string }) {
         </div>
       }
     >
-      <DriftEventsView events={driftEvents} selected={selected} />
+      <DriftEventsView events={events} selected={selected} />
     </Suspense>
   );
 }

@@ -189,6 +189,34 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ScanJob" }
 
+  /drift:
+    get:
+      tags: [Drift]
+      summary: List all drift events across the fleet
+      description: >
+        Returns real drift events when the collector is configured and a scan
+        has been completed; falls back to mock data otherwise.
+      parameters:
+        - name: hostId
+          in: query
+          schema: { type: string }
+          description: Filter to a specific host
+        - name: lifecycle
+          in: query
+          schema: { type: string, enum: [new, triaged, accepted_risk, remediated, verified] }
+      responses:
+        "200":
+          description: Drift event list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/DriftFinding" }
+                  total: { type: integer }
+
   /hosts/{hostId}/drift:
     get:
       tags: [Drift]
@@ -372,6 +400,8 @@ components:
           items: { type: string }
         started_at: { type: string, format: date-time, nullable: true }
         finished_at: { type: string, format: date-time, nullable: true }
+        drift_count: { type: integer, nullable: true, description: Number of drift events found (real scans only) }
+        detail: { type: string, nullable: true, description: Human-readable status message or error detail }
         error: { type: string, nullable: true }
 
     DriftFinding:
@@ -412,15 +442,15 @@ components:
           type: array
           items:
             type: object
-              properties:
-                path: { type: string }
-                rule_id: { type: string, nullable: true }
-                severity: { type: string }
-                summary: { type: string }
-                before: {}
-                after: {}
-                before_sha256: { type: string, nullable: true }
-                after_sha256: { type: string, nullable: true }
+            properties:
+              path: { type: string }
+              rule_id: { type: string, nullable: true }
+              severity: { type: string }
+              summary: { type: string }
+              before: {}
+              after: {}
+              before_sha256: { type: string, nullable: true }
+              after_sha256: { type: string, nullable: true }
 
     EvidenceBundleJob:
       type: object
