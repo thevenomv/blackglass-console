@@ -33,6 +33,24 @@ function formatVerified(iso?: string) {
   return formatDetected(iso);
 }
 
+function lifecycleToneBadge(l: DriftEvent["lifecycle"]): "neutral" | "warning" | "success" | "accent" {
+  if (l === "new") return "neutral";
+  if (l === "triaged") return "accent";
+  if (l === "accepted_risk") return "warning";
+  return "success";
+}
+
+function lifecycleTitleCase(l: DriftEvent["lifecycle"]) {
+  const labels: Record<DriftEvent["lifecycle"], string> = {
+    new: "New",
+    triaged: "Triaged",
+    accepted_risk: "Accepted risk",
+    remediated: "Remediated",
+    verified: "Verified",
+  };
+  return labels[l];
+}
+
 type Workflow = "open" | "acknowledged" | "approved";
 
 export function DriftInvestigationDrawer({
@@ -97,6 +115,11 @@ export function DriftInvestigationDrawer({
               >
                 {severityLabel(event.severity)} severity
               </span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge tone={lifecycleToneBadge(event.lifecycle)}>
+                {lifecycleTitleCase(event.lifecycle)}
+              </Badge>
             </div>
             {workflow !== "open" ? (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -185,7 +208,17 @@ export function DriftInvestigationDrawer({
               <Button
                 type="button"
                 disabled={!canMutate || workflow !== "open"}
-                onClick={() => setWorkflow("acknowledged")}
+                onClick={() => {
+                  setWorkflow("acknowledged");
+                  void fetch("/api/v1/audit/events", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      action: "drift_acknowledge",
+                      detail: `${event.id} · ${event.hostId} · ${event.title}`,
+                    }),
+                  });
+                }}
               >
                 Acknowledge
               </Button>
@@ -193,7 +226,17 @@ export function DriftInvestigationDrawer({
                 variant="secondary"
                 type="button"
                 disabled={!canMutate || workflow === "approved"}
-                onClick={() => setWorkflow("approved")}
+                onClick={() => {
+                  setWorkflow("approved");
+                  void fetch("/api/v1/audit/events", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      action: "drift_approved_change",
+                      detail: `${event.id} · ${event.hostId} · ${event.title}`,
+                    }),
+                  });
+                }}
               >
                 Mark approved change
               </Button>

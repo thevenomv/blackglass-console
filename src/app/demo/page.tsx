@@ -128,6 +128,49 @@ export default function DemoPage() {
             Role picker (login stub)
           </Link>
         </div>
+
+        <section aria-labelledby="presets-heading" className="border-t border-border-subtle pt-8">
+          <h2 id="presets-heading" className="text-sm font-semibold text-fg-primary">
+            Deep-link presets
+          </h2>
+          <p className="mt-2 text-sm text-fg-muted">
+            Bookmarkable queries aligned with drift lifecycle filters and demo flows.
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-2 text-sm">
+            <li>
+              <Link
+                href="/drift?severity=high&lifecycle=new"
+                className="rounded-full border border-border-default px-3 py-1 font-medium text-accent-blue hover:bg-bg-elevated"
+              >
+                High + new findings
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/drift?host=host-07&event=d-001"
+                className="rounded-full border border-border-default px-3 py-1 font-medium text-accent-blue hover:bg-bg-elevated"
+              >
+                host-07 · TCP listener drawer
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/workspace"
+                className="rounded-full border border-border-default px-3 py-1 font-medium text-accent-blue hover:bg-bg-elevated"
+              >
+                Incident workspace (INC-2047)
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/baselines?host=host-07"
+                className="rounded-full border border-border-default px-3 py-1 font-medium text-accent-blue hover:bg-bg-elevated"
+              >
+                Baseline diff · host-07
+              </Link>
+            </li>
+          </ul>
+        </section>
       </div>
     </AppShell>
   );

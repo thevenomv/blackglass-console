@@ -34,4 +34,13 @@ export const fleetSnapshot: FleetSnapshot = {
       label: "new persistent systemd service enabled",
     },
   ],
+  coverage: {
+    collectorsExpected: 14,
+    collectorsOnline: 12,
+    lastFleetHeartbeatAt: "2026-05-01T08:02:11Z",
+    staleSlices: [
+      { hostId: "host-11", slice: "nftables", staleSince: "2026-05-01T05:40:00Z" },
+      { hostId: "host-04", slice: "packages.deb", staleSince: "2026-04-30T21:12:00Z" },
+    ],
+  },
 };

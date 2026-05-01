@@ -14,6 +14,14 @@ export type HostRecord = {
 
 export type DriftSeverity = "high" | "medium" | "low";
 
+/** Workflow stage for a drift finding (mock mirrors future PUT /drift/:id transitions). */
+export type FindingLifecycle =
+  | "new"
+  | "triaged"
+  | "accepted_risk"
+  | "remediated"
+  | "verified";
+
 export type DriftCategory =
   | "network_exposure"
   | "identity"
@@ -34,12 +42,21 @@ export type DriftEvent = {
   hostId: string;
   category: DriftCategory;
   severity: DriftSeverity;
+  lifecycle: FindingLifecycle;
   title: string;
   detectedAt: string;
   rationale: string;
   evidenceSummary: string;
   suggestedActions: string[];
   provenance?: DriftProvenance;
+};
+
+/** Collector heartbeat and stale telemetry slices (fleet-wide). */
+export type FleetCoverage = {
+  collectorsExpected: number;
+  collectorsOnline: number;
+  lastFleetHeartbeatAt: string;
+  staleSlices: { hostId: string; slice: string; staleSince: string }[];
 };
 
 export type FleetSnapshot = {
@@ -50,6 +67,7 @@ export type FleetSnapshot = {
   driftVolumeByDay: { day: string; valuePct: number }[];
   fleetBullets: string[];
   notableEvents: { hostId: string; slug: string; label: string }[];
+  coverage: FleetCoverage;
 };
 
 export type HostPort = {
@@ -126,6 +144,10 @@ export type BaselineDiffRow = {
   summary: string;
   before?: string;
   after?: string;
+  /** Optional rule id from drift engine / policy pack (structured diff metadata). */
+  ruleId?: string;
+  beforeSha256?: string;
+  afterSha256?: string;
 };
 
 export type BaselineDiffCategory = {

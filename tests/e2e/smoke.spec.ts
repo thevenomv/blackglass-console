@@ -41,6 +41,9 @@ test.describe("BLACKGLASS console smoke", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();
     await expect(page.getByText("Hosts checked", { exact: true })).toBeVisible();
+    await expect(page.getByText("Telemetry coverage & freshness")).toBeVisible();
+    await expect(page.getByText("Collectors", { exact: true })).toBeVisible();
+    await expect(page.getByText("Fleet heartbeat")).toBeVisible();
     await expect(page.getByRole("button", { name: "Run scan" })).toBeVisible();
     await expect(page.getByRole("group", { name: "Color theme" })).toBeVisible();
     await page.getByRole("button", { name: "Light" }).click();
@@ -60,6 +63,19 @@ test.describe("BLACKGLASS console smoke", () => {
     await page.goto("/hosts");
     await expect(page.getByRole("heading", { name: "Hosts" })).toBeVisible();
     await expect(page.getByText("host-07")).toBeVisible();
+  });
+
+  test("audit events api lists entries", async ({ request }) => {
+    const res = await request.get("/api/v1/audit/events?limit=10");
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(Array.isArray(body.items)).toBeTruthy();
+  });
+
+  test("workspace incident page renders", async ({ page }) => {
+    await page.goto("/workspace");
+    await expect(page.getByRole("heading", { name: "Incident workspace" })).toBeVisible();
+    await expect(page.getByText("INC-2047")).toBeVisible();
   });
 
   test("demo script page", async ({ page }) => {

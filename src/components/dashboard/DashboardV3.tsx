@@ -6,6 +6,18 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { ProgressRow } from "@/components/ui/ProgressBar";
 import Link from "next/link";
 
+function formatUtc(iso: string) {
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
 export function DashboardV3({ fleet }: { fleet: FleetSnapshot }) {
   const attention = fleet.highRiskDrift > 0;
 
@@ -75,6 +87,49 @@ export function DashboardV3({ fleet }: { fleet: FleetSnapshot }) {
           sublabel="Exports retained"
         />
       </div>
+
+      <Card title="Telemetry coverage & freshness">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-md border border-border-subtle bg-bg-panel px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Collectors</p>
+            <p className="mt-2 font-mono text-lg text-fg-primary">
+              {fleet.coverage.collectorsOnline}
+              <span className="text-fg-faint"> / </span>
+              {fleet.coverage.collectorsExpected}
+              <span className="ml-2 text-xs font-sans font-normal text-fg-muted">online</span>
+            </p>
+          </div>
+          <div className="rounded-md border border-border-subtle bg-bg-panel px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">
+              Fleet heartbeat
+            </p>
+            <p className="mt-2 font-mono text-sm text-fg-primary">
+              {formatUtc(fleet.coverage.lastFleetHeartbeatAt)} UTC
+            </p>
+          </div>
+          <div className="rounded-md border border-border-subtle bg-bg-panel px-4 py-3 sm:col-span-2 lg:col-span-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">
+              Stale slices
+            </p>
+            {fleet.coverage.staleSlices.length === 0 ? (
+              <p className="mt-2 text-sm text-fg-muted">No overdue telemetry slices.</p>
+            ) : (
+              <ul className="mt-2 space-y-1.5 font-mono text-[12px] text-fg-primary">
+                {fleet.coverage.staleSlices.map((s) => (
+                  <li key={`${s.hostId}-${s.slice}`}>
+                    <Link href={`/hosts/${s.hostId}`} className="text-accent-blue hover:underline">
+                      {s.hostId}
+                    </Link>{" "}
+                    <span className="text-fg-muted">{s.slice}</span>
+                    <span className="text-fg-faint"> · since </span>
+                    <span className="text-fg-muted">{formatUtc(s.staleSince)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </Card>
 
       <Card title="Fleet overview">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">

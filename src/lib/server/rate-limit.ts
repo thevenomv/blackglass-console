@@ -1,0 +1,42 @@
+/**
+ * In-memory token buckets per client key (adequate for demo / single-region stubs).
+ */
+
+type Bucket = number[];
+
+const buckets = new Map<string, Bucket>();
+
+function prune(now: number, windowMs: number, arr: Bucket): Bucket {
+  return arr.filter((t) => now - t < windowMs);
+}
+
+function allow(key: string, limit: number, windowMs: number): boolean {
+  const now = Date.now();
+  const pruned = prune(now, windowMs, buckets.get(key) ?? []);
+  if (pruned.length >= limit) {
+    buckets.set(key, pruned);
+    return false;
+  }
+  pruned.push(now);
+  buckets.set(key, pruned);
+  return true;
+}
+
+export function clientIp(request: Request): string {
+  const xf = request.headers.get("x-forwarded-for");
+  if (xf) {
+    const first = xf.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return "local";
+}
+
+/** POST /api/v1/scans — enqueue abuse guard */
+export function checkScanPostRate(ip: string): boolean {
+  return allow(`scan:post:${ip}`, 24, 60_000);
+}
+
+/** GET /api/v1/scans/:id — polling guard */
+export function checkScanPollRate(ip: string): boolean {
+  return allow(`scan:get:${ip}`, 320, 60_000);
+}

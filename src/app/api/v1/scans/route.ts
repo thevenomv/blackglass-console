@@ -1,7 +1,12 @@
 import { enqueueScan } from "@/lib/server/scan-jobs";
+import { checkScanPostRate, clientIp } from "@/lib/server/rate-limit";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
+  if (!checkScanPostRate(clientIp(request))) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
+
   let host_ids: string[] = [];
   try {
     const body = (await request.json()) as { host_ids?: string[] };

@@ -25,6 +25,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: OpenAPI vs route handlers
+        run: npm run check:openapi
+
       - name: Build
         run: npm run build
 

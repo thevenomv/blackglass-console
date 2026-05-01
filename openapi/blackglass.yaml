@@ -19,6 +19,63 @@ tags:
   - name: Reports
 
 paths:
+  /fleet/snapshot:
+    get:
+      tags: [Hosts]
+      summary: Fleet KPI snapshot including collector coverage
+      responses:
+        "200":
+          description: Snapshot payload
+          content:
+            application/json:
+              schema: { type: object }
+
+  /audit/events:
+    get:
+      tags: [Hosts]
+      summary: Recent audit entries (demo stub)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 80, maximum: 200 }
+      responses:
+        "200":
+          description: Tail of audit log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        ts: { type: string, format: date-time }
+                        action: { type: string }
+                        detail: { type: string }
+                        actor: { type: string, nullable: true }
+    post:
+      tags: [Hosts]
+      summary: Append audit entry (demo stub)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, detail]
+              properties:
+                action: { type: string }
+                detail: { type: string }
+                actor: { type: string }
+      responses:
+        "201":
+          description: Record created
+        "400":
+          description: Invalid body
+
   /hosts:
     get:
       tags: [Hosts]
@@ -335,6 +392,9 @@ components:
         severity:
           type: string
           enum: [high, medium, low]
+        lifecycle:
+          type: string
+          enum: [new, triaged, accepted_risk, remediated, verified]
         title: { type: string }
         rationale: { type: string }
         evidence:
@@ -352,12 +412,15 @@ components:
           type: array
           items:
             type: object
-            properties:
-              path: { type: string }
-              severity: { type: string }
-              summary: { type: string }
-              before: {}
-              after: {}
+              properties:
+                path: { type: string }
+                rule_id: { type: string, nullable: true }
+                severity: { type: string }
+                summary: { type: string }
+                before: {}
+                after: {}
+                before_sha256: { type: string, nullable: true }
+                after_sha256: { type: string, nullable: true }
 
     EvidenceBundleJob:
       type: object

@@ -1,16 +1,24 @@
 "use client";
 
-import type { DriftEvent } from "@/data/mock/types";
+import type { DriftEvent, DriftSeverity, FindingLifecycle } from "@/data/mock/types";
 import { Badge } from "@/components/ui/Badge";
 import { RunScanButton } from "@/components/dashboard/RunScanButton";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DriftInvestigationDrawer } from "@/components/drift/DriftInvestigationDrawer";
-import { useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 const VIRTUAL_THRESHOLD = 48;
+
+const ALL_LIFECYCLES: FindingLifecycle[] = [
+  "new",
+  "triaged",
+  "accepted_risk",
+  "remediated",
+  "verified",
+];
 
 function formatDetected(iso: string) {
   try {
@@ -22,6 +30,25 @@ function formatDetected(iso: string) {
   } catch {
     return iso;
   }
+}
+
+function lifecycleTone(l: FindingLifecycle): "neutral" | "warning" | "success" | "accent" {
+  if (l === "new") return "neutral";
+  if (l === "triaged") return "accent";
+  if (l === "accepted_risk") return "warning";
+  if (l === "remediated" || l === "verified") return "success";
+  return "neutral";
+}
+
+function lifecycleShort(l: FindingLifecycle) {
+  const map: Record<FindingLifecycle, string> = {
+    new: "new",
+    triaged: "triaged",
+    accepted_risk: "risk accepted",
+    remediated: "remediated",
+    verified: "verified",
+  };
+  return map[l];
 }
 
 function DriftTableRow({
@@ -44,10 +71,10 @@ function DriftTableRow({
         }
       }}
     >
-      <div className="min-w-0 flex-[1.1] text-fg-muted">{formatDetected(e.detectedAt)} UTC</div>
-      <div className="w-28 font-mono text-fg-primary">{e.hostId}</div>
-      <div className="min-w-0 flex-1 truncate px-3 text-fg-muted">{e.title}</div>
-      <div className="w-24">
+      <div className="min-w-0 flex-[1.05] text-fg-muted">{formatDetected(e.detectedAt)} UTC</div>
+      <div className="w-24 shrink-0 font-mono text-fg-primary">{e.hostId}</div>
+      <div className="min-w-0 flex-1 truncate px-2 text-fg-muted">{e.title}</div>
+      <div className="w-20 shrink-0">
         <Badge
           tone={
             e.severity === "high"
@@ -60,7 +87,10 @@ function DriftTableRow({
           {e.severity}
         </Badge>
       </div>
-      <div className="w-16 text-right">
+      <div className="w-36 shrink-0 pr-2">
+        <Badge tone={lifecycleTone(e.lifecycle)}>{lifecycleShort(e.lifecycle)}</Badge>
+      </div>
+      <div className="w-14 shrink-0 text-right">
         <button
           type="button"
           className="text-xs font-semibold text-accent-blue hover:underline"
@@ -84,16 +114,56 @@ export function DriftEventsView({
   selected?: DriftEvent;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const parentRef = useRef<HTMLDivElement>(null);
 
+  const severityQ = searchParams.get("severity") as DriftSeverity | null;
+  const lifecycleQ = searchParams.get("lifecycle") as FindingLifecycle | null;
+  const hostQ = searchParams.get("host");
+
+  const patchQuery = useCallback(
+    (updates: Record<string, string | null | undefined>) => {
+      const sp = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(updates)) {
+        if (v === null || v === undefined || v === "") sp.delete(k);
+        else sp.set(k, v);
+      }
+      router.replace(`/drift?${sp.toString()}`);
+    },
+    [router, searchParams],
+  );
+
+  const filtered = useMemo(() => {
+    return events.filter((e) => {
+      if (severityQ && e.severity !== severityQ) return false;
+      if (lifecycleQ && e.lifecycle !== lifecycleQ) return false;
+      if (hostQ && e.hostId !== hostQ) return false;
+      return true;
+    });
+  }, [events, severityQ, lifecycleQ, hostQ]);
+
+  const hostIds = useMemo(
+    () => [...new Set(events.map((e) => e.hostId))].sort(),
+    [events],
+  );
+
+  const driftDrawerBack = useMemo(() => {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.delete("event");
+    const q = sp.toString();
+    return q ? `/drift?${q}` : "/drift";
+  }, [searchParams]);
+
   const openEvent = (id: string) => {
-    router.push(`/drift?event=${id}`);
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set("event", id);
+    router.push(`/drift?${sp.toString()}`);
   };
 
-  const useVirtual = events.length > VIRTUAL_THRESHOLD;
+  const useVirtual = filtered.length > VIRTUAL_THRESHOLD;
 
   const rowVirtualizer = useVirtualizer({
-    count: useVirtual ? events.length : 0,
+    count: useVirtual ? filtered.length : 0,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 52,
     overscan: 8,
@@ -132,23 +202,127 @@ export function DriftEventsView({
           </Link>
         </nav>
 
+        <div
+          className="rounded-card border border-border-subtle bg-bg-panel/70 px-4 py-3"
+          aria-label="Drift list filters"
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+              Severity
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {(["", "high", "medium", "low"] as const).map((v) => (
+                <button
+                  key={v || "all"}
+                  type="button"
+                  onClick={() => patchQuery({ severity: v || null })}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    (severityQ ?? "") === v
+                      ? "border-accent-blue bg-accent-blue-soft/35 text-fg-primary"
+                      : "border-border-default text-fg-muted hover:bg-bg-elevated"
+                  }`}
+                >
+                  {v === "" ? "All" : v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+              Lifecycle
+            </span>
+            <div className="flex max-w-full flex-wrap gap-1.5 overflow-x-auto pb-0.5">
+              <button
+                type="button"
+                onClick={() => patchQuery({ lifecycle: null })}
+                className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                  !lifecycleQ
+                    ? "border-accent-blue bg-accent-blue-soft/35 text-fg-primary"
+                    : "border-border-default text-fg-muted hover:bg-bg-elevated"
+                }`}
+              >
+                All
+              </button>
+              {ALL_LIFECYCLES.map((lc) => (
+                <button
+                  key={lc}
+                  type="button"
+                  onClick={() => patchQuery({ lifecycle: lc })}
+                  className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
+                    lifecycleQ === lc
+                      ? "border-accent-blue bg-accent-blue-soft/35 text-fg-primary"
+                      : "border-border-default text-fg-muted hover:bg-bg-elevated"
+                  }`}
+                >
+                  {lifecycleShort(lc)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-xs text-fg-muted">
+              <span className="font-semibold uppercase tracking-wide text-fg-faint">Host</span>
+              <select
+                value={hostQ ?? ""}
+                onChange={(ev) => patchQuery({ host: ev.target.value || null })}
+                className="rounded-md border border-border-default bg-bg-base px-2 py-1.5 font-mono text-[12px] text-fg-primary outline-none ring-accent-blue focus:ring-2"
+              >
+                <option value="">All hosts</option>
+                {hostIds.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="text-xs font-medium text-accent-blue hover:underline"
+              onClick={() =>
+                patchQuery({
+                  severity: null,
+                  lifecycle: null,
+                  host: null,
+                })
+              }
+            >
+              Clear filters
+            </button>
+          </div>
+        </div>
+
         <div className="overflow-hidden rounded-card border border-border-default bg-bg-panel">
           <div className="flex border-b border-border-subtle px-4 py-3 text-xs uppercase tracking-wide text-fg-faint">
-            <div className="min-w-0 flex-[1.1] font-medium">Detection time</div>
-            <div className="w-28 font-medium">Host</div>
-            <div className="min-w-0 flex-1 px-3 font-medium">Title</div>
-            <div className="w-24 font-medium">Severity</div>
-            <div className="w-16 text-right font-medium"> </div>
+            <div className="min-w-0 flex-[1.05] font-medium">Detection time</div>
+            <div className="w-24 shrink-0 font-medium">Host</div>
+            <div className="min-w-0 flex-1 px-2 font-medium">Title</div>
+            <div className="w-20 shrink-0 font-medium">Severity</div>
+            <div className="w-36 shrink-0 font-medium">Lifecycle</div>
+            <div className="w-14 shrink-0 text-right font-medium"> </div>
           </div>
           <div
             ref={parentRef}
             className="max-h-[min(480px,65vh)] overflow-auto"
             style={useVirtual ? { contain: "strict" } : undefined}
           >
-            {useVirtual ? (
+            {filtered.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-fg-muted">
+                No rows match the current filters —{" "}
+                <button
+                  type="button"
+                  className="font-medium text-accent-blue hover:underline"
+                  onClick={() =>
+                    patchQuery({ severity: null, lifecycle: null, host: null })
+                  }
+                >
+                  reset filters
+                </button>
+                .
+              </p>
+            ) : useVirtual ? (
               <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
                 {rowVirtualizer.getVirtualItems().map((vi) => {
-                  const e = events[vi.index];
+                  const e = filtered[vi.index];
                   return (
                     <div
                       key={e.id}
@@ -164,20 +338,24 @@ export function DriftEventsView({
                 })}
               </div>
             ) : (
-              events.map((e) => <DriftTableRow key={e.id} e={e} onOpen={openEvent} />)
+              filtered.map((e) => <DriftTableRow key={e.id} e={e} onOpen={openEvent} />)
             )}
           </div>
         </div>
 
         <p className="text-xs text-fg-faint">
-          Rows mirror future <span className="font-mono">GET /hosts/:id/drift</span> payloads —
-          severity drives paging policies and webhook routing.
+          Saved views use URL query params (<span className="font-mono">severity</span>,{" "}
+          <span className="font-mono">lifecycle</span>, <span className="font-mono">host</span>,{" "}
+          <span className="font-mono">event</span>) — mirror future{" "}
+          <span className="font-mono">GET /hosts/:id/drift</span> filters.
         </p>
 
         <CardHint />
       </div>
 
-      {selected ? <DriftInvestigationDrawer event={selected} backHref="/drift" /> : null}
+      {selected ? (
+        <DriftInvestigationDrawer event={selected} backHref={driftDrawerBack} />
+      ) : null}
     </>
   );
 }

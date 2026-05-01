@@ -1,4 +1,39 @@
-import type { DriftEvent } from "./types";
+import type { DriftCategory, DriftEvent, FindingLifecycle } from "./types";
+
+const categories: DriftCategory[] = [
+  "network_exposure",
+  "identity",
+  "persistence",
+  "ssh",
+  "firewall",
+  "packages",
+];
+
+const lifecycles: FindingLifecycle[] = [
+  "new",
+  "triaged",
+  "accepted_risk",
+  "remediated",
+  "verified",
+];
+
+const synthetic: DriftEvent[] = [];
+for (let i = 4; i <= 52; i++) {
+  const hostNum = ((i - 1) % 12) + 1;
+  synthetic.push({
+    id: `d-${String(i).padStart(3, "0")}`,
+    hostId: `host-${String(hostNum).padStart(2, "0")}`,
+    category: categories[(i - 1) % categories.length],
+    severity: (["high", "medium", "low"] as const)[(i - 1) % 3],
+    lifecycle: lifecycles[(i - 1) % lifecycles.length],
+    title: `Synthetic integrity delta · signal ${i}`,
+    detectedAt: new Date(Date.UTC(2026, 4, 1, 10 - (i % 8), (i * 11) % 60, 0)).toISOString(),
+    rationale:
+      "Generated row for virtualization, saved-view filters, and lifecycle column demos — replace with collector payloads in production.",
+    evidenceSummary: JSON.stringify({ seed: i, slice: categories[(i - 1) % categories.length] }),
+    suggestedActions: ["Compare to active baseline", "Route to owner squad"],
+  });
+}
 
 export const driftEvents: DriftEvent[] = [
   {
@@ -6,6 +41,7 @@ export const driftEvents: DriftEvent[] = [
     hostId: "host-07",
     category: "network_exposure",
     severity: "high",
+    lifecycle: "triaged",
     title: "Unexpected TCP listener",
     detectedAt: "2026-05-01T07:12:14Z",
     rationale:
@@ -29,6 +65,7 @@ export const driftEvents: DriftEvent[] = [
     hostId: "host-03",
     category: "identity",
     severity: "high",
+    lifecycle: "new",
     title: "New sudo-capable user",
     detectedAt: "2026-05-01T06:55:02Z",
     rationale:
@@ -50,6 +87,7 @@ export const driftEvents: DriftEvent[] = [
     hostId: "host-09",
     category: "persistence",
     severity: "medium",
+    lifecycle: "accepted_risk",
     title: "Enabled systemd unit not in baseline",
     detectedAt: "2026-04-30T22:18:40Z",
     rationale:
@@ -62,6 +100,7 @@ export const driftEvents: DriftEvent[] = [
       verifiedAt: "2026-04-30T22:18:33Z",
     },
   },
+  ...synthetic,
 ];
 
 export function getDriftEvent(id: string): DriftEvent | undefined {

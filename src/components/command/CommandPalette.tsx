@@ -27,6 +27,13 @@ const ROUTES: PaletteItem[] = [
   { id: "hosts", label: "Hosts inventory", href: "/hosts", keywords: "fleet linux" },
   { id: "baselines", label: "Baselines", href: "/baselines", keywords: "snapshot diff" },
   { id: "drift", label: "Drift events", href: "/drift", keywords: "delta integrity" },
+  {
+    id: "workspace",
+    label: "Incident workspace",
+    hint: "INC mock · tasks",
+    href: "/workspace",
+    keywords: "incident runbook",
+  },
   { id: "evidence", label: "Evidence bundles", href: "/evidence", keywords: "export audit" },
   { id: "reports", label: "Reports", href: "/reports", keywords: "pdf digest" },
   { id: "demo", label: "Partner demo script", href: "/demo", keywords: "walkthrough" },

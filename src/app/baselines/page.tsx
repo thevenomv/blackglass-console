@@ -54,6 +54,9 @@ async function BaselineComparisonContent({ hostId }: { hostId: string }) {
                   summary={row.summary}
                   before={row.before}
                   after={row.after}
+                  ruleId={row.ruleId}
+                  beforeSha256={row.beforeSha256}
+                  afterSha256={row.afterSha256}
                 />
               ))}
             </div>

@@ -8,7 +8,17 @@ import { Suspense } from "react";
 async function DriftBody({ eventId }: { eventId?: string }) {
   await mockLatency(240);
   const selected = eventId ? getDriftEvent(eventId) : undefined;
-  return <DriftEventsView events={driftEvents} selected={selected} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="px-6 pb-10 pt-6">
+          <TableSkeletonRows rows={8} />
+        </div>
+      }
+    >
+      <DriftEventsView events={driftEvents} selected={selected} />
+    </Suspense>
+  );
 }
 
 export default async function DriftPage({

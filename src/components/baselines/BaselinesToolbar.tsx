@@ -47,6 +47,16 @@ export function BaselinesToolbar() {
         onConfirm={() => {
           setConfirmOpen(false);
           const trimmed = note.trim();
+          void fetch("/api/v1/audit/events", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "baseline_accept",
+              detail: trimmed.length
+                ? trimmed
+                : "accepted without rationale note (stub queue)",
+            }),
+          });
           setBanner(
             trimmed.length
               ? `Baseline acceptance queued (stub) — audit note recorded: ${trimmed}`

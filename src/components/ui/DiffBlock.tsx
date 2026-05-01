@@ -35,6 +35,9 @@ export function DiffBlock({
   summary,
   before,
   after,
+  ruleId,
+  beforeSha256,
+  afterSha256,
 }: {
   path: string;
   change: DiffChangeType;
@@ -42,6 +45,9 @@ export function DiffBlock({
   summary: string;
   before?: string;
   after?: string;
+  ruleId?: string;
+  beforeSha256?: string;
+  afterSha256?: string;
 }) {
   return (
     <article className="rounded-card border border-border-default bg-bg-base/50 p-4">
@@ -49,8 +55,25 @@ export function DiffBlock({
         <DiffChangeMarker change={change} />
         <Badge tone={severityTone(severity)}>{severity}</Badge>
         <span className="font-mono text-[13px] text-fg-primary">{path}</span>
+        {ruleId ? (
+          <span className="font-mono text-[11px] text-fg-faint" title="Rule id">
+            {ruleId}
+          </span>
+        ) : null}
       </div>
       <p className="mt-3 text-sm text-fg-muted">{summary}</p>
+      {(beforeSha256 !== undefined || afterSha256 !== undefined) && (
+        <dl className="mt-3 grid gap-2 font-mono text-[11px] text-fg-faint sm:grid-cols-2">
+          <div>
+            <dt className="text-fg-faint">Baseline hash (trunc.)</dt>
+            <dd className="mt-0.5 text-fg-muted">{beforeSha256 ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-fg-faint">Current hash (trunc.)</dt>
+            <dd className="mt-0.5 text-fg-muted">{afterSha256 ?? "—"}</dd>
+          </div>
+        </dl>
+      )}
       {(before !== undefined || after !== undefined) && (
         <dl className="mt-4 grid gap-3 font-mono text-[12px] sm:grid-cols-2">
           <div className="rounded-md border border-border-subtle bg-bg-panel px-3 py-2">
