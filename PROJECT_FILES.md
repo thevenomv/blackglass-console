@@ -59,6 +59,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `architecture-flow.md` | **Five-step product spine**; baseline → scan → drift → investigate → export; health semantics |
 | `doppler-digitalocean-setup.md` | Doppler + DO App Platform |
 | `staging-deployment-checklist.md` | Pre-external pilot deploy gates |
+| `do-list.md` | Post-deploy / DO follow-up checklist (Stage 0+) |
 | `saas-customer-roadmap.md` | Stages 0–4: internal → multi-tenant → enterprise |
 
 ---
