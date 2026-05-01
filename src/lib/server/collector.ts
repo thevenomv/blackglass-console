@@ -72,14 +72,20 @@ function sshConfig(): ConnectConfig & { hostId: string; displayName: string } {
   if (!host) throw new Error("COLLECTOR_HOST_1 env var not set");
   if (!privateKey) throw new Error("SSH_PRIVATE_KEY env var not set");
 
+  // Normalize key: App Platform / CI may store newlines as literal \n or use CRLF.
+  const normalizedKey = privateKey
+    .replace(/\\n/g, "\n")  // literal \n → real newline
+    .replace(/\r\n/g, "\n") // CRLF → LF
+    .trim();
+
   return {
     hostId: `host-${host.replace(/\./g, "-")}`,
     displayName: process.env.COLLECTOR_HOST_1_NAME ?? host,
     host,
     port: Number(process.env.COLLECTOR_PORT ?? 22),
     username: user,
-    privateKey,
-    readyTimeout: 10_000,
+    privateKey: normalizedKey,
+    readyTimeout: 15_000,
     // Never prompt; fail fast if key is wrong
     tryKeyboard: false,
   };
@@ -169,7 +175,12 @@ async function runCollection(
       }
     });
 
-    conn.connect(cfg);
+    try {
+      conn.connect(cfg);
+    } catch (e) {
+      // ssh2 may throw synchronously on key parse failure
+      reject(new Error(`SSH connect failed: ${(e as Error).message}`));
+    }
   });
 }
 
@@ -280,7 +291,15 @@ export function collectorConfigured(): boolean {
 }
 
 /** Collect a live snapshot from the configured host. Throws on SSH error. */
+const COLLECTION_TIMEOUT_MS = 20_000;
+
 export async function collectSnapshot(): Promise<HostSnapshot> {
   const cfg = sshConfig();
-  return runCollection(cfg);
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`SSH collection timed out after ${COLLECTION_TIMEOUT_MS / 1000}s`)),
+      COLLECTION_TIMEOUT_MS,
+    ),
+  );
+  return Promise.race([runCollection(cfg), timeout]);
 }
