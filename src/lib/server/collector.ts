@@ -191,14 +191,16 @@ async function runCollection(
 function parseListeners(raw: string): ListeningPort[] {
   const results: ListeningPort[] = [];
   for (const line of raw.split("\n")) {
-    // ss output: State Recv-Q Send-Q Local-Address:Port Peer ...  users:(("proc",pid,fd))
-    const m = line.match(/^(?:tcp|udp)\s+LISTEN\s+\d+\s+\d+\s+([\d.*:[\]a-f]+):(\d+)\s/i);
+    // ss -tlnp tabular format: LISTEN Recv-Q Send-Q Local:Port Peer users:((...))
+    // -t = TCP only (no proto column), lines start with LISTEN/State
+    const m = line.match(/^LISTEN\s+\d+\s+\d+\s+([\d.*:[\]a-f%\w]+):(\d+)\s/i);
     if (!m) continue;
-    const proto = line.startsWith("udp") ? "udp" : "tcp";
-    const bind = m[1].replace(/^\[/, "").replace(/\]$/, "");
+    const bind = m[1].replace(/^\[/, "").replace(/\]$/, "").replace(/%\w+$/, "");
     const port = parseInt(m[2], 10);
+    // Skip loopback-only listeners (127.x.x.x, ::1)
+    if (bind.startsWith("127.") || bind === "::1") continue;
     const procM = line.match(/users:\(\("([^"]+)"/);
-    results.push({ proto, bind, port, process: procM?.[1] });
+    results.push({ proto: "tcp", bind, port, process: procM?.[1] });
   }
   return results;
 }
