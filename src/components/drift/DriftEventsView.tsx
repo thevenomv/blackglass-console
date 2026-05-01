@@ -10,6 +10,8 @@ import { DriftInvestigationDrawer } from "@/components/drift/DriftInvestigationD
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+const VIRTUAL_THRESHOLD = 48;
+
 function formatDetected(iso: string) {
   try {
     return new Intl.DateTimeFormat("en-GB", {
@@ -20,6 +22,58 @@ function formatDetected(iso: string) {
   } catch {
     return iso;
   }
+}
+
+function DriftTableRow({
+  e,
+  onOpen,
+}: {
+  e: DriftEvent;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className="flex w-full cursor-pointer items-center border-b border-border-subtle px-4 py-3 text-sm hover:bg-bg-elevated"
+      onClick={() => onOpen(e.id)}
+      onKeyDown={(ev) => {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          onOpen(e.id);
+        }
+      }}
+    >
+      <div className="min-w-0 flex-[1.1] text-fg-muted">{formatDetected(e.detectedAt)} UTC</div>
+      <div className="w-28 font-mono text-fg-primary">{e.hostId}</div>
+      <div className="min-w-0 flex-1 truncate px-3 text-fg-muted">{e.title}</div>
+      <div className="w-24">
+        <Badge
+          tone={
+            e.severity === "high"
+              ? "danger"
+              : e.severity === "medium"
+                ? "warning"
+                : "neutral"
+          }
+        >
+          {e.severity}
+        </Badge>
+      </div>
+      <div className="w-16 text-right">
+        <button
+          type="button"
+          className="text-xs font-semibold text-accent-blue hover:underline"
+          onClick={(ev) => {
+            ev.stopPropagation();
+            onOpen(e.id);
+          }}
+        >
+          Open
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function DriftEventsView({
@@ -36,11 +90,14 @@ export function DriftEventsView({
     router.push(`/drift?event=${id}`);
   };
 
+  const useVirtual = events.length > VIRTUAL_THRESHOLD;
+
   const rowVirtualizer = useVirtualizer({
-    count: events.length,
+    count: useVirtual ? events.length : 0,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 52,
     overscan: 8,
+    enabled: useVirtual,
   });
 
   return (
@@ -49,8 +106,31 @@ export function DriftEventsView({
         <PageHeader
           title="Drift"
           subtitle="High-signal deltas grouped by integrity class — open an event to investigate."
+          breadcrumbs={[
+            { href: "/", label: "Dashboard" },
+            { href: "/drift", label: "Drift" },
+          ]}
           actions={<RunScanButton />}
         />
+
+        <nav
+          aria-label="Integrity workflow shortcuts"
+          className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted"
+        >
+          <Link href="/baselines" className="font-medium text-accent-blue hover:underline">
+            Baselines
+          </Link>
+          <span aria-hidden className="text-fg-faint">
+            →
+          </span>
+          <span className="font-medium text-fg-primary">Drift triage</span>
+          <span aria-hidden className="text-fg-faint">
+            →
+          </span>
+          <Link href="/evidence" className="font-medium text-accent-blue hover:underline">
+            Evidence export
+          </Link>
+        </nav>
 
         <div className="overflow-hidden rounded-card border border-border-default bg-bg-panel">
           <div className="flex border-b border-border-subtle px-4 py-3 text-xs uppercase tracking-wide text-fg-faint">
@@ -63,63 +143,29 @@ export function DriftEventsView({
           <div
             ref={parentRef}
             className="max-h-[min(480px,65vh)] overflow-auto"
-            style={{ contain: "strict" }}
+            style={useVirtual ? { contain: "strict" } : undefined}
           >
-            <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
-              {rowVirtualizer.getVirtualItems().map((vi) => {
-                const e = events[vi.index];
-                return (
-                  <div
-                    key={e.id}
-                    role="button"
-                    tabIndex={0}
-                    className="absolute left-0 top-0 flex w-full cursor-pointer items-center border-b border-border-subtle px-4 py-3 text-sm hover:bg-bg-elevated"
-                    style={{
-                      height: `${vi.size}px`,
-                      transform: `translateY(${vi.start}px)`,
-                    }}
-                    onClick={() => openEvent(e.id)}
-                    onKeyDown={(ev) => {
-                      if (ev.key === "Enter" || ev.key === " ") {
-                        ev.preventDefault();
-                        openEvent(e.id);
-                      }
-                    }}
-                  >
-                    <div className="min-w-0 flex-[1.1] text-fg-muted">
-                      {formatDetected(e.detectedAt)} UTC
+            {useVirtual ? (
+              <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
+                {rowVirtualizer.getVirtualItems().map((vi) => {
+                  const e = events[vi.index];
+                  return (
+                    <div
+                      key={e.id}
+                      className="absolute left-0 top-0 w-full"
+                      style={{
+                        height: `${vi.size}px`,
+                        transform: `translateY(${vi.start}px)`,
+                      }}
+                    >
+                      <DriftTableRow e={e} onOpen={openEvent} />
                     </div>
-                    <div className="w-28 font-mono text-fg-primary">{e.hostId}</div>
-                    <div className="min-w-0 flex-1 truncate px-3 text-fg-muted">{e.title}</div>
-                    <div className="w-24">
-                      <Badge
-                        tone={
-                          e.severity === "high"
-                            ? "danger"
-                            : e.severity === "medium"
-                              ? "warning"
-                              : "neutral"
-                        }
-                      >
-                        {e.severity}
-                      </Badge>
-                    </div>
-                    <div className="w-16 text-right">
-                      <button
-                        type="button"
-                        className="text-xs font-semibold text-accent-blue hover:underline"
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          openEvent(e.id);
-                        }}
-                      >
-                        Open
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              events.map((e) => <DriftTableRow key={e.id} e={e} onOpen={openEvent} />)
+            )}
           </div>
         </div>
 

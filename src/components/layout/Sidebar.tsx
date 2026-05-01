@@ -15,7 +15,7 @@ const NAV = [
   { href: "/settings", label: "Settings" },
 ] as const;
 
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -38,6 +38,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => onNavigate?.()}
               className={`relative rounded-md px-3 py-2 text-sm transition-colors duration-150 ${
                 active
                   ? "bg-bg-elevated text-fg-primary before:absolute before:left-0 before:top-1 before:h-[calc(100%-8px)] before:w-[3px] before:rounded-full before:bg-accent-blue"
@@ -54,6 +55,9 @@ export function Sidebar() {
           Appearance
         </p>
         <ThemeToggle />
+        <p className="mt-2 font-mono text-[10px] text-fg-faint">
+          Palette: <kbd className="rounded border border-border-subtle px-1">⌘K</kbd>
+        </p>
       </div>
     </aside>
   );

@@ -20,6 +20,36 @@ const STEPS = [
   },
 ];
 
+const PERSONAS = [
+  {
+    title: "SOC analyst",
+    intent: "Prioritize noisy listeners and identity deltas.",
+    links: [
+      { href: "/drift", label: "Drift queue" },
+      { href: "/hosts/host-07", label: "Hot host host-07" },
+      { href: "/", label: "Fleet dashboard" },
+    ],
+  },
+  {
+    title: "SRE / platform",
+    intent: "Verify baselines after change windows and scan coverage.",
+    links: [
+      { href: "/baselines", label: "Baseline diff" },
+      { href: "/hosts", label: "Hosts inventory" },
+      { href: "/demo", label: "Reload this script" },
+    ],
+  },
+  {
+    title: "Auditor",
+    intent: "Read-only drift review and evidence exports.",
+    links: [
+      { href: "/evidence", label: "Evidence bundles" },
+      { href: "/reports", label: "Reports" },
+      { href: "/login", label: "Pick auditor role" },
+    ],
+  },
+];
+
 export default function DemoPage() {
   return (
     <AppShell>
@@ -29,9 +59,39 @@ export default function DemoPage() {
           <h1 className="mt-2 text-xl font-semibold text-fg-primary">Partner demo script</h1>
           <p className="mt-2 text-sm text-fg-muted">
             Four-stop flow for design partners — links jump straight into the console surfaces that
-            engineers will extend against real collectors.
+            engineers will extend against real collectors. Use{" "}
+            <kbd className="rounded border border-border-subtle px-1 font-mono text-[11px]">⌘K</kbd>{" "}
+            for quick navigation anywhere.
           </p>
         </div>
+
+        <section aria-labelledby="personas-heading">
+          <h2 id="personas-heading" className="text-sm font-semibold text-fg-primary">
+            Guided entry points
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {PERSONAS.map((p) => (
+              <div
+                key={p.title}
+                className="rounded-card border border-border-default bg-bg-panel px-4 py-3"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-accent-blue">
+                  {p.title}
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-fg-muted">{p.intent}</p>
+                <ul className="mt-3 space-y-1.5 text-xs">
+                  {p.links.map((l) => (
+                    <li key={l.href}>
+                      <Link href={l.href} className="font-medium text-accent-blue hover:underline">
+                        {l.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <ol className="space-y-5">
           {STEPS.map((s, i) => (

@@ -17,6 +17,12 @@ export const driftEvents: DriftEvent[] = [
       "If unintended, terminate listener and reload firewall.",
       "Re-scan after remediation to close finding.",
     ],
+    provenance: {
+      collector: "blackglass-collector v2.4 · host-07",
+      confidenceLabel: "High — multi-signal correlation",
+      modelVersion: "drift-engine 2026.04",
+      verifiedAt: "2026-05-01T07:12:01Z",
+    },
   },
   {
     id: "d-002",
@@ -32,6 +38,12 @@ export const driftEvents: DriftEvent[] = [
       "Confirm provisioning workflow.",
       "Audit sudoers drop-ins for unintended NOPASSWD.",
     ],
+    provenance: {
+      collector: "identity-slice · LDAP hint",
+      confidenceLabel: "Medium — NSS shadow delta",
+      modelVersion: "drift-engine 2026.04",
+      verifiedAt: "2026-05-01T06:54:50Z",
+    },
   },
   {
     id: "d-003",
@@ -44,6 +56,11 @@ export const driftEvents: DriftEvent[] = [
       "Boot-resident units are a common persistence vector; alignment with baseline reduces unknown persistence.",
     evidenceSummary: "foobar.service enabled; WantedBy=multi-user.target",
     suggestedActions: ["Disable unit if not approved.", "Document vendor requirement if legitimate."],
+    provenance: {
+      collector: "systemd inventory sweep",
+      confidenceLabel: "Medium — unit hash drift only",
+      verifiedAt: "2026-04-30T22:18:33Z",
+    },
   },
 ];
 

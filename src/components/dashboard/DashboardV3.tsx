@@ -7,6 +7,7 @@ import { ProgressRow } from "@/components/ui/ProgressBar";
 import Link from "next/link";
 
 export function DashboardV3({ fleet }: { fleet: FleetSnapshot }) {
+  const attention = fleet.highRiskDrift > 0;
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-8 pt-6">
@@ -16,28 +17,62 @@ export function DashboardV3({ fleet }: { fleet: FleetSnapshot }) {
             Fleet dashboard
           </h1>
           <p className="mt-1 text-sm text-fg-muted">
-            Production hosts · drift, integrity and readiness
+            Production hosts · drift, integrity and readiness — prioritize attention items first.
           </p>
         </div>
         <RunScanButton />
       </header>
 
+      {attention ? (
+        <div
+          role="region"
+          aria-label="Fleet attention"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-danger/40 bg-danger-soft/35 px-4 py-3 text-sm"
+        >
+          <p className="text-fg-primary">
+            <span className="font-semibold text-danger">{fleet.highRiskDrift}</span>{" "}
+            high-risk drift signal{fleet.highRiskDrift === 1 ? "" : "s"} require review before new
+            baselines ship.
+          </p>
+          <Link
+            href="/drift"
+            className="shrink-0 font-medium text-accent-blue hover:underline"
+          >
+            Open drift queue
+          </Link>
+        </div>
+      ) : (
+        <div
+          role="region"
+          aria-label="Fleet drift summary"
+          className="rounded-card border border-success/35 bg-success-soft/25 px-4 py-3 text-sm text-fg-muted"
+        >
+          No high-risk drift in the latest sweep — continue monitoring notable hosts below.
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Hosts checked"
           value={fleet.hostsChecked}
-          sublabel="Across active fleet"
+          sublabel="Telemetry coverage this window"
         />
         <KpiCard
           label="High-risk drift"
           value={fleet.highRiskDrift}
-          sublabel="Needs review"
+          sublabel="Needs operator review"
+          tone="risk"
         />
-        <KpiCard label="Ready hosts" value={fleet.readyHosts} sublabel="Baseline aligned" />
+        <KpiCard
+          label="Ready hosts"
+          value={fleet.readyHosts}
+          sublabel="Baseline aligned posture"
+          tone="positive"
+        />
         <KpiCard
           label="Evidence bundles"
           value={fleet.evidenceBundles}
-          sublabel="Fresh exports"
+          sublabel="Exports retained"
         />
       </div>
 
@@ -71,22 +106,47 @@ export function DashboardV3({ fleet }: { fleet: FleetSnapshot }) {
               </ul>
             </div>
           </div>
-          <div className="w-full shrink-0 lg:w-48">
+          <div className="w-full shrink-0 lg:w-56">
             <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">
-              Drift volume
+              Drift volume (index)
             </p>
-            <div className="mt-3 flex h-28 items-end justify-between gap-2">
+            <p id="drift-chart-summary" className="sr-only">
+              Bar chart of drift index by day for the last six days. Numeric values are listed in the
+              hidden data table below for screen readers.
+            </p>
+            <div
+              className="mt-3 flex h-28 items-end justify-between gap-2"
+              role="img"
+              aria-labelledby="drift-chart-summary"
+            >
               {fleet.driftVolumeByDay.map((b) => (
                 <div key={b.day} className="flex flex-1 flex-col items-center gap-2">
                   <div
                     className="w-full max-w-[28px] rounded-sm bg-accent-blue/25 hover:bg-accent-blue/45"
                     style={{ height: `${b.valuePct}%` }}
-                    title={`${b.day}: drift index ${b.valuePct}`}
+                    title={`${b.day}: drift index ${b.valuePct}%`}
                   />
                   <span className="text-[10px] text-fg-faint">{b.day}</span>
                 </div>
               ))}
             </div>
+            <table className="sr-only">
+              <caption>Drift volume index by day</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Day label</th>
+                  <th scope="col">Drift index (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fleet.driftVolumeByDay.map((b) => (
+                  <tr key={b.day}>
+                    <td>{b.day}</td>
+                    <td>{b.valuePct}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </Card>

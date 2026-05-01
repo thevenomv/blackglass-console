@@ -1,5 +1,6 @@
 "use client";
 
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import type { DriftEvent } from "@/data/mock/types";
@@ -27,6 +28,11 @@ function severityLabel(s: DriftEvent["severity"]) {
   return "Low";
 }
 
+function formatVerified(iso?: string) {
+  if (!iso) return "—";
+  return formatDetected(iso);
+}
+
 type Workflow = "open" | "acknowledged" | "approved";
 
 export function DriftInvestigationDrawer({
@@ -46,6 +52,7 @@ export function DriftInvestigationDrawer({
 
   const trapRef = useFocusTrap(true, close);
   const canMutate = !loading && allowed("driftMutation");
+  const prov = event.provenance;
 
   return (
     <div
@@ -112,12 +119,51 @@ export function DriftInvestigationDrawer({
             <p className="text-sm leading-relaxed text-fg-muted">{event.rationale}</p>
           </section>
 
-          <section className="mt-6 space-y-2">
-            <h3 className="text-sm font-medium text-fg-primary">Raw details</h3>
-            <pre className="overflow-x-auto whitespace-pre-wrap rounded-card border border-border-default bg-bg-panel p-3 font-mono text-[12px] leading-relaxed text-fg-muted">
-              {event.evidenceSummary}
-            </pre>
+          <section className="mt-6 space-y-3">
+            <h3 className="text-sm font-medium text-fg-primary">Provenance</h3>
+            <dl className="grid gap-2 rounded-card border border-border-subtle bg-bg-panel px-4 py-3 text-sm">
+              <div className="flex flex-wrap justify-between gap-2">
+                <dt className="text-fg-faint">Collector / slice</dt>
+                <dd className="font-mono text-[12px] text-fg-primary">{prov?.collector ?? "—"}</dd>
+              </div>
+              <div className="flex flex-wrap justify-between gap-2">
+                <dt className="text-fg-faint">Confidence</dt>
+                <dd className="text-fg-muted">{prov?.confidenceLabel ?? "Derived from mock payload"}</dd>
+              </div>
+              {prov?.modelVersion ? (
+                <div className="flex flex-wrap justify-between gap-2">
+                  <dt className="text-fg-faint">Model</dt>
+                  <dd className="font-mono text-[12px] text-fg-muted">{prov.modelVersion}</dd>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap justify-between gap-2">
+                <dt className="text-fg-faint">Verified ingest</dt>
+                <dd className="font-mono text-[12px] text-fg-muted">{formatVerified(prov?.verifiedAt)} UTC</dd>
+              </div>
+            </dl>
           </section>
+
+          <section className="mt-6 space-y-3">
+            <h3 className="text-sm font-medium text-fg-primary">Signal timeline</h3>
+            <ul className="space-y-3 border-l-2 border-border-default pl-4 text-sm text-fg-muted">
+              <li>
+                <p className="font-medium text-fg-primary">Collector ingested</p>
+                <p className="font-mono text-[12px]">{formatVerified(prov?.verifiedAt)} UTC</p>
+              </li>
+              <li>
+                <p className="font-medium text-fg-primary">Drift engine scored</p>
+                <p className="font-mono text-[12px]">{formatDetected(event.detectedAt)} UTC</p>
+              </li>
+            </ul>
+          </section>
+
+          <div className="mt-6 space-y-3">
+            <CollapsibleSection title="Raw observation payload" defaultOpen={false}>
+              <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[12px] leading-relaxed text-fg-muted">
+                {event.evidenceSummary}
+              </pre>
+            </CollapsibleSection>
+          </div>
 
           <section className="mt-6 space-y-2">
             <h3 className="text-sm font-medium text-fg-primary">Recommended action</h3>
@@ -129,7 +175,7 @@ export function DriftInvestigationDrawer({
           </section>
         </div>
 
-        <footer className="flex flex-col gap-3 border-t border-border-subtle px-6 py-4">
+        <footer className="shrink-0 border-t border-border-subtle bg-bg-elevated px-6 py-4">
           {!loading && !canMutate ? (
             <p className="text-xs text-fg-faint">
               Auditor role cannot acknowledge or approve drift — escalate to an operator or admin.

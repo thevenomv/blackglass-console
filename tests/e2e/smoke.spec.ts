@@ -53,7 +53,7 @@ test.describe("BLACKGLASS console smoke", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Run scan" }).click();
     await expect(page.getByText("Fleet integrity scan")).toBeVisible();
-    await expect(page.getByRole("status")).toBeVisible();
+    await expect(page.getByRole("status", { name: /active integrity scans/i })).toBeVisible();
   });
 
   test("hosts table loads", async ({ page }) => {

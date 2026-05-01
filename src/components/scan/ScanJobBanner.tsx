@@ -14,6 +14,7 @@ export function ScanJobBanner() {
       className="sticky top-0 z-50 border-b border-border-default bg-bg-elevated/95 px-6 py-3 backdrop-blur-sm"
       role="status"
       aria-live="polite"
+      aria-label="Active integrity scans"
     >
       <div className="mx-auto flex max-w-[1400px] flex-col gap-3">
         {active.map((j) => (

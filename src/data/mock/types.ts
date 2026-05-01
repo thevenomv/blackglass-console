@@ -22,6 +22,13 @@ export type DriftCategory =
   | "firewall"
   | "packages";
 
+export type DriftProvenance = {
+  collector: string;
+  confidenceLabel: string;
+  modelVersion?: string;
+  verifiedAt?: string;
+};
+
 export type DriftEvent = {
   id: string;
   hostId: string;
@@ -32,6 +39,7 @@ export type DriftEvent = {
   rationale: string;
   evidenceSummary: string;
   suggestedActions: string[];
+  provenance?: DriftProvenance;
 };
 
 export type FleetSnapshot = {

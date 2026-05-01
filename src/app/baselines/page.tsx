@@ -102,6 +102,10 @@ export default async function BaselinesPage({
         <PageHeader
           title="Baseline comparison"
           subtitle={`Trusted snapshot versus latest integrity read · ${hostId}`}
+          breadcrumbs={[
+            { href: "/", label: "Dashboard" },
+            { href: "/baselines", label: "Baselines" },
+          ]}
           actions={<BaselinesToolbar />}
         />
 

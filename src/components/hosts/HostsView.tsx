@@ -73,6 +73,10 @@ export function HostsView({ hosts }: { hosts: HostRecord[] }) {
       <PageHeader
         title="Hosts"
         subtitle="Inventory, readiness, and entry points into integrity review."
+        breadcrumbs={[
+          { href: "/", label: "Dashboard" },
+          { href: "/hosts", label: "Hosts" },
+        ]}
         actions={<RunScanButton />}
       />
 

@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const variants: Record<
   Variant,
@@ -11,6 +11,8 @@ const variants: Record<
   secondary:
     "border border-border-default bg-transparent text-fg-primary hover:bg-bg-elevated",
   ghost: "text-fg-muted hover:text-fg-primary hover:bg-bg-elevated bg-transparent",
+  danger:
+    "bg-danger text-white hover:bg-danger/90 border border-transparent shadow-none",
 };
 
 export function Button({
