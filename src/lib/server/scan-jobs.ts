@@ -4,6 +4,12 @@ export type ScanJobRecord = {
   id: string;
   createdAt: number;
   hostIds: string[];
+  /** Actual terminal status when real collection is used */
+  resolvedStatus?: "succeeded" | "failed";
+  resolvedAt?: number;
+  resolvedDetail?: string;
+  /** Number of drift events found (real scans only) */
+  driftCount?: number;
 };
 
 const GLOBAL_KEY = "__blackglass_scan_jobs_v1" as const;
@@ -28,11 +34,25 @@ export function enqueueScan(hostIds: string[]): ScanJobRecord {
   return rec;
 }
 
+export function resolveScan(
+  id: string,
+  status: "succeeded" | "failed",
+  detail: string,
+  driftCount?: number,
+): void {
+  const rec = jobs().get(id);
+  if (!rec) return;
+  rec.resolvedStatus = status;
+  rec.resolvedAt = Date.now();
+  rec.resolvedDetail = detail;
+  if (driftCount !== undefined) rec.driftCount = driftCount;
+}
+
 export function getScanRecord(id: string): ScanJobRecord | undefined {
   return jobs().get(id);
 }
 
-/** Derive live status from monotonic clock — stateless between polls. */
+/** Derive live status — uses real resolution when available, else clock-based mock. */
 export function projectScanJob(rec: ScanJobRecord): {
   id: string;
   status: ScanJobStatus;
@@ -40,6 +60,19 @@ export function projectScanJob(rec: ScanJobRecord): {
   detail: string;
   host_ids: string[];
 } {
+  // Real collector already finished
+  if (rec.resolvedStatus) {
+    return {
+      id: rec.id,
+      status: rec.resolvedStatus,
+      progress: rec.resolvedStatus === "succeeded" ? 100 : 0,
+      detail: rec.resolvedDetail ?? (rec.resolvedStatus === "succeeded"
+        ? `Snapshot merged · ${rec.driftCount ?? 0} drift signal${rec.driftCount !== 1 ? "s" : ""} found`
+        : "Collection failed"),
+      host_ids: rec.hostIds,
+    };
+  }
+
   const elapsed = Date.now() - rec.createdAt;
   let status: ScanJobStatus = "queued";
   let progress = 0;

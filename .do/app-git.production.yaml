@@ -58,3 +58,21 @@ services:
       - key: AUTH_REQUIRED
         value: "true"
         scope: RUN_TIME
+      # --- SSH Collector (optional — set to enable real telemetry collection)
+      # COLLECTOR_HOST_1: IP or hostname of the target server (e.g. 165.227.229.48)
+      - key: COLLECTOR_HOST_1
+        value: ""
+        scope: RUN_TIME
+      # COLLECTOR_HOST_1_NAME: display label for the host in the UI
+      - key: COLLECTOR_HOST_1_NAME
+        value: ""
+        scope: RUN_TIME
+      # COLLECTOR_USER: SSH username on the target (default: blackglass)
+      - key: COLLECTOR_USER
+        value: blackglass
+        scope: RUN_TIME
+      # SSH_PRIVATE_KEY: PEM-encoded SSH private key (type: SECRET — fill after deploy)
+      - key: SSH_PRIVATE_KEY
+        value: ""
+        scope: RUN_TIME
+        type: SECRET
