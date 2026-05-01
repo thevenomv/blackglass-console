@@ -41,7 +41,7 @@ export function WorkspaceConsole({
         subtitle={`${incidentId} · scoped host ${hostId} — coordination surface for operators (mock).`}
         breadcrumbs={[
           { href: "/", label: "Dashboard" },
-          { href: "/workspace", label: "Workspace" },
+          { href: `/workspace?incident=${encodeURIComponent(incidentId)}&host=${encodeURIComponent(hostId)}`, label: "Workspace" },
         ]}
       />
 

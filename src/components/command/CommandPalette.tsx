@@ -60,6 +60,34 @@ function matches(q: string, item: PaletteItem) {
   return hay.includes(n);
 }
 
+const RECENT_KEY = "bg-recent-pages";
+const MAX_RECENT = 5;
+
+function readRecent(): PaletteItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    if (!raw) return [];
+    const ids = JSON.parse(raw) as string[];
+    return ids
+      .map((id) => ROUTES.find((r) => r.id === id))
+      .filter((r): r is PaletteItem => r !== undefined);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecent(item: PaletteItem) {
+  if (!item.href) return;
+  try {
+    const current = readRecent();
+    const next = [item, ...current.filter((r) => r.id !== item.id)].slice(0, MAX_RECENT);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next.map((r) => r.id)));
+  } catch {
+    // storage not available — silently skip
+  }
+}
+
 export function CommandPalette() {
   const router = useRouter();
   const { loading, allowed } = useSession();
@@ -67,6 +95,7 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  const [recents, setRecents] = useState<PaletteItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const trapRef = useFocusTrap(open, () => setOpen(false));
 
@@ -106,6 +135,7 @@ export function CommandPalette() {
       setQuery("");
       return;
     }
+    setRecents(readRecent());
     const t = window.setTimeout(() => inputRef.current?.focus(), 0);
     return () => window.clearTimeout(t);
   }, [open]);
@@ -116,8 +146,12 @@ export function CommandPalette() {
       if (!item) return;
       setOpen(false);
       setQuery("");
-      if (item.href) router.push(item.href);
-      else void item.action?.();
+      if (item.href) {
+        persistRecent(item);
+        router.push(item.href);
+      } else {
+        void item.action?.();
+      }
     },
     [items, router],
   );
@@ -172,26 +206,60 @@ export function CommandPalette() {
           </p>
         </div>
         <ul className="flex-1 overflow-y-auto p-2" role="listbox">
+          {!query && recents.length > 0 ? (
+            <>
+              <li>
+                <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-faint">
+                  Recent
+                </p>
+              </li>
+              {recents.map((item, idx) => (
+                <li key={`recent-${item.id}`} role="option" aria-selected={idx === active}>
+                  <button
+                    type="button"
+                    className={`flex w-full flex-col items-start rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                      idx === active ? "bg-accent-blue-soft text-fg-primary" : "text-fg-muted hover:bg-bg-elevated"
+                    }`}
+                    onMouseEnter={() => setActive(idx)}
+                    onClick={() => activate(idx)}
+                  >
+                    <span className="font-medium text-fg-primary">{item.label}</span>
+                    {item.hint ? (
+                      <span className="mt-0.5 text-xs text-fg-faint">{item.hint}</span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+              <li>
+                <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-faint">
+                  All
+                </p>
+              </li>
+            </>
+          ) : null}
           {items.length === 0 ? (
             <li className="px-3 py-6 text-center text-sm text-fg-muted">No matches</li>
           ) : (
-            items.map((item, idx) => (
-              <li key={item.id} role="option" aria-selected={idx === active}>
-                <button
-                  type="button"
-                  className={`flex w-full flex-col items-start rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                    idx === active ? "bg-accent-blue-soft text-fg-primary" : "text-fg-muted hover:bg-bg-elevated"
-                  }`}
-                  onMouseEnter={() => setActive(idx)}
-                  onClick={() => activate(idx)}
-                >
-                  <span className="font-medium text-fg-primary">{item.label}</span>
-                  {item.hint ? (
-                    <span className="mt-0.5 text-xs text-fg-faint">{item.hint}</span>
-                  ) : null}
-                </button>
-              </li>
-            ))
+            items.map((item, idx) => {
+              const listIdx = recents.length > 0 && !query ? idx + recents.length : idx;
+              return (
+                <li key={item.id} role="option" aria-selected={listIdx === active}>
+                  <button
+                    type="button"
+                    className={`flex w-full flex-col items-start rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                      listIdx === active ? "bg-accent-blue-soft text-fg-primary" : "text-fg-muted hover:bg-bg-elevated"
+                    }`}
+                    onMouseEnter={() => setActive(listIdx)}
+                    onClick={() => activate(listIdx)}
+                  >
+                    <span className="font-medium text-fg-primary">{item.label}</span>
+                    {item.hint ? (
+                      <span className="mt-0.5 text-xs text-fg-faint">{item.hint}</span>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })
           )}
         </ul>
         <div className="border-t border-border-subtle px-4 py-2 text-[11px] text-fg-faint">

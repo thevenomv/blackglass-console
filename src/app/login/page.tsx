@@ -15,22 +15,27 @@ export default function LoginPage() {
           default to <span className="font-mono">admin</span> for full console access.
         </p>
         <form action={signIn} className="mt-8 space-y-4">
-          <label className="block text-xs text-fg-faint">
+          <label className="block text-xs text-fg-faint" htmlFor="login-email">
             Identity (stub)
             <input
+              id="login-email"
               name="email"
+              type="email"
               autoComplete="username"
               placeholder="you@infra.team"
+              aria-label="Email address"
               className="mt-1 w-full rounded-card border border-border-default bg-bg-base px-3 py-2 text-sm text-fg-primary outline-none ring-accent-blue placeholder:text-fg-faint focus:ring-2"
             />
           </label>
-          <label className="block text-xs text-fg-faint">
+          <label className="block text-xs text-fg-faint" htmlFor="login-password">
             Passphrase (stub — not validated)
             <input
+              id="login-password"
               name="password"
               type="password"
               autoComplete="current-password"
               placeholder="••••••••"
+              aria-label="Passphrase"
               className="mt-1 w-full rounded-card border border-border-default bg-bg-base px-3 py-2 text-sm text-fg-primary outline-none ring-accent-blue placeholder:text-fg-faint focus:ring-2"
             />
           </label>

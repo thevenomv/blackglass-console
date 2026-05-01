@@ -90,4 +90,71 @@ test.describe("BLACKGLASS console smoke", () => {
     expect(body.bundle_id).toBeTruthy();
     expect(body.download_url).toContain("/file");
   });
+
+  test("command palette opens and closes with keyboard shortcut", async ({ page }) => {
+    await page.goto("/");
+    await page.keyboard.press("Meta+k");
+    await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Command palette" })).not.toBeVisible();
+  });
+
+  test("command palette navigates to hosts via search", async ({ page }) => {
+    await page.goto("/");
+    await page.keyboard.press("Meta+k");
+    await page.getByPlaceholder("Search routes…").fill("hosts");
+    await page.getByRole("option").first().click();
+    await expect(page).toHaveURL("/hosts");
+  });
+
+  test("host detail tab deep-linking via ?tab= param", async ({ page }) => {
+    await page.goto("/hosts/host-07?tab=users");
+    await expect(page.getByRole("tab", { name: /users/i })).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("dashboard time range selector updates label", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("group", { name: "Time range" })).toBeVisible();
+    await page.getByRole("group", { name: "Time range" }).getByText("7d").click();
+    // KPI delta text should reflect 7d
+    await expect(page.getByText("+3 from last week")).toBeVisible();
+  });
+
+  test("evidence search filters bundles", async ({ page }) => {
+    await page.goto("/evidence");
+    await page.getByRole("searchbox", { name: "Search evidence bundles" }).fill("host-07");
+    await expect(page.getByText("host-07-incident")).toBeVisible();
+    await expect(page.getByText("production-weekly")).not.toBeVisible();
+  });
+
+  test("reports generate report modal opens and closes", async ({ page }) => {
+    await page.goto("/reports");
+    await page.getByRole("button", { name: "Generate report" }).first().click();
+    await expect(page.getByRole("dialog", { name: "Generate new report" })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("dialog", { name: "Generate new report" })).not.toBeVisible();
+  });
+
+  test("onboarding flow has 6 steps", async ({ page }) => {
+    await page.goto("/onboarding");
+    // 6 step indicators visible
+    for (let i = 1; i <= 6; i++) {
+      await expect(page.getByText(String(i), { exact: true }).first()).toBeVisible();
+    }
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByText("What you unlock")).toBeVisible();
+  });
+
+  test("workspace accepts incident and host search params", async ({ page }) => {
+    await page.goto("/workspace?incident=INC-9999&host=host-07");
+    await expect(page.getByText("INC-9999")).toBeVisible();
+  });
+
+  test("drift events bulk select enables bulk actions toolbar", async ({ page }) => {
+    await page.goto("/drift");
+    const checkboxes = page.locator('input[type="checkbox"]');
+    await checkboxes.nth(1).check(); // first row checkbox (nth(0) is select-all)
+    await expect(page.getByRole("toolbar", { name: "Bulk actions" })).toBeVisible();
+    await expect(page.getByText("1 selected")).toBeVisible();
+  });
 });

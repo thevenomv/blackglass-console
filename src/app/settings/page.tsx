@@ -2,6 +2,7 @@ import { signOut } from "@/app/login/actions";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsRotateRow } from "@/components/settings/SettingsRotateRow";
+import { WebhookSection } from "@/components/settings/WebhookSection";
 import { Button } from "@/components/ui/Button";
 export default function SettingsPage() {
   return (
@@ -24,10 +25,7 @@ export default function SettingsPage() {
           <p className="text-sm text-fg-muted">
             POST compressed drift summaries with severity thresholds per route.
           </p>
-          <input
-            placeholder="https://hooks.example.com/blackglass"
-            className="w-full rounded-card border border-border-default bg-bg-base px-3 py-2 text-sm text-fg-primary outline-none ring-accent-blue focus:ring-2"
-          />
+          <WebhookSection />
         </section>
 
         <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">

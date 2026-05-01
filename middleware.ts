@@ -1,9 +1,10 @@
+import { verifySession } from "@/lib/auth/session-signing";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const SESSION = "bg-session";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const authRequired = process.env.AUTH_REQUIRED === "true";
   if (!authRequired) {
     return NextResponse.next();
@@ -19,6 +20,16 @@ export function middleware(request: NextRequest) {
     const login = new URL("/login", request.url);
     login.searchParams.set("next", pathname);
     return NextResponse.redirect(login);
+  }
+
+  const payload = await verifySession(token);
+  if (!payload) {
+    // Token present but invalid/tampered — force re-login
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", pathname);
+    const response = NextResponse.redirect(login);
+    response.cookies.delete(SESSION);
+    return response;
   }
 
   return NextResponse.next();

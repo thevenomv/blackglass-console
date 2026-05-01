@@ -1,5 +1,6 @@
 "use server";
 
+import { signSession } from "@/lib/auth/session-signing";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -13,19 +14,23 @@ export async function signIn(formData: FormData) {
   const raw = String(formData.get("role") ?? "operator");
   const role = ROLES.includes(raw as (typeof ROLES)[number]) ? raw : "operator";
 
-  jar.set(SESSION, "1", {
+  const token = await signSession({ role, iat: Date.now() });
+  const maxAge = 60 * 60 * 24 * 7;
+  const secure = process.env.NODE_ENV === "production";
+
+  jar.set(SESSION, token, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-    secure: process.env.NODE_ENV === "production",
+    maxAge,
+    secure,
   });
   jar.set(ROLE, role, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-    secure: process.env.NODE_ENV === "production",
+    maxAge,
+    secure,
   });
   redirect("/");
 }

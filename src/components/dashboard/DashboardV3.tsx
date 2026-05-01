@@ -1,3 +1,5 @@
+"use client";
+
 import type { FleetSnapshot } from "@/data/mock/types";
 import { Badge } from "@/components/ui/Badge";
 import { RunScanButton } from "@/components/dashboard/RunScanButton";
@@ -5,6 +7,36 @@ import { Card } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { ProgressRow } from "@/components/ui/ProgressBar";
 import Link from "next/link";
+import { useState } from "react";
+
+type TimeRange = "24h" | "7d" | "30d";
+
+/** Mock period-over-period deltas keyed by time range. */
+const KPI_DELTAS: Record<TimeRange, {
+  hostsChecked: { label: string; positive: boolean };
+  highRiskDrift: { label: string; positive: boolean };
+  readyHosts: { label: string; positive: boolean };
+  evidenceBundles: { label: string; positive: boolean };
+}> = {
+  "24h": {
+    hostsChecked: { label: "+2 from yesterday", positive: true },
+    highRiskDrift: { label: "+1 from yesterday", positive: false },
+    readyHosts: { label: "−1 from yesterday", positive: false },
+    evidenceBundles: { label: "same as yesterday", positive: true },
+  },
+  "7d": {
+    hostsChecked: { label: "+3 from last week", positive: true },
+    highRiskDrift: { label: "−2 from last week", positive: true },
+    readyHosts: { label: "+2 from last week", positive: true },
+    evidenceBundles: { label: "+4 from last week", positive: true },
+  },
+  "30d": {
+    hostsChecked: { label: "+6 from last month", positive: true },
+    highRiskDrift: { label: "+1 from last month", positive: false },
+    readyHosts: { label: "+4 from last month", positive: true },
+    evidenceBundles: { label: "+12 from last month", positive: true },
+  },
+};
 
 function formatUtc(iso: string) {
   try {
@@ -20,6 +52,8 @@ function formatUtc(iso: string) {
 
 export function DashboardV3({ fleet }: { fleet: FleetSnapshot }) {
   const attention = fleet.highRiskDrift > 0;
+  const [timeRange, setTimeRange] = useState<TimeRange>("24h");
+  const deltas = KPI_DELTAS[timeRange];
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-8 pt-6">
@@ -32,7 +66,29 @@ export function DashboardV3({ fleet }: { fleet: FleetSnapshot }) {
             Production hosts · drift, integrity and readiness — prioritize attention items first.
           </p>
         </div>
-        <RunScanButton />
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            role="group"
+            aria-label="Time range"
+            className="flex rounded-card border border-border-default bg-bg-base"
+          >
+            {(["24h", "7d", "30d"] as TimeRange[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setTimeRange(r)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors first:rounded-l-card last:rounded-r-card ${
+                  timeRange === r
+                    ? "bg-accent-blue text-white"
+                    : "text-fg-muted hover:text-fg-primary"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <RunScanButton />
+        </div>
       </header>
 
       {attention ? (
@@ -68,23 +124,27 @@ export function DashboardV3({ fleet }: { fleet: FleetSnapshot }) {
           label="Hosts checked"
           value={fleet.hostsChecked}
           sublabel="Telemetry coverage this window"
+          delta={deltas.hostsChecked}
         />
         <KpiCard
           label="High-risk drift"
           value={fleet.highRiskDrift}
           sublabel="Needs operator review"
           tone="risk"
+          delta={deltas.highRiskDrift}
         />
         <KpiCard
           label="Ready hosts"
           value={fleet.readyHosts}
           sublabel="Baseline aligned posture"
           tone="positive"
+          delta={deltas.readyHosts}
         />
         <KpiCard
           label="Evidence bundles"
           value={fleet.evidenceBundles}
           sublabel="Exports retained"
+          delta={deltas.evidenceBundles}
         />
       </div>
 

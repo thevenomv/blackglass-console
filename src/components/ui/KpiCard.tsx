@@ -3,11 +3,14 @@ export function KpiCard({
   value,
   sublabel,
   tone = "default",
+  delta,
 }: {
   label: string;
   value: string | number;
   sublabel: string;
   tone?: "default" | "risk" | "positive";
+  /** Optional period-over-period trend. positive=true renders green ▲, false renders red ▼. */
+  delta?: { label: string; positive: boolean };
 }) {
   const shell =
     tone === "risk"
@@ -26,6 +29,15 @@ export function KpiCard({
         {value}
       </p>
       <p className="mt-2 text-xs text-fg-muted">{sublabel}</p>
+      {delta ? (
+        <p
+          className={`mt-1.5 text-xs font-medium tabular-nums ${
+            delta.positive ? "text-success" : "text-danger"
+          }`}
+        >
+          {delta.positive ? "▲" : "▼"} {delta.label}
+        </p>
+      ) : null}
     </div>
   );
 }

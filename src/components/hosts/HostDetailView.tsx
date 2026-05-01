@@ -7,7 +7,8 @@ import { ProgressRow } from "@/components/ui/ProgressBar";
 import { Button } from "@/components/ui/Button";
 import type { HostDetail } from "@/data/mock/types";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback } from "react";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -34,7 +35,19 @@ function formatTs(iso: string) {
 }
 
 export function HostDetailView({ detail }: { detail: HostDetail }) {
-  const [tab, setTab] = useState<TabId>("overview");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawTab = searchParams.get("tab") as TabId | null;
+  const tab: TabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : "overview";
+
+  const setTab = useCallback(
+    (id: TabId) => {
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.set("tab", id);
+      router.replace(`?${sp.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   const nextActions = [
     {

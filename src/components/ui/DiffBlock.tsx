@@ -1,5 +1,6 @@
 import type { DiffChangeType, DriftSeverity } from "@/data/mock/types";
 import { Badge } from "./Badge";
+import { SEVERITY_ICON } from "@/lib/severity";
 
 const changeLabel: Record<DiffChangeType, string> = {
   added: "Added",
@@ -53,7 +54,10 @@ export function DiffBlock({
     <article className="rounded-card border border-border-default bg-bg-base/50 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <DiffChangeMarker change={change} />
-        <Badge tone={severityTone(severity)}>{severity}</Badge>
+        <Badge tone={severityTone(severity)}>
+          <span aria-hidden className="mr-1">{SEVERITY_ICON[severity]}</span>
+          {severity}
+        </Badge>
         <span className="font-mono text-[13px] text-fg-primary">{path}</span>
         {ruleId ? (
           <span className="font-mono text-[11px] text-fg-faint" title="Rule id">

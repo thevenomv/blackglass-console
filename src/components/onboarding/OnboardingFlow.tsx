@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const STEPS = [
   "Welcome",
@@ -12,6 +12,108 @@ const STEPS = [
   "Pin baseline",
   "First snapshot",
 ] as const;
+
+const POLL_INTERVAL_MS = 5_000;
+const POLL_TIMEOUT_MS = 120_000;
+
+function ConnectHostStep({ onNext }: { onNext: () => void }) {
+  const [status, setStatus] = useState<"waiting" | "detected" | "timeout">("waiting");
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
+
+  useEffect(() => {
+    let stopped = false;
+
+    const poll = async () => {
+      const now = Date.now();
+      const elapsedMs = now - startRef.current;
+      setElapsed(Math.floor(elapsedMs / 1000));
+
+      if (elapsedMs >= POLL_TIMEOUT_MS) {
+        setStatus("timeout");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/v1/fleet/snapshot");
+        if (res.ok) {
+          const data = (await res.json()) as { collectorsOnline?: number };
+          if ((data.collectorsOnline ?? 0) > 0) {
+            setStatus("detected");
+            return;
+          }
+        }
+      } catch {
+        // network error — keep polling
+      }
+
+      if (!stopped) {
+        window.setTimeout(poll, POLL_INTERVAL_MS);
+      }
+    };
+
+    void poll();
+    return () => {
+      stopped = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status === "detected") {
+      const t = window.setTimeout(onNext, 1200);
+      return () => window.clearTimeout(t);
+    }
+  }, [status, onNext]);
+
+  return (
+    <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">
+      <h2 className="text-sm font-semibold text-fg-primary">Connect your first host</h2>
+      <p className="text-sm text-fg-muted">
+        Install the collector on a representative production workload — outbound HTTPS only,
+        read-only introspection on-host.
+      </p>
+      <label className="block text-xs text-fg-faint">
+        Host label
+        <input
+          defaultValue="prod-edge-01"
+          className="mt-1 w-full rounded-card border border-border-default bg-bg-base px-3 py-2 font-mono text-sm text-fg-primary outline-none ring-accent-blue focus:ring-2"
+        />
+      </label>
+      <pre className="overflow-x-auto rounded-card border border-border-default bg-bg-base p-4 font-mono text-[12px] text-fg-muted">
+        curl -fsSL https://install.blackglass.invalid/run.sh | sudo bash -s -- --token YOUR_API_KEY
+      </pre>
+      {status === "waiting" && (
+        <div className="flex items-center gap-2 text-xs text-fg-faint">
+          <svg
+            className="h-3.5 w-3.5 animate-spin text-accent-blue"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+          >
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+            <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+          Polling for collector heartbeat… ({elapsed}s)
+        </div>
+      )}
+      {status === "detected" && (
+        <p className="text-xs text-success">Heartbeat detected — advancing…</p>
+      )}
+      {status === "timeout" && (
+        <p className="text-xs text-warning">
+          No heartbeat detected after {POLL_TIMEOUT_MS / 1000}s. Check collector install, then skip or retry.
+        </p>
+      )}
+      <div className="flex gap-2">
+        {status !== "detected" ? (
+          <Button type="button" onClick={onNext}>
+            {status === "timeout" ? "Skip for now" : "Continue anyway"}
+          </Button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
 
 export function OnboardingFlow() {
   const [step, setStep] = useState(0);
@@ -91,29 +193,7 @@ export function OnboardingFlow() {
         </section>
       )}
 
-      {step === 2 && (
-        <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">
-          <h2 className="text-sm font-semibold text-fg-primary">Connect your first host</h2>
-          <p className="text-sm text-fg-muted">
-            Install the collector on a representative production workload — outbound HTTPS only,
-            read-only introspection on-host.
-          </p>
-          <label className="block text-xs text-fg-faint">
-            Host label
-            <input
-              defaultValue="prod-edge-01"
-              className="mt-1 w-full rounded-card border border-border-default bg-bg-base px-3 py-2 font-mono text-sm text-fg-primary outline-none ring-accent-blue focus:ring-2"
-            />
-          </label>
-          <pre className="overflow-x-auto rounded-card border border-border-default bg-bg-base p-4 font-mono text-[12px] text-fg-muted">
-            curl -fsSL https://install.blackglass.invalid/run.sh | sudo bash -s -- --token YOUR_API_KEY
-          </pre>
-          <p className="text-xs text-fg-faint">Waiting for collector heartbeat…</p>
-          <Button type="button" onClick={next}>
-            Heartbeat received
-          </Button>
-        </section>
-      )}
+      {step === 2 && <ConnectHostStep onNext={next} />}
 
       {step === 3 && (
         <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">

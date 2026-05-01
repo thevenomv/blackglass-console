@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type Tone = "success" | "warning" | "danger" | "neutral" | "accent";
+export type Tone = "success" | "warning" | "danger" | "neutral" | "accent";
 
 const tones: Record<Tone, string> = {
   success: "bg-success-soft text-success",

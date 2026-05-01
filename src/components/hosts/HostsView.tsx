@@ -117,13 +117,18 @@ export function HostsView({ hosts }: { hosts: HostRecord[] }) {
           action={<RunScanButton />}
         />
       ) : (
-        <div className="overflow-hidden rounded-card border border-border-default bg-bg-panel">
-          <div className="flex border-b border-border-subtle px-4 py-3 text-xs uppercase tracking-wide text-fg-faint">
-            <div className="min-w-0 flex-[1.4] font-medium">Host</div>
-            <div className="w-36 font-medium">Posture</div>
-            <div className="w-20 text-right font-medium">Ready</div>
-            <div className="min-w-0 flex-1 px-4 font-medium">Last scan</div>
-            <div className="w-16 text-right font-medium"> </div>
+        <div
+          role="grid"
+          aria-label="Hosts inventory"
+          aria-rowcount={filtered.length}
+          className="overflow-hidden rounded-card border border-border-default bg-bg-panel"
+        >
+          <div role="row" className="flex border-b border-border-subtle px-4 py-3 text-xs uppercase tracking-wide text-fg-faint">
+            <div role="columnheader" className="min-w-0 flex-[1.4] font-medium">Host</div>
+            <div role="columnheader" className="w-36 font-medium">Posture</div>
+            <div role="columnheader" className="w-20 text-right font-medium">Ready</div>
+            <div role="columnheader" className="min-w-0 flex-1 px-4 font-medium">Last scan</div>
+            <div role="columnheader" className="w-16 text-right font-medium"><span className="sr-only">Actions</span></div>
           </div>
           <div
             ref={parentRef}

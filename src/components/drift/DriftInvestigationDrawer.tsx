@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/Button";
 import type { DriftEvent } from "@/data/mock/types";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useSession } from "@/components/auth/SessionProvider";
+import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 function formatDetected(iso: string) {
   try {
@@ -52,6 +53,7 @@ function lifecycleTitleCase(l: DriftEvent["lifecycle"]) {
 }
 
 type Workflow = "open" | "acknowledged" | "approved";
+type MutatingAction = "acknowledge" | "approve" | null;
 
 export function DriftInvestigationDrawer({
   event,
@@ -62,7 +64,12 @@ export function DriftInvestigationDrawer({
 }) {
   const router = useRouter();
   const { loading, allowed } = useSession();
+  const { toast } = useToast();
   const [workflow, setWorkflow] = useState<Workflow>("open");
+  const [mutating, setMutating] = useState<MutatingAction>(null);
+  const [mutateError, setMutateError] = useState<string | null>(null);
+  // Ref to the element that opened the drawer, so focus returns on close
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   const close = useCallback(() => {
     router.replace(backHref);
@@ -71,6 +78,33 @@ export function DriftInvestigationDrawer({
   const trapRef = useFocusTrap(true, close);
   const canMutate = !loading && allowed("driftMutation");
   const prov = event.provenance;
+
+  async function mutate(action: MutatingAction, body: Record<string, string>) {
+    if (!action) return;
+    setMutating(action);
+    setMutateError(null);
+    try {
+      const res = await fetch("/api/v1/audit/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`Server responded ${res.status}`);
+      if (action === "acknowledge") {
+        setWorkflow("acknowledged");
+        toast("Finding acknowledged — pending remediation.", "success");
+      } else {
+        setWorkflow("approved");
+        toast("Approved change recorded.", "success");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setMutateError(`Action failed: ${msg}`);
+      toast(`Action failed: ${msg}`, "danger");
+    } finally {
+      setMutating(null);
+    }
+  }
 
   return (
     <div
@@ -131,7 +165,7 @@ export function DriftInvestigationDrawer({
               </div>
             ) : null}
           </div>
-          <Button variant="ghost" type="button" onClick={close} aria-label="Close drawer">
+          <Button variant="ghost" type="button" ref={closeBtnRef} onClick={close} aria-label="Close drawer">
             Close
           </Button>
         </header>
@@ -204,43 +238,44 @@ export function DriftInvestigationDrawer({
               Auditor role cannot acknowledge or approve drift — escalate to an operator or admin.
             </p>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                disabled={!canMutate || workflow !== "open"}
-                onClick={() => {
-                  setWorkflow("acknowledged");
-                  void fetch("/api/v1/audit/events", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
+            <>
+              {mutateError ? (
+                <p role="alert" className="mb-2 rounded-card border border-danger/40 bg-danger-soft/40 px-3 py-2 text-xs text-danger">
+                  {mutateError}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  disabled={!canMutate || workflow !== "open" || mutating !== null}
+                  onClick={() =>
+                    void mutate("acknowledge", {
                       action: "drift_acknowledge",
                       detail: `${event.id} · ${event.hostId} · ${event.title}`,
-                    }),
-                  });
-                }}
-              >
-                Acknowledge
-              </Button>
-              <Button
-                variant="secondary"
-                type="button"
-                disabled={!canMutate || workflow === "approved"}
-                onClick={() => {
-                  setWorkflow("approved");
-                  void fetch("/api/v1/audit/events", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
+                    })
+                  }
+                >
+                  {mutating === "acknowledge" ? (
+                    <span className="flex items-center gap-2"><Spinner /> Acknowledging…</span>
+                  ) : "Acknowledge"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={!canMutate || workflow === "approved" || mutating !== null}
+                  onClick={() =>
+                    void mutate("approve", {
                       action: "drift_approved_change",
                       detail: `${event.id} · ${event.hostId} · ${event.title}`,
-                    }),
-                  });
-                }}
-              >
-                Mark approved change
-              </Button>
-            </div>
+                    })
+                  }
+                >
+                  {mutating === "approve" ? (
+                    <span className="flex items-center gap-2"><Spinner /> Saving…</span>
+                  ) : "Mark approved change"}
+                </Button>
+              </div>
+            </>
           )}
           <div className="flex flex-wrap gap-3">
             <a
@@ -261,5 +296,24 @@ export function DriftInvestigationDrawer({
         </footer>
       </aside>
     </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg
+      aria-hidden
+      className="h-4 w-4 animate-spin"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
   );
 }
