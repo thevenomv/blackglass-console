@@ -51,7 +51,7 @@ const config: Config = {
         card: "6px",
       },
       boxShadow: {
-        elevated: "0 1px 2px rgba(0, 0, 0, 0.45)",
+        elevated: "var(--shadow-elevated)",
       },
     },
   },

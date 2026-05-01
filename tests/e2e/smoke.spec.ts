@@ -42,6 +42,11 @@ test.describe("BLACKGLASS console smoke", () => {
     await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();
     await expect(page.getByText("Hosts checked", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Run scan" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Color theme" })).toBeVisible();
+    await page.getByRole("button", { name: "Light" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await page.getByRole("button", { name: "Dark" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
   test("Run scan shows sticky job banner", async ({ page }) => {

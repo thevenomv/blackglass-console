@@ -5,7 +5,7 @@
 alerts:
   - rule: DEPLOYMENT_FAILED
 name: blackglass-staging
-region: REGION_SLUG
+region: lon
 ingress:
   rules:
     - component:
@@ -16,7 +16,7 @@ ingress:
 services:
   - name: web
     github:
-      repo: GITHUB_ORG/GITHUB_REPO
+      repo: thevenomv/blackglass-console
       branch: staging
       deploy_on_push: true
     environment_slug: node-js

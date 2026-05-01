@@ -1,4 +1,4 @@
-/** Mirrors CSS custom properties for programmatic access (optional). */
+/** Mirrors CSS custom properties for programmatic access (optional). Theme palettes live in `globals.css` (`data-theme`). */
 export const tokens = {
   appBackground: "#0F1419",
   sidebarBackground: "#121922",

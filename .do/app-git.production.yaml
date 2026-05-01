@@ -1,8 +1,6 @@
 # BLACKGLASS — DigitalOcean App Platform (GitHub → build on DO)
 #
-# Replace placeholders before apply:
-#   GITHUB_ORG/GITHUB_REPO    — e.g. acme/blackglass
-#   REGION_SLUG               — e.g. fra, nyc, sfo (match team preference)
+# Repo defaults match deployed BLACKGLASS; replace REGION / hostname if needed.
 #
 # Apply:
 #   doctl apps create --spec .do/app-git.production.yaml
@@ -13,7 +11,7 @@
 alerts:
   - rule: DEPLOYMENT_FAILED
 name: blackglass-production
-region: REGION_SLUG
+region: lon
 ingress:
   rules:
     - component:
@@ -24,7 +22,7 @@ ingress:
 services:
   - name: web
     github:
-      repo: GITHUB_ORG/GITHUB_REPO
+      repo: thevenomv/blackglass-console
       branch: main
       deploy_on_push: true
     environment_slug: node-js

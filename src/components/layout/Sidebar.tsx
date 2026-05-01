@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const NAV = [
   { href: "/", label: "Dashboard" },
@@ -27,7 +28,7 @@ export function Sidebar() {
           Operational integrity
         </p>
       </div>
-      <nav className="flex flex-1 flex-col gap-0.5 p-3" aria-label="Primary">
+      <nav className="flex flex-1 flex-col gap-0.5 p-3 pb-2" aria-label="Primary">
         {NAV.map((item) => {
           const active =
             item.href === "/"
@@ -48,6 +49,12 @@ export function Sidebar() {
           );
         })}
       </nav>
+      <div className="border-t border-border-subtle p-3">
+        <p className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
+          Appearance
+        </p>
+        <ThemeToggle />
+      </div>
     </aside>
   );
 }
