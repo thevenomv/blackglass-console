@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/** Dedicated port so local `next dev` on :3000 does not steal Playwright's webServer. */
+const e2ePort = process.env.PLAYWRIGHT_PORT ?? "3100";
+const e2eOrigin = `http://127.0.0.1:${e2ePort}`;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -8,17 +12,17 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: e2eOrigin,
     trace: "on-first-retry",
     ...devices["Desktop Chrome"],
   },
   webServer: {
-    command: "npm run dev",
-    url: "http://127.0.0.1:3000/api/health",
+    command: `npm run dev -- -p ${e2ePort}`,
+    url: `${e2eOrigin}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
-      NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000",
+      NEXT_PUBLIC_APP_URL: e2eOrigin,
       NEXT_PUBLIC_USE_MOCK: process.env.PLAYWRIGHT_LIVE === "1" ? "false" : "true",
     },
   },

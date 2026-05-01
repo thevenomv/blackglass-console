@@ -8,7 +8,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 
 | File | Role |
 |------|------|
-| `package.json` / `package-lock.json` | Dependencies, scripts (`dev`, `build`, `lint`, `check:openapi`, `test:e2e`, `test:e2e:live`) |
+| `package.json` / `package-lock.json` | Dependencies, scripts (`dev`, `build`, `verify:stage0`, `verify:staging`, `lint`, `check:openapi`, `test:e2e`, `test:e2e:live`) |
 | `tsconfig.json` | TypeScript project |
 | `next.config.ts` | Next.js configuration |
 | `next-env.d.ts` | Next-generated types |
@@ -21,7 +21,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `.eslintrc.json` | ESLint |
 | `.gitignore` | Git ignore rules |
 | `.nvmrc` | Node version pin |
-| `playwright.config.ts` | E2E: `PLAYWRIGHT_LIVE=1` → `NEXT_PUBLIC_USE_MOCK=false` for optional live-SSR tests |
+| `playwright.config.ts` | E2E dev server on port **`3100`** by default (`PLAYWRIGHT_PORT` override); `PLAYWRIGHT_LIVE=1` → `NEXT_PUBLIC_USE_MOCK=false` for optional live-SSR tests |
 
 ---
 

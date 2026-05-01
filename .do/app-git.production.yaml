@@ -58,6 +58,11 @@ services:
       - key: AUTH_REQUIRED
         value: "true"
         scope: RUN_TIME
+      # Console session HMAC — set in DO as SECRETS (never commit a real value).
+      - key: AUTH_SESSION_SECRET
+        value: ""
+        scope: RUN_TIME
+        type: SECRET
       # --- SSH Collector (optional — set to enable real telemetry collection)
       # COLLECTOR_HOST_1: IP or hostname of the target server (e.g. 165.227.229.48)
       - key: COLLECTOR_HOST_1
