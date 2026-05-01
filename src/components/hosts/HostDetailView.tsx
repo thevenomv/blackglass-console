@@ -102,6 +102,8 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
           <button
             key={t.id}
             type="button"
+            role="tab"
+            aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={`border-b-2 px-3 pb-3 pt-1 text-sm transition-colors ${
               tab === t.id

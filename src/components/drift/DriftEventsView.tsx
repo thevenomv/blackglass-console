@@ -443,7 +443,7 @@ export function DriftEventsView({
           </div>
           <div
             ref={parentRef}
-            className="max-h-[min(480px,65vh)] overflow-auto"
+            className={useVirtual ? "h-[min(480px,65vh)] overflow-auto" : "max-h-[min(480px,65vh)] overflow-auto"}
             style={useVirtual ? { contain: "strict" } : undefined}
           >
             {filtered.length === 0 ? (

@@ -75,7 +75,7 @@ test.describe("BLACKGLASS console smoke", () => {
   test("workspace incident page renders", async ({ page }) => {
     await page.goto("/workspace");
     await expect(page.getByRole("heading", { name: "Incident workspace" })).toBeVisible();
-    await expect(page.getByText("INC-2047")).toBeVisible();
+    await expect(page.getByText("INC-2047").first()).toBeVisible();
   });
 
   test("demo script page", async ({ page }) => {
@@ -101,6 +101,7 @@ test.describe("BLACKGLASS console smoke", () => {
 
   test("command palette navigates to hosts via search", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
     await page.keyboard.press("Meta+k");
     await page.getByPlaceholder("Search routes…").fill("hosts");
     await page.getByRole("option").first().click();
