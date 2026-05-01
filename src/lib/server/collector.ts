@@ -150,9 +150,9 @@ async function runCollection(
           ).catch(() => ""),
           exec(
             conn,
-            "sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication)' || grep -rE '^(PermitRootLogin|PasswordAuthentication)' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null",
+            "sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication)'",
           ).catch(() => ""),
-          exec(conn, "ufw status verbose 2>/dev/null").catch(() => ""),
+          exec(conn, "sudo ufw status verbose 2>/dev/null").catch(() => ""),
         ]);
 
         conn.end();
