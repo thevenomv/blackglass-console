@@ -109,7 +109,7 @@ def main() -> None:
         http(
             "POST",
             f"/projects/{project_id}/resources",
-            {"resources": [{"urn": f"do:app:{app_id}"}]},
+            {"resources": [f"do:app:{app_id}"]},
         )
     except RuntimeError as e:
         print(f"Warning: could not assign project automatically: {e}", file=sys.stderr)
