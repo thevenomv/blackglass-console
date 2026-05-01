@@ -86,3 +86,21 @@ export function listBaselineHostIds(): string[] {
 export function hasBaseline(hostId: string): boolean {
   return store().has(hostId);
 }
+
+/** Health / readiness — dir must be writable when persisting baselines to disk */
+export function baselineStoreHealth(): {
+  configured: boolean;
+  path?: string;
+  writable: boolean | null;
+} {
+  const p = storePath();
+  if (!p) return { configured: false, writable: null };
+  try {
+    const dir = path.dirname(p);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    return { configured: true, path: p, writable: true };
+  } catch {
+    return { configured: true, path: p, writable: false };
+  }
+}

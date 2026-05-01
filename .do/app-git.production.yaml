@@ -76,3 +76,15 @@ services:
         value: ""
         scope: RUN_TIME
         type: SECRET
+      # Optional: JIT secrets — set SECRET_PROVIDER to doppler or infisical and use provider
+      # tokens instead of storing SSH_PRIVATE_KEY here (see docs/operator-guide.md §2c-b).
+      # - SECRET_PROVIDER: doppler | infisical | env (default)
+      # - DOPPLER_TOKEN / DOPPLER_PROJECT / DOPPLER_CONFIG, or Infisical machine identity vars
+      # --- Persistence (mount a DO Volume on the service, then set these paths on the volume)
+      # - key: BASELINE_STORE_PATH
+      #   value: /data/blackglass/baselines.json
+      #   scope: RUN_TIME
+      # - key: DRIFT_HISTORY_PATH
+      #   value: /data/blackglass/drift-history.json
+      #   scope: RUN_TIME
+      #

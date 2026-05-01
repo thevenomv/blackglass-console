@@ -5,9 +5,9 @@ import { useScanJobs } from "@/components/providers/ScanJobsProvider";
 
 export function ScanJobBanner() {
   const { jobs, dismiss } = useScanJobs();
-  const active = jobs.filter((j) => j.phase !== "succeeded" && j.phase !== "failed");
+  const visible = jobs.filter((j) => j.phase !== "succeeded");
 
-  if (active.length === 0) return null;
+  if (visible.length === 0) return null;
 
   return (
     <div
@@ -17,23 +17,35 @@ export function ScanJobBanner() {
       aria-label="Active integrity scans"
     >
       <div className="mx-auto flex max-w-[1400px] flex-col gap-3">
-        {active.map((j) => (
+        {visible.map((j) => (
           <div
             key={j.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-accent-blue/35 bg-accent-blue-soft/35 px-4 py-3"
+            className={`flex flex-wrap items-center justify-between gap-3 rounded-card border px-4 py-3 ${
+              j.phase === "failed"
+                ? "border-danger/45 bg-danger-soft/30"
+                : "border-accent-blue/35 bg-accent-blue-soft/35"
+            }`}
           >
             <div className="min-w-0">
               <p className="text-sm font-semibold text-fg-primary">{j.label}</p>
               <p className="text-xs text-fg-muted">{j.detail}</p>
               <div className="mt-2 h-1.5 w-full max-w-md rounded-full bg-track">
                 <div
-                  className="h-1.5 rounded-full bg-accent-blue transition-[width] duration-300"
+                  className={`h-1.5 rounded-full transition-[width] duration-300 ${
+                    j.phase === "failed" ? "bg-danger" : "bg-accent-blue"
+                  }`}
                   style={{ width: `${j.progress}%` }}
                 />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-fg-faint">{j.phase}</span>
+              <span
+                className={`font-mono text-xs ${
+                  j.phase === "failed" ? "text-danger" : "text-fg-faint"
+                }`}
+              >
+                {j.phase}
+              </span>
               <Button variant="ghost" type="button" onClick={() => dismiss(j.id)}>
                 Dismiss
               </Button>

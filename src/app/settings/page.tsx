@@ -1,6 +1,7 @@
-import { signOut } from "@/app/login/actions";
+import { signOut } from "@/app/(auth)/login/actions";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { OperatorHealthReadout } from "@/components/settings/OperatorHealthReadout";
 import { SettingsRotateRow } from "@/components/settings/SettingsRotateRow";
 import { WebhookSection } from "@/components/settings/WebhookSection";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +13,8 @@ export default function SettingsPage() {
           title="Settings"
           subtitle="Collector credentials, outbound webhooks, and workspace guardrails."
         />
+
+        <OperatorHealthReadout />
 
         <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">
           <h2 className="text-sm font-semibold text-fg-primary">Collector API key</h2>

@@ -7,20 +7,23 @@
  */
 
 import { NextResponse } from "next/server";
-import { collectorConfigured } from "@/lib/server/collector";
-import { getDriftEvents, hasDriftData } from "@/lib/server/drift-engine";
-import { driftEvents as mockDriftEvents } from "@/data/mock/drift";
+import { zodErrorResponse } from "@/lib/server/http/json-error";
+import { DriftQuerySchema } from "@/lib/server/http/schemas";
+import { resolveDriftEventsForDashboard } from "@/lib/server/drift-resolve";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const hostId = url.searchParams.get("hostId") ?? undefined;
-  const lifecycleFilter = url.searchParams.get("lifecycle") ?? undefined;
+  const parsed = DriftQuerySchema.safeParse({
+    hostId: url.searchParams.get("hostId"),
+    lifecycle: url.searchParams.get("lifecycle"),
+  });
+  if (!parsed.success) return zodErrorResponse(parsed.error);
 
-  let events = collectorConfigured() && hasDriftData()
-    ? getDriftEvents(hostId)
-    : mockDriftEvents;
+  const { hostId, lifecycle: lifecycleFilter } = parsed.data;
+
+  let events = resolveDriftEventsForDashboard(hostId);
 
   if (lifecycleFilter) {
     events = events.filter((e) => e.lifecycle === lifecycleFilter);

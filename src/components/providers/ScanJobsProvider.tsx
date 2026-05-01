@@ -104,7 +104,21 @@ export function ScanJobsProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ host_ids: [] }),
       });
-      if (!res.ok) throw new Error(`enqueue_failed_${res.status}`);
+      if (!res.ok) {
+        let detail = `Could not start scan (HTTP ${res.status})`;
+        try {
+          const body = (await res.json()) as { error?: string; detail?: string };
+          detail = body.detail || body.error || detail;
+        } catch {
+          /* ignore */
+        }
+        setJobs((prev) =>
+          prev.map((j) =>
+            j.id === jobId ? { ...j, phase: "failed", progress: 100, detail } : j,
+          ),
+        );
+        return;
+      }
       const body = (await res.json()) as { id: string };
       const serverId = body.id;
 
@@ -133,10 +147,13 @@ export function ScanJobsProvider({ children }: { children: ReactNode }) {
                 : x,
             ),
           );
-          if (j.status === "succeeded" || j.status === "failed") {
+          if (j.status === "succeeded") {
             window.clearInterval(poll);
             timers.current.delete(serverId);
             window.setTimeout(() => dismiss(serverId), 6000);
+          } else if (j.status === "failed") {
+            window.clearInterval(poll);
+            timers.current.delete(serverId);
           }
         } catch {
           /* ignore transient poll errors */
@@ -144,7 +161,18 @@ export function ScanJobsProvider({ children }: { children: ReactNode }) {
       }, 400);
       timers.current.set(serverId, poll);
     } catch {
-      setJobs((prev) => prev.filter((j) => j.id !== jobId));
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === jobId
+            ? {
+                ...j,
+                phase: "failed",
+                progress: 100,
+                detail: "Network error — check connection and try again",
+              }
+            : j,
+        ),
+      );
     }
   }, [dismiss, runMockScan]);
 

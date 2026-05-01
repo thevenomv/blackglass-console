@@ -1,4 +1,4 @@
-import { signIn } from "@/app/login/actions";
+import { signIn } from "@/app/(auth)/login/actions";
 import { Button } from "@/components/ui/Button";
 
 export default function LoginPage() {

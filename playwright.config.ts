@@ -17,5 +17,9 @@ export default defineConfig({
     url: "http://127.0.0.1:3000/api/health",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    env: {
+      NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000",
+      NEXT_PUBLIC_USE_MOCK: process.env.PLAYWRIGHT_LIVE === "1" ? "false" : "true",
+    },
   },
 });

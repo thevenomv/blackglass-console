@@ -40,3 +40,8 @@ export function checkScanPostRate(ip: string): boolean {
 export function checkScanPollRate(ip: string): boolean {
   return allow(`scan:get:${ip}`, 320, 60_000);
 }
+
+/** GET /api/health?probe=secrets — avoid hammering external secret backends */
+export function checkHealthSecretsProbeRate(ip: string): boolean {
+  return allow(`health:secrets:${ip}`, 12, 60_000);
+}

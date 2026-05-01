@@ -4,6 +4,8 @@ export type AuditEntry = {
   action: string;
   detail: string;
   actor?: string;
+  /** Correlates server-emitted rows with `GET /api/v1/scans/:id` when present. */
+  scan_id?: string;
 };
 
 const MAX = 500;
@@ -18,6 +20,7 @@ export function appendAudit(
     action: row.action,
     detail: row.detail,
     actor: row.actor,
+    scan_id: row.scan_id,
   };
   entries.unshift(entry);
   if (entries.length > MAX) entries.length = MAX;

@@ -1,28 +1,19 @@
+import { EVIDENCE_BUNDLE_META } from "@/lib/server/evidence-catalog";
+import { zodErrorResponse } from "@/lib/server/http/json-error";
+import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { NextResponse } from "next/server";
-
-const bundles: Record<
-  string,
-  { sha256: string; expiresInSeconds: number; bytes: number }
-> = {
-  "bundle-production-weekly": {
-    sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    expiresInSeconds: 3600,
-    bytes: 182903,
-  },
-  "bundle-host-07-incident": {
-    sha256: "a9f12bde045c8912f8f3ecc17a3e9b7d6c5e4f30291827364556473829100abc",
-    expiresInSeconds: 900,
-    bytes: 48211,
-  },
-};
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const idParsed = ResourceIdPathSchema.safeParse(rawId);
+  if (!idParsed.success) return zodErrorResponse(idParsed.error);
+
+  const id = idParsed.data;
   const meta =
-    bundles[id] ??
+    EVIDENCE_BUNDLE_META[id] ??
     ({
       sha256: "0000000000000000000000000000000000000000000000000000000000000000",
       expiresInSeconds: 600,

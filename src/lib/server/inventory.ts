@@ -2,9 +2,11 @@ import type { FleetSnapshot, HostRecord, HostTrust } from "@/data/mock/types";
 import { fleetSnapshot } from "@/data/mock/fleet";
 import { hosts } from "@/data/mock/hosts";
 import { mockLatency } from "@/lib/mockLatency";
-import { collectorConfigured } from "./collector";
+import { collectorConfigured, configuredHostCount } from "./collector";
 import { getDriftEvents, hasDriftData } from "./drift-engine";
-import { listBaselineHostIds } from "./baseline-store";
+import { getBaseline, listBaselineHostIds } from "./baseline-store";
+import { getDriftVolumeChartFromHistory } from "./drift-history";
+import { evidenceBundleCatalogSize } from "./evidence-catalog";
 
 /** Single source for mock inventory — API routes and SSR can share this. */
 export async function loadHosts(): Promise<HostRecord[]> {
@@ -42,10 +44,11 @@ function buildRealHosts(): HostRecord[] {
     else if (any > 0) trust = "needs_review";
 
     const score = Math.max(0, 100 - high * 15 - (any - high) * 5);
+    const baseline = getBaseline(hostId);
 
     return {
       id: hostId,
-      hostname: process.env.COLLECTOR_HOST_1_NAME ?? hostId,
+      hostname: baseline?.hostname ?? hostId,
       os: "Ubuntu 24.04",
       trust,
       lastScanAt: new Date().toISOString(),
@@ -63,7 +66,18 @@ function buildRealFleetSnapshot(): FleetSnapshot {
   const highRisk = allEvents.filter(
     (e) => e.severity === "high" && e.lifecycle === "new",
   ).length;
-  const readyHosts = baselineIds.length > 0 && highRisk === 0 ? 1 : 0;
+  const expectedCollectors = configuredHostCount();
+  const readyHosts = baselineIds.filter(
+    (id) =>
+      !allEvents.some(
+        (e) => e.hostId === id && e.severity === "high" && e.lifecycle === "new",
+      ),
+  ).length;
+  const monitoringHostCount = baselineIds.length;
+  const monitoringBullet =
+    monitoringHostCount === 0
+      ? "No baselines captured yet"
+      : `${monitoringHostCount} host${monitoringHostCount !== 1 ? "s" : ""} under active monitoring`;
 
   const notableEvents = allEvents.slice(0, 5).map((e) => ({
     hostId: e.hostId,
@@ -71,25 +85,25 @@ function buildRealFleetSnapshot(): FleetSnapshot {
     label: e.title,
   }));
 
+  const driftVolumeByDay = getDriftVolumeChartFromHistory();
+
   return {
-    hostsChecked: baselineIds.length > 0 ? 1 : 0,
+    hostsChecked: baselineIds.length,
     highRiskDrift: highRisk,
     readyHosts,
-    evidenceBundles: hasData ? 1 : 0,
-    driftVolumeByDay: [],
+    evidenceBundles: evidenceBundleCatalogSize(),
+    driftVolumeByDay,
     fleetBullets: hasData
       ? [
           `${allEvents.length} drift signal${allEvents.length !== 1 ? "s" : ""} detected`,
           `${highRisk} high-severity finding${highRisk !== 1 ? "s" : ""}`,
-          baselineIds.length > 0
-            ? "1 host under active monitoring"
-            : "No baselines captured yet",
+          monitoringBullet,
         ]
       : ["Baseline captured — run a scan to detect drift"],
     notableEvents,
     coverage: {
-      collectorsExpected: 1,
-      collectorsOnline: baselineIds.length > 0 ? 1 : 0,
+      collectorsExpected: expectedCollectors,
+      collectorsOnline: baselineIds.length,
       lastFleetHeartbeatAt: new Date().toISOString(),
       staleSlices: [],
     },

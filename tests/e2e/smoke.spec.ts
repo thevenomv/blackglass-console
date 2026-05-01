@@ -4,8 +4,30 @@ test.describe("BLACKGLASS console smoke", () => {
   test("health endpoint responds", async ({ request }) => {
     const res = await request.get("/api/health");
     expect(res.ok()).toBeTruthy();
-    const body = await res.json();
+    const body = (await res.json()) as {
+      ok: boolean;
+      baseline_store?: unknown;
+      collector?: Record<string, unknown>;
+      diagnostics_scope?: string;
+    };
     expect(body.ok).toBe(true);
+    expect(body).toHaveProperty("baseline_store");
+    expect(body.collector).toBeDefined();
+    expect(body.collector).toHaveProperty("secret_provider");
+    expect(body).toHaveProperty("diagnostics_scope");
+    expect(body.diagnostics_scope).toBe("runtime_configuration");
+  });
+
+  test("health probe=secrets returns secrets_probe", async ({ request }) => {
+    const res = await request.get("/api/health?probe=secrets");
+    expect(res.ok()).toBeTruthy();
+    const body = (await res.json()) as {
+      secrets_probe?: { ok: boolean; provider: string };
+      diagnostics_scope?: string;
+    };
+    expect(body.secrets_probe).toBeDefined();
+    expect(body.diagnostics_scope).toContain("secret_backend");
+    expect(typeof body.secrets_probe?.provider).toBe("string");
   });
 
   test("api v1 hosts returns inventory", async ({ request }) => {
@@ -149,6 +171,13 @@ test.describe("BLACKGLASS console smoke", () => {
   test("workspace accepts incident and host search params", async ({ page }) => {
     await page.goto("/workspace?incident=INC-9999&host=host-07");
     await expect(page.getByText("INC-9999")).toBeVisible();
+  });
+
+  test("drift page renders events grid", async ({ page }) => {
+    await page.goto("/drift");
+    await expect(page.getByRole("heading", { name: "Drift" })).toBeVisible();
+    await expect(page.getByRole("grid", { name: "Drift events" })).toBeVisible();
+    await expect(page.getByText("Detection time", { exact: true })).toBeVisible();
   });
 
   test("drift events bulk select enables bulk actions toolbar", async ({ page }) => {

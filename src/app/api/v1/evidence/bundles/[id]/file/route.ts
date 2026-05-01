@@ -1,3 +1,5 @@
+import { zodErrorResponse } from "@/lib/server/http/json-error";
+import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { NextResponse } from "next/server";
 
 /** Minimal downloadable artifact — replace with streamed ZIP from object storage. */
@@ -5,7 +7,11 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const idParsed = ResourceIdPathSchema.safeParse(rawId);
+  if (!idParsed.success) return zodErrorResponse(idParsed.error);
+
+  const id = idParsed.data;
   const body = JSON.stringify(
     {
       bundle_id: id,

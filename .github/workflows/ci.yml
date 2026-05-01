@@ -28,6 +28,12 @@ jobs:
       - name: OpenAPI vs route handlers
         run: npm run check:openapi
 
+      - name: Zod schemas export matches committed file
+        run: npm run schemas:export && git diff --exit-code openapi/zod-schemas.json
+
+      - name: Unit tests
+        run: npm run test:unit
+
       - name: Build
         run: npm run build
 

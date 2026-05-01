@@ -1,0 +1,38 @@
+{
+  "$comment": "Generated from src/lib/server/http/schemas.ts — keep in sync via npm run schemas:export",
+  "ScanPostBody": {
+    "$ref": "#/definitions/ScanPostBody",
+    "definitions": {
+      "ScanPostBody": {}
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  },
+  "AuditPostBody": {
+    "$ref": "#/definitions/AuditPostBody",
+    "definitions": {
+      "AuditPostBody": {}
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  },
+  "AuditEventsQuery": {
+    "$ref": "#/definitions/AuditEventsQuery",
+    "definitions": {
+      "AuditEventsQuery": {}
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  },
+  "DriftQuery": {
+    "$ref": "#/definitions/DriftQuery",
+    "definitions": {
+      "DriftQuery": {}
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  },
+  "ResourceIdPath": {
+    "$ref": "#/definitions/ResourceIdPath",
+    "definitions": {
+      "ResourceIdPath": {}
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+}

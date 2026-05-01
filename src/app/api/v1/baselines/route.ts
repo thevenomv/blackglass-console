@@ -1,14 +1,12 @@
 /**
  * POST /api/v1/baselines
- * Capture the current state of the configured host as a baseline.
- * The baseline is used by the drift engine during subsequent scans.
+ * Capture the current state of every configured collector host as a baseline.
+ * Baselines are used by the drift engine during subsequent scans.
  */
 
 import { NextResponse } from "next/server";
-import { collectSnapshot, collectorConfigured } from "@/lib/server/collector";
-import { saveBaseline } from "@/lib/server/baseline-store";
-import { storeDriftEvents } from "@/lib/server/drift-engine";
-import { appendAudit } from "@/lib/server/audit-log";
+import { collectorConfigured } from "@/lib/server/collector";
+import { captureBaselinesFromFleet } from "@/lib/server/services/baseline-capture";
 
 export async function POST() {
   if (!collectorConfigured()) {
@@ -16,40 +14,28 @@ export async function POST() {
       {
         error: "collector_not_configured",
         detail:
-          "Set COLLECTOR_HOST_1 and SSH_PRIVATE_KEY environment variables to enable real collection.",
+          "Set COLLECTOR_HOST_1 and a credential source: SSH_PRIVATE_KEY with SECRET_PROVIDER=env (default), or Doppler/Infisical per operator guide.",
       },
       { status: 503 },
     );
   }
 
-  try {
-    const snapshot = await collectSnapshot();
-    saveBaseline(snapshot);
-    // Clear any previous drift data when a new baseline is captured
-    storeDriftEvents(snapshot.hostId, []);
-
-    appendAudit({
-      action: "baseline.capture",
-      detail: `Baseline captured for host ${snapshot.hostname} (${snapshot.hostId})`,
-    });
-
-    return NextResponse.json({
-      hostId: snapshot.hostId,
-      capturedAt: snapshot.collectedAt,
-      listenersCount: snapshot.listeners.length,
-      usersCount: snapshot.users.length,
-      servicesCount: snapshot.services.length,
-      sudoers: snapshot.sudoers,
-      cronEntries: snapshot.cronEntries.map((c) => c.filename),
-      sshConfig: snapshot.ssh,
-      firewallActive: snapshot.firewall.active,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json(
-      { error: "collection_failed", detail: message },
-      { status: 502 },
-    );
+  const outcome = await captureBaselinesFromFleet();
+  switch (outcome.kind) {
+    case "collection_failed":
+      return NextResponse.json({ error: "collection_failed", detail: outcome.detail }, { status: 502 });
+    case "exception":
+      return NextResponse.json(
+        { error: "collection_failed", detail: outcome.message },
+        { status: 502 },
+      );
+    case "ok":
+      return NextResponse.json({
+        captured: outcome.payload.captured,
+        ...(outcome.payload.failed?.length ? { failed: outcome.payload.failed } : {}),
+      });
+    default:
+      return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 }
 
@@ -58,9 +44,7 @@ export async function POST() {
  * Return a summary of all captured baselines.
  */
 export async function GET() {
-  const { listBaselineHostIds, getBaseline } = await import(
-    "@/lib/server/baseline-store"
-  );
+  const { listBaselineHostIds, getBaseline } = await import("@/lib/server/baseline-store");
   const ids = listBaselineHostIds();
   const baselines = ids.map((id) => {
     const b = getBaseline(id);

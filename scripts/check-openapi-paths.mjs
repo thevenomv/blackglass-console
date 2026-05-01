@@ -15,6 +15,7 @@ const requiredDocPatterns = [
   /^ {2}\/fleet\/snapshot:/m,
   /^ {2}\/audit\/events:/m,
   /^ {2}\/hosts:/m,
+  /^ {2}\/baselines:/m,
   /^ {2}\/hosts\/\{hostId\}:/m,
   /^ {2}\/scans:/m,
   /^ {2}\/scans\/\{scanId\}:/m,
@@ -43,7 +44,7 @@ const apiV1 = path.join(root, "src", "app", "api", "v1");
 const routes = collectRoutes(apiV1);
 
 /** Folder prefixes that must exist under src/app/api/v1 */
-const requiredPrefixes = ["fleet/snapshot", "hosts", "scans", "audit/events", "evidence/bundles"];
+const requiredPrefixes = ["fleet/snapshot", "hosts", "baselines", "scans", "audit/events", "evidence/bundles"];
 
 for (const seg of requiredPrefixes) {
   const hit = routes.some((r) => {

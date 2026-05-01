@@ -3,13 +3,16 @@ import { fleetSnapshot as mockFleet } from "@/data/mock/fleet";
 import { apiConfig } from "@/lib/api/config";
 import { apiV1BaseUrl } from "@/lib/api/origin";
 import { mockLatency } from "@/lib/mockLatency";
+import { collectorConfigured } from "@/lib/server/collector";
+import { loadFleetSnapshot } from "@/lib/server/inventory";
 
-export async function fetchFleetSnapshot(): Promise<FleetSnapshot> {
-  if (apiConfig.useMock) {
-    await mockLatency(200);
-    return mockFleet;
-  }
+export type FleetPageData = {
+  fleet: FleetSnapshot;
+  /** Mock-only week-over-week KPI deltas; off when fleet data is SSH- or API-backed. */
+  showDemoKpiDeltas: boolean;
+};
 
+async function fetchFleetSnapshotFromHttp(): Promise<FleetSnapshot> {
   const base = apiConfig.baseUrl || apiV1BaseUrl();
   const res = await fetch(`${base}/fleet/snapshot`, {
     next: { revalidate: 15 },
@@ -36,4 +39,18 @@ export async function fetchFleetSnapshot(): Promise<FleetSnapshot> {
       staleSlices: [],
     },
   };
+}
+
+export async function fetchFleetPageData(): Promise<FleetPageData> {
+  if (apiConfig.useMock) {
+    if (collectorConfigured()) {
+      const fleet = await loadFleetSnapshot();
+      return { fleet, showDemoKpiDeltas: false };
+    }
+    await mockLatency(200);
+    return { fleet: mockFleet, showDemoKpiDeltas: true };
+  }
+
+  const fleet = await fetchFleetSnapshotFromHttp();
+  return { fleet, showDemoKpiDeltas: false };
 }

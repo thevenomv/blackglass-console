@@ -19,6 +19,37 @@ tags:
   - name: Reports
 
 paths:
+  /api/health:
+    servers:
+      - url: https://console.blackglass.invalid
+        description: Next.js app origin (not under `/v1`)
+    get:
+      tags: [Hosts]
+      summary: Liveness, baseline store, collector diagnostics
+      parameters:
+        - name: probe
+          in: query
+          description: Pass `secrets` for a lightweight secret-backend reachability probe
+          schema: { type: string, enum: [secrets] }
+      responses:
+        "200":
+          description: Health JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+                  diagnostics_scope:
+                    type: string
+                    description: >
+                      runtime_configuration = env/collector readiness only (no secret fetch).
+                      With ?probe=secrets, adds secret_backend_reachability and includes secrets_probe.
+                  baseline_store: { nullable: true }
+                  collector: { type: object }
+                  secrets_probe: { type: object, nullable: true }
+
   /fleet/snapshot:
     get:
       tags: [Hosts]
@@ -56,6 +87,7 @@ paths:
                         action: { type: string }
                         detail: { type: string }
                         actor: { type: string, nullable: true }
+                        scan_id: { type: string, nullable: true }
     post:
       tags: [Hosts]
       summary: Append audit entry (demo stub)
@@ -70,6 +102,7 @@ paths:
                 action: { type: string }
                 detail: { type: string }
                 actor: { type: string }
+                scan_id: { type: string, description: "Optional correlation with scan jobs" }
       responses:
         "201":
           description: Record created
@@ -99,6 +132,72 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Host" }
                   next_cursor: { type: string, nullable: true }
+
+  /baselines:
+    get:
+      tags: [Baselines]
+      summary: List captured baselines (summary per host)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  baselines:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        hostId: { type: string }
+                        hostname: { type: string }
+                        capturedAt: { type: string, format: date-time }
+                        listenersCount: { type: integer }
+                        usersCount: { type: integer }
+                        servicesCount: { type: integer }
+    post:
+      tags: [Baselines]
+      summary: Capture baselines for all configured collector hosts
+      description: >
+        Collects SSH snapshots from every COLLECTOR_HOST_N in parallel. Saves each
+        successful baseline; partial failures are listed under `failed`.
+      responses:
+        "200":
+          description: At least one host captured successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [captured]
+                properties:
+                  captured:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        hostId: { type: string }
+                        hostname: { type: string }
+                        capturedAt: { type: string, format: date-time }
+                        listenersCount: { type: integer }
+                        usersCount: { type: integer }
+                        servicesCount: { type: integer }
+                        sudoers: {}
+                        cronEntries:
+                          type: array
+                          items: { type: string }
+                        sshConfig: {}
+                        firewallActive: { type: boolean }
+                  failed:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        hostId: { type: string }
+                        detail: { type: string }
+        "502":
+          description: Every host failed collection
+        "503":
+          description: Collector not configured (missing COLLECTOR_HOST_1 or SSH_PRIVATE_KEY)
 
   /hosts/{hostId}:
     get:

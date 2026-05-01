@@ -1,0 +1,5 @@
+# Committed defaults: run `doppler setup --no-interactive` from repo root to sync CLI scope.
+# https://docs.doppler.com/docs/cli#doppler-setup
+setup:
+  project: blackglass
+  config: dev

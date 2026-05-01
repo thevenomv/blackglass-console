@@ -1,81 +1,46 @@
-import { enqueueScan, resolveScan } from "@/lib/server/scan-jobs";
+import { configuredCollectorHostIds } from "@/lib/server/collector-env";
+import { enqueueScan } from "@/lib/server/scan-jobs";
 import { checkScanPostRate, clientIp } from "@/lib/server/rate-limit";
-import { collectorConfigured, collectAllSnapshots } from "@/lib/server/collector";
-import { getBaseline } from "@/lib/server/baseline-store";
-import { computeDrift, storeDriftEvents } from "@/lib/server/drift-engine";
-import { appendAudit } from "@/lib/server/audit-log";
+import { collectorConfigured } from "@/lib/server/collector";
+import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
+import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
+import { ScanPostBodySchema } from "@/lib/server/http/schemas";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   if (!checkScanPostRate(clientIp(request))) {
-    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+    return jsonError(429, "rate_limited");
   }
 
-  let host_ids: string[] = [];
-  try {
-    const body = (await request.json()) as { host_ids?: string[] };
-    host_ids = body.host_ids ?? [];
-  } catch {
-    host_ids = [];
+  const raw = await readJsonBodyOptional(request);
+  if (!raw.ok) return raw.response;
+
+  const parsed = ScanPostBodySchema.safeParse(raw.data);
+  if (!parsed.success) return zodErrorResponse(parsed.error);
+
+  const host_ids = parsed.data.host_ids ?? [];
+
+  if (collectorConfigured() && host_ids.length > 0) {
+    const allowed = new Set(configuredCollectorHostIds());
+    const invalid = host_ids.filter((id) => !allowed.has(id));
+    if (invalid.length > 0) {
+      const list = [...allowed].sort().join(", ") || "(none)";
+      return jsonError(
+        400,
+        "invalid_host_ids",
+        `Unknown host_id(s): ${invalid.join(", ")}. Configured: ${list}`,
+      );
+    }
   }
 
   const job = enqueueScan(host_ids.length ? host_ids : ["fleet"]);
+  const collectOpts =
+    host_ids.length > 0
+      ? { scanId: job.id, reason: "drift_scan" as const, hostIds: host_ids }
+      : { scanId: job.id, reason: "drift_scan" as const };
 
-  // When collector is configured, run real SSH collection in the background
-  // across all configured COLLECTOR_HOST_N targets in parallel.
-  // We don't await it — the client polls /api/v1/scans/:id for status.
   if (collectorConfigured()) {
-    void (async () => {
-      try {
-        const results = await collectAllSnapshots();
-
-        let totalDrift = 0;
-        const failures: string[] = [];
-
-        for (const result of results) {
-          if (result.error || !result.snapshot) {
-            failures.push(`${result.hostId}: ${result.error ?? "no snapshot"}`);
-            continue;
-          }
-
-          const current = result.snapshot;
-          const baseline = getBaseline(current.hostId);
-
-          if (!baseline) {
-            failures.push(
-              `${current.hostId}: No baseline captured. Call POST /api/v1/baselines first.`,
-            );
-            continue;
-          }
-
-          const events = computeDrift(baseline, current);
-          storeDriftEvents(current.hostId, events);
-          totalDrift += events.length;
-
-          appendAudit({
-            action: "scan.completed",
-            detail: `Scan ${job.id} — ${current.hostname}: ${events.length} drift events`,
-          });
-        }
-
-        if (failures.length > 0 && totalDrift === 0) {
-          resolveScan(job.id, "failed", failures.join("; "));
-          appendAudit({
-            action: "scan.failed",
-            detail: `Scan ${job.id} failed: ${failures.join("; ")}`,
-          });
-        } else {
-          resolveScan(job.id, "succeeded", failures.length ? failures.join("; ") : undefined, totalDrift);
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        resolveScan(job.id, "failed", `Collection error: ${message}`);
-        appendAudit({
-          action: "scan.failed",
-          detail: `Scan ${job.id} failed: ${message}`,
-        });
-      }
-    })();
+    void executeDriftScanJob(job.id, collectOpts);
   }
 
   return NextResponse.json(
@@ -83,4 +48,3 @@ export async function POST(request: Request) {
     { status: 202 },
   );
 }
-
