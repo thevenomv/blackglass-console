@@ -5,6 +5,9 @@ import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { FetchFailed } from "@/components/ui/FetchFailed";
 import { fetchFleetSnapshot } from "@/lib/api/fleet";
 
+// Dashboard always needs live data — skip static prerender.
+export const dynamic = "force-dynamic";
+
 async function DashboardDeferred() {
   try {
     const fleet = await fetchFleetSnapshot();

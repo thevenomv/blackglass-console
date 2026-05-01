@@ -20,5 +20,20 @@ export async function fetchFleetSnapshot(): Promise<FleetSnapshot> {
     throw new Error(`Fleet snapshot failed (${res.status})`);
   }
 
-  return (await res.json()) as FleetSnapshot;
+  const raw = (await res.json()) as Partial<FleetSnapshot>;
+  return {
+    hostsChecked: raw.hostsChecked ?? 0,
+    highRiskDrift: raw.highRiskDrift ?? 0,
+    readyHosts: raw.readyHosts ?? 0,
+    evidenceBundles: raw.evidenceBundles ?? 0,
+    driftVolumeByDay: raw.driftVolumeByDay ?? [],
+    fleetBullets: raw.fleetBullets ?? [],
+    notableEvents: raw.notableEvents ?? [],
+    coverage: raw.coverage ?? {
+      collectorsExpected: 0,
+      collectorsOnline: 0,
+      lastFleetHeartbeatAt: new Date().toISOString(),
+      staleSlices: [],
+    },
+  };
 }
