@@ -44,9 +44,6 @@ export function buildSshConfig(
     ...sshAuthFragment(auth),
     readyTimeout: 15_000,
     tryKeyboard: false,
-    debug: (msg: string) => {
-      console.log(`[ssh2-debug ${host}] ${msg}`);
-    },
   };
 }
 
