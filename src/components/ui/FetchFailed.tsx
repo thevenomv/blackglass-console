@@ -28,8 +28,8 @@ export function FetchFailed({
         <p className="mt-4 max-w-xl text-sm text-fg-muted">{hints}</p>
       ) : (
         <ul className="mt-4 max-w-xl list-disc space-y-1 pl-5 text-sm text-fg-muted">
-          <li>Confirm NEXT_PUBLIC_USE_MOCK=false only when /api/v1 is reachable from SSR.</li>
-          <li>Set NEXT_PUBLIC_APP_URL to the deployed HTTPS origin (includes port in dev).</li>
+          <li>Set NEXT_PUBLIC_USE_MOCK=false in your environment to use live data.</li>
+          <li>Only set NEXT_PUBLIC_API_URL if calling an external API; omit it for same-origin (default).</li>
           <li>Check DigitalOcean build logs if this appeared right after deploy.</li>
         </ul>
       )}

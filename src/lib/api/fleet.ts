@@ -42,15 +42,21 @@ async function fetchFleetSnapshotFromHttp(): Promise<FleetSnapshot> {
 }
 
 export async function fetchFleetPageData(): Promise<FleetPageData> {
-  if (apiConfig.useMock) {
-    if (collectorConfigured()) {
-      const fleet = await loadFleetSnapshot();
-      return { fleet, showDemoKpiDeltas: false };
-    }
+  // Mock mode with no real collector: serve demo data with fake deltas.
+  if (apiConfig.useMock && !collectorConfigured()) {
     await mockLatency(200);
     return { fleet: mockFleet, showDemoKpiDeltas: true };
   }
 
-  const fleet = await fetchFleetSnapshotFromHttp();
+  // External API explicitly configured: use HTTP.
+  if (apiConfig.baseUrl) {
+    const fleet = await fetchFleetSnapshotFromHttp();
+    return { fleet, showDemoKpiDeltas: false };
+  }
+
+  // Same-origin (default, including NEXT_PUBLIC_USE_MOCK=false): call server
+  // function directly — avoids an HTTP round-trip that breaks on DO App Platform
+  // when NEXT_PUBLIC_APP_URL is not set (would resolve to 127.0.0.1:3000).
+  const fleet = await loadFleetSnapshot();
   return { fleet, showDemoKpiDeltas: false };
 }
