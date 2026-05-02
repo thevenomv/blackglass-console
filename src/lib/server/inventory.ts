@@ -130,13 +130,14 @@ const CATEGORY_LABEL_MAP: Record<string, string> = {
  * when `collectorConfigured()` is true and a baseline exists for `id`.
  * Returns null otherwise (caller falls back to mock data).
  */
-export function loadHostDetail(id: string): HostDetail | null {
+export async function loadHostDetail(id: string): Promise<HostDetail | null> {
   if (!collectorConfigured()) return null;
 
-  const record = buildRealHosts().find((h) => h.id === id);
+  const hosts = await buildRealHosts();
+  const record = hosts.find((h) => h.id === id);
   if (!record) return null;
 
-  const baseline = getBaseline(id);
+  const baseline = await getBaseline(id);
   if (!baseline) return null;
 
   const events = getDriftEvents(id);

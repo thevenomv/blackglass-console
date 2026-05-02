@@ -17,7 +17,7 @@ async function HostDetailBody({
   finding?: string;
 }) {
   // Use real collector data when available; fall back to mock.
-  const liveDetail = loadHostDetail(id);
+  const liveDetail = await loadHostDetail(id);
   if (!liveDetail) await mockLatency(260);
   const detail = liveDetail ?? getHostDetail(id);
   if (!detail) notFound();
