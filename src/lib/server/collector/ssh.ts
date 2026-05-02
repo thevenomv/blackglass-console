@@ -1,4 +1,5 @@
 import { Client, type ConnectConfig } from "ssh2";
+import * as net from "node:net";
 import type { SshAuthConfig } from "@/lib/server/secrets";
 import type { HostSnapshot } from "./types";
 import {
@@ -44,9 +45,7 @@ export function buildSshConfig(
     readyTimeout: 15_000,
     tryKeyboard: false,
     debug: (msg: string) => {
-      if (msg.includes("ERROR") || msg.includes("error") || msg.includes("Failed") || msg.includes("Negotiated")) {
-        console.log(`[ssh2-debug ${host}] ${msg}`);
-      }
+      console.log(`[ssh2-debug ${host}] ${msg}`);
     },
   };
 }
@@ -86,10 +85,24 @@ function exec(conn: Client, command: string): Promise<string> {
   });
 }
 
+/** Probe TCP connectivity before SSH to give clearer error messages. */
+function probeTcp(host: string, port: number, timeoutMs = 5000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const socket = net.createConnection({ host, port });
+    socket.setTimeout(timeoutMs);
+    socket.on("connect", () => { socket.destroy(); resolve(); });
+    socket.on("timeout", () => { socket.destroy(); reject(new Error(`TCP connect to ${host}:${port} timed out`)); });
+    socket.on("error", (e) => reject(new Error(`TCP connect to ${host}:${port} failed: ${e.message}`)));
+  });
+}
+
 /** Open one SSH connection, run all collection commands, close. */
 export async function runCollection(
   cfg: ConnectConfig & { hostId: string; displayName: string },
 ): Promise<HostSnapshot> {
+  // First verify TCP connectivity to give a clear error if networking is blocked.
+  await probeTcp(cfg.host as string, (cfg.port as number) ?? 22);
+
   return new Promise((resolve, reject) => {
     const conn = new Client();
 
