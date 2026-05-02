@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as path from "path";
+
 export type ScanJobStatus = "queued" | "running" | "succeeded" | "failed";
 
 export type ScanJobRecord = {
@@ -14,14 +17,54 @@ export type ScanJobRecord = {
 
 const GLOBAL_KEY = "__blackglass_scan_jobs_v1" as const;
 
+const MAX_JOBS = 200;
+
 type GlobalWithJobs = typeof globalThis & {
   [GLOBAL_KEY]?: Map<string, ScanJobRecord>;
 };
 
+// ---------------------------------------------------------------------------
+// File persistence helpers (opt-in via SCAN_JOBS_PATH env var)
+// ---------------------------------------------------------------------------
+
+function storePath(): string | undefined {
+  return process.env.SCAN_JOBS_PATH;
+}
+
+function loadFromFile(filePath: string): Map<string, ScanJobRecord> {
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    const arr = JSON.parse(raw) as ScanJobRecord[];
+    return new Map(arr.map((r) => [r.id, r]));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveToFile(filePath: string, map: Map<string, ScanJobRecord>): void {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    // Persist only terminal / recent jobs — cap at MAX_JOBS newest by createdAt.
+    const sorted = [...map.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, MAX_JOBS);
+    fs.writeFileSync(filePath, JSON.stringify(sorted, null, 2), "utf8");
+  } catch (err) {
+    console.error("[scan-jobs] Failed to persist:", err);
+  }
+}
+
 function jobs(): Map<string, ScanJobRecord> {
   const g = globalThis as GlobalWithJobs;
-  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = new Map();
+  if (!g[GLOBAL_KEY]) {
+    const fp = storePath();
+    g[GLOBAL_KEY] = fp ? loadFromFile(fp) : new Map();
+  }
   return g[GLOBAL_KEY];
+}
+
+function persist(): void {
+  const fp = storePath();
+  if (fp) saveToFile(fp, jobs());
 }
 
 export function enqueueScan(hostIds: string[]): ScanJobRecord {
@@ -31,6 +74,7 @@ export function enqueueScan(hostIds: string[]): ScanJobRecord {
       : `scan-${Date.now()}`;
   const rec: ScanJobRecord = { id, createdAt: Date.now(), hostIds };
   jobs().set(id, rec);
+  persist();
   return rec;
 }
 
@@ -46,6 +90,7 @@ export function resolveScan(
   rec.resolvedAt = Date.now();
   rec.resolvedDetail = detail;
   if (driftCount !== undefined) rec.driftCount = driftCount;
+  persist();
 }
 
 export function getScanRecord(id: string): ScanJobRecord | undefined {

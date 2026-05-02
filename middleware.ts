@@ -19,6 +19,7 @@ export async function middleware(request: NextRequest) {
   if (!token) {
     const login = new URL("/login", request.url);
     login.searchParams.set("next", pathname);
+    login.searchParams.set("redirected", "1");
     return NextResponse.redirect(login);
   }
 
@@ -27,6 +28,7 @@ export async function middleware(request: NextRequest) {
     // Token present but invalid/tampered — force re-login
     const login = new URL("/login", request.url);
     login.searchParams.set("next", pathname);
+    login.searchParams.set("redirected", "1");
     const response = NextResponse.redirect(login);
     response.cookies.delete(SESSION);
     return response;

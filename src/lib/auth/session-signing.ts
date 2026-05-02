@@ -8,8 +8,21 @@
 
 const DEV_SECRET = "dev-secret-replace-in-production";
 
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 function getSecret(): string {
-  return process.env.AUTH_SESSION_SECRET ?? DEV_SECRET;
+  const secret = process.env.AUTH_SESSION_SECRET;
+  if (
+    !secret &&
+    process.env.NODE_ENV === "production" &&
+    process.env.AUTH_REQUIRED === "true"
+  ) {
+    throw new Error(
+      "[blackglass] AUTH_SESSION_SECRET must be set when AUTH_REQUIRED=true in production. " +
+        "Generate with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+    );
+  }
+  return secret ?? DEV_SECRET;
 }
 
 async function getKey(secret: string): Promise<CryptoKey> {
@@ -71,7 +84,10 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
 
     const payloadBytes = fromB64url(encodedPayload);
     const payloadStr = new TextDecoder().decode(payloadBytes);
-    return JSON.parse(payloadStr) as SessionPayload;
+    const payload = JSON.parse(payloadStr) as SessionPayload;
+    // Reject tokens older than SESSION_MAX_AGE_MS
+    if (Date.now() - payload.iat > SESSION_MAX_AGE_MS) return null;
+    return payload;
   } catch {
     return null;
   }

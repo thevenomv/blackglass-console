@@ -7,8 +7,12 @@
 import { NextResponse } from "next/server";
 import { collectorConfigured } from "@/lib/server/collector";
 import { captureBaselinesFromFleet } from "@/lib/server/services/baseline-capture";
+import { requireRole } from "@/lib/server/http/auth-guard";
 
 export async function POST() {
+  const guard = await requireRole(["operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   if (!collectorConfigured()) {
     return NextResponse.json(
       {

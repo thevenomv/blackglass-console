@@ -7,9 +7,11 @@
 
 import type { HostSnapshot } from "./collector";
 import type { DriftEvent } from "@/data/mock/types";
+import * as fs from "fs";
+import * as path from "path";
 
 // ---------------------------------------------------------------------------
-// In-process drift event store (same pattern as scan-jobs.ts)
+// In-process drift event store — file-backed when DRIFT_EVENTS_PATH is set
 // ---------------------------------------------------------------------------
 
 const GLOBAL_KEY = "__blackglass_drift_events_v1" as const;
@@ -18,14 +20,50 @@ type GlobalWithEvents = typeof globalThis & {
   [GLOBAL_KEY]?: Map<string, DriftEvent[]>; // hostId → events
 };
 
+type SerializedStore = Record<string, DriftEvent[]>;
+
+function storePath(): string | undefined {
+  return process.env.DRIFT_EVENTS_PATH;
+}
+
+function loadFromFile(filePath: string): Map<string, DriftEvent[]> {
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    const obj = JSON.parse(raw) as SerializedStore;
+    return new Map(Object.entries(obj));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveToFile(filePath: string, map: Map<string, DriftEvent[]>): void {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const obj: SerializedStore = Object.fromEntries(map);
+    fs.writeFileSync(filePath, JSON.stringify(obj, null, 2), "utf8");
+  } catch (err) {
+    console.error("[drift-engine] Failed to persist:", err);
+  }
+}
+
 function eventStore(): Map<string, DriftEvent[]> {
   const g = globalThis as GlobalWithEvents;
-  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = new Map();
+  if (!g[GLOBAL_KEY]) {
+    const fp = storePath();
+    g[GLOBAL_KEY] = fp ? loadFromFile(fp) : new Map();
+  }
   return g[GLOBAL_KEY];
+}
+
+function persist(): void {
+  const fp = storePath();
+  if (fp) saveToFile(fp, eventStore());
 }
 
 export function storeDriftEvents(hostId: string, events: DriftEvent[]): void {
   eventStore().set(hostId, events);
+  persist();
 }
 
 export function getDriftEvents(hostId?: string): DriftEvent[] {

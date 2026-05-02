@@ -161,12 +161,9 @@ export function DashboardV3({
           aria-label="Collector configuration"
           className="rounded-card border border-warning/45 bg-warning-soft/25 px-4 py-3 text-sm text-fg-primary"
         >
-          <p className="font-medium text-fg-primary">Live mode — collector not configured</p>
+          <p className="font-medium text-fg-primary">No collector connected</p>
           <p className="mt-1 text-fg-muted">
-            Set <span className="font-mono text-fg-primary">COLLECTOR_HOST_1</span> and a secret
-            backend (<span className="font-mono text-fg-primary">SECRET_PROVIDER=doppler</span> or{" "}
-            <span className="font-mono text-fg-primary">SSH_PRIVATE_KEY</span>), then redeploy or
-            restart with <span className="font-mono text-fg-primary">doppler run</span>. See{" "}
+            Configure a host and credentials to start collecting integrity data. See{" "}
             <Link href="/settings" className="font-medium text-accent-blue hover:underline">
               Settings
             </Link>{" "}

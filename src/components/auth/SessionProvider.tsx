@@ -11,6 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 type SessionState = {
   loading: boolean;
@@ -26,6 +27,8 @@ type SessionApi = SessionState & {
 const SessionContext = createContext<SessionApi | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [state, setState] = useState<SessionState>({
     loading: true,
     role: "operator",
@@ -34,13 +37,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/session", { cache: "no-store" });
+
+    // Expired or invalid session — redirect to login preserving the current path.
+    if (res.status === 401) {
+      const loginUrl = `/login?next=${encodeURIComponent(pathname ?? "/")}`;
+      router.replace(loginUrl);
+      return;
+    }
+
     const data = (await res.json()) as SessionState & { authRequired?: boolean };
+
+    // authRequired=true but not authenticated → redirect to login.
+    if (data.authRequired && !data.authenticated) {
+      const loginUrl = `/login?next=${encodeURIComponent(pathname ?? "/")}`;
+      router.replace(loginUrl);
+      return;
+    }
+
     setState({
       loading: false,
       role: data.role,
       authenticated: data.authenticated,
     });
-  }, []);
+  }, [pathname, router]);
 
   useEffect(() => {
     void refresh();

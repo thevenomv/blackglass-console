@@ -4,10 +4,14 @@ import { checkScanPostRate, clientIp } from "@/lib/server/rate-limit";
 import { collectorConfigured } from "@/lib/server/collector";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
 import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
+import { requireRole } from "@/lib/server/http/auth-guard";
 import { ScanPostBodySchema } from "@/lib/server/http/schemas";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
+  const guard = await requireRole(["operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   if (!checkScanPostRate(clientIp(request))) {
     return jsonError(429, "rate_limited");
   }

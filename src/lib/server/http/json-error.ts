@@ -3,6 +3,9 @@ import type { ZodError } from "zod";
 
 /** Consistent API error envelope for v1 route handlers. */
 export function jsonError(status: number, error: string, detail?: string) {
+  if (status >= 500) {
+    console.error(`[blackglass] ${status} ${error}${detail ? ": " + detail : ""}`);
+  }
   return NextResponse.json(
     { error, ...(detail !== undefined && detail !== "" ? { detail } : {}) },
     { status },

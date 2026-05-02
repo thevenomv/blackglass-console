@@ -40,9 +40,9 @@ const ROUTES: PaletteItem[] = [
   { id: "settings", label: "Settings", href: "/settings", keywords: "rotate keys" },
   {
     id: "login",
-    label: "Role picker (login stub)",
+    label: "Sign in",
     href: "/login",
-    keywords: "auditor operator admin",
+    keywords: "sign in session auth",
   },
   {
     id: "host-seed",

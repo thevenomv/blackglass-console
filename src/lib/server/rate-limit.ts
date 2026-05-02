@@ -23,10 +23,18 @@ function allow(key: string, limit: number, windowMs: number): boolean {
 }
 
 export function clientIp(request: Request): string {
+  // X-Real-IP is set by DigitalOcean / nginx to the originating client IP and
+  // cannot be spoofed by the client once the LB strips incoming headers.
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  // X-Forwarded-For: "client, proxy1, proxyN". Take the LAST entry — appended
+  // by the trusted downstream proxy — so a client-supplied forged prefix is ignored.
   const xf = request.headers.get("x-forwarded-for");
   if (xf) {
-    const first = xf.split(",")[0]?.trim();
-    if (first) return first;
+    const parts = xf.split(",").map((s) => s.trim()).filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (last) return last;
   }
   return "local";
 }

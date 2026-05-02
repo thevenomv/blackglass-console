@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useSession } from "@/components/auth/SessionProvider";
+import { signOut } from "@/app/(auth)/login/actions";
 
 const NAV = [
   { href: "/", label: "Dashboard" },
@@ -18,6 +20,7 @@ const NAV = [
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { role, authenticated } = useSession();
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border-default bg-bg-sidebar">
@@ -59,6 +62,21 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <p className="mt-2 font-mono text-[10px] text-fg-faint">
           Palette: <kbd className="rounded border border-border-subtle px-1">⌘K</kbd>
         </p>
+        {authenticated && (
+          <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-3">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-fg-faint">
+              {role}
+            </span>
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="font-mono text-[10px] uppercase tracking-widest text-fg-faint transition-colors hover:text-fg-primary"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </aside>
   );

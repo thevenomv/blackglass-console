@@ -45,7 +45,7 @@ const PERSONAS = [
     links: [
       { href: "/evidence", label: "Evidence bundles" },
       { href: "/reports", label: "Reports" },
-      { href: "/login", label: "Pick auditor role" },
+      { href: "/login", label: "Sign in" },
     ],
   },
 ];
@@ -125,7 +125,7 @@ export default function DemoPage() {
             href="/login"
             className="rounded-card border border-border-default px-4 py-2 text-sm font-medium text-accent-blue hover:bg-bg-elevated"
           >
-            Role picker (login stub)
+            Sign in
           </Link>
         </div>
 

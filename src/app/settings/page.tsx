@@ -34,8 +34,7 @@ export default function SettingsPage() {
         <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">
           <h2 className="text-sm font-semibold text-fg-primary">Session</h2>
           <p className="text-sm text-fg-muted">
-            When <span className="font-mono text-fg-primary">AUTH_REQUIRED=true</span>, operators
-            must authenticate before accessing the console.
+            Sign out to end your current session.
           </p>
           <form action={signOut}>
             <Button variant="secondary" type="submit">

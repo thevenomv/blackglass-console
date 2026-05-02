@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { getHostDetail } from "@/data/mock/hosts";
 import { resolveDriftInvestigation } from "@/lib/resolveInvestigation";
 import { mockLatency } from "@/lib/mockLatency";
+import { loadHostDetail } from "@/lib/server/inventory";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
@@ -15,8 +16,10 @@ async function HostDetailBody({
   id: string;
   finding?: string;
 }) {
-  await mockLatency(260);
-  const detail = getHostDetail(id);
+  // Use real collector data when available; fall back to mock.
+  const liveDetail = loadHostDetail(id);
+  if (!liveDetail) await mockLatency(260);
+  const detail = liveDetail ?? getHostDetail(id);
   if (!detail) notFound();
 
   const investigation = resolveDriftInvestigation(id, { findingSlug: finding });

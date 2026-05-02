@@ -1,6 +1,7 @@
 import { appendAudit, readAudit } from "@/lib/server/audit-log";
 import { readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
 import { AuditEventsQuerySchema, AuditPostBodySchema } from "@/lib/server/http/schemas";
+import { requireRole } from "@/lib/server/http/auth-guard";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -12,6 +13,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const guard = await requireRole(["operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   const raw = await readJsonBodyOptional(request);
   if (!raw.ok) return raw.response;
 
