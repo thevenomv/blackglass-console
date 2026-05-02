@@ -61,9 +61,15 @@ async function collectAllSnapshotsWithAuth(
       const snapshot = await Promise.race([runCollection(cfg), timeout(cfg.hostId)]);
       return { snapshot, hostId: cfg.hostId };
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      logCollectorEvent("collector.ssh.error", {
+        scan_id: ctx.scanId,
+        host_id: cfg.hostId,
+        error: errorMsg,
+      });
       return {
         hostId: cfg.hostId,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMsg,
       };
     }
   });
