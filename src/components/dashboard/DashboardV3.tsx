@@ -8,6 +8,7 @@ import { RunScanButton } from "@/components/dashboard/RunScanButton";
 import { Card } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { ProgressRow } from "@/components/ui/ProgressBar";
+import { SecurityOverviewSection } from "@/components/dashboard/SecurityOverviewSection";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -564,6 +565,8 @@ export function DashboardV3({
           ) : null}
         </Card>
       ) : null}
+
+      <SecurityOverviewSection />
     </div>
   );
 }
