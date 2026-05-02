@@ -96,7 +96,7 @@ const TIERS: PricingTier[] = [
     footer:
       "Standardize Linux integrity across your fleet with the controls and evidence your auditors expect.",
     cta: "Contact sales",
-    ctaHref: "mailto:hello@blackglass.io?subject=BLACKGLASS+Fleet+Enquiry",
+    ctaHref: "mailto:jamie@obsidiandynamics.co.uk?subject=BLACKGLASS+Fleet+Enquiry",
     highlight: false,
     ctaVariant: "secondary",
   },
@@ -265,12 +265,16 @@ export default function PricingSection() {
         {/* Legal footer */}
         <p className="mt-8 text-center text-xs text-fg-faint">
           BLACKGLASS is a product of{" "}
-          <strong className="font-medium text-fg-faint">Obsidian Dynamics Limited</strong>.
-          {" "}Questions?{" "}
-          <a href="mailto:hello@blackglass.io" className="text-accent-blue hover:underline">
-            hello@blackglass.io
+          <a href="https://obsidiandynamics.co.uk" target="_blank" rel="noopener noreferrer" className="text-accent-blue hover:underline">
+            Obsidian Dynamics Limited
           </a>
-        </p>
+          {" "}(Co. No. 16663833, England &amp; Wales).{" "}Questions?{" "}
+          <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
+            jamie@obsidiandynamics.co.uk
+          </a>          {" "}·{" "}
+          <a href="/terms" className="text-accent-blue hover:underline">Terms</a>
+          {" "}·{" "}
+          <a href="/privacy" className="text-accent-blue hover:underline">Privacy</a>        </p>
 
       </div>
     </section>

@@ -280,9 +280,15 @@ export function SecurityOverviewSection() {
           <Link href="/settings" className="text-accent-blue hover:underline">
             Configure secrets backend
           </Link>
-          <span>Questions? <a href="mailto:hello@blackglass.io" className="text-accent-blue hover:underline">hello@blackglass.io</a></span>
+          <span>Questions? <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a></span>
           <span className="text-fg-faint">·</span>
-          <span>© {new Date().getFullYear()} Obsidian Dynamics Limited. BLACKGLASS is a product of Obsidian Dynamics Limited.</span>
+          <a href="https://obsidiandynamics.co.uk" target="_blank" rel="noopener noreferrer" className="text-accent-blue hover:underline">obsidiandynamics.co.uk</a>
+          <span className="text-fg-faint">·</span>
+          <Link href="/terms" className="text-accent-blue hover:underline">Terms</Link>
+          <span className="text-fg-faint">·</span>
+          <Link href="/privacy" className="text-accent-blue hover:underline">Privacy</Link>
+          <span className="text-fg-faint">·</span>
+          <span>© {new Date().getFullYear()} Obsidian Dynamics Limited (Co. No. 16663833)</span>
         </div>
 
       </div>

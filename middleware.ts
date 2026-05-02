@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Exclude Sentry tunnel, Next.js internals, static files, and API routes
-    "/((?!monitoring|_next/static|_next/image|favicon.ico|api|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Exclude Sentry tunnel, Next.js internals, static files, API routes, and public legal pages
+    "/((?!monitoring|terms|privacy|pricing|_next/static|_next/image|favicon.ico|api|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
