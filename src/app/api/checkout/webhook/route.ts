@@ -56,6 +56,30 @@ export async function POST(request: Request) {
       break;
     }
 
+    case "invoice.payment_succeeded": {
+      // Renewal payment: log it so the audit trail shows recurring charges.
+      const invoice = event.data.object as Stripe.Invoice;
+      const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "unknown";
+      console.info(`[stripe/webhook] invoice.payment_succeeded — invoice=${invoice.id} customer=${customerId} amount=${invoice.amount_paid}`);
+      break;
+    }
+
+    case "invoice.payment_failed": {
+      // Payment failed: log for ops visibility — send Slack alert if configured.
+      const invoice = event.data.object as Stripe.Invoice;
+      const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "unknown";
+      console.warn(`[stripe/webhook] invoice.payment_failed — invoice=${invoice.id} customer=${customerId}`);
+      const slackUrl = process.env.SLACK_ALERT_WEBHOOK_URL;
+      if (slackUrl) {
+        await fetch(slackUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: `:credit_card: *Stripe payment failed* — customer \`${customerId}\` invoice \`${invoice.id}\`` }),
+        }).catch(() => {});
+      }
+      break;
+    }
+
     default:
       // Ignore all other event types.
       break;

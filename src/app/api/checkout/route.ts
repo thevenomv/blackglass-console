@@ -33,10 +33,23 @@ export async function POST(request: Request) {
     line_items: lineItems,
     success_url: `${origin}/pricing/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/pricing`,
-    // Collect a billing email even when the buyer is not logged in.
+    // Collect a billing email and address for invoicing.
     billing_address_collection: "auto",
     // Allow promo codes in the checkout UI.
     allow_promotion_codes: true,
+    // Automatically send a receipt email after successful payment.
+    payment_method_collection: "always",
+    subscription_data: {
+      // Pass metadata so the webhook can identify this subscription.
+      metadata: { plan: "pro", source: "blackglass_checkout" },
+    },
+    // Attach invoice settings so every payment creates a downloadable PDF invoice.
+    invoice_creation: undefined, // subscription mode creates invoices automatically
+    // Auto-tax (disabled for now — enable once Stripe Tax is configured)
+    // automatic_tax: { enabled: true },
+    // Customer portal link shown after checkout
+    after_expiration: undefined,
+    consent_collection: undefined,
   });
 
   if (!session.url) {
