@@ -34,6 +34,11 @@ export default async function LoginPage({
             Too many login attempts. Please wait 15 minutes before trying again.
           </p>
         )}
+        {error === "invalid_invite" && (
+          <p className="mt-4 rounded-card border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+            This invite link is invalid or has already been used. Contact your administrator for a new link.
+          </p>
+        )}
         <form action={signIn} className="mt-8 space-y-4">
           {safePath && (
             <input type="hidden" name="next" value={safePath} />

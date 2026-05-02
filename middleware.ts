@@ -15,6 +15,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Invite redemption is intentionally unauthenticated — the token IS the credential
+  if (pathname.startsWith("/api/auth/invite")) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(SESSION)?.value;
   if (!token) {
     const login = new URL("/login", request.url);

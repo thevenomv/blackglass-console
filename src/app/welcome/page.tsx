@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { collectorConfigured } from "@/lib/server/collector";
 import { baselineStoreHealth } from "@/lib/server/baseline-store";
+import { GenerateInviteButton } from "@/components/auth/GenerateInviteButton";
 
 export const metadata = {
   title: "Get started | BLACKGLASS",
@@ -214,6 +215,25 @@ export default function WelcomePage() {
                 <span className="mt-0.5 text-xs text-fg-faint">{item.sub}</span>
               </Link>
             ))}
+          </div>
+        </section>
+
+        {/* Docs footer */}
+        <section aria-labelledby="invite-heading">
+          <h2
+            id="invite-heading"
+            className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-fg-faint"
+          >
+            Invite a customer
+          </h2>
+          <div className="rounded-card border border-border-default bg-bg-panel px-4 py-4">
+            <p className="mb-3 text-sm text-fg-muted">
+              Generate a one-time invite link. The recipient clicks it to get a 30-day read-only
+              session — no password required. Add the token to{" "}
+              <span className="font-mono text-fg-primary">INVITE_TOKENS</span> in your environment
+              first.
+            </p>
+            <GenerateInviteButton />
           </div>
         </section>
 

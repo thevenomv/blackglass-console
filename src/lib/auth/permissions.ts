@@ -1,4 +1,4 @@
-export type Role = "auditor" | "operator" | "admin";
+export type Role = "viewer" | "auditor" | "operator" | "admin";
 
 const allow = {
   runScan: ["operator", "admin"] as Role[],

@@ -62,3 +62,11 @@ export function checkHealthSecretsProbeRate(ip: string): boolean {
 export function checkLoginRate(ip: string): boolean {
   return allow(`login:${ip}`, 10, 15 * 60_000);
 }
+
+/**
+ * GET /api/auth/invite — token-enumeration guard.
+ * 10 attempts per IP per minute.
+ */
+export function checkInviteRate(ip: string): boolean {
+  return allow(`invite:${ip}`, 10, 60_000);
+}
