@@ -1,6 +1,6 @@
 import type { HostSnapshot } from "@/lib/server/collector/types";
 
-export type StoreAdapter = "memory" | "filesystem" | "spaces";
+export type StoreAdapter = "memory" | "filesystem" | "spaces" | "postgres";
 
 // ---------------------------------------------------------------------------
 // Typed store errors — surface in health() and /api/health

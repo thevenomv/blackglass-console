@@ -5,6 +5,9 @@ import { requireRole } from "@/lib/server/http/auth-guard";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
+  const guard = await requireRole(["auditor", "operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   const u = new URL(request.url);
   const parsed = AuditEventsQuerySchema.safeParse({ limit: u.searchParams.get("limit") });
   if (!parsed.success) return zodErrorResponse(parsed.error);

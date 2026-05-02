@@ -3,9 +3,11 @@ import { enqueueScan } from "@/lib/server/scan-jobs";
 import { checkScanPostRate, clientIp } from "@/lib/server/rate-limit";
 import { collectorConfigured } from "@/lib/server/collector";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
+import { getScanQueue } from "@/lib/server/queue/scan-queue";
 import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { ScanPostBodySchema } from "@/lib/server/http/schemas";
+import { getLimits } from "@/lib/plan";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -23,6 +25,17 @@ export async function POST(request: Request) {
   if (!parsed.success) return zodErrorResponse(parsed.error);
 
   const host_ids = parsed.data.host_ids ?? [];
+
+  // Enforce plan host cap for explicit host_id lists.
+  // Fleet scans (empty host_ids) are capped at the inventory layer.
+  const limits = getLimits();
+  if (host_ids.length > 0 && limits.maxHosts !== -1 && host_ids.length > limits.maxHosts) {
+    return jsonError(
+      403,
+      "plan_limit_exceeded",
+      `Your plan allows scanning up to ${limits.maxHosts} host(s) at a time. Upgrade to scan more.`,
+    );
+  }
 
   if (collectorConfigured() && host_ids.length > 0) {
     const allowed = new Set(configuredCollectorHostIds());
@@ -44,7 +57,15 @@ export async function POST(request: Request) {
       : { scanId: job.id, reason: "drift_scan" as const };
 
   if (collectorConfigured()) {
-    void executeDriftScanJob(job.id, collectOpts);
+    // Prefer BullMQ queue when REDIS_QUEUE_URL is set — the worker runs in a
+    // separate process so SSH fan-out doesn't block the Next.js event loop.
+    // Falls back to in-process execution for Stage 0/1 deployments.
+    const queue = await getScanQueue();
+    if (queue) {
+      await queue.add("scan", { jobId: job.id, collectOpts });
+    } else {
+      void executeDriftScanJob(job.id, collectOpts);
+    }
   }
 
   return NextResponse.json(

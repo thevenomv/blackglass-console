@@ -17,6 +17,7 @@ tags:
   - name: Drift
   - name: Evidence
   - name: Reports
+  - name: Ingest
 
 paths:
   /api/health:
@@ -420,6 +421,43 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/EvidenceBundleJob" }
 
+  /api/v1/ingest:
+    servers:
+      - url: https://console.blackglass.invalid
+        description: Next.js app origin (not under `/v1`)
+    post:
+      tags: [Ingest]
+      summary: Push-agent snapshot ingest
+      description: >
+        Lightweight agents installed on monitored hosts call this endpoint to
+        push their collected snapshot over HTTPS (pull-model alternative for
+        hosts in strict VPCs). Requires a Bearer token matching INGEST_API_KEY.
+      security:
+        - BearerIngestKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostSnapshot"
+      responses:
+        "200":
+          description: Snapshot accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  hostId: { type: string }
+                  capturedAt: { type: string, format: date-time }
+        "401":
+          description: Missing or invalid Bearer token
+        "429":
+          description: Rate limit exceeded for this host_id
+        "503":
+          description: INGEST_API_KEY not configured on this instance
+
   /reports:
     post:
       tags: [Reports]
@@ -452,7 +490,44 @@ components:
       required: true
       schema: { type: string }
 
+  securitySchemes:
+    BearerIngestKey:
+      type: http
+      scheme: bearer
+      description: INGEST_API_KEY bearer token for push-agent endpoints
+
   schemas:
+    HostSnapshot:
+      type: object
+      required: [hostId, hostname, collectedAt, listeners, users, sudoers, cron, services, ssh, firewall]
+      properties:
+        hostId: { type: string }
+        hostname: { type: string }
+        collectedAt: { type: string, format: date-time }
+        listeners:
+          type: array
+          items:
+            type: object
+            properties:
+              proto: { type: string }
+              port: { type: integer }
+              bind: { type: string }
+              process: { type: string, nullable: true }
+        users:
+          type: array
+          items:
+            type: object
+            properties:
+              username: { type: string }
+              uid: { type: integer }
+              gid: { type: integer }
+              shell: { type: string }
+        sudoers: { type: array, items: { type: object, additionalProperties: true } }
+        cron: { type: array, items: { type: object, additionalProperties: true } }
+        services: { type: array, items: { type: object, additionalProperties: true } }
+        ssh: { type: object, additionalProperties: true }
+        firewall: { type: object, additionalProperties: true }
+
     Host:
       type: object
       properties:

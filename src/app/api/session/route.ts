@@ -4,11 +4,16 @@ import { apiConfig, defaultGuestRole } from "@/lib/api/config";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-const VALID: Role[] = ["auditor", "operator", "admin"];
+// Roles that are valid inside a signed session token.
+const VALID: Role[] = ["viewer", "auditor", "operator", "admin"];
 
 export async function GET() {
   const jar = await cookies();
   const rawToken = jar.get("bg-session")?.value;
+  // NOTE: bg-role is a plain (unsigned) cookie kept only so the client can
+  // show the correct UI label without an extra fetch.  It is NEVER trusted
+  // for access-control decisions when AUTH_REQUIRED=true — only the
+  // HMAC-signed bg-session payload is authoritative.
   const cookieRole = jar.get("bg-role")?.value;
 
   // Verify HMAC signature when a token is present; role from signed payload only.

@@ -1,10 +1,14 @@
 import { loadHosts } from "@/lib/server/inventory";
 import { getLimits } from "@/lib/plan";
+import { requireRole } from "@/lib/server/http/auth-guard";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const guard = await requireRole(["viewer", "auditor", "operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   const limits = getLimits();
   const all = await loadHosts();
   // Enforce host cap: free tier shows at most maxHosts entries.

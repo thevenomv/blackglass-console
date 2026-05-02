@@ -48,6 +48,9 @@ export async function POST() {
  * Return a summary of all captured baselines.
  */
 export async function GET() {
+  const guard = await requireRole(["viewer", "auditor", "operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   const { listBaselineHostIds, getBaseline } = await import("@/lib/server/baseline-store");
   const ids = await listBaselineHostIds();
   const baselines = await Promise.all(

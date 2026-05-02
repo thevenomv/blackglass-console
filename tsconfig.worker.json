@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "outDir": "dist/worker",
+    "rootDir": ".",
+    "sourceMap": true,
+    "lib": ["ES2022"],
+    "incremental": false
+  },
+  "include": [
+    "src/worker/**/*.ts",
+    "src/lib/**/*.ts",
+    "src/data/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "src/app",
+    "src/components",
+    "tests"
+  ]
+}

@@ -40,6 +40,9 @@ const ReportPostSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export async function GET() {
+  const guard = await requireRole(["auditor", "operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   const items = await listReports();
   return NextResponse.json({ items });
 }

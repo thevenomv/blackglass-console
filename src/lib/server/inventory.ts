@@ -50,7 +50,7 @@ async function buildRealHosts(): Promise<HostRecord[]> {
       return {
         id: hostId,
         hostname: baseline?.hostname ?? hostId,
-        os: "Ubuntu 24.04",
+        os: "Linux",
         trust,
         lastScanAt: new Date().toISOString(),
         baselineAligned: trust === "aligned",

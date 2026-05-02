@@ -43,6 +43,7 @@ export const AUDIT_ACTIONS = {
   PLAN_REVERTED: "plan.reverted",
   CHECKOUT_STARTED: "checkout.started",
   CHECKOUT_COMPLETED: "checkout.completed",
+  INVOICE_PAYMENT_FAILED: "invoice.payment_failed",
 
   // Generic — prefer specific actions above when possible
   USER_ACTION: "user.action",
@@ -58,6 +59,8 @@ export type AuditEntry = {
   actor?: string;
   /** Correlates server-emitted rows with `GET /api/v1/scans/:id` when present. */
   scan_id?: string;
+  /** Propagated from `x-request-id` middleware header for cross-service correlation. */
+  request_id?: string;
 };
 
 const MAX = 500;

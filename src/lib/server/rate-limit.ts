@@ -89,3 +89,11 @@ export function checkLoginRate(ip: string): Promise<boolean> {
 export function checkInviteRate(ip: string): Promise<boolean> {
   return allowHybrid(`invite:${ip}`, 10, 60_000);
 }
+
+/**
+ * POST /api/v1/ingest — per-host push-agent flood guard.
+ * 120 ingests per host_id per minute (2/s sustained; handles bursts).
+ */
+export function checkIngestRate(hostId: string): Promise<boolean> {
+  return allowHybrid(`ingest:${hostId}`, 120, 60_000);
+}

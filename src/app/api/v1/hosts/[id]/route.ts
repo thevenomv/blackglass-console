@@ -5,6 +5,7 @@
  */
 
 import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
+import { requireRole } from "@/lib/server/http/auth-guard";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { loadHosts } from "@/lib/server/inventory";
 import { getHostDetail } from "@/data/mock/hosts";
@@ -16,6 +17,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const guard = await requireRole(["viewer", "auditor", "operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   const { id: rawId } = await params;
   const idParsed = ResourceIdPathSchema.safeParse(rawId);
   if (!idParsed.success) return zodErrorResponse(idParsed.error);

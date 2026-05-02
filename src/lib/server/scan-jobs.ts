@@ -21,13 +21,63 @@ const RUNNING_KEY = "__blackglass_running_scans_v1" as const;
 
 const MAX_JOBS = 200;
 
+/** TTL for Redis scan-result keys: 24 hours */
+const REDIS_SCAN_TTL_SECS = 86400;
+
 type GlobalWithJobs = typeof globalThis & {
   [GLOBAL_KEY]?: Map<string, ScanJobRecord>;
   [RUNNING_KEY]?: Set<string>;
 };
 
 // ---------------------------------------------------------------------------
-// Graceful shutdown — drain in-flight scans before process.exit(0)
+// Redis helpers (BullMQ cross-process scan state) — lazy dynamic import so
+// ioredis is never loaded in builds that don't set REDIS_QUEUE_URL.
+// ---------------------------------------------------------------------------
+
+function scanRedisKey(id: string): string {
+  return `bg:scan:${id}`;
+}
+
+/** Fire-and-forget: write a terminal scan record to Redis (worker → web). */
+function publishScanResultToRedis(rec: ScanJobRecord): void {
+  const url = process.env.REDIS_QUEUE_URL?.trim();
+  if (!url) return;
+  void (async () => {
+    try {
+      const { default: Redis } = await import("ioredis");
+      const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1 });
+      await client.set(
+        scanRedisKey(rec.id),
+        JSON.stringify(rec),
+        "EX",
+        REDIS_SCAN_TTL_SECS,
+      );
+      client.disconnect();
+    } catch (err) {
+      console.error("[scan-jobs] Redis publish failed:", err);
+    }
+  })();
+}
+
+/**
+ * Read a resolved scan record from Redis (web tier fallback when BullMQ
+ * worker resolved the scan in a separate process).
+ */
+async function fetchScanFromRedis(id: string): Promise<ScanJobRecord | undefined> {
+  const url = process.env.REDIS_QUEUE_URL?.trim();
+  if (!url) return undefined;
+  try {
+    const { default: Redis } = await import("ioredis");
+    const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1 });
+    const raw = await client.get(scanRedisKey(id));
+    client.disconnect();
+    if (!raw) return undefined;
+    return JSON.parse(raw) as ScanJobRecord;
+  } catch (err) {
+    console.error("[scan-jobs] Redis fetch failed:", err);
+    return undefined;
+  }
+}
 // ---------------------------------------------------------------------------
 
 const DRAIN_TIMEOUT_MS = 8_000; // max wait for running scans to finish
@@ -152,10 +202,39 @@ export function resolveScan(
   if (driftCount !== undefined) rec.driftCount = driftCount;
   persist();
   markScanDone(id);
+  // Publish to Redis so the web tier can read the result when BullMQ worker
+  // resolves a scan in a separate process.
+  publishScanResultToRedis(rec);
 }
 
 export function getScanRecord(id: string): ScanJobRecord | undefined {
   return jobs().get(id);
+}
+
+/**
+ * Async variant: checks the in-process Map first, then falls back to Redis
+ * when REDIS_QUEUE_URL is set. Use this in poll routes to handle the case
+ * where a BullMQ worker in a separate process resolved the scan.
+ */
+export async function getScanRecordWithFallback(
+  id: string,
+): Promise<ScanJobRecord | undefined> {
+  const local = jobs().get(id);
+  // If we have a terminal record locally, return it immediately.
+  if (local?.resolvedStatus) return local;
+
+  // If BullMQ is not active, don't attempt Redis.
+  if (!process.env.REDIS_QUEUE_URL?.trim()) return local;
+
+  // Try Redis — worker may have resolved the scan in another process.
+  const remote = await fetchScanFromRedis(id);
+  if (remote) {
+    // Merge into local Map so subsequent sync calls also see it.
+    jobs().set(id, remote);
+    persist();
+    return remote;
+  }
+  return local;
 }
 
 /** Derive live status — uses real resolution when available, else clock-based mock. */

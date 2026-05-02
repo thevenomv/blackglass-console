@@ -2,6 +2,7 @@
  * Persistence adapter factory.
  *
  * Priority for both baselines and drift history:
+ *  0. Postgres — when DATABASE_URL is set (Stage 2+ / multi-tenant)
  *  1. Spaces — when DO_SPACES_KEY + DO_SPACES_SECRET + DO_SPACES_BUCKET + DO_SPACES_ENDPOINT are set
  *  2. Filesystem — when BASELINE_STORE_PATH / DRIFT_HISTORY_PATH are set (local dev / Docker)
  *  3. Memory — default (CI / local dev without env vars); ephemeral
@@ -10,9 +11,11 @@ import type { BaselineRepository, DriftHistoryRepository } from "./types";
 import { MemoryBaselineRepository } from "./baseline-memory";
 import { FilesystemBaselineRepository } from "./baseline-fs";
 import { SpacesBaselineRepository } from "./baseline-spaces";
+import { PostgresBaselineRepository } from "./baseline-pg";
 import { MemoryDriftHistoryRepository } from "./drifthistory-memory";
 import { FilesystemDriftHistoryRepository } from "./drifthistory-fs";
 import { SpacesDriftHistoryRepository } from "./drifthistory-spaces";
+import { PostgresDriftHistoryRepository } from "./drifthistory-pg";
 
 type SpacesConfig = {
   key: string;
@@ -44,15 +47,20 @@ type G = typeof globalThis & {
 export function getBaselineRepository(): BaselineRepository {
   const g = globalThis as G;
   if (!g[BASELINE_KEY]) {
-    const sp = spacesConfig();
-    if (sp) {
-      g[BASELINE_KEY] = new SpacesBaselineRepository(
-        sp.bucket, sp.key, sp.secret, sp.endpoint, sp.region,
-      );
-    } else if (process.env.BASELINE_STORE_PATH) {
-      g[BASELINE_KEY] = new FilesystemBaselineRepository(process.env.BASELINE_STORE_PATH);
+    const dbUrl = process.env.DATABASE_URL?.trim();
+    if (dbUrl) {
+      g[BASELINE_KEY] = new PostgresBaselineRepository(dbUrl);
     } else {
-      g[BASELINE_KEY] = new MemoryBaselineRepository();
+      const sp = spacesConfig();
+      if (sp) {
+        g[BASELINE_KEY] = new SpacesBaselineRepository(
+          sp.bucket, sp.key, sp.secret, sp.endpoint, sp.region,
+        );
+      } else if (process.env.BASELINE_STORE_PATH) {
+        g[BASELINE_KEY] = new FilesystemBaselineRepository(process.env.BASELINE_STORE_PATH);
+      } else {
+        g[BASELINE_KEY] = new MemoryBaselineRepository();
+      }
     }
   }
   return g[BASELINE_KEY];
@@ -61,15 +69,20 @@ export function getBaselineRepository(): BaselineRepository {
 export function getDriftHistoryRepository(): DriftHistoryRepository {
   const g = globalThis as G;
   if (!g[DRIFT_KEY]) {
-    const sp = spacesConfig();
-    if (sp) {
-      g[DRIFT_KEY] = new SpacesDriftHistoryRepository(
-        sp.bucket, sp.key, sp.secret, sp.endpoint, sp.region,
-      );
-    } else if (process.env.DRIFT_HISTORY_PATH) {
-      g[DRIFT_KEY] = new FilesystemDriftHistoryRepository(process.env.DRIFT_HISTORY_PATH);
+    const dbUrl = process.env.DATABASE_URL?.trim();
+    if (dbUrl) {
+      g[DRIFT_KEY] = new PostgresDriftHistoryRepository(dbUrl);
     } else {
-      g[DRIFT_KEY] = new MemoryDriftHistoryRepository();
+      const sp = spacesConfig();
+      if (sp) {
+        g[DRIFT_KEY] = new SpacesDriftHistoryRepository(
+          sp.bucket, sp.key, sp.secret, sp.endpoint, sp.region,
+        );
+      } else if (process.env.DRIFT_HISTORY_PATH) {
+        g[DRIFT_KEY] = new FilesystemDriftHistoryRepository(process.env.DRIFT_HISTORY_PATH);
+      } else {
+        g[DRIFT_KEY] = new MemoryDriftHistoryRepository();
+      }
     }
   }
   return g[DRIFT_KEY];

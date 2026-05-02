@@ -16,7 +16,7 @@
  * Tokens should be generated with generateInviteToken() and added to INVITE_TOKENS.
  */
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 // In-memory set of redeemed tokens for this process lifetime.
 const redeemed = new Set<string>();
@@ -83,7 +83,6 @@ export function redeemInviteToken(token: string): void {
  * Caller is responsible for adding it to INVITE_TOKENS.
  */
 export function generateInviteToken(): string {
-  const { randomBytes } = require("node:crypto") as typeof import("node:crypto");
   const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS ?? "72", 10);
   const expireSec = Math.floor((Date.now() + ttlHours * 3_600_000) / 1000);
   const expHex = expireSec.toString(16).padStart(10, "0");

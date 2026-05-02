@@ -1,4 +1,5 @@
 import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
+import { requireRole } from "@/lib/server/http/auth-guard";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { getBaseline } from "@/lib/server/baseline-store";
 import { getDriftEvents } from "@/lib/server/drift-engine";
@@ -20,6 +21,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const guard = await requireRole(["auditor", "operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   const { id: rawId } = await params;
   const idParsed = ResourceIdPathSchema.safeParse(rawId);
   if (!idParsed.success) return zodErrorResponse(idParsed.error);

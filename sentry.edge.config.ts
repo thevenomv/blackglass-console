@@ -13,4 +13,19 @@ Sentry.init({
   enableLogs: true,
 
   sendDefaultPii: false,
+
+  // Next.js uses Error-based flow control for redirects and not-found.
+  ignoreErrors: ["NEXT_REDIRECT", "NEXT_NOT_FOUND"],
+
+  beforeSend(event) {
+    // Drop Next.js flow-control errors that slip past ignoreErrors.
+    const msg = event.exception?.values?.[0]?.value ?? "";
+    if (msg === "NEXT_REDIRECT" || msg === "NEXT_NOT_FOUND") return null;
+
+    // Health-check probes are monitored separately and are not product bugs.
+    const url = event.request?.url ?? "";
+    if (url.includes("/api/health")) return null;
+
+    return event;
+  },
 });

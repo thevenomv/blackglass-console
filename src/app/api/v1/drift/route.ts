@@ -8,12 +8,16 @@
 
 import { NextResponse } from "next/server";
 import { zodErrorResponse } from "@/lib/server/http/json-error";
+import { requireRole } from "@/lib/server/http/auth-guard";
 import { DriftQuerySchema } from "@/lib/server/http/schemas";
 import { resolveDriftEventsForDashboard } from "@/lib/server/drift-resolve";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const guard = await requireRole(["viewer", "auditor", "operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   const url = new URL(request.url);
   const parsed = DriftQuerySchema.safeParse({
     hostId: url.searchParams.get("hostId"),

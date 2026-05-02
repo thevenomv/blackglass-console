@@ -9,6 +9,25 @@ import type Stripe from "stripe";
 // App Router: ensure fresh execution (no static caching of webhook responses).
 export const dynamic = "force-dynamic";
 
+// ---------------------------------------------------------------------------
+// Idempotency guard — Stripe may redeliver the same event on transient failures.
+// This in-process Set deduplicates within a single replica. For multi-instance
+// deployments, move this to a shared store (Redis/DB) at Stage 3.
+// ---------------------------------------------------------------------------
+const MAX_DEDUP = 1_000;
+const processedEventIds = new Set<string>();
+
+function isDuplicateEvent(eventId: string): boolean {
+  if (processedEventIds.has(eventId)) return true;
+  // Bounded FIFO eviction — Set preserves insertion order.
+  if (processedEventIds.size >= MAX_DEDUP) {
+    const oldest = processedEventIds.values().next().value;
+    if (oldest !== undefined) processedEventIds.delete(oldest);
+  }
+  processedEventIds.add(eventId);
+  return false;
+}
+
 export async function POST(request: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -32,6 +51,16 @@ export async function POST(request: Request) {
   }
 
   switch (event.type) {
+    // Deduplicate redelivered events before any state mutation.
+    // Stripe guarantees at-least-once delivery, not exactly-once.
+    default:
+      if (isDuplicateEvent(event.id)) {
+        console.info(`[stripe/webhook] duplicate event ${event.id} — skipping`);
+        return NextResponse.json({ received: true });
+      }
+  }
+
+  switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id ?? "unknown";
@@ -52,25 +81,45 @@ export async function POST(request: Request) {
     }
 
     case "customer.subscription.updated": {
-      // Handle plan changes / reactivations — no-op for now, just log.
+      // Re-evaluate plan on every status change (upgrade, downgrade, cancellation at period end).
       const subscription = event.data.object as Stripe.Subscription;
+      const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
       console.info(`[stripe/webhook] subscription.updated — sub=${subscription.id} status=${subscription.status}`);
+      if (subscription.status === "active") {
+        // Reactivation or plan change back to active — re-assert pro.
+        await provisionPlan("pro", { stripeCustomerId: customerId, stripeSubscriptionId: subscription.id });
+        appendAudit({ action: AUDIT_ACTIONS.PLAN_CHANGED, detail: `Subscription reactivated/updated — sub=${subscription.id} customer=${customerId}` });
+      } else if (subscription.status === "canceled" || subscription.status === "unpaid") {
+        // Hard cancellation or unpaid — revert to free immediately.
+        await deprovisionPlan({ stripeCustomerId: customerId, stripeSubscriptionId: subscription.id });
+        appendAudit({ action: AUDIT_ACTIONS.PLAN_REVERTED, detail: `Subscription ${subscription.status} — sub=${subscription.id} customer=${customerId}` });
+      } else {
+        // past_due, trialing, paused — log only; don't change plan until definitely cancelled.
+        console.warn(`[stripe/webhook] subscription.updated non-terminal status: ${subscription.status} — sub=${subscription.id}`);
+      }
       break;
     }
 
     case "invoice.payment_succeeded": {
-      // Renewal payment: log it so the audit trail shows recurring charges.
+      // Renewal payment succeeded — re-assert plan in case a previous Spaces write failed.
       const invoice = event.data.object as Stripe.Invoice;
       const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "unknown";
+      const subRef = invoice.parent?.subscription_details?.subscription;
+      const subscriptionId = typeof subRef === "string" ? subRef : subRef?.id ?? null;
       console.info(`[stripe/webhook] invoice.payment_succeeded — invoice=${invoice.id} customer=${customerId} amount=${invoice.amount_paid}`);
+      if (subscriptionId) {
+        // Re-assert pro plan so a prior Spaces outage doesn't leave the tenant on free.
+        await provisionPlan("pro", { stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId });
+      }
       break;
     }
 
     case "invoice.payment_failed": {
-      // Payment failed: log for ops visibility — send Slack alert if configured.
+      // Payment failed: alert ops and emit an audit event for the compliance trail.
       const invoice = event.data.object as Stripe.Invoice;
       const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "unknown";
       console.warn(`[stripe/webhook] invoice.payment_failed — invoice=${invoice.id} customer=${customerId}`);
+      appendAudit({ action: AUDIT_ACTIONS.INVOICE_PAYMENT_FAILED, detail: `invoice=${invoice.id} customer=${customerId} amount=${invoice.amount_due}` });
       const slackUrl = process.env.SLACK_ALERT_WEBHOOK_URL;
       if (slackUrl) {
         await fetch(slackUrl, {

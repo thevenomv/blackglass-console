@@ -51,3 +51,57 @@ export const ResourceIdPathSchema = z
   .min(1)
   .max(512)
   .regex(/^[a-zA-Z0-9._-]+$/);
+
+// ---------------------------------------------------------------------------
+// Push-agent ingest  (POST /api/v1/ingest)
+// ---------------------------------------------------------------------------
+
+// Zod sub-schemas mirroring HostSnapshot fields so we validate agent payloads
+// at the API boundary before writing to the store.
+const ListeningPortSchema = z.object({
+  proto: z.enum(["tcp", "udp"]),
+  bind: z.string().max(64),
+  port: z.number().int().min(0).max(65535),
+  process: z.string().max(256).optional(),
+});
+
+const LocalUserSchema = z.object({
+  username: z.string().min(1).max(128),
+  uid: z.number().int(),
+});
+
+const RunningServiceSchema = z.object({
+  unit: z.string().min(1).max(256),
+  sub: z.string().max(64),
+});
+
+const SSHConfigSchema = z.object({
+  permitRootLogin: z.string().max(32),
+  passwordAuthentication: z.string().max(32),
+});
+
+const FirewallStatusSchema = z.object({
+  active: z.boolean(),
+  defaultInbound: z.string().max(32),
+  rules: z.array(z.string().max(512)).max(512),
+});
+
+const CronEntrySchema = z.object({
+  filename: z.string().max(512),
+});
+
+export const IngestPayloadSchema = z.object({
+  /** Stable identifier matching COLLECTOR_HOST_* config, e.g. "host-10-0-0-1" */
+  hostId: ResourceIdPathSchema,
+  hostname: z.string().min(1).max(253),
+  collectedAt: z.string().datetime(),
+  listeners: z.array(ListeningPortSchema).max(4096),
+  users: z.array(LocalUserSchema).max(1024),
+  sudoers: z.array(z.string().max(512)).max(512),
+  cronEntries: z.array(CronEntrySchema).max(512),
+  services: z.array(RunningServiceSchema).max(4096),
+  ssh: SSHConfigSchema,
+  firewall: FirewallStatusSchema,
+});
+
+export type IngestPayload = z.infer<typeof IngestPayloadSchema>;

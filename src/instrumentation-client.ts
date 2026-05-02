@@ -21,6 +21,19 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
 
   sendDefaultPii: false,
+
+  beforeSend(event) {
+    // Suppress Next.js flow-control exceptions (redirect, not-found).
+    const msg = (event.exception?.values?.[0]?.value ?? "");
+    if (msg === "NEXT_REDIRECT" || msg === "NEXT_NOT_FOUND") return null;
+
+    // Suppress noisy auth responses that are expected in normal operation
+    // (e.g. an unauthenticated API call returning 401/403).
+    // These show up as unhandled fetch rejections from React Server Components.
+    if (/\b(401|403)\b.*[Uu]nauthori[sz]ed|[Ff]orbidden/.test(msg)) return null;
+
+    return event;
+  },
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

@@ -7,7 +7,7 @@ import { collectAllSnapshots, type CollectScanOptions } from "@/lib/server/colle
 import { computeDrift, storeDriftEvents } from "@/lib/server/drift-engine";
 import { recordDriftScanDayStamp } from "@/lib/server/drift-history";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
-import { resolveScan } from "@/lib/server/scan-jobs";
+import { markScanDone, resolveScan } from "@/lib/server/scan-jobs";
 
 // ---------------------------------------------------------------------------
 // Slack alerting — fire-and-forget; no-op when SLACK_ALERT_WEBHOOK_URL is unset
@@ -65,7 +65,7 @@ export async function executeDriftScanJob(
       });
     }
 
-    if (failures.length > 0 && totalDrift === 0) {
+    if (failures.length === results.length) {
       resolveScan(jobId, "failed", failures.join("; "));
       appendAudit({
         action: AUDIT_ACTIONS.SCAN_FAILED,
@@ -87,6 +87,8 @@ export async function executeDriftScanJob(
     });
     void alertSlack(`:x: *Scan exception* \`${jobId}\`\n${message}`);
   } finally {
+    // Always drain the running-scans registry so SIGTERM doesn't hang.
+    markScanDone(jobId);
     revalidateIntegritySurfaces();
   }
 }

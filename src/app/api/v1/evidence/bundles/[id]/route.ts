@@ -1,5 +1,6 @@
 import { EVIDENCE_BUNDLE_META } from "@/lib/server/evidence-catalog";
 import { zodErrorResponse } from "@/lib/server/http/json-error";
+import { requireRole } from "@/lib/server/http/auth-guard";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { NextResponse } from "next/server";
 
@@ -7,6 +8,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const guard = await requireRole(["auditor", "operator", "admin"]);
+  if (!guard.ok) return guard.response;
+
   const { id: rawId } = await params;
   const idParsed = ResourceIdPathSchema.safeParse(rawId);
   if (!idParsed.success) return zodErrorResponse(idParsed.error);

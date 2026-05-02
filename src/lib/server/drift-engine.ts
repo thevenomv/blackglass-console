@@ -64,6 +64,13 @@ function persist(): void {
 export function storeDriftEvents(hostId: string, events: DriftEvent[]): void {
   eventStore().set(hostId, events);
   persist();
+  // Replicate to Postgres when DATABASE_URL is configured so multi-instance
+  // deployments and BullMQ workers share drift state.
+  if (process.env.DATABASE_URL?.trim()) {
+    void import("./store/driftevents-pg")
+      .then(({ PostgresDriftEventsRepository: repo }) => repo.store(hostId, events))
+      .catch((err) => console.error("[drift-engine] Postgres store failed:", err));
+  }
 }
 
 export function getDriftEvents(hostId?: string): DriftEvent[] {
