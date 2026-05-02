@@ -26,7 +26,7 @@ export async function executeDriftScanJob(
       }
 
       const current = result.snapshot;
-      const baseline = getBaseline(current.hostId);
+      const baseline = await getBaseline(current.hostId);
 
       if (!baseline) {
         failures.push(
@@ -54,7 +54,7 @@ export async function executeDriftScanJob(
         scan_id: jobId,
       });
     } else {
-      recordDriftScanDayStamp(totalDrift);
+      await recordDriftScanDayStamp(totalDrift);
       resolveScan(jobId, "succeeded", failures.length ? failures.join("; ") : undefined, totalDrift);
     }
   } catch (err) {

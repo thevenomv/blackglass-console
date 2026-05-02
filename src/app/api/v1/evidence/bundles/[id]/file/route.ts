@@ -33,7 +33,7 @@ export async function GET(
     return NextResponse.redirect(redirectUrl, { status: 302 });
   }
 
-  const baseline = getBaseline(hostId);
+  const baseline = await getBaseline(hostId);
   const events = getDriftEvents(hostId);
 
   if (!baseline && events.length === 0) {

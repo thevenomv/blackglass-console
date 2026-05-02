@@ -1,106 +1,32 @@
 /**
  * Baseline store.
  *
- * A baseline is a HostSnapshot captured at a known-good moment.
- *
- * Persistence strategy (in priority order):
- *  1. When BASELINE_STORE_PATH is set, baselines are written to that JSON file
- *     and reloaded from it on first access — surviving process restarts and
- *     DigitalOcean App Platform redeploys (mount a DO Volume at that path).
- *  2. Otherwise falls back to an in-process Map (demo / CI mode).
+ * Persistence adapters (in priority order):
+ *  1. Spaces — when DO_SPACES_KEY + DO_SPACES_SECRET + DO_SPACES_BUCKET + DO_SPACES_ENDPOINT are set
+ *  2. Filesystem — when BASELINE_STORE_PATH is set (local dev / Docker)
+ *  3. Memory — default for CI / local dev without env vars (ephemeral on App Platform)
  */
 
 import type { HostSnapshot } from "./collector";
-import * as fs from "fs";
-import * as path from "path";
+import { getBaselineRepository } from "./store";
 
-const GLOBAL_KEY = "__blackglass_baselines_v1" as const;
-
-type GlobalWithBaselines = typeof globalThis & {
-  [GLOBAL_KEY]?: Map<string, HostSnapshot>;
-};
-
-// ---------------------------------------------------------------------------
-// File persistence helpers
-// ---------------------------------------------------------------------------
-
-function storePath(): string | undefined {
-  return process.env.BASELINE_STORE_PATH;
+export async function saveBaseline(snapshot: HostSnapshot): Promise<void> {
+  return getBaselineRepository().save(snapshot);
 }
 
-function loadFromFile(filePath: string): Map<string, HostSnapshot> {
-  try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    const obj = JSON.parse(raw) as Record<string, HostSnapshot>;
-    return new Map(Object.entries(obj));
-  } catch {
-    // File doesn't exist yet or is corrupt — start fresh
-    return new Map();
-  }
+export async function getBaseline(hostId: string): Promise<HostSnapshot | undefined> {
+  return getBaselineRepository().get(hostId);
 }
 
-function saveToFile(filePath: string, map: Map<string, HostSnapshot>): void {
-  try {
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const obj = Object.fromEntries(map.entries());
-    fs.writeFileSync(filePath, JSON.stringify(obj, null, 2), "utf8");
-  } catch (err) {
-    // Log but never crash a request because of a write error
-    console.error("[baseline-store] Failed to persist baselines:", err);
-  }
+export async function listBaselineHostIds(): Promise<string[]> {
+  return getBaselineRepository().listHostIds();
 }
 
-// ---------------------------------------------------------------------------
-// In-memory store (process-global so it survives across hot-reloads)
-// ---------------------------------------------------------------------------
-
-function store(): Map<string, HostSnapshot> {
-  const g = globalThis as GlobalWithBaselines;
-  if (!g[GLOBAL_KEY]) {
-    const fp = storePath();
-    g[GLOBAL_KEY] = fp ? loadFromFile(fp) : new Map();
-  }
-  return g[GLOBAL_KEY];
+export async function hasBaseline(hostId: string): Promise<boolean> {
+  return getBaselineRepository().has(hostId);
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-export function saveBaseline(snapshot: HostSnapshot): void {
-  const m = store();
-  m.set(snapshot.hostId, snapshot);
-  const fp = storePath();
-  if (fp) saveToFile(fp, m);
-}
-
-export function getBaseline(hostId: string): HostSnapshot | undefined {
-  return store().get(hostId);
-}
-
-export function listBaselineHostIds(): string[] {
-  return [...store().keys()];
-}
-
-export function hasBaseline(hostId: string): boolean {
-  return store().has(hostId);
-}
-
-/** Health / readiness — dir must be writable when persisting baselines to disk */
-export function baselineStoreHealth(): {
-  configured: boolean;
-  path?: string;
-  writable: boolean | null;
-} {
-  const p = storePath();
-  if (!p) return { configured: false, writable: null };
-  try {
-    const dir = path.dirname(p);
-    fs.mkdirSync(dir, { recursive: true });
-    fs.accessSync(dir, fs.constants.W_OK);
-    return { configured: true, path: p, writable: true };
-  } catch {
-    return { configured: true, path: p, writable: false };
-  }
+/** Synchronous health snapshot — safe to call in server component render. */
+export function baselineStoreHealth() {
+  return getBaselineRepository().health();
 }

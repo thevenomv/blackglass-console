@@ -49,19 +49,21 @@ export async function POST() {
  */
 export async function GET() {
   const { listBaselineHostIds, getBaseline } = await import("@/lib/server/baseline-store");
-  const ids = listBaselineHostIds();
-  const baselines = ids.map((id) => {
-    const b = getBaseline(id);
-    return b
-      ? {
-          hostId: b.hostId,
-          hostname: b.hostname,
-          capturedAt: b.collectedAt,
-          listenersCount: b.listeners.length,
-          usersCount: b.users.length,
-          servicesCount: b.services.length,
-        }
-      : { hostId: id };
-  });
+  const ids = await listBaselineHostIds();
+  const baselines = await Promise.all(
+    ids.map(async (id) => {
+      const b = await getBaseline(id);
+      return b
+        ? {
+            hostId: b.hostId,
+            hostname: b.hostname,
+            capturedAt: b.collectedAt,
+            listenersCount: b.listeners.length,
+            usersCount: b.users.length,
+            servicesCount: b.services.length,
+          }
+        : { hostId: id };
+    }),
+  );
   return NextResponse.json({ baselines });
 }

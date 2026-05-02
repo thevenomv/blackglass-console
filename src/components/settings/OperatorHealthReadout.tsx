@@ -34,11 +34,13 @@ export function OperatorHealthReadout() {
         <div className="sm:col-span-2">
           <dt className="text-fg-faint">Baseline persistence</dt>
           <dd className="text-fg-primary">
-            {!b.configured ? (
-              "In-memory only (set BASELINE_STORE_PATH for disk)"
+            {b.adapter === "spaces" ? (
+              "DO Spaces — persistent"
+            ) : !b.configured ? (
+              "In-memory only (set DO_SPACES_KEY… for Spaces, or BASELINE_STORE_PATH for local disk)"
             ) : b.writable ? (
               <>
-                Writable — <span className="font-mono text-sm">{b.path}</span>
+                Filesystem — <span className="font-mono text-sm">{b.path}</span>
               </>
             ) : (
               <>

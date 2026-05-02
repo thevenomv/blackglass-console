@@ -49,7 +49,7 @@ export async function captureBaselinesFromFleet(): Promise<BaselineCaptureOutcom
 
     for (const { snapshot } of successes) {
       if (!snapshot) continue;
-      saveBaseline(snapshot);
+      await saveBaseline(snapshot);
       storeDriftEvents(snapshot.hostId, []);
     }
 

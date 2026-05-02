@@ -22,7 +22,9 @@ export async function GET(request: Request) {
       : "runtime_configuration",
     plan: limits.name,
     host_cap: limits.maxHosts === -1 ? null : limits.maxHosts,
-    baseline_store: b.configured ? { path: b.path, writable: b.writable } : null,
+    baseline_store: b.configured
+      ? { adapter: b.adapter, path: b.path, writable: b.writable }
+      : { adapter: b.adapter },
     collector,
   };
 

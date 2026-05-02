@@ -29,37 +29,39 @@ export async function loadFleetSnapshot(): Promise<FleetSnapshot> {
 // Real-data builders — only called when collector env vars are set
 // ---------------------------------------------------------------------------
 
-function buildRealHosts(): HostRecord[] {
-  const baselineIds = new Set(listBaselineHostIds());
+async function buildRealHosts(): Promise<HostRecord[]> {
+  const baselineIds = new Set(await listBaselineHostIds());
   if (baselineIds.size === 0) return [];
 
-  return [...baselineIds].map((hostId) => {
-    const events = getDriftEvents(hostId);
-    const high = events.filter((e) => e.severity === "high" && e.lifecycle === "new").length;
-    const any = events.filter((e) => e.lifecycle === "new").length;
+  return Promise.all(
+    [...baselineIds].map(async (hostId) => {
+      const events = getDriftEvents(hostId);
+      const high = events.filter((e) => e.severity === "high" && e.lifecycle === "new").length;
+      const any = events.filter((e) => e.lifecycle === "new").length;
 
-    let trust: HostTrust = "aligned";
-    if (high >= 2) trust = "critical";
-    else if (high >= 1) trust = "drift";
-    else if (any > 0) trust = "needs_review";
+      let trust: HostTrust = "aligned";
+      if (high >= 2) trust = "critical";
+      else if (high >= 1) trust = "drift";
+      else if (any > 0) trust = "needs_review";
 
-    const score = Math.max(0, 100 - high * 15 - (any - high) * 5);
-    const baseline = getBaseline(hostId);
+      const score = Math.max(0, 100 - high * 15 - (any - high) * 5);
+      const baseline = await getBaseline(hostId);
 
-    return {
-      id: hostId,
-      hostname: baseline?.hostname ?? hostId,
-      os: "Ubuntu 24.04",
-      trust,
-      lastScanAt: new Date().toISOString(),
-      baselineAligned: trust === "aligned",
-      readinessScore: score,
-    };
-  });
+      return {
+        id: hostId,
+        hostname: baseline?.hostname ?? hostId,
+        os: "Ubuntu 24.04",
+        trust,
+        lastScanAt: new Date().toISOString(),
+        baselineAligned: trust === "aligned",
+        readinessScore: score,
+      };
+    }),
+  );
 }
 
-function buildRealFleetSnapshot(): FleetSnapshot {
-  const baselineIds = listBaselineHostIds();
+async function buildRealFleetSnapshot(): Promise<FleetSnapshot> {
+  const baselineIds = await listBaselineHostIds();
   const allEvents = getDriftEvents();
   const hasData = hasDriftData();
 
@@ -85,7 +87,7 @@ function buildRealFleetSnapshot(): FleetSnapshot {
     label: e.title,
   }));
 
-  const driftVolumeByDay = getDriftVolumeChartFromHistory();
+  const driftVolumeByDay = await getDriftVolumeChartFromHistory();
 
   return {
     hostsChecked: baselineIds.length,
