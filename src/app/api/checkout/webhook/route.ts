@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { provisionPlan, deprovisionPlan } from "@/lib/billing/provision";
 import type Stripe from "stripe";
 
 // Next.js must NOT parse the body for Stripe signature verification.
@@ -33,27 +34,25 @@ export async function POST(request: Request) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      // TODO: Provision the plan for the customer.
-      // The subscription ID and customer ID are available here:
-      //   session.subscription  (Stripe subscription ID)
-      //   session.customer      (Stripe customer ID)
-      //   session.customer_email
-      //
-      // At minimum, store { stripeCustomerId, stripeSubscriptionId, plan: "pro" }
-      // against a user record so the app can call getLimits() for real data.
-      console.info(
-        `[stripe/webhook] checkout.session.completed — customer=${session.customer} sub=${session.subscription}`,
-      );
+      const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id ?? "unknown";
+      const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id ?? "unknown";
+      console.info(`[stripe/webhook] checkout.session.completed — customer=${customerId} sub=${subscriptionId}`);
+      await provisionPlan("pro", { stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId });
       break;
     }
 
     case "customer.subscription.deleted": {
       const subscription = event.data.object as Stripe.Subscription;
-      // TODO: Downgrade the customer back to the free plan when their
-      // subscription is cancelled or lapses.
-      console.info(
-        `[stripe/webhook] subscription.deleted — sub=${subscription.id} customer=${subscription.customer}`,
-      );
+      const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
+      console.info(`[stripe/webhook] subscription.deleted — sub=${subscription.id} customer=${customerId}`);
+      await deprovisionPlan({ stripeCustomerId: customerId, stripeSubscriptionId: subscription.id });
+      break;
+    }
+
+    case "customer.subscription.updated": {
+      // Handle plan changes / reactivations — no-op for now, just log.
+      const subscription = event.data.object as Stripe.Subscription;
+      console.info(`[stripe/webhook] subscription.updated — sub=${subscription.id} status=${subscription.status}`);
       break;
     }
 
