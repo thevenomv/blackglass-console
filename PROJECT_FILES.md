@@ -42,19 +42,11 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 ## `.github/workflows/`
 
 
-| File     | Role        |
-| -------- | ----------- |
-| `ci.yml` | CI pipeline |
-
-
----
-
-## `design/`
-
-
-| File                | Role                 |
-| ------------------- | -------------------- |
-| `figma-tokens.json` | Design tokens export |
+| File                | Role                            |
+| ------------------- | ------------------------------- |
+| `ci.yml`            | Lint, schemas, unit tests, build |
+| `staging-smoke.yml` | Optional staging verification   |
+| `uptime.yml`        | Scheduled health checks         |
 
 
 ---
@@ -223,7 +215,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `hooks/useFocusTrap.ts`                     | Focus trap hook                               |
 | `mockLatency.ts`                            | Simulated delay in mock mode                  |
 | `resolveInvestigation.ts`                   | Investigation URL helpers                     |
-| `severity.ts`, `tokens.ts`                  | Utilities / design tokens                     |
+| `severity.ts`                               | Severity normalization                        |
 
 
 ---
