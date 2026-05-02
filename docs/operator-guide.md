@@ -149,7 +149,7 @@ You should see listening port output. If the connection hangs or is refused, che
 Once the collector is configured, **capture a baseline before making any changes**:
 
 ```bash
-curl -X POST https://blackglass-j9imo.ondigitalocean.app/api/v1/baselines
+curl -X POST https://blackglasssec.com/api/v1/baselines
 ```
 
 This captures **one baseline per configured collector host** (`COLLECTOR_HOST_1`, `COLLECTOR_HOST_2`, …) in parallel. The JSON body lists each host under `captured`; any per-host SSH failures appear under `failed` while successful hosts are still saved.
@@ -182,14 +182,14 @@ Click **Run Scan** on the dashboard. The progress banner updates in real time. T
 
 ```bash
 # Trigger a scan
-curl -X POST https://blackglass-j9imo.ondigitalocean.app/api/v1/scans \
+curl -X POST https://blackglasssec.com/api/v1/scans \
   -H "Content-Type: application/json" \
   -d '{"host_ids": []}'
 
 # Response: {"id":"<scan-id>","status":"queued"}
 
 # Poll until succeeded or failed
-curl https://blackglass-j9imo.ondigitalocean.app/api/v1/scans/<scan-id>
+curl https://blackglasssec.com/api/v1/scans/<scan-id>
 ```
 
 ---

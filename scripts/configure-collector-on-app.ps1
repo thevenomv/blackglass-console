@@ -37,7 +37,7 @@ $newSvcEnvs = @(
     @{ key = "COLLECTOR_USER";        value = $CollectorUser; scope = "RUN_AND_BUILD_TIME" }
     @{ key = "BASELINE_STORE_PATH";   value = $BaselinePath; scope = "RUN_TIME" }
     @{ key = "DRIFT_HISTORY_PATH";    value = $DriftPath;  scope = "RUN_TIME" }
-    @{ key = "NEXT_PUBLIC_APP_URL";   value = "https://blackglass-j9imo.ondigitalocean.app"; scope = "RUN_AND_BUILD_TIME" }
+    @{ key = "NEXT_PUBLIC_APP_URL";   value = "https://blackglasssec.com"; scope = "RUN_AND_BUILD_TIME" }
     @{ key = "NEXT_PUBLIC_USE_MOCK";  value = "false"; scope = "RUN_AND_BUILD_TIME" }
 )
 $svc.envs = @($svcEnvs) + $newSvcEnvs
