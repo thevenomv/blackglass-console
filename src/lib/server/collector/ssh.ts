@@ -43,6 +43,11 @@ export function buildSshConfig(
     ...sshAuthFragment(auth),
     readyTimeout: 15_000,
     tryKeyboard: false,
+    debug: (msg: string) => {
+      if (msg.includes("ERROR") || msg.includes("error") || msg.includes("Failed") || msg.includes("Negotiated")) {
+        console.log(`[ssh2-debug ${host}] ${msg}`);
+      }
+    },
   };
 }
 
