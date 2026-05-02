@@ -1,16 +1,18 @@
-/**
- * Sentry server-side (Node.js runtime) configuration.
- * Only initialises when SENTRY_DSN is set — no-op when unset.
- */
+// This file configures the initialization of Sentry on the server.
+// The config you add here will be used whenever the server handles a request.
+// https://docs.sentry.io/platforms/javascript/guides/nextjs/
+
 import * as Sentry from "@sentry/nextjs";
 
-const dsn = process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN;
+Sentry.init({
+  dsn: process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-if (dsn) {
-  Sentry.init({
-    dsn,
-    tracesSampleRate: 0.1,
-    sendDefaultPii: false,
-    environment: process.env.NODE_ENV,
-  });
-}
+  tracesSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
+
+  // Attach local variable values to stack frames for better debugging
+  includeLocalVariables: true,
+
+  enableLogs: true,
+
+  sendDefaultPii: false,
+});

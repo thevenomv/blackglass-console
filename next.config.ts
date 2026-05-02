@@ -15,14 +15,21 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["ssh2"],
 };
 
-// Wrap with Sentry only when DSN is configured — no-op otherwise.
 export default withSentryConfig(nextConfig, {
-  // Silence Sentry CLI output during builds unless SENTRY_LOG_LEVEL is set
-  silent: !process.env.SENTRY_LOG_LEVEL,
-  // Disable source map upload when no auth token is present (local dev / DO build without token)
-  sourcemaps: {
-    disable: !process.env.SENTRY_AUTH_TOKEN,
+  org: "obsidian-dynamics",
+  project: "javascript-nextjs",
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Upload a larger set of source maps for better stack traces
+  widenClientFileUpload: true,
+
+  // Proxy Sentry requests through /monitoring to bypass ad-blockers
+  // (excluded from auth middleware via the matcher in middleware.ts)
+  tunnelRoute: "/monitoring",
+
+  silent: !process.env.CI,
+
+  webpack: {
+    treeshake: { removeDebugLogging: true },
   },
-  // Disable Sentry telemetry
-  telemetry: false,
 });
