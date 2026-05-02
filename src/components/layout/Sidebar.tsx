@@ -17,6 +17,7 @@ const NAV = [
   { href: "/demo", label: "Demo" },
   { href: "/settings", label: "Settings" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/welcome", label: "Get started" },
 ] as const;
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
