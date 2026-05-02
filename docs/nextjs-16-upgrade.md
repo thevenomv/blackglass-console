@@ -1,6 +1,6 @@
 # Next.js 16 upgrade checklist
 
-Use behind a **`release/next-16`** (or similar) branch; merge only after CI + staging burn-in.
+Prep work rides on **`origin/release/next-16`**; merge upgrades only once ecosystem + this checklist are green.
 
 ## Pre-flight
 

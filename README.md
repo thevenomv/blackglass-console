@@ -1,5 +1,7 @@
 # BLACKGLASS
 
+[![CI — main](https://github.com/thevenomv/blackglass-console/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/thevenomv/blackglass-console/actions/workflows/ci.yml)
+
 Next.js fleet console for baselines, drift, evidence exports, Stripe billing hooks, and DigitalOcean-ready deployment.
 
 ## Requirements
@@ -39,7 +41,7 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 
 ## Maintenance & upgrades
 
-- **Dependabot:** Weekly npm PRs — triage on GitHub (merge or close with rationale); **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Remaining **moderate** findings are often **Next’s nested PostCSS** — fix by upgrading **Next** when upstream ships a safe version (avoid **`npm audit fix --force`**, which can pin ancient Next).
+- **Dependabot:** Weekly npm PRs — triage on GitHub (merge or close with rationale); **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Moderate **`postcss`** advisories via **`next/node_modules`** may persist until **Next** ships patched deps — avoid **`npm audit fix --force`**. DevDependency **`postcss`** stays on **^8.5.x** for direct toolchain use.
 - **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** via FlatCompat); `next lint` is not used.
 - **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, OpenAPI, Zod schema diff, typecheck, unit tests, production build).
 
@@ -56,9 +58,13 @@ Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. De
 
 - Deploy specs: [.do/](.do/) (see [.do/README.md](.do/README.md))
 - Runbooks: [docs/operator-guide.md](docs/operator-guide.md), [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md)
-- Staging probe workflow: [.github/workflows/staging-smoke.yml](.github/workflows/staging-smoke.yml) (**`STAGING_URL`** Actions secret — optional weekly cron)
-- Audit trail architecture: [docs/audit-trail.md](docs/audit-trail.md)
-- Future Next.js bumps: [docs/nextjs-16-upgrade.md](docs/nextjs-16-upgrade.md)
+- Staging probe: [.github/workflows/staging-smoke.yml](.github/workflows/staging-smoke.yml) (secret **`STAGING_URL`** and/or **`staging_url_override`**; weekly cron when secret present)
+- ZAP passive DAST: [.github/workflows/dast-zap-baseline.yml](.github/workflows/dast-zap-baseline.yml) (optional **`target_url_override`**; **`fail_action`** off — review logs / ZAP report manually)
+- Security / pen checklist: [docs/security-pentest-checklist.md](docs/security-pentest-checklist.md)
+- Audit trail: [docs/audit-trail.md](docs/audit-trail.md) · PostgreSQL sketch: [docs/audit-postgresql-adrs.md](docs/audit-postgresql-adrs.md)
+- Scaling: collectors [docs/collector-fleet-scaling.md](docs/collector-fleet-scaling.md) · Distributed rate-limit ADR: [docs/rate-limit-redis-adrs.md](docs/rate-limit-redis-adrs.md)
+- Tenancy outline: [docs/multi-tenant-outline.md](docs/multi-tenant-outline.md) · Incident hooks: [docs/incident-notification.md](docs/incident-notification.md)
+- Next.js bumps: [docs/nextjs-16-upgrade.md](docs/nextjs-16-upgrade.md) — branch **`release/next-16`** tracks preparatory merges.
 - Architecture spine: [docs/architecture-flow.md](docs/architecture-flow.md)
 
 ## Project map

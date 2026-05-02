@@ -5,10 +5,14 @@ on:
     branches: [main, staging]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     env:
       # Passed through Next/Sentry builds so browser + server errors group by deploy.
       SENTRY_RELEASE: ${{ github.sha }}

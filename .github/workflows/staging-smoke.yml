@@ -1,25 +1,54 @@
-# Optional weekly + manual staging checks. Requires repo secret STAGING_URL
-# (e.g. https://your-app.ondigitalocean.app).
+# Optional weekly + manual staging checks via `scripts/verify-staging.mjs`.
 #
-# GitHub: Settings → Secrets and variables → Actions → New repository secret
+# - **Cron:** Runs only when repository secret **`STAGING_URL`** is set.
+# - **Manual:** Run with repo secret OR pass **`staging_url_override`** workflow input for ad-hoc hosts.
+#
+# GitHub → Settings → Secrets and variables → Actions → **STAGING_URL**
 name: Staging smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      staging_url_override:
+        description: Optional https origin override (empty = use Actions secret STAGING_URL)
+        required: false
+        default: ""
+
   schedule:
-    # Weekly Monday 14:00 UTC — adjust or disable if you prefer manual-only.
+    # Weekly Monday 14:00 UTC — job omitted entirely when **`STAGING_URL`** secret absent.
     - cron: "0 14 * * 1"
 
 jobs:
   verify:
-    if: ${{ secrets.STAGING_URL != '' }}
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      secrets.STAGING_URL != ''
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - name: Verify staging
+
+      - name: Resolve staging origin
+        id: tgt
         env:
-          STAGING_URL: ${{ secrets.STAGING_URL }}
+          OVERRIDE: ${{ github.event.inputs.staging_url_override }}
+          SECRET: ${{ secrets.STAGING_URL }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "$OVERRIDE" ]; then printf 'url=%s\n' "$OVERRIDE" >> "$GITHUB_OUTPUT"; exit 0; fi
+            if [ -n "$SECRET" ]; then printf 'url=%s\n' "$SECRET" >> "$GITHUB_OUTPUT"; fi
+          elif [ -n "$SECRET" ]; then
+            printf 'url=%s\n' "$SECRET" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require STAGING_URL
+        if: steps.tgt.outputs.url == ''
+        run: echo "::notice::Staging smoke skipped — set secret STAGING_URL or pass staging_url_override on manual dispatch." && exit 0
+
+      - name: Verify staging
+        if: steps.tgt.outputs.url != ''
+        env:
+          STAGING_URL: ${{ steps.tgt.outputs.url }}
         run: node scripts/verify-staging.mjs

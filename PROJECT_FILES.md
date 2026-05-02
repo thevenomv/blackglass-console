@@ -47,12 +47,12 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 
 | File                | Role                            |
 | ------------------- | ------------------------------- |
-| `ci.yml`            | Lint, **`typecheck`**, OpenAPI vs routes, schemas drift, unit tests, **`next build`** (types on), **`test:e2e`** + **`test:e2e:live`** |
-| `staging-smoke.yml` | Manual + optional **weekly cron** **`STAGING_URL`** probe (skipped if secret unset) |
+| `ci.yml`                 | Lint, typecheck, OpenAPI, schemas, unit test, **`next build`**, Playwright mock + live; **concurrency** cancel-in-flight; **40m** timeout || `staging-smoke.yml` | Manual (**`staging_url_override`**) / weekly cron (**requires `STAGING_URL` secret**)                              |
+| `dast-zap-baseline.yml` | Schedule + manual passive **OWASP ZAP** (**`target_url_override`** optional); `fail_action: false`            |
 | `uptime.yml`        | Scheduled health checks         |
 
 
-Notes: **`ci.yml`** runs lint → **`typecheck`** → OpenAPI/schema checks → **`next build`** (includes TypeScript validation) → Playwright (mock + live SSR).
+Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref), runs lint → **`typecheck`** → OpenAPI/schema checks → **`next build`** (includes TypeScript validation) → Playwright (mock + live SSR).
 
 
 ---
@@ -80,7 +80,13 @@ Notes: **`ci.yml`** runs lint → **`typecheck`** → OpenAPI/schema checks → 
 | `saas-customer-roadmap.md`        | Stages 0–4: internal → multi-tenant → enterprise                                              |
 | `stripe-live-cutover.md`           | Stripe live keys, webhook, smoke sequence                                                    |
 | `audit-trail.md`                   | `AUDIT_LOG_PATH`, Spaces **`audit/`** JSONL, compliance-facing notes                           |
-| `nextjs-16-upgrade.md`             | Branch checklist before Next majors                                                          |
+| `audit-postgresql-adrs.md`         | Future Postgres-backed audit appendix sketch                                                     |
+| `rate-limit-redis-adrs.md`         | Horizontal scale rate limiting outline                                                            |
+| `multi-tenant-outline.md`           | Tenant stages + session carrier notes                                                            |
+| `collector-fleet-scaling.md`        | Collector SSH concurrency / egress cost                                                            |
+| `incident-notification.md`        | `x-request-id`, Sentry, PagerDuty-style routing                                                  |
+| `security-pentest-checklist.md`    | GA-style security validation list                                                                |
+| `nextjs-16-upgrade.md`             | Branch checklist (**`release/next-16`**) before Next majors                                    |
 
 ---
 

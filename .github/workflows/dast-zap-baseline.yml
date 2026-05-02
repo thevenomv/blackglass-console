@@ -1,0 +1,49 @@
+# Passive OWASP ZAP baseline — crawls **`STAGING_URL`** (readonly rules). Treat as signal, not a full pen test.
+# Manual dispatch can override URL for one-off scans (staging / preview).
+#
+# Secrets: **`STAGING_URL`** (recommended). Manual override excludes secret requirement.
+name: "Security — ZAP baseline (DAST)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url_override:
+        description: Optional full origin (https://host) — overrides STAGING_URL for this run
+        required: false
+        default: ""
+
+  schedule:
+    - cron: "0 19 * * 3" # Wednesday 19:00 UTC
+
+jobs:
+  zap:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      secrets.STAGING_URL != ''
+    steps:
+      - name: Resolve scan target
+        id: tgt
+        env:
+          OVERRIDE: ${{ github.event.inputs.target_url_override }}
+          SECRET: ${{ secrets.STAGING_URL }}
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            printf 'url=%s\n' "$SECRET" >> "$GITHUB_OUTPUT"
+          elif [ -n "$OVERRIDE" ]; then
+            printf 'url=%s\n' "$OVERRIDE" >> "$GITHUB_OUTPUT"
+          elif [ -n "$SECRET" ]; then
+            printf 'url=%s\n' "$SECRET" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require target URL
+        if: steps.tgt.outputs.url == ''
+        run: echo "::error::Missing target — set Actions secret STAGING_URL or workflow override." && exit 1
+
+      - name: ZAP baseline scan
+        if: steps.tgt.outputs.url != ''
+        uses: zaproxy/action-baseline@v0.13.0
+        with:
+          target: ${{ steps.tgt.outputs.url }}
+          fail_action: false
+          cmd_options: "-a"
