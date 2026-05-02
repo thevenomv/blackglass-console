@@ -10,7 +10,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | File                                 | Role                                                                                                                                                      |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `README.md`                          | Entry point: setup, npm scripts table, pointers to `.do/` and `docs/`                                                                                      |
-| `package.json` / `package-lock.json` | Dependencies, scripts (`dev`, `build`, `verify:stage0`, `typecheck`, `stripe:setup`, `do:apply-stage0`, `verify:staging`, `lint`, `check:openapi`, `test:e2e`, `test:e2e:live`) |
+| `package.json` / `package-lock.json` | Dependencies, scripts (`dev`, `build`, `verify:stage0`, `typecheck`, `stripe:setup`, `audit:export-spaces`, `audit:verify-jsonl`, `load:rate-local`, `do:apply-stage0`, `verify:staging`, `lint`, `check:openapi`, `test:e2e`, `test:e2e:live`) |
 | `tsconfig.json`                      | TypeScript project                                                                                                                                        |
 | `next.config.ts`                     | Next.js configuration                                                                                                                                     |
 | `next-env.d.ts`                      | Next-generated types                                                                                                                                      |
@@ -23,6 +23,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `eslint.config.mjs`                     | ESLint Flat Config (Next `core-web-vitals` via `@eslint/eslintrc` FlatCompat)                                                                           |
 | `.editorconfig`                       | Indent / newline conventions for editors                                                                                                                  |
 | `.gitignore`                         | Git ignore rules                                                                                                                                          |
+| `.cursorignore`                      | Cursor indexer excludes (heavy dirs: **`node_modules`**, `.next`, reports)                                                                              |
 | `.nvmrc`                             | Node version pin                                                                                                                                          |
 | `playwright.config.ts`               | E2E dev server on port `**3100`** by default (`PLAYWRIGHT_PORT` override); `PLAYWRIGHT_LIVE=1` → `NEXT_PUBLIC_USE_MOCK=false` for optional live-SSR tests |
 
@@ -57,6 +58,16 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 
 ---
 
+## `docs/migrations/`
+
+
+| File                    | Role                          |
+| ----------------------- | ----------------------------- |
+| `001_audit_events.sql` | `blackglass_audit` table for optional Postgres audit sink |
+
+
+---
+
 ## `.github/` (outside `workflows/`)
 
 
@@ -80,7 +91,12 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `saas-customer-roadmap.md`        | Stages 0–4: internal → multi-tenant → enterprise                                              |
 | `stripe-live-cutover.md`           | Stripe live keys, webhook, smoke sequence                                                    |
 | `audit-trail.md`                   | `AUDIT_LOG_PATH`, Spaces **`audit/`** JSONL, compliance-facing notes                           |
-| `audit-postgresql-adrs.md`         | Future Postgres-backed audit appendix sketch                                                     |
+| `audit-postgresql-adrs.md`         | Postgres-backed audit append (optional **`AUDIT_DATABASE_URL`**) + migration sketch                                           |
+| `troubleshooting-local-build.md`   | OneDrive / Windows **`readlink`** on `.next` — wipe cache, clone outside sync                                                   |
+| `github-actions-first-run.md`    | `gh workflow run` examples for staging smoke + ZAP                                                                               |
+| `stripe-live-soak.md`              | Stripe live checklist (extended soak cadence)                                                                                   |
+| `access-review-playbook.md`       | Quarterly access review roles / evidence                                                                                           |
+| `zap-baseline-rules.md`            | Tune **`.zap/rules.tsv`** when enabling `rules_file_name`                                                                        |
 | `rate-limit-redis-adrs.md`         | Horizontal scale rate limiting outline                                                            |
 | `multi-tenant-outline.md`           | Tenant stages + session carrier notes                                                            |
 | `collector-fleet-scaling.md`        | Collector SSH concurrency / egress cost                                                            |
@@ -130,6 +146,9 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `wait-for-droplet.ps1` / `register-do-key.ps1`   | SSH / droplet readiness helpers                                                       |
 | `configure-collector-on-app.ps1`                 | Collector wiring against an existing app                                               |
 | `setup-collector-user.sh`                         | POSIX collector user bootstrap                                                        |
+| `export-audit-spaces.mjs`                          | **`npm run audit:export-spaces`** — fetch **`audit/`** JSONL from Spaces (reuse DO creds)      |
+| `verify-audit-jsonl-integrity.mjs`               | **`npm run audit:verify-jsonl`** — deterministic digest over NDJSON lines                      |
+| `rate-limit-burst-local.mjs`                     | **`npm run load:rate-local`** — burst POST until 429                                              |
 ---
 
 ## `src/app/` — App Router
@@ -280,13 +299,22 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `scan-jobs.ts`                 | Async scan job state                                                                              |
 | `rate-limit.ts`                | Scan / health / login / invite IP token buckets + test reset hook                                 |
 | `audit-log.ts`                 | Audit append                                                                                      |
+| `audit-append-pg.ts`           | Optional Postgres append (`**AUDIT_DATABASE_URL**`; lazy **`pg`** pool)                             |
+
+
+---
+
+## `tests/load/`
+
+
+| File                    | Role                                        |
+| ----------------------- | ------------------------------------------- |
+| `scan-post-burst.k6.js` | k6 burst against local scan endpoint (optional; needs [k6](https://k6.io/) installed) |
 
 
 ---
 
 ## `tests/fixtures/`
-
-
 | File                            | Role                                                   |
 | ------------------------------- | ------------------------------------------------------ |
 | `doppler-secrets-download.json` | Sample Doppler secrets-download shape for parser tests |
@@ -345,4 +373,4 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 
 ---
 
-*Last updated: SaaS staging docs + `verify-staging.mjs`; `src/lib/server/collector/` package.*
+*Last updated: audit Postgres sink + export/verify scripts; `docs/migrations/`; `.cursorignore`.*

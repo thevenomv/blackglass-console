@@ -18,6 +18,8 @@ Today: in-memory (`readAudit`), optional **`AUDIT_LOG_PATH`** JSON array, option
 | `detail`    | `text`     | |
 | `actor`     | `text` null | |
 | `scan_id`   | `text` null | |
-| `request_id`| `text` null | Correlate **`x-request-id`** |
+| `request_id`| `text` null | Optional future column for **`x-request-id`** correlation |
 
-Implementation would add `appendAuditPg()` behind **`AUDIT_DATABASE_URL`** (never commit). Keep JSONL exporter for SOC2-ish handoff unchanged.
+Runtime: set **`AUDIT_DATABASE_URL`** → server appends via **`src/lib/server/audit-append-pg.ts`** (lazy `pg` Pool). Apply **`docs/migrations/001_audit_events.sql`** once per database.
+
+Export tooling: **`npm run audit:export-spaces`** + **`npm run audit:verify-jsonl`** (stdin or file).

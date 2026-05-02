@@ -1,0 +1,4 @@
+# ZAP baseline rule overrides (ID<TAB>action<TAB>optional URL regex)
+# Action: IGNORE | WARN | FAIL
+# Start empty; add rows when ZAP reports steady false positives for your stack.
+# Example: 10096	IGNORE	(.*)

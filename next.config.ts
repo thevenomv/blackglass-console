@@ -43,7 +43,7 @@ const nextConfig: NextConfig = {
   // On Linux build environments the native sshcrypto.node binary is compiled
   // by npm ci; webpack cannot parse a .node binary, so we keep ssh2 as a
   // server-side CJS require rather than bundling it.
-  serverExternalPackages: ["ssh2"],
+  serverExternalPackages: ["ssh2", "pg"],
 
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];

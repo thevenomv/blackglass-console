@@ -33,6 +33,9 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `schemas:export` | Regenerate `openapi/zod-schemas.json` from Zod |
 | `verify:stage0` | CI-shaped gate (lint + OpenAPI + schema diff + **typecheck** + unit + build — no Playwright) |
 | `verify:staging` | Hit `STAGING_URL` health/hosts audit (`VERIFY_SECRETS_PROBE=1` optional) |
+| `audit:export-spaces` | List/download Spaces `audit/*.jsonl` (needs `DO_SPACES_*`; see [docs/audit-trail.md](docs/audit-trail.md)) |
+| `audit:verify-jsonl` | Deterministic NDJSON integrity digest (`stdin` or file argument) |
+| `load:rate-local` | Burst `POST /api/v1/scans` until HTTP 429 (local dev; `BASE_URL`, `BURST_LIMIT`) |
 | `doppler:verify` | Doppler secrets download smoke test |
 | `stripe:setup` | Interactive Stripe webhook/price bootstrap ([script](scripts/stripe-setup.mjs)) |
 | `do:apply-stage0` | Applies Stage-0 auth env on an existing DO app |
@@ -52,16 +55,19 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 
 ## Stripe (go-live sanity)
 
-Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. Detailed live vs test steps: **[docs/stripe-live-cutover.md](docs/stripe-live-cutover.md)**. Before accepting paid traffic: **`STRIPE_SECRET_KEY`** (restricted live), **`STRIPE_WEBHOOK_SECRET`**, **`STRIPE_PRO_PRICE_ID`**, **`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`**, then confirm webhook → plan persistence — see [.env.example](.env.example) and [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md).
+Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. Detailed live vs test steps: **[docs/stripe-live-cutover.md](docs/stripe-live-cutover.md)**. Extended live soak checklist: **[docs/stripe-live-soak.md](docs/stripe-live-soak.md)**. Before accepting paid traffic: **`STRIPE_SECRET_KEY`** (restricted live), **`STRIPE_WEBHOOK_SECRET`**, **`STRIPE_PRO_PRICE_ID`**, **`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`**, then confirm webhook → plan persistence — see [.env.example](.env.example) and [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md).
 
 ## Operators
 
 - Deploy specs: [.do/](.do/) (see [.do/README.md](.do/README.md))
 - Runbooks: [docs/operator-guide.md](docs/operator-guide.md), [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md)
+- Local Windows / OneDrive builds: [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)
+- First GitHub Actions runs (`gh workflow run`): [docs/github-actions-first-run.md](docs/github-actions-first-run.md)
 - Staging probe: [.github/workflows/staging-smoke.yml](.github/workflows/staging-smoke.yml) (secret **`STAGING_URL`** and/or **`staging_url_override`**; weekly cron when secret present)
-- ZAP passive DAST: [.github/workflows/dast-zap-baseline.yml](.github/workflows/dast-zap-baseline.yml) (optional **`target_url_override`**; **`fail_action`** off — review logs / ZAP report manually)
+- ZAP passive DAST: [.github/workflows/dast-zap-baseline.yml](.github/workflows/dast-zap-baseline.yml) (optional **`target_url_override`**; **`fail_action`** off — review logs / ZAP report manually); rule tuning: [docs/zap-baseline-rules.md](docs/zap-baseline-rules.md)
 - Security / pen checklist: [docs/security-pentest-checklist.md](docs/security-pentest-checklist.md)
-- Audit trail: [docs/audit-trail.md](docs/audit-trail.md) · PostgreSQL sketch: [docs/audit-postgresql-adrs.md](docs/audit-postgresql-adrs.md)
+- Access review cadence: [docs/access-review-playbook.md](docs/access-review-playbook.md)
+- Audit trail: [docs/audit-trail.md](docs/audit-trail.md) · PostgreSQL appendix: [docs/audit-postgresql-adrs.md](docs/audit-postgresql-adrs.md)
 - Scaling: collectors [docs/collector-fleet-scaling.md](docs/collector-fleet-scaling.md) · Distributed rate-limit ADR: [docs/rate-limit-redis-adrs.md](docs/rate-limit-redis-adrs.md)
 - Tenancy outline: [docs/multi-tenant-outline.md](docs/multi-tenant-outline.md) · Incident hooks: [docs/incident-notification.md](docs/incident-notification.md)
 - Next.js bumps: [docs/nextjs-16-upgrade.md](docs/nextjs-16-upgrade.md) — branch **`release/next-16`** tracks preparatory merges.

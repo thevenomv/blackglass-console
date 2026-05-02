@@ -187,6 +187,9 @@ export function appendAudit(
   if (fp) saveToFile(fp, entries);
   // Persist to Spaces asynchronously — never blocks the caller
   void appendToSpaces(entry);
+  void import("./audit-append-pg")
+    .then(({ appendAuditPostgres }) => appendAuditPostgres(entry))
+    .catch((err) => console.error("[audit-log] audit-append-pg load failed:", err));
   return entry;
 }
 
