@@ -37,13 +37,12 @@ function resolveRole(provided: string): "admin" | "operator" {
   return expected && provided ? "admin" : "operator";
 }
 
-function getClientIp(): string {
-  // headers() is available inside Server Actions.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const hdrs = headers() as any;
-  const realIp = hdrs.get?.("x-real-ip")?.trim();
+async function getClientIp(): Promise<string> {
+  // headers() is async in Next.js 15 Server Actions.
+  const hdrs = await headers();
+  const realIp = hdrs.get("x-real-ip")?.trim();
   if (realIp) return realIp;
-  const xf = hdrs.get?.("x-forwarded-for") as string | null;
+  const xf = hdrs.get("x-forwarded-for");
   if (xf) {
     const parts = xf.split(",").map((s: string) => s.trim()).filter(Boolean);
     const last = parts[parts.length - 1];
@@ -57,7 +56,7 @@ export async function signIn(formData: FormData) {
   const nextParam = String(formData.get("next") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
-  const ip = getClientIp();
+  const ip = await getClientIp();
   if (!checkLoginRate(ip)) {
     const qs = new URLSearchParams({ error: "too_many_attempts" });
     if (nextParam.startsWith("/") && !nextParam.startsWith("//")) qs.set("next", nextParam);
