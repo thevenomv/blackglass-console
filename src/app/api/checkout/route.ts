@@ -10,8 +10,7 @@ export async function POST(request: Request) {
   // back to inline price_data so you can test without dashboard setup.
   const priceId = process.env.STRIPE_PRO_PRICE_ID;
 
-  const lineItems: Parameters<typeof stripe.checkout.sessions.create>[0]["line_items"] =
-    priceId
+  const lineItems =    priceId
       ? [{ price: priceId, quantity: 1 }]
       : [
           {
@@ -23,7 +22,7 @@ export async function POST(request: Request) {
                 images: [],
               },
               unit_amount: 2900, // $29.00
-              recurring: { interval: "month" },
+              recurring: { interval: "month" as const },
             },
             quantity: 1,
           },

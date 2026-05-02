@@ -24,7 +24,7 @@ async function DashboardDeferred() {
 
     let spotlightHost = (collectorOn ? pickSpotlightHost(await loadHosts()) : null) ?? null;
     if (liveMode && !spotlightHost) {
-      spotlightHost = pickSpotlightHost(await fetchHosts());
+      spotlightHost = pickSpotlightHost((await fetchHosts()).items);
     }
 
     const { driftTopCategories, recommendedActionHostId } = liveMode

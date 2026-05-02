@@ -9,7 +9,8 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 
 | File                                 | Role                                                                                                                                                      |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `package.json` / `package-lock.json` | Dependencies, scripts (`dev`, `build`, `verify:stage0`, `do:apply-stage0`, `verify:staging`, `lint`, `check:openapi`, `test:e2e`, `test:e2e:live`)        |
+| `README.md`                          | Entry point: setup, npm scripts table, pointers to `.do/` and `docs/`                                                                                      |
+| `package.json` / `package-lock.json` | Dependencies, scripts (`dev`, `build`, `verify:stage0`, `typecheck`, `stripe:setup`, `do:apply-stage0`, `verify:staging`, `lint`, `check:openapi`, `test:e2e`, `test:e2e:live`) |
 | `tsconfig.json`                      | TypeScript project                                                                                                                                        |
 | `next.config.ts`                     | Next.js configuration                                                                                                                                     |
 | `next-env.d.ts`                      | Next-generated types                                                                                                                                      |
@@ -20,6 +21,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `.dockerignore`                      | Docker build context                                                                                                                                      |
 | `.env.example`                       | Documented env vars (API, collector, `BASELINE_STORE_PATH`, `DRIFT_HISTORY_PATH`)                                                                         |
 | `.eslintrc.json`                     | ESLint                                                                                                                                                    |
+| `.editorconfig`                       | Indent / newline conventions for editors                                                                                                                  |
 | `.gitignore`                         | Git ignore rules                                                                                                                                          |
 | `.nvmrc`                             | Node version pin                                                                                                                                          |
 | `playwright.config.ts`               | E2E dev server on port `**3100`** by default (`PLAYWRIGHT_PORT` override); `PLAYWRIGHT_LIVE=1` → `NEXT_PUBLIC_USE_MOCK=false` for optional live-SSR tests |
@@ -32,6 +34,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 
 | File                                                                              | Role                       |
 | --------------------------------------------------------------------------------- | -------------------------- |
+| `README.md`                                                                       | Quick matrix of YAML files |
 | `app.yaml`, `app-current.yaml`, `app-git.production.yaml`, `app-git.staging.yaml` | Deployment specs           |
 | `app-create.phase1.json`                                                          | Bootstrap metadata         |
 | Other `.ps1` / helpers                                                            | Referenced from `scripts/` |
@@ -44,9 +47,21 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 
 | File                | Role                            |
 | ------------------- | ------------------------------- |
-| `ci.yml`            | Lint, schemas, unit tests, build |
+| `ci.yml`            | Lint, **`typecheck`**, OpenAPI vs routes, schemas drift, unit tests, build, E2E |
 | `staging-smoke.yml` | Optional staging verification   |
 | `uptime.yml`        | Scheduled health checks         |
+
+
+Notes: **`ci.yml`** runs `npm run typecheck` after lint.
+
+---
+
+## `.github/` (outside `workflows/`)
+
+
+| File                | Role                 |
+| ------------------- | -------------------- |
+| `dependabot.yml`    | Weekly npm updates   |
 
 
 ---
@@ -101,8 +116,11 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `do_apply_stage0.py`                             | DO API: set `**AUTH_REQUIRED=true**` + `**AUTH_SESSION_SECRET**` on existing app |
 | `do_bootstrap_blackglass.py`                     | DO bootstrap                                                                     |
 | `do-docker-push.ps1` / `do-prepare-app-spec.ps1` | Deployment helpers                                                               |
-
-
+| `stripe-setup.mjs`                               | `**npm run stripe:setup**` — Stripe webhook / product bootstrap                     |
+| `create-do-droplet.ps1` / `create-do-volume.ps1` | Provision DO infrastructure (manual operator use)                                   |
+| `wait-for-droplet.ps1` / `register-do-key.ps1`   | SSH / droplet readiness helpers                                                       |
+| `configure-collector-on-app.ps1`                 | Collector wiring against an existing app                                               |
+| `setup-collector-user.sh`                         | POSIX collector user bootstrap                                                        |
 ---
 
 ## `src/app/` — App Router

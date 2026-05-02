@@ -8,6 +8,9 @@
  * When Stripe/billing is added, replace getPlan() with a DB lookup.
  */
 
+import { createRequire } from "node:module";
+import { NextResponse } from "next/server";
+
 export type Plan = "free" | "pro" | "enterprise";
 
 export interface PlanLimits {
@@ -72,14 +75,15 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
 
 const VALID_PLANS: Plan[] = ["free", "pro", "enterprise"];
 
+/** Resolved relative to this file — keeps `@aws-sdk` out of unrelated client bundles. */
+const loadPlanStore = createRequire(import.meta.url);
+
 export function getPlan(): Plan {
   // Prefer the in-memory plan-store cache (updated by Stripe webhooks without
   // requiring a DO redeployment) over the static env var.  Falls back to env
   // so local dev and CI continue to work with BLACKGLASS_PLAN set directly.
   try {
-    // Lazy import to avoid pulling Spaces SDK into client bundles.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getActivePlan } = require("@/lib/server/plan-store") as {
+    const { getActivePlan } = loadPlanStore("./server/plan-store") as {
       getActivePlan: () => Plan;
     };
     return getActivePlan();
@@ -110,8 +114,6 @@ export function atHostCap(currentCount: number): boolean {
 //   const guard = planGuard("scheduledScans");
 //   if (!guard.ok) return guard.response;
 // ---------------------------------------------------------------------------
-
-import { NextResponse } from "next/server";
 
 type BooleanPlanFeature = {
   [K in keyof PlanLimits]: PlanLimits[K] extends boolean ? K : never;
