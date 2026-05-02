@@ -69,19 +69,33 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
     <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">
       <h2 className="text-sm font-semibold text-fg-primary">Connect your first host</h2>
       <p className="text-sm text-fg-muted">
-        Install the collector on a representative production workload — outbound HTTPS only,
-        read-only introspection on-host.
+        BLACKGLASS uses SSH-based collection — no agent install required on the target host.
+        Ask your operator to configure the collector credentials, then this step will advance
+        automatically once a heartbeat is detected.
       </p>
-      <label className="block text-xs text-fg-faint">
-        Host label
-        <input
-          defaultValue="prod-edge-01"
-          className="mt-1 w-full rounded-card border border-border-default bg-bg-base px-3 py-2 font-mono text-sm text-fg-primary outline-none ring-accent-blue focus:ring-2"
-        />
-      </label>
-      <pre className="overflow-x-auto rounded-card border border-border-default bg-bg-base p-4 font-mono text-[12px] text-fg-muted">
-        curl -fsSL https://install.blackglass.invalid/run.sh | sudo bash -s -- --token YOUR_API_KEY
-      </pre>
+      <div className="space-y-3 rounded-card border border-border-subtle bg-bg-elevated p-4 text-sm">
+        <p className="font-medium text-fg-primary">Operator setup (one-time per host)</p>
+        <ol className="list-decimal space-y-2 pl-5 text-fg-muted">
+          <li>
+            Create a <span className="font-mono text-fg-primary">blackglass</span> user on the target host
+            and add a <code className="rounded bg-bg-base px-1 text-xs">sudoers</code> entry for
+            read-only commands (see <span className="font-mono text-xs">docs/operator-guide.md</span>).
+          </li>
+          <li>
+            Set <code className="rounded bg-bg-base px-1 text-xs">COLLECTOR_HOST_N</code>,{" "}
+            <code className="rounded bg-bg-base px-1 text-xs">COLLECTOR_USER</code>, and{" "}
+            <code className="rounded bg-bg-base px-1 text-xs">SSH_PRIVATE_KEY</code> in the
+            App Platform environment variables (or Doppler config).
+          </li>
+          <li>
+            Verify with{" "}
+            <code className="rounded bg-bg-base px-1 text-xs">
+              STAGING_URL=… npm run verify:staging
+            </code>{" "}
+            — the host count check will pass once SSH is reachable.
+          </li>
+        </ol>
+      </div>
       {status === "waiting" && (
         <div className="flex items-center gap-2 text-xs text-fg-faint">
           <svg

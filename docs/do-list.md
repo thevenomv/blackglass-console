@@ -26,7 +26,7 @@ Action items after **`npm run do:apply-stage0`** or any prod deploy. Copy into a
 - [x] ~~Volume `blackglass-baselines` created in **nyc3**~~ — **replaced by DO Spaces** (`blackglass-state` bucket, nyc3). Volumes section is obsolete.
 - [x] ~~Volume **attached** to the App Platform app component~~ — N/A (Spaces).
 - [x] `BASELINE_STORE_PATH` / `DRIFT_HISTORY_PATH` — N/A; using **Spaces adapter** (`DO_SPACES_*` env vars set in App Platform + Doppler dev/stg).
-- [ ] Confirmed baselines and drift history survive an app **restart** (run a baseline, restart the app, verify data is present). *(Spaces should handle — not yet explicitly tested)*
+- [x] Confirmed baselines and drift history survive an app **restart** (baseline captured 2026-05-02T13:15:47Z; app restarted via DO API deployment `7abe7ddb`; baseline present post-restart with same capturedAt — Spaces adapter confirmed).
 - [x] ~~Volume snapshot or backup plan~~ — Spaces bucket lifecycle / versioning policy recommended; bucket is private.
 
 ## Droplets (collector targets)

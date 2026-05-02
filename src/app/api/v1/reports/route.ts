@@ -2,9 +2,9 @@
  * GET  /api/v1/reports — list generated reports
  * POST /api/v1/reports — queue a new report
  *
- * Report generation runs in-process (async) and writes to the in-process
- * store. For alpha, reports are a JSON summary of current drift events and
- * audit log; a future worker can upload to object storage.
+ * Report metadata is persisted to Spaces (reports/index.json) and content to
+ * reports/{id}.json.  Falls back to in-process global when Spaces is not
+ * configured (local dev).
  */
 
 import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
@@ -12,32 +12,18 @@ import { requireRole } from "@/lib/server/http/auth-guard";
 import { getDriftEvents } from "@/lib/server/drift-engine";
 import { readAudit } from "@/lib/server/audit-log";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
+import {
+  addReport,
+  getReportContent,
+  listReports,
+  saveReportContent,
+  updateReport,
+  type ReportEntry,
+} from "@/lib/server/report-store";
 import { z } from "zod";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
-
-// ---------------------------------------------------------------------------
-// In-process report store
-// ---------------------------------------------------------------------------
-
-type ReportEntry = {
-  id: string;
-  title: string;
-  scope: string;
-  generatedAt: string;
-  status: "ready" | "generating" | "failed";
-  format: "markdown" | "pdf";
-};
-
-const GLOBAL_KEY = "__blackglass_reports_v1" as const;
-type G = typeof globalThis & { [GLOBAL_KEY]?: ReportEntry[] };
-
-function store(): ReportEntry[] {
-  const g = globalThis as G;
-  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = [];
-  return g[GLOBAL_KEY];
-}
 
 // ---------------------------------------------------------------------------
 // POST body schema
@@ -54,7 +40,8 @@ const ReportPostSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export async function GET() {
-  return NextResponse.json({ items: store() });
+  const items = await listReports();
+  return NextResponse.json({ items });
 }
 
 export async function POST(request: Request) {
@@ -87,7 +74,7 @@ export async function POST(request: Request) {
     format,
   };
 
-  store().unshift(entry);
+  addReport(entry);
 
   // Generate the report content asynchronously (fire-and-forget).
   void generateReport(id, scope, hostId);
@@ -110,28 +97,21 @@ async function generateReport(
   scope: string,
   hostId?: string,
 ): Promise<void> {
-  const entries = store();
-  const entry = entries.find((r) => r.id === id);
-  if (!entry) return;
-
   try {
     const events = getDriftEvents(scope === "host" ? hostId : undefined);
     const audit = readAudit(50);
 
-    // Attach the content to a sidecar key so the download route can serve it.
-    const SIDECAR_KEY = "__blackglass_report_content_v1" as const;
-    type GS = typeof globalThis & { [SIDECAR_KEY]?: Record<string, string> };
-    const sidecar = (globalThis as GS);
-    if (!sidecar[SIDECAR_KEY]) sidecar[SIDECAR_KEY] = {};
-    sidecar[SIDECAR_KEY][id] = JSON.stringify(
+    const content = JSON.stringify(
       { report_id: id, scope, generated_at: new Date().toISOString(), drift_events: events, recent_audit: audit },
       null,
       2,
     );
 
-    entry.status = "ready";
+    await saveReportContent(id, content);
+    updateReport(id, { status: "ready" });
   } catch (err) {
     console.error("[reports] Generation failed:", err);
-    entry.status = "failed";
+    updateReport(id, { status: "failed" });
   }
 }
+
