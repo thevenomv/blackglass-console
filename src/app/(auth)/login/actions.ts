@@ -74,6 +74,10 @@ export async function signIn(formData: FormData) {
   const maxAge = 60 * 60 * 24 * 7;
   const secure = process.env.NODE_ENV === "production";
 
+  // Delete before set — explicit session rotation to prevent fixation
+  jar.delete(SESSION);
+  jar.delete(ROLE);
+
   jar.set(SESSION, token, {
     httpOnly: true,
     sameSite: "lax",

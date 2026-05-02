@@ -1,0 +1,30 @@
+name: Uptime check
+
+on:
+  schedule:
+    # Every 15 minutes
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Health check
+        id: health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${{ secrets.STAGING_URL }}/api/health")
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          if [ "$STATUS" != "200" ]; then
+            echo "FAIL: /api/health returned HTTP $STATUS"
+            exit 1
+          fi
+          echo "OK: /api/health returned 200"
+
+      - name: Slack alert on failure
+        if: failure() && secrets.SLACK_ALERT_WEBHOOK_URL != ''
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_ALERT_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"text\":\":rotating_light: *BLACKGLASS health check failed* — \`/api/health\` returned HTTP ${{ steps.health.outputs.status }} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"

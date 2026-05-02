@@ -1,5 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 // ---------------------------------------------------------------------------
 // Typed audit actions — use these constants everywhere instead of raw strings
@@ -69,7 +74,66 @@ function saveToFile(filePath: string, rows: AuditEntry[]): void {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(filePath, JSON.stringify(rows.slice(0, MAX), null, 2), "utf8");
   } catch (err) {
-    console.error("[audit-log] Failed to persist:", err);
+    console.error("[audit-log] Failed to persist to file:", err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Spaces (S3-compatible) persistence — append-only daily JSONL
+// audit/YYYY-MM-DD.jsonl — each line is a JSON-serialised AuditEntry.
+// Fire-and-forget: never throws into the caller's stack.
+// ---------------------------------------------------------------------------
+
+function makeSpacesClient(): S3Client | null {
+  const key = process.env.DO_SPACES_KEY;
+  const secret = process.env.DO_SPACES_SECRET;
+  const endpoint = process.env.DO_SPACES_ENDPOINT;
+  if (!key || !secret || !endpoint) return null;
+  const region =
+    process.env.DO_SPACES_REGION ?? new URL(endpoint).hostname.split(".")[0];
+  return new S3Client({
+    endpoint,
+    region,
+    credentials: { accessKeyId: key, secretAccessKey: secret },
+    forcePathStyle: false,
+  });
+}
+
+function auditSpacesKey(date: string): string {
+  // date = YYYY-MM-DD
+  return `audit/${date}.jsonl`;
+}
+
+async function appendToSpaces(entry: AuditEntry): Promise<void> {
+  const client = makeSpacesClient();
+  if (!client) return;
+  const bucket = process.env.DO_SPACES_BUCKET ?? "";
+  const date = entry.ts.slice(0, 10); // YYYY-MM-DD
+  const key = auditSpacesKey(date);
+
+  try {
+    // Read existing content for the day (may not exist yet)
+    let existing = "";
+    try {
+      const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+      existing = (await res.Body?.transformToString()) ?? "";
+    } catch {
+      // File doesn't exist yet — start fresh
+    }
+
+    const line = JSON.stringify(entry);
+    const updated = existing ? `${existing.trimEnd()}\n${line}\n` : `${line}\n`;
+
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: updated,
+        ContentType: "application/x-ndjson",
+      }),
+    );
+  } catch (err) {
+    console.error("[audit-log] Failed to persist to Spaces:", err);
   }
 }
 
@@ -109,6 +173,8 @@ export function appendAudit(
   if (entries.length > MAX) entries.length = MAX;
   const fp = storePath();
   if (fp) saveToFile(fp, entries);
+  // Persist to Spaces asynchronously — never blocks the caller
+  void appendToSpaces(entry);
   return entry;
 }
 

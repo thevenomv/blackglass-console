@@ -1,6 +1,7 @@
 "use client";
 
 import { ErrorState } from "@/components/ui/EmptyState";
+import { useEffect } from "react";
 
 export default function GlobalError({
   error,
@@ -9,6 +10,11 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    // Report to Sentry when configured — no-op otherwise
+    import("@sentry/nextjs").then(({ captureException }) => captureException(error)).catch(() => {});
+  }, [error]);
+
   return (
     <div className="flex min-h-[40vh] flex-col items-start gap-4 px-6 py-10">
       <ErrorState

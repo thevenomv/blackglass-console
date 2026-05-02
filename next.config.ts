@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -14,4 +15,14 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["ssh2"],
 };
 
-export default nextConfig;
+// Wrap with Sentry only when DSN is configured — no-op otherwise.
+export default withSentryConfig(nextConfig, {
+  // Silence Sentry CLI output during builds unless SENTRY_LOG_LEVEL is set
+  silent: !process.env.SENTRY_LOG_LEVEL,
+  // Disable source map upload when no auth token is present (local dev / DO build without token)
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+  },
+  // Disable Sentry telemetry
+  telemetry: false,
+});
