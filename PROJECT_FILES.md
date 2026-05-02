@@ -158,7 +158,7 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 
 | Path                                               | Role                                                             |
 | -------------------------------------------------- | ---------------------------------------------------------------- |
-| `layout.tsx`                                       | Root layout, fonts, providers                                    |
+| `layout.tsx`                                       | Root layout (**`metadata`**, **`viewport`**, **`next/font`**, WebSite JSON-LD, providers) |
 | `globals.css`                                      | Global CSS variables / base                                      |
 | `error.tsx`                                        | App error boundary                                               |
 | `page.tsx`                                         | Home / fleet dashboard (fleet data + drift-derived cards)        |
@@ -175,6 +175,8 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `workspace/page.tsx`                               | Incident workspace                                               |
 | `onboarding/page.tsx`                              | Onboarding flow                                                  |
 | `demo/page.tsx`                                    | Partner demo script                                              |
+| `robots.ts`                                       | **`/robots.txt`** — crawler rules; **`NEXT_PUBLIC_SITE_NOINDEX`** staging kill-switch          |
+| `sitemap.ts`                                      | **`/sitemap.xml`** — public URLs (empty when **`SITE_NOINDEX`**)                             |
 
 
 ### `src/app/api/`
@@ -265,7 +267,7 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `mockLatency.ts`                            | Simulated delay in mock mode                  |
 | `resolveInvestigation.ts`                   | Investigation URL helpers                     |
 | `severity.ts`                               | Severity normalization                        |
-
+| `site.ts`                                   | **`siteOrigin`** / **`siteShouldNoindex`** (`metadata`, `robots`, `sitemap`) |
 
 ---
 
@@ -376,4 +378,4 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 
 ---
 
-*Last updated: Next.js 16; optional **`RATE_LIMIT_REDIS_URL`** quotas; **`verify:stage0:clean`**; ZAP checkout + **`rules.tsv`**.*
+*Last updated: Next.js 16; SEO (`sitemap`, `robots`, metadata, **`next/font`**); **`src/lib/site.ts`**; Redis/ZAP/clean-next from prior merges.*
