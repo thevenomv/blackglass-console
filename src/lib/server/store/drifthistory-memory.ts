@@ -10,6 +10,7 @@ function store(): { days: DayEntry[] } {
 }
 
 export class MemoryDriftHistoryRepository implements DriftHistoryRepository {
+  readonly adapter = "memory" as const;
   async recordDay(count: number): Promise<void> {
     if (count < 0) return;
     const data = store();

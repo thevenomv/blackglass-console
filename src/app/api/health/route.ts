@@ -3,11 +3,17 @@ import { collectorRuntimeHealth } from "@/lib/server/collector-runtime";
 import { jsonError } from "@/lib/server/http/json-error";
 import { checkHealthSecretsProbeRate, clientIp } from "@/lib/server/rate-limit";
 import { probeSecretBackendReachable } from "@/lib/server/secrets";
+import { refreshPlanFromSpaces } from "@/lib/server/plan-store";
+import { getDriftHistoryRepository } from "@/lib/server/store";
 import { getLimits } from "@/lib/plan";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
+  // Refresh plan cache from Spaces (no-op if TTL still fresh or Spaces not configured).
+  await refreshPlanFromSpaces();
+
   const b = baselineStoreHealth();
+  const dh = getDriftHistoryRepository();
   const collector = collectorRuntimeHealth();
   const limits = getLimits();
   const url = new URL(request.url);
@@ -25,6 +31,7 @@ export async function GET(request: Request) {
     baseline_store: b.configured
       ? { adapter: b.adapter, path: b.path, writable: b.writable }
       : { adapter: b.adapter },
+    drift_history_store: { adapter: dh.adapter },
     collector,
   };
 

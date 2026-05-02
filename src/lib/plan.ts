@@ -73,9 +73,21 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
 const VALID_PLANS: Plan[] = ["free", "pro", "enterprise"];
 
 export function getPlan(): Plan {
-  const raw = process.env.BLACKGLASS_PLAN?.toLowerCase().trim();
-  if (raw && VALID_PLANS.includes(raw as Plan)) return raw as Plan;
-  return "free";
+  // Prefer the in-memory plan-store cache (updated by Stripe webhooks without
+  // requiring a DO redeployment) over the static env var.  Falls back to env
+  // so local dev and CI continue to work with BLACKGLASS_PLAN set directly.
+  try {
+    // Lazy import to avoid pulling Spaces SDK into client bundles.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getActivePlan } = require("@/lib/server/plan-store") as {
+      getActivePlan: () => Plan;
+    };
+    return getActivePlan();
+  } catch {
+    const raw = process.env.BLACKGLASS_PLAN?.toLowerCase().trim();
+    if (raw && VALID_PLANS.includes(raw as Plan)) return raw as Plan;
+    return "free";
+  }
 }
 
 export function getLimits(): PlanLimits {
@@ -90,3 +102,63 @@ export function withinHostCap(currentCount: number): boolean {
 export function atHostCap(currentCount: number): boolean {
   return !withinHostCap(currentCount);
 }
+
+// ---------------------------------------------------------------------------
+// PlanGuard — centralised plan feature enforcement for API route handlers.
+//
+// Usage (in a route handler):
+//   const guard = planGuard("scheduledScans");
+//   if (!guard.ok) return guard.response;
+// ---------------------------------------------------------------------------
+
+import { NextResponse } from "next/server";
+
+type BooleanPlanFeature = {
+  [K in keyof PlanLimits]: PlanLimits[K] extends boolean ? K : never;
+}[keyof PlanLimits];
+
+type PlanGuardOk = { ok: true };
+type PlanGuardFail = { ok: false; response: ReturnType<typeof NextResponse.json> };
+export type PlanGuardResult = PlanGuardOk | PlanGuardFail;
+
+/**
+ * Returns `{ ok: true }` when the current plan has the feature enabled,
+ * otherwise returns `{ ok: false, response }` with a 402 JSON error ready
+ * to return from a route handler.
+ */
+export function planGuard(feature: BooleanPlanFeature): PlanGuardResult {
+  const limits = getLimits();
+  if (limits[feature]) return { ok: true };
+  return {
+    ok: false,
+    response: NextResponse.json(
+      {
+        error: "plan_limit",
+        detail: `Feature "${feature}" is not available on the "${limits.name}" plan.`,
+        upgrade_required: true,
+      },
+      { status: 402 },
+    ),
+  };
+}
+
+/**
+ * Returns `{ ok: true }` when adding one more host is within the plan cap,
+ * otherwise a 402 response.
+ */
+export function hostCapGuard(currentCount: number): PlanGuardResult {
+  const limits = getLimits();
+  if (withinHostCap(currentCount)) return { ok: true };
+  return {
+    ok: false,
+    response: NextResponse.json(
+      {
+        error: "plan_limit",
+        detail: `Host cap of ${limits.maxHosts} reached on the "${limits.name}" plan.`,
+        upgrade_required: true,
+      },
+      { status: 402 },
+    ),
+  };
+}
+

@@ -1,10 +1,13 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { DayEntry, DriftHistoryRepository } from "./types";
+import { StoreError } from "./types";
 
 const KEY = "drift-history.json";
 type FileShape = { days: DayEntry[] };
 
 export class SpacesDriftHistoryRepository implements DriftHistoryRepository {
+  readonly adapter = "spaces" as const;
+
   private readonly client: S3Client;
 
   constructor(
@@ -25,16 +28,23 @@ export class SpacesDriftHistoryRepository implements DriftHistoryRepository {
   private async load(): Promise<FileShape> {
     try {
       const resp = await this.client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key }),
+        new GetObjectCommand({ Bucket: this.bucket, Key: KEY }),
       );
       const text = await resp.Body?.transformToString();
       if (!text) return { days: [] };
-      const j = JSON.parse(text) as FileShape;
-      if (j && Array.isArray(j.days)) return j;
-    } catch (err: unknown) {
-      if ((err as { name?: string }).name !== "NoSuchKey") {
-        console.error("[drift-history/spaces] Failed to load:", err);
+      try {
+        const j = JSON.parse(text) as FileShape;
+        if (j && Array.isArray(j.days)) return j;
+        throw new StoreError("corrupt_record", "drift-history.json missing days array");
+      } catch (parseErr) {
+        if (parseErr instanceof StoreError) throw parseErr;
+        throw new StoreError("corrupt_record", "drift-history.json failed to parse", parseErr);
       }
+    } catch (err: unknown) {
+      if (err instanceof StoreError) throw err;
+      if ((err as { name?: string }).name === "NoSuchKey") return { days: [] };
+      console.error("[drift-history/spaces] Failed to load:", err);
+      throw new StoreError("unavailable", "Spaces read failed", err);
     }
     return { days: [] };
   }
@@ -44,13 +54,14 @@ export class SpacesDriftHistoryRepository implements DriftHistoryRepository {
       await this.client.send(
         new PutObjectCommand({
           Bucket: this.bucket,
-          Key,
+          Key: KEY,
           Body: JSON.stringify(data, null, 2),
           ContentType: "application/json",
         }),
       );
     } catch (err) {
       console.error("[drift-history/spaces] Failed to persist:", err);
+      throw new StoreError("unavailable", "Spaces write failed", err);
     }
   }
 

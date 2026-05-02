@@ -1,10 +1,42 @@
 import * as fs from "fs";
 import * as path from "path";
 
+// ---------------------------------------------------------------------------
+// Typed audit actions — use these constants everywhere instead of raw strings
+// so action names are refactorable and exhaustively documented.
+// ---------------------------------------------------------------------------
+
+export const AUDIT_ACTIONS = {
+  // Baseline lifecycle
+  BASELINE_CAPTURE: "baseline.capture",
+  BASELINE_CAPTURE_FAILED: "baseline.capture_failed",
+
+  // Scan lifecycle
+  SCAN_STARTED: "scan.started",
+  SCAN_COMPLETED: "scan.completed",
+  SCAN_FAILED: "scan.failed",
+
+  // Drift
+  DRIFT_VIEWED: "drift.viewed",
+
+  // Reports
+  REPORT_QUEUED: "report.queued",
+  REPORT_GENERATED: "report.generated",
+
+  // Plan / billing
+  PLAN_CHANGED: "plan.changed",
+  PLAN_REVERTED: "plan.reverted",
+
+  // Generic — prefer specific actions above when possible
+  USER_ACTION: "user.action",
+} as const;
+
+export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
+
 export type AuditEntry = {
   id: string;
   ts: string;
-  action: string;
+  action: AuditAction | string; // string fallback keeps the type open for external callers
   detail: string;
   actor?: string;
   /** Correlates server-emitted rows with `GET /api/v1/scans/:id` when present. */

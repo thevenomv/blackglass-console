@@ -6,6 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 import type { HostSnapshot } from "@/lib/server/collector/types";
 import type { BaselineRepository, BaselineStoreHealth } from "./types";
+import { StoreError } from "./types";
 
 export class SpacesBaselineRepository implements BaselineRepository {
   private readonly client: S3Client;
@@ -41,6 +42,7 @@ export class SpacesBaselineRepository implements BaselineRepository {
       );
     } catch (err) {
       console.error("[baseline-store/spaces] Failed to save:", err);
+      throw new StoreError("unavailable", "Spaces write failed", err);
     }
   }
 
@@ -51,11 +53,16 @@ export class SpacesBaselineRepository implements BaselineRepository {
       );
       const text = await resp.Body?.transformToString();
       if (!text) return undefined;
-      return JSON.parse(text) as HostSnapshot;
+      try {
+        return JSON.parse(text) as HostSnapshot;
+      } catch (parseErr) {
+        throw new StoreError("corrupt_record", `Baseline for ${hostId} failed to parse`, parseErr);
+      }
     } catch (err: unknown) {
+      if (err instanceof StoreError) throw err;
       if ((err as { name?: string }).name === "NoSuchKey") return undefined;
       console.error("[baseline-store/spaces] Failed to get:", err);
-      return undefined;
+      throw new StoreError("unavailable", "Spaces read failed", err);
     }
   }
 

@@ -11,7 +11,7 @@ import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { getDriftEvents } from "@/lib/server/drift-engine";
 import { readAudit } from "@/lib/server/audit-log";
-import { appendAudit } from "@/lib/server/audit-log";
+import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { z } from "zod";
 import { NextResponse } from "next/server";
 
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
   void generateReport(id, scope, hostId);
 
   appendAudit({
-    action: "report.queued",
+    action: AUDIT_ACTIONS.REPORT_QUEUED,
     detail: `Report ${id} queued — scope: ${scope}, format: ${format}`,
     actor: guard.role,
   });

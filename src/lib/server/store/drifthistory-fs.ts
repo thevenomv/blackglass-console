@@ -5,6 +5,8 @@ import type { DayEntry, DriftHistoryRepository } from "./types";
 type FileShape = { days: DayEntry[] };
 
 export class FilesystemDriftHistoryRepository implements DriftHistoryRepository {
+  readonly adapter = "filesystem" as const;
+
   constructor(private readonly filePath: string) {}
 
   private load(): FileShape {

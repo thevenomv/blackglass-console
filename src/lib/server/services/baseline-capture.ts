@@ -7,7 +7,7 @@ import {
 } from "@/lib/server/collector";
 import { saveBaseline } from "@/lib/server/baseline-store";
 import { storeDriftEvents } from "@/lib/server/drift-engine";
-import { appendAudit } from "@/lib/server/audit-log";
+import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
 
 function snapshotSummary(snapshot: HostSnapshot) {
@@ -64,7 +64,7 @@ export async function captureBaselinesFromFleet(): Promise<BaselineCaptureOutcom
       .filter(Boolean);
 
     appendAudit({
-      action: "baseline.capture",
+      action: AUDIT_ACTIONS.BASELINE_CAPTURE,
       detail: `Baseline captured for ${hostLabels.join(", ")}`,
     });
 

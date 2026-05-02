@@ -1,7 +1,7 @@
 /**
  * Background drift scan after POST /api/v1/scans — keeps route handler thin.
  */
-import { appendAudit } from "@/lib/server/audit-log";
+import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { getBaseline } from "@/lib/server/baseline-store";
 import { collectAllSnapshots, type CollectScanOptions } from "@/lib/server/collector";
 import { computeDrift, storeDriftEvents } from "@/lib/server/drift-engine";
@@ -40,7 +40,7 @@ export async function executeDriftScanJob(
       totalDrift += events.length;
 
       appendAudit({
-        action: "scan.completed",
+        action: AUDIT_ACTIONS.SCAN_COMPLETED,
         detail: `Scan ${jobId} — ${current.hostname}: ${events.length} drift events`,
         scan_id: jobId,
       });
@@ -49,7 +49,7 @@ export async function executeDriftScanJob(
     if (failures.length > 0 && totalDrift === 0) {
       resolveScan(jobId, "failed", failures.join("; "));
       appendAudit({
-        action: "scan.failed",
+        action: AUDIT_ACTIONS.SCAN_FAILED,
         detail: `Scan ${jobId} failed: ${failures.join("; ")}`,
         scan_id: jobId,
       });
@@ -61,7 +61,7 @@ export async function executeDriftScanJob(
     const message = err instanceof Error ? err.message : String(err);
     resolveScan(jobId, "failed", `Collection error: ${message}`);
     appendAudit({
-      action: "scan.failed",
+      action: AUDIT_ACTIONS.SCAN_FAILED,
       detail: `Scan ${jobId} failed: ${message}`,
       scan_id: jobId,
     });

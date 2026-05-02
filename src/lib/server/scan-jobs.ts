@@ -16,12 +16,70 @@ export type ScanJobRecord = {
 };
 
 const GLOBAL_KEY = "__blackglass_scan_jobs_v1" as const;
+// Tracks in-flight (unresolved) scan IDs so SIGTERM handler can drain them.
+const RUNNING_KEY = "__blackglass_running_scans_v1" as const;
 
 const MAX_JOBS = 200;
 
 type GlobalWithJobs = typeof globalThis & {
   [GLOBAL_KEY]?: Map<string, ScanJobRecord>;
+  [RUNNING_KEY]?: Set<string>;
 };
+
+// ---------------------------------------------------------------------------
+// Graceful shutdown — drain in-flight scans before process.exit(0)
+// ---------------------------------------------------------------------------
+
+const DRAIN_TIMEOUT_MS = 8_000; // max wait for running scans to finish
+
+let _shutdownRegistered = false;
+
+function registerShutdownHandler() {
+  if (_shutdownRegistered) return;
+  _shutdownRegistered = true;
+
+  const handler = (signal: string) => {
+    const running = (globalThis as GlobalWithJobs)[RUNNING_KEY];
+    if (!running || running.size === 0) {
+      console.info(`[scan-jobs] ${signal}: no active scans — exiting cleanly`);
+      process.exit(0);
+    }
+
+    console.info(`[scan-jobs] ${signal}: waiting for ${running.size} scan(s) to finish...`);
+    const deadline = Date.now() + DRAIN_TIMEOUT_MS;
+
+    const poll = setInterval(() => {
+      if (running.size === 0 || Date.now() > deadline) {
+        clearInterval(poll);
+        if (running.size > 0) {
+          console.warn(`[scan-jobs] ${signal}: drain timeout — ${running.size} scan(s) still running`);
+        } else {
+          console.info(`[scan-jobs] ${signal}: all scans finished — exiting cleanly`);
+        }
+        process.exit(0);
+      }
+    }, 250);
+  };
+
+  process.once("SIGTERM", () => handler("SIGTERM"));
+  process.once("SIGINT", () => handler("SIGINT"));
+}
+
+function runningScans(): Set<string> {
+  const g = globalThis as GlobalWithJobs;
+  if (!g[RUNNING_KEY]) g[RUNNING_KEY] = new Set();
+  return g[RUNNING_KEY];
+}
+
+/** Call before starting SSH collection for a job. */
+export function markScanStarted(id: string): void {
+  runningScans().add(id);
+}
+
+/** Call when a scan reaches a terminal state (success or failure). */
+export function markScanDone(id: string): void {
+  runningScans().delete(id);
+}
 
 // ---------------------------------------------------------------------------
 // File persistence helpers (opt-in via SCAN_JOBS_PATH env var)
@@ -68,6 +126,7 @@ function persist(): void {
 }
 
 export function enqueueScan(hostIds: string[]): ScanJobRecord {
+  registerShutdownHandler();
   const id =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
@@ -75,6 +134,7 @@ export function enqueueScan(hostIds: string[]): ScanJobRecord {
   const rec: ScanJobRecord = { id, createdAt: Date.now(), hostIds };
   jobs().set(id, rec);
   persist();
+  markScanStarted(id);
   return rec;
 }
 
@@ -91,6 +151,7 @@ export function resolveScan(
   rec.resolvedDetail = detail;
   if (driftCount !== undefined) rec.driftCount = driftCount;
   persist();
+  markScanDone(id);
 }
 
 export function getScanRecord(id: string): ScanJobRecord | undefined {
