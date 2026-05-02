@@ -82,9 +82,10 @@ export async function POST(request: Request) {
   try {
     await saveBaseline(snapshot);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[ingest] Failed to save snapshot:", err);
-    return jsonError(502, "store_error", `Failed to persist snapshot: ${msg}`);
+    // Log full detail server-side; return a generic message to avoid leaking
+    // internal paths, adapter names, or storage backend details to the caller.
+    console.error("[ingest] Failed to save snapshot for host", snapshot.hostId, ":", err);
+    return jsonError(502, "store_error", "Snapshot could not be persisted. Check server logs.");
   }
 
   appendAudit({

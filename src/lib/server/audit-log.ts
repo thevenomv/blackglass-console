@@ -47,6 +47,10 @@ export const AUDIT_ACTIONS = {
 
   // Generic — prefer specific actions above when possible
   USER_ACTION: "user.action",
+
+  // Settings
+  KEY_ROTATED: "settings.key_rotated",
+  WEBHOOK_TEST_SENT: "settings.webhook_test_sent",
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -63,7 +67,12 @@ export type AuditEntry = {
   request_id?: string;
 };
 
-const MAX = 500;
+const MAX = (() => {
+  const n = parseInt(process.env.AUDIT_LOG_MAX_ENTRIES ?? "500", 10);
+  return Number.isFinite(n) && n > 0 ? n : 500;
+})();
+
+const AUDIT_SPACES_PREFIX = process.env.AUDIT_SPACES_PREFIX ?? "audit";
 
 // ---------------------------------------------------------------------------
 // File persistence helpers (opt-in via AUDIT_LOG_PATH env var)
@@ -116,13 +125,17 @@ function makeSpacesClient(): S3Client | null {
 
 function auditSpacesKey(date: string): string {
   // date = YYYY-MM-DD
-  return `audit/${date}.jsonl`;
+  return `${AUDIT_SPACES_PREFIX}/${date}.jsonl`;
 }
 
 async function appendToSpaces(entry: AuditEntry): Promise<void> {
   const client = makeSpacesClient();
   if (!client) return;
   const bucket = process.env.DO_SPACES_BUCKET ?? "";
+  if (!bucket) {
+    console.warn("[audit-log] DO_SPACES_BUCKET is not set — Spaces persistence will silently fail.");
+    return;
+  }
   const date = entry.ts.slice(0, 10); // YYYY-MM-DD
   const key = auditSpacesKey(date);
 

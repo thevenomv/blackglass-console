@@ -23,10 +23,14 @@ const redeemed = new Set<string>();
 
 function loadTokens(): string[] {
   const raw = process.env.INVITE_TOKENS ?? "";
-  return raw
+  const tokens = raw
     .split(",")
     .map((t) => t.trim())
     .filter((t) => t.length > 0);
+  if (tokens.length === 0 && process.env.AUTH_REQUIRED === "true") {
+    console.warn("[invite-tokens] INVITE_TOKENS env var is not set — invite links will not work.");
+  }
+  return tokens;
 }
 
 /**
@@ -83,7 +87,14 @@ export function redeemInviteToken(token: string): void {
  * Caller is responsible for adding it to INVITE_TOKENS.
  */
 export function generateInviteToken(): string {
-  const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS ?? "72", 10);
+  const rawTtl = process.env.INVITE_TOKEN_TTL_HOURS?.trim();
+  const ttlHours =
+    rawTtl && /^\d+$/.test(rawTtl) && parseInt(rawTtl, 10) > 0
+      ? parseInt(rawTtl, 10)
+      : 72;
+  if (rawTtl && !/^\d+$/.test(rawTtl)) {
+    console.warn(`[invite-tokens] INVITE_TOKEN_TTL_HOURS="${rawTtl}" is not a positive integer — using 72h.`);
+  }
   const expireSec = Math.floor((Date.now() + ttlHours * 3_600_000) / 1000);
   const expHex = expireSec.toString(16).padStart(10, "0");
   return `tok_${expHex}_${randomBytes(20).toString("base64url")}`;

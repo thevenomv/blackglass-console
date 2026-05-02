@@ -34,8 +34,13 @@ function allowMemory(key: string, limit: number, windowMs: number): boolean {
 async function allowHybrid(key: string, limit: number, windowMs: number): Promise<boolean> {
   const { allowRedisSlidingWindow } = await import("./rate-limit-redis");
   const redis = await allowRedisSlidingWindow(key, limit, windowMs);
-  if (redis !== null) return redis;
-  return allowMemory(key, limit, windowMs);
+  if (redis !== null) {
+    if (!redis) console.warn(`[rate-limit] Exceeded (redis): key=${key}`);
+    return redis;
+  }
+  const allowed = allowMemory(key, limit, windowMs);
+  if (!allowed) console.warn(`[rate-limit] Exceeded (memory): key=${key}`);
+  return allowed;
 }
 
 export function clientIp(request: Request): string {
@@ -96,4 +101,52 @@ export function checkInviteRate(ip: string): Promise<boolean> {
  */
 export function checkIngestRate(hostId: string): Promise<boolean> {
   return allowHybrid(`ingest:${hostId}`, 120, 60_000);
+}
+
+/**
+ * POST /api/checkout — Stripe session creation guard.
+ * 10 attempts per IP per minute to prevent Stripe API quota exhaustion.
+ */
+export function checkCheckoutRate(ip: string): Promise<boolean> {
+  return allowHybrid(`checkout:${ip}`, 10, 60_000);
+}
+
+/**
+ * POST /api/checkout/portal — billing portal session guard.
+ * 10 attempts per IP per minute to prevent customer-ID enumeration.
+ */
+export function checkPortalRate(ip: string): Promise<boolean> {
+  return allowHybrid(`portal:${ip}`, 10, 60_000);
+}
+
+/**
+ * POST /api/v1/baselines — SSH capture guard.
+ * 6 per IP per minute; each call fans out SSH to all collector hosts.
+ */
+export function checkBaselinesRate(ip: string): Promise<boolean> {
+  return allowHybrid(`baselines:${ip}`, 6, 60_000);
+}
+
+/**
+ * POST /api/v1/reports — report generation guard.
+ * 6 per IP per minute; each generation reads drift events + audit log.
+ */
+export function checkReportsPostRate(ip: string): Promise<boolean> {
+  return allowHybrid(`reports:${ip}`, 6, 60_000);
+}
+
+/**
+ * POST /api/v1/audit/events — manual audit-append guard.
+ * 30 per IP per minute.
+ */
+export function checkAuditPostRate(ip: string): Promise<boolean> {
+  return allowHybrid(`audit:post:${ip}`, 30, 60_000);
+}
+
+/**
+ * POST /api/v1/webhooks/test — outbound webhook delivery test guard.
+ * 2 per IP per minute to prevent using the server as an HTTP relay.
+ */
+export function checkWebhooksTestRate(ip: string): Promise<boolean> {
+  return allowHybrid(`webhooks:test:${ip}`, 2, 60_000);
 }

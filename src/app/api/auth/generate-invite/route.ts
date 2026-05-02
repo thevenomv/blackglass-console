@@ -4,6 +4,7 @@ import { generateInviteToken } from "@/lib/auth/invite-tokens";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const SESSION = "bg-session";
 
@@ -20,8 +21,10 @@ export async function POST(request: NextRequest) {
   }
 
   const token = generateInviteToken();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const inviteUrl = `${appUrl}/api/auth/invite?token=${token}`;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    `${request.headers.get("x-forwarded-proto") ?? "https"}://${request.headers.get("host") ?? ""}`;
+  const inviteUrl = `${baseUrl}/api/auth/invite?token=${token}`;
 
   appendAudit({ action: AUDIT_ACTIONS.INVITE_GENERATED, detail: `Admin generated invite link`, actor: "admin" });
 

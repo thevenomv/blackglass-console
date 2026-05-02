@@ -36,9 +36,12 @@ type PlanState = {
 // S3/Spaces helpers
 // ---------------------------------------------------------------------------
 
-const PLAN_KEY = "plans/active.json";
+const PLAN_KEY = process.env.PLAN_STORE_KEY ?? "plans/active.json";
 const VALID_PLANS: Plan[] = ["free", "pro", "enterprise"];
-const CACHE_TTL_MS = 60_000; // refresh from Spaces at most once per minute
+const CACHE_TTL_MS = (() => {
+  const n = parseInt(process.env.PLAN_CACHE_TTL_MS ?? "60000", 10);
+  return Number.isFinite(n) && n > 0 ? n : 60_000;
+})(); // refresh from Spaces at most once per TTL
 
 function makeClient(): S3Client | null {
   const key = process.env.DO_SPACES_KEY;
@@ -72,8 +75,11 @@ type G = typeof globalThis & {
 };
 
 function envPlan(): Plan {
-  const raw = process.env.BLACKGLASS_PLAN?.toLowerCase().trim() as Plan | undefined;
-  return raw && VALID_PLANS.includes(raw) ? raw : "free";
+  const raw = process.env.BLACKGLASS_PLAN?.toLowerCase().trim();
+  if (raw && !VALID_PLANS.includes(raw as Plan)) {
+    console.warn(`[plan-store] Unrecognised BLACKGLASS_PLAN value "${process.env.BLACKGLASS_PLAN}" — falling back to "free". Valid values: ${VALID_PLANS.join(", ")}.`);
+  }
+  return raw && VALID_PLANS.includes(raw as Plan) ? (raw as Plan) : "free";
 }
 
 function cache() {
@@ -116,6 +122,7 @@ export async function persistPlanToSpaces(plan: Plan): Promise<void> {
       ContentType: "application/json",
     }),
   );
+  console.info(`[plan-store] Plan "${plan}" persisted to Spaces at key=${PLAN_KEY}`);
 }
 
 /** Read plan from Spaces and update cache. No-ops if Spaces not configured. */

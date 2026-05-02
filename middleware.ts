@@ -51,7 +51,8 @@ export async function middleware(request: NextRequest) {
     login.searchParams.set("next", pathname);
     login.searchParams.set("redirected", "1");
     const res = NextResponse.redirect(login);
-    res.cookies.delete(SESSION);
+    // Explicit attributes ensure the cookie is cleared in all browser contexts.
+    res.cookies.set({ name: SESSION, value: "", maxAge: 0, path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production" });
     res.headers.set("x-request-id", requestId);
     return res;
   }

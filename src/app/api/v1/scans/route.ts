@@ -10,6 +10,9 @@ import { ScanPostBodySchema } from "@/lib/server/http/schemas";
 import { getLimits } from "@/lib/plan";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   const guard = await requireRole(["operator", "admin"]);
   if (!guard.ok) return guard.response;
@@ -41,11 +44,10 @@ export async function POST(request: Request) {
     const allowed = new Set(configuredCollectorHostIds());
     const invalid = host_ids.filter((id) => !allowed.has(id));
     if (invalid.length > 0) {
-      const list = [...allowed].sort().join(", ") || "(none)";
       return jsonError(
         400,
         "invalid_host_ids",
-        `Unknown host_id(s): ${invalid.join(", ")}. Configured: ${list}`,
+        `Unknown host_id(s): ${invalid.join(", ")}. Check your collector configuration.`,
       );
     }
   }

@@ -12,9 +12,9 @@ describe("configuredCollectorHostIds", () => {
     expect(configuredCollectorHostIds()).toEqual(["host-127-0-0-1", "host-10-0-0-5"]);
   });
 
-  it("stops at first gap", () => {
+  it("includes non-sequential slots (does not stop at first gap)", () => {
     process.env.COLLECTOR_HOST_1 = "a.example";
-    process.env.COLLECTOR_HOST_3 = "skipped.example";
-    expect(configuredCollectorHostIds()).toEqual(["host-a-example"]);
+    process.env.COLLECTOR_HOST_3 = "c.example";
+    expect(configuredCollectorHostIds()).toEqual(["host-a-example", "host-c-example"]);
   });
 });

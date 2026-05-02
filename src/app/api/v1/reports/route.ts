@@ -9,6 +9,7 @@
 
 import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
+import { checkReportsPostRate, clientIp } from "@/lib/server/rate-limit";
 import { getDriftEvents } from "@/lib/server/drift-engine";
 import { readAudit } from "@/lib/server/audit-log";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
@@ -51,6 +52,10 @@ export async function POST(request: Request) {
   const guard = await requireRole(["operator", "admin"]);
   if (!guard.ok) return guard.response;
 
+  if (!(await checkReportsPostRate(clientIp(request)))) {
+    return jsonError(429, "rate_limited", "Too many report generation requests.");
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -63,7 +68,8 @@ export async function POST(request: Request) {
 
   const { scope, format, hostId } = parsed.data;
 
-  const id = `rpt-${Date.now()}`;
+  // Use crypto.randomUUID() for unguessable IDs — Math.random() is predictable.
+  const id = `rpt-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
   const entry: ReportEntry = {
     id,
     title: scope === "fleet"
@@ -113,8 +119,9 @@ async function generateReport(
     await saveReportContent(id, content);
     updateReport(id, { status: "ready" });
   } catch (err) {
+    const reason = err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200);
     console.error("[reports] Generation failed:", err);
-    updateReport(id, { status: "failed" });
+    updateReport(id, { status: "failed", failReason: reason });
   }
 }
 

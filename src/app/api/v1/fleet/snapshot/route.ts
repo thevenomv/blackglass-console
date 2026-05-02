@@ -2,6 +2,8 @@ import { loadFleetSnapshot } from "@/lib/server/inventory";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const guard = await requireRole(["viewer", "auditor", "operator", "admin"]);
   if (!guard.ok) return guard.response;

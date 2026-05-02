@@ -14,7 +14,10 @@ export const dynamic = "force-dynamic";
 // This in-process Set deduplicates within a single replica. For multi-instance
 // deployments, move this to a shared store (Redis/DB) at Stage 3.
 // ---------------------------------------------------------------------------
-const MAX_DEDUP = 1_000;
+const MAX_DEDUP = (() => {
+  const n = parseInt(process.env.STRIPE_WEBHOOK_DEDUP_SIZE ?? "1000", 10);
+  return Number.isFinite(n) && n > 0 ? n : 1000;
+})();
 const processedEventIds = new Set<string>();
 
 function isDuplicateEvent(eventId: string): boolean {
@@ -126,13 +129,15 @@ export async function POST(request: Request) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: `:credit_card: *Stripe payment failed* — customer \`${customerId}\` invoice \`${invoice.id}\`` }),
-        }).catch(() => {});
+        }).catch((err: unknown) => {
+          console.error("[stripe/webhook] Slack alert delivery failed:", err);
+        });
       }
       break;
     }
 
     default:
-      // Ignore all other event types.
+      console.warn(`[stripe/webhook] Unhandled event type "${event.type}" — skipping`);
       break;
   }
 

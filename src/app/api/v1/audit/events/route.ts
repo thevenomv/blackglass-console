@@ -1,8 +1,12 @@
 import { appendAudit, readAudit } from "@/lib/server/audit-log";
-import { readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
+import { readJsonBodyOptional, zodErrorResponse, jsonError } from "@/lib/server/http/json-error";
 import { AuditEventsQuerySchema, AuditPostBodySchema } from "@/lib/server/http/schemas";
 import { requireRole } from "@/lib/server/http/auth-guard";
+import { checkAuditPostRate, clientIp } from "@/lib/server/rate-limit";
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const guard = await requireRole(["auditor", "operator", "admin"]);
@@ -18,6 +22,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const guard = await requireRole(["operator", "admin"]);
   if (!guard.ok) return guard.response;
+
+  if (!(await checkAuditPostRate(clientIp(request)))) {
+    return jsonError(429, "rate_limited", "Too many audit-append requests.");
+  }
 
   const raw = await readJsonBodyOptional(request);
   if (!raw.ok) return raw.response;

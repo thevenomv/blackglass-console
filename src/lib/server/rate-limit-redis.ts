@@ -4,6 +4,7 @@
  */
 
 import Redis from "ioredis";
+import { randomBytes } from "node:crypto";
 
 const REDIS_KEY = "__bgRateLimitRedis_v1" as const;
 type G = typeof globalThis & { [REDIS_KEY]?: Redis };
@@ -47,7 +48,8 @@ export async function allowRedisSlidingWindow(
   if (!r) return null;
 
   const now = Date.now();
-  const member = `${now}:${Math.random().toString(36).slice(2)}`;
+  // Use cryptographically random bytes so sorted-set members are unguessable/unforgeable.
+  const member = `${now}:${randomBytes(8).toString("hex")}`;
   try {
     const raw = await r.eval(
       LUA,

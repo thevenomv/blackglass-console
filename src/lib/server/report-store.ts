@@ -26,6 +26,8 @@ export type ReportEntry = {
   scope: string;
   generatedAt: string;
   status: "ready" | "generating" | "failed";
+  /** Set when status is 'failed'; a short human-readable reason. */
+  failReason?: string;
   format: "markdown" | "pdf";
 };
 

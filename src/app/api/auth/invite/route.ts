@@ -8,6 +8,10 @@ const SESSION = "bg-session";
 const ROLE = "bg-role";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/** Viewer invite sessions last 30 days (longer than admin 7-day session). */
+const VIEWER_SESSION_MAX_AGE = 30 * 24 * 60 * 60;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -32,7 +36,7 @@ export async function GET(request: NextRequest) {
   appendAudit({ action: AUDIT_ACTIONS.INVITE_REDEEMED, detail: `Invite redeemed — IP: ${ip}`, actor: ip });
 
   const sessionToken = await signSession({ role: "viewer", iat: Date.now() });
-  const maxAge = 60 * 60 * 24 * 30; // 30-day viewer session
+  const maxAge = VIEWER_SESSION_MAX_AGE;
   const secure = process.env.NODE_ENV === "production";
 
   const response = NextResponse.redirect(new URL("/welcome", request.url));

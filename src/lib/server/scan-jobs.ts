@@ -21,8 +21,16 @@ const RUNNING_KEY = "__blackglass_running_scans_v1" as const;
 
 const MAX_JOBS = 200;
 
-/** TTL for Redis scan-result keys: 24 hours */
-const REDIS_SCAN_TTL_SECS = 86400;
+/** Minimum elapsed time (ms) before a job transitions from queued to running. */
+const SCAN_PROGRESS_MIN_DELAY_MS = 250;
+/** Progress bar increment per ms of elapsed time (yields 0–99% over ~3.5 s). */
+const SCAN_PROGRESS_INTERVAL_MS = 35;
+
+/** TTL for Redis scan-result keys: configurable via SCAN_REDIS_TTL_SECS (default 24 hours). */
+const REDIS_SCAN_TTL_SECS = (() => {
+  const n = parseInt(process.env.SCAN_REDIS_TTL_SECS ?? "86400", 10);
+  return Number.isFinite(n) && n > 0 ? n : 86400;
+})();
 
 type GlobalWithJobs = typeof globalThis & {
   [GLOBAL_KEY]?: Map<string, ScanJobRecord>;
@@ -177,6 +185,13 @@ function persist(): void {
 
 export function enqueueScan(hostIds: string[]): ScanJobRecord {
   registerShutdownHandler();
+  const store = jobs();
+  if (store.size >= MAX_JOBS) {
+    throw new Error(`[scan-jobs] Job limit reached (${MAX_JOBS}). Try again once existing jobs complete.`);
+  }
+  if (store.size >= Math.floor(MAX_JOBS * 0.8)) {
+    console.warn(`[scan-jobs] Job store at ${store.size}/${MAX_JOBS} capacity`);
+  }
   const id =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
@@ -263,9 +278,9 @@ export function projectScanJob(rec: ScanJobRecord): {
   let progress = 0;
   let detail = "Enqueueing collectors…";
 
-  if (elapsed > 250) {
+  if (elapsed > SCAN_PROGRESS_MIN_DELAY_MS) {
     status = "running";
-    progress = Math.min(99, Math.floor((elapsed - 250) / 35));
+    progress = Math.min(99, Math.floor((elapsed - SCAN_PROGRESS_MIN_DELAY_MS) / SCAN_PROGRESS_INTERVAL_MS));
     detail =
       progress < 33
         ? "Enumerating listeners and persistence…"

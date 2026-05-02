@@ -29,6 +29,13 @@ export async function loadFleetSnapshot(): Promise<FleetSnapshot> {
 // Real-data builders — only called when collector env vars are set
 // ---------------------------------------------------------------------------
 
+/** Per-high-severity drift event: subtract this many readiness points. */
+const READINESS_PENALTY_HIGH = 15;
+/** Per non-high drift event: subtract this many readiness points. */
+const READINESS_PENALTY_ANY = 5;
+/** Minimum high-severity events to classify host as "critical". */
+const TRUST_CRITICAL_THRESHOLD = 2;
+
 async function buildRealHosts(): Promise<HostRecord[]> {
   const baselineIds = new Set(await listBaselineHostIds());
   if (baselineIds.size === 0) return [];
@@ -40,11 +47,11 @@ async function buildRealHosts(): Promise<HostRecord[]> {
       const any = events.filter((e) => e.lifecycle === "new").length;
 
       let trust: HostTrust = "aligned";
-      if (high >= 2) trust = "critical";
+      if (high >= TRUST_CRITICAL_THRESHOLD) trust = "critical";
       else if (high >= 1) trust = "drift";
       else if (any > 0) trust = "needs_review";
 
-      const score = Math.max(0, 100 - high * 15 - (any - high) * 5);
+      const score = Math.max(0, 100 - high * READINESS_PENALTY_HIGH - (any - high) * READINESS_PENALTY_ANY);
       const baseline = await getBaseline(hostId);
 
       return {

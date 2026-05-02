@@ -24,7 +24,11 @@ function scanContext(opts?: CollectScanOptions): ScanContext {
   };
 }
 
-const COLLECTION_TIMEOUT_MS = 20_000;
+const COLLECTION_TIMEOUT_MS = (() => {
+  const n = parseInt(process.env.COLLECTION_TIMEOUT_MS ?? "20000", 10);
+  // Clamp to [5 s, 120 s] to prevent hangs or false quick timeouts.
+  return Number.isFinite(n) && n > 0 ? Math.max(5_000, Math.min(120_000, n)) : 20_000;
+})();
 
 async function collectAllSnapshotsWithAuth(
   auth: SshAuthConfig,
@@ -132,11 +136,8 @@ export async function collectSnapshot(opts?: CollectScanOptions): Promise<HostSn
         hosts_ok: 0,
         hosts_failed: 1,
         host_id: first.hostId,
-        error: e instanceof Error ? e.name : "Error",
-        message:
-          e instanceof Error
-            ? e.message.slice(0, 240)
-            : String(e).slice(0, 240),
+        error: e instanceof Error ? `${e.name}: ${e.message.slice(0, 200)}` : String(e).slice(0, 240),
+        stack: e instanceof Error ? e.stack?.slice(0, 500) : undefined,
       });
       throw e;
     }

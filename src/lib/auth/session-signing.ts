@@ -8,7 +8,10 @@
 
 const DEV_SECRET = "dev-secret-replace-in-production";
 
-const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+/** Session TTL in seconds (7 days). Exported so login actions can share the same constant. */
+export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 604800
+
+const SESSION_MAX_AGE_MS = SESSION_TTL_SECONDS * 1000; // 7 days
 
 function getSecret(): string {
   const secret = process.env.AUTH_SESSION_SECRET;

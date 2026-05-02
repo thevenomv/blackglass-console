@@ -20,6 +20,9 @@ function sshAuthFragment(auth: SshAuthConfig): {
   return { privateKey: auth.privateKey, publicKey: auth.publicKey };
 }
 
+/** IANA-assigned SSH port (RFC 4251). Override per-host via COLLECTOR_HOST_N_PORT or globally via COLLECTOR_PORT. */
+const DEFAULT_SSH_PORT = 22;
+
 export function buildSshConfig(
   host: string,
   hostIndex: number,
@@ -33,13 +36,13 @@ export function buildSshConfig(
   const port =
     portRaw != null && portRaw !== ""
       ? Number(portRaw)
-      : Number(process.env.COLLECTOR_PORT ?? 22);
+      : Number(process.env.COLLECTOR_PORT ?? DEFAULT_SSH_PORT);
 
   return {
     hostId: `host-${host.replace(/\./g, "-")}`,
     displayName: process.env[`COLLECTOR_HOST_${hostIndex}_NAME`] ?? host,
     host,
-    port: Number.isFinite(port) ? port : 22,
+    port: Number.isFinite(port) ? port : DEFAULT_SSH_PORT,
     username: user,
     ...sshAuthFragment(auth),
     readyTimeout: 15_000,

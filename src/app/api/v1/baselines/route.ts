@@ -8,8 +8,17 @@ import { NextResponse } from "next/server";
 import { collectorConfigured } from "@/lib/server/collector";
 import { captureBaselinesFromFleet } from "@/lib/server/services/baseline-capture";
 import { requireRole } from "@/lib/server/http/auth-guard";
+import { checkBaselinesRate, clientIp } from "@/lib/server/rate-limit";
+import { jsonError } from "@/lib/server/http/json-error";
 
-export async function POST() {
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+export async function POST(request: Request) {
+  if (!(await checkBaselinesRate(clientIp(request)))) {
+    return jsonError(429, "rate_limited", "Too many baseline capture requests.");
+  }
+
   const guard = await requireRole(["operator", "admin"]);
   if (!guard.ok) return guard.response;
 
@@ -27,11 +36,14 @@ export async function POST() {
   const outcome = await captureBaselinesFromFleet();
   switch (outcome.kind) {
     case "collection_failed":
-      return NextResponse.json({ error: "collection_failed", detail: outcome.detail }, { status: 502 });
+      return NextResponse.json({ error: "collection_failed", detail: outcome.detail }, { status: 503 });
     case "exception":
+      // Log the full error server-side; return a generic message to avoid
+      // leaking unexpected internal details (stack traces, etc.) to the client.
+      console.error("[baselines] Unexpected collection exception:", outcome.message);
       return NextResponse.json(
-        { error: "collection_failed", detail: outcome.message },
-        { status: 502 },
+        { error: "collection_failed", detail: "An unexpected error occurred during collection." },
+        { status: 500 },
       );
     case "ok":
       return NextResponse.json({

@@ -1,5 +1,16 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { checkPortalRate, clientIp } from "@/lib/server/rate-limit";
+import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
+import { z } from "zod";
+
+const PortalBodySchema = z.object({
+  customerId: z
+    .string()
+    .min(1)
+    .max(256)
+    .regex(/^cus_[a-zA-Z0-9]+$/, "Invalid Stripe customer ID format (expected cus_…)"),
+});
 
 /**
  * POST /api/checkout/portal
@@ -11,20 +22,25 @@ import { stripe } from "@/lib/stripe";
  *  - Cancel subscription at period end
  */
 export async function POST(request: Request) {
+  if (!(await checkPortalRate(clientIp(request)))) {
+    return jsonError(429, "rate_limited", "Too many portal requests. Please wait before trying again.");
+  }
+
+  // In production, NEXT_PUBLIC_APP_URL should always be set. The https://localhost:3000
+  // fallback is intentionally HTTPS to prevent plaintext return_url targets in prod.
   const origin =
     request.headers.get("origin") ??
     process.env.NEXT_PUBLIC_APP_URL ??
-    "http://localhost:3000";
+    "https://localhost:3000";
 
   let customerId: string;
   try {
     const body = await request.json();
-    customerId = body.customerId;
-    if (!customerId || typeof customerId !== "string") {
-      return NextResponse.json({ error: "customerId required" }, { status: 400 });
-    }
+    const parsed = PortalBodySchema.safeParse(body);
+    if (!parsed.success) return zodErrorResponse(parsed.error);
+    customerId = parsed.data.customerId;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return jsonError(400, "invalid_json", "Invalid JSON body");
   }
 
   try {
@@ -36,6 +52,6 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[stripe/portal] Failed to create portal session:", message);
-    return NextResponse.json({ error: "Could not create portal session" }, { status: 500 });
+    return jsonError(502, "stripe_portal_error", "Could not create billing portal session");
   }
 }

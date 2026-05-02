@@ -1,6 +1,6 @@
 "use server";
 
-import { signSession } from "@/lib/auth/session-signing";
+import { signSession, SESSION_TTL_SECONDS } from "@/lib/auth/session-signing";
 import { timingSafeEqual, createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -74,7 +74,7 @@ export async function signIn(formData: FormData) {
 
   const role = resolveRole(password);
   const token = await signSession({ role, iat: Date.now() });
-  const maxAge = 60 * 60 * 24 * 7;
+  const maxAge = SESSION_TTL_SECONDS;
   const secure = process.env.NODE_ENV === "production";
 
   // Delete before set — explicit session rotation to prevent fixation

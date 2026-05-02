@@ -8,7 +8,13 @@ export function jsonError(status: number, error: string, detail?: string) {
   }
   return NextResponse.json(
     { error, ...(detail !== undefined && detail !== "" ? { detail } : {}) },
-    { status },
+    {
+      status,
+      headers: {
+        // Prevent browsers from rendering JSON error responses as HTML.
+        "Content-Security-Policy": "default-src 'none'",
+      },
+    },
   );
 }
 

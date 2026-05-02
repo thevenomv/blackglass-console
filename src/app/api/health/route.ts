@@ -10,6 +10,8 @@ import { verifySession } from "@/lib/auth/session-signing";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   // Refresh plan cache from Spaces (no-op if TTL still fresh or Spaces not configured).
   await refreshPlanFromSpaces();
@@ -66,7 +68,18 @@ export async function GET(request: Request) {
     if (!(await checkHealthSecretsProbeRate(clientIp(request)))) {
       return jsonError(429, "rate_limited");
     }
-    body.secrets_probe = await probeSecretBackendReachable();
+    try {
+      body.secrets_probe = await Promise.race([
+        probeSecretBackendReachable(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Secrets probe timed out after 5s")), 5_000),
+        ),
+      ]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn("[health] Secrets probe failed:", message);
+      body.secrets_probe = { ok: false, error: message };
+    }
   }
 
   return NextResponse.json(body);

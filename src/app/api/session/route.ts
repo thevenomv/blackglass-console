@@ -4,6 +4,8 @@ import { apiConfig, defaultGuestRole } from "@/lib/api/config";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 // Roles that are valid inside a signed session token.
 const VALID: Role[] = ["viewer", "auditor", "operator", "admin"];
 

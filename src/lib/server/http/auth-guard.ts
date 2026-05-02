@@ -29,16 +29,19 @@ export async function requireRole(allowed: Role[]): Promise<GuardResult> {
   const jar = await cookies();
   const token = jar.get("bg-session")?.value;
   if (!token) {
+    console.warn("[auth-guard] Unauthenticated: no session cookie");
     return { ok: false, response: jsonError(401, "unauthenticated") };
   }
 
   const payload = await verifySession(token);
   if (!payload) {
+    console.warn("[auth-guard] Invalid or expired session token");
     return { ok: false, response: jsonError(401, "unauthenticated") };
   }
 
   const role = payload.role as Role;
   if (!allowed.includes(role)) {
+    console.warn(`[auth-guard] Forbidden: role=${role} not in [${allowed.join(",")}]`);
     return { ok: false, response: jsonError(403, "forbidden") };
   }
 
