@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { RunScanButton } from "@/components/dashboard/RunScanButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HostTrustPill } from "@/components/ui/HostTrustPill";
+import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 
 type Filter = "all" | "aligned" | "drift" | "needs_review";
 
@@ -26,7 +27,15 @@ function formatScan(iso: string) {
   }
 }
 
-export function HostsView({ hosts }: { hosts: HostRecord[] }) {
+export function HostsView({
+  hosts,
+  atCap = false,
+  hostCap = null,
+}: {
+  hosts: HostRecord[];
+  atCap?: boolean;
+  hostCap?: number | null;
+}) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const parentRef = useRef<HTMLDivElement>(null);
@@ -79,6 +88,13 @@ export function HostsView({ hosts }: { hosts: HostRecord[] }) {
         ]}
         actions={<RunScanButton />}
       />
+
+      {atCap && hostCap !== null && (
+        <UpgradePrompt
+          feature={`Host cap reached (${hostCap} hosts on free plan)`}
+          description="Upgrade to Blackglass Team to monitor up to 50 hosts, or Fleet for unlimited."
+        />
+      )}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <label className="block max-w-md flex-1 text-xs text-fg-faint">

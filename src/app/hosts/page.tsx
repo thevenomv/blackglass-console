@@ -7,13 +7,13 @@ import { Suspense } from "react";
 
 async function HostsBody() {
   try {
-    const hosts = await fetchHosts();
-    return <HostsView hosts={hosts} />;
+    const result = await fetchHosts();
+    return <HostsView hosts={result.items} atCap={result.atCap} hostCap={result.hostCap} />;
   } catch {
     return (
       <FetchFailed
         title="Host inventory unavailable"
-        description="Verify NEXT_PUBLIC_API_URL or disable mock mode after backend readiness checks."
+        description="Verify collector configuration in Settings."
       />
     );
   }
