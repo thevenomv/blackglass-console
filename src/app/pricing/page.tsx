@@ -2,7 +2,7 @@ import Link from "next/link";
 import PricingSection from "@/components/pricing/PricingSection";
 
 export const metadata = {
-  title: "Pricing — Blackglass",
+  title: "Pricing | Blackglass",
   description:
     "Blackglass is free for personal and small-lab use. Pay only when you need to protect a real fleet and collaborate as a team.",
 };
