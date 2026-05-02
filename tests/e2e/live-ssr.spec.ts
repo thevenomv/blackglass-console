@@ -15,5 +15,6 @@ test.describe("SSR (NEXT_PUBLIC_USE_MOCK=false)", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();
     await expect(page.getByText("Hosts checked", { exact: true })).toBeVisible();
+    await expect(page.getByRole("status", { name: "Mock data mode" })).not.toBeVisible();
   });
 });

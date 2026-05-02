@@ -1,3 +1,4 @@
+// @ts-nocheck — zod-to-json-schema typings target Zod 3; runtime accepts Zod 4 schemas.
 /**
  * Dumps JSON Schema for Zod API validation shapes (OpenAPI companion).
  * Run: npm run schemas:export
@@ -14,32 +15,28 @@ import {
   ScanPostBodySchema,
 } from "../src/lib/server/http/schemas";
 
-/** zod-to-json-schema targets Zod 3 typings; Zod 4 schemas work at runtime. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ZodLike = any;
-
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const bundle = {
   $comment:
     "Generated from src/lib/server/http/schemas.ts — keep in sync via npm run schemas:export",
-  ScanPostBody: zodToJsonSchema(ScanPostBodySchema as ZodLike, {
+  ScanPostBody: zodToJsonSchema(ScanPostBodySchema, {
     name: "ScanPostBody",
     $refStrategy: "none",
   }),
-  AuditPostBody: zodToJsonSchema(AuditPostBodySchema as ZodLike, {
+  AuditPostBody: zodToJsonSchema(AuditPostBodySchema, {
     name: "AuditPostBody",
     $refStrategy: "none",
   }),
-  AuditEventsQuery: zodToJsonSchema(AuditEventsQuerySchema as ZodLike, {
+  AuditEventsQuery: zodToJsonSchema(AuditEventsQuerySchema, {
     name: "AuditEventsQuery",
     $refStrategy: "none",
   }),
-  DriftQuery: zodToJsonSchema(DriftQuerySchema as ZodLike, {
+  DriftQuery: zodToJsonSchema(DriftQuerySchema, {
     name: "DriftQuery",
     $refStrategy: "none",
   }),
-  ResourceIdPath: zodToJsonSchema(ResourceIdPathSchema as ZodLike, {
+  ResourceIdPath: zodToJsonSchema(ResourceIdPathSchema, {
     name: "ResourceIdPath",
     $refStrategy: "none",
   }),

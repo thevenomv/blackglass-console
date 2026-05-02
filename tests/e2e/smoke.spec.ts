@@ -59,6 +59,11 @@ test.describe("BLACKGLASS console smoke", () => {
       .toBe("succeeded");
   });
 
+  test("mock data banner appears when NEXT_PUBLIC_USE_MOCK is enabled", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("status", { name: "Mock data mode" })).toBeVisible();
+  });
+
   test("fleet dashboard renders KPI row", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();

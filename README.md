@@ -23,19 +23,34 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 |--------|---------|
 | `dev` | Local Next.js dev server |
 | `build` / `start` | Production bundle; `start` assumes prior `next build` with standalone output (`next.config.ts`) |
-| `lint` | `next lint` |
+| `lint` | ESLint CLI (`eslint.config.mjs`) |
 | `typecheck` | `tsc --noEmit` |
 | `test:unit` | Vitest |
 | `test:e2e` | Playwright (needs dev server via config) |
 | `check:openapi` | OpenAPI ↔ `route.ts` parity |
 | `schemas:export` | Regenerate `openapi/zod-schemas.json` from Zod |
-| `verify:stage0` | CI-shaped gate (lint + OpenAPI + schema drift + unit + build) |
+| `verify:stage0` | CI-shaped gate (lint + OpenAPI + schema diff + **typecheck** + unit + build — no Playwright) |
 | `verify:staging` | Hit `STAGING_URL` health/hosts audit (`VERIFY_SECRETS_PROBE=1` optional) |
 | `doppler:verify` | Doppler secrets download smoke test |
 | `stripe:setup` | Interactive Stripe webhook/price bootstrap ([script](scripts/stripe-setup.mjs)) |
 | `do:apply-stage0` | Applies Stage-0 auth env on an existing DO app |
 
 **DigitalOcean App Platform:** deploy builds use `npm ci` and `next build` only; rely on this repo’s GitHub Actions for `lint`. ESLint on DO builders is a common source of flaky or persistent failures if you add it to `build_command` — see [.do/README.md](.do/README.md#eslint-and-app-platform).
+
+## Maintenance & upgrades
+
+- **Dependabot:** This repo receives weekly npm update PRs; review and merge (or decline with rationale) before they stack up.
+- **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** via FlatCompat); `next lint` is not used.
+- **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, OpenAPI, Zod schema diff, typecheck, unit tests, production build).
+
+## Shipping
+
+- **`git push` → GitHub Actions** on `main` / `staging` / PRs runs audit, lint, typecheck, OpenAPI, unit tests, build, Playwright smoke.
+- **Sentry releases:** CI sets `SENTRY_RELEASE` and `NEXT_PUBLIC_SENTRY_RELEASE` to the git SHA during build when present; mirror that in Doppler for production (`SENTRY_RELEASE`, optional `NEXT_PUBLIC_SENTRY_RELEASE`).
+
+## Stripe (go-live sanity)
+
+Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. Before accepting paid traffic: **`STRIPE_SECRET_KEY`** (restricted live), **`STRIPE_WEBHOOK_SECRET`** from the deployed endpoint’s signing secret, **`STRIPE_PRO_PRICE_ID`**, **`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`**, checkout success URLs, then complete a live-mode test checkout and confirm webhook → plan persistence (Spaces) — see [.env.example](.env.example) and [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md).
 
 ## Operators
 

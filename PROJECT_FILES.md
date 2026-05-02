@@ -20,7 +20,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `Dockerfile`                         | Container image                                                                                                                                           |
 | `.dockerignore`                      | Docker build context                                                                                                                                      |
 | `.env.example`                       | Documented env vars (API, collector, `BASELINE_STORE_PATH`, `DRIFT_HISTORY_PATH`)                                                                         |
-| `.eslintrc.json`                     | ESLint                                                                                                                                                    |
+| `eslint.config.mjs`                     | ESLint Flat Config (Next `core-web-vitals` via `@eslint/eslintrc` FlatCompat)                                                                           |
 | `.editorconfig`                       | Indent / newline conventions for editors                                                                                                                  |
 | `.gitignore`                         | Git ignore rules                                                                                                                                          |
 | `.nvmrc`                             | Node version pin                                                                                                                                          |
@@ -183,6 +183,7 @@ Notes: **`ci.yml`** runs `npm run typecheck` after lint.
 | `layout/Sidebar.tsx`                                                                | Navigation                                                                  |
 | `layout/PageHeader.tsx`                                                             | Page titles / breadcrumbs                                                   |
 | `layout/MobileNavBar.tsx`                                                           | Mobile nav                                                                  |
+| `layout/MockDataBanner.tsx`                                                        | Warns when **`NEXT_PUBLIC_USE_MOCK≠false`** (demo vs live inventory)           |
 | `dashboard/DashboardV3.tsx`                                                         | Fleet dashboard                                                             |
 | `dashboard/RunScanButton.tsx`                                                       | Scan CTA                                                                    |
 | `drift/DriftEventsView.tsx`                                                         | Drift table / filters                                                       |

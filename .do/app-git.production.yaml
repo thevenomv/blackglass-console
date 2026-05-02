@@ -22,6 +22,7 @@ ingress:
 services:
   - name: web
     github:
+      # Fork / new app: set to "<github_owner>/<repo>" for DO’s GitHub integration.
       repo: thevenomv/blackglass-console
       branch: main
       deploy_on_push: true

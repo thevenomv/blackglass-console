@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { MockDataBanner } from "@/components/layout/MockDataBanner";
 import { MobileNavBar } from "@/components/layout/MobileNavBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 
@@ -35,6 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <MobileNavBar onOpenNav={() => setMobileOpen(true)} />
+        <MockDataBanner />
         <div className="min-w-0 flex-1">{children}</div>
       </div>
     </div>

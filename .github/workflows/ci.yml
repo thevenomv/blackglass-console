@@ -9,6 +9,10 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Passed through Next/Sentry builds so browser + server errors group by deploy.
+      SENTRY_RELEASE: ${{ github.sha }}
+      NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

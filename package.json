@@ -18,7 +18,7 @@
     "verify:stage0": "npm run lint && npm run check:openapi && npm run schemas:export && git diff --exit-code openapi/zod-schemas.json && npm run typecheck && npm run test:unit && npm run build",
     "do:apply-stage0": "node scripts/run-do-apply-stage0.mjs",
     "stripe:setup": "node scripts/stripe-setup.mjs",
-    "lint": "next lint",
+    "lint": "eslint .",
     "check:openapi": "node scripts/check-openapi-paths.mjs",
     "schemas:export": "tsx scripts/export-zod-schemas.ts",
     "test:unit": "vitest run",
@@ -37,6 +37,8 @@
     "zod": "^4.4.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.52.0",
     "@tanstack/react-virtual": "^3.13.0",
     "@types/node": "^22.10.0",

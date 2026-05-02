@@ -33,6 +33,13 @@ VERIFY_SECRETS_PROBE=1 STAGING_URL=https://... npm run verify:staging
 - [ ] **Baseline:** `POST /api/v1/baselines` succeeds for at least one host.
 - [ ] **Scan:** `POST /api/v1/scans` → poll until **succeeded** (or document known failures).
 - [ ] **UI:** Login, dashboard, drift grid, Settings **Runtime health** panel matches expectations.
+- [ ] **`Mock data` banner absent** once `NEXT_PUBLIC_USE_MOCK=false` (pilots must not confuse demo payloads with telemetry).
+
+## Billing (Stripe pilot)
+
+- [ ] **`STRIPE_*` keys:** test mode complete first; restricted live keys only when ready (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — see **`.env.example`**).
+- [ ] **`npm run stripe:setup`** (or parity in dashboard): price, webhook URL on deployed host, **`checkout.session.completed`** routed to **`/api/checkout/webhook`**.
+- [ ] **Live-ish test:** Checkout with a small recurring price → webhook → **`BLACKGLASS_PLAN`** persisted (Spaces) without redeploy (**`npm run stripe:setup`** / operator guide).
 
 ## Security & ops
 
