@@ -14,6 +14,7 @@ export interface PlanLimits {
   name: string;
   label: string;            // display name
   maxHosts: number;         // -1 = unlimited
+  maxUsers: number;         // -1 = unlimited
   scheduledScans: boolean;
   multiUser: boolean;
   webhooks: boolean;
@@ -28,11 +29,12 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   free: {
     name: "free",
     label: "Blackglass Local",
-    maxHosts: 5,
+    maxHosts: 3,
+    maxUsers: 1,
     scheduledScans: false,
     multiUser: false,
     webhooks: false,
-    evidenceExport: true,   // basic export always free
+    evidenceExport: true,   // basic single-host export always free
     sso: false,
     auditExport: false,
     apiAccess: false,
@@ -41,7 +43,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   pro: {
     name: "pro",
     label: "Blackglass Team",
-    maxHosts: 50,
+    maxHosts: 25,
+    maxUsers: 5,
     scheduledScans: true,
     multiUser: true,
     webhooks: true,
@@ -49,12 +52,13 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     sso: false,
     auditExport: true,
     apiAccess: true,
-    retentionDays: 365,
+    retentionDays: 180,
   },
   enterprise: {
     name: "enterprise",
     label: "Blackglass Fleet",
     maxHosts: -1,
+    maxUsers: -1,
     scheduledScans: true,
     multiUser: true,
     webhooks: true,
