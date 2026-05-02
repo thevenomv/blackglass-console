@@ -13,7 +13,6 @@ import type { Role } from "@/lib/auth/permissions";
 import { jsonError } from "./json-error";
 
 type GuardOk = { ok: true; role: Role };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GuardFail = { ok: false; response: ReturnType<typeof jsonError> };
 export type GuardResult = GuardOk | GuardFail;
 
