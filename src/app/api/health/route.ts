@@ -23,6 +23,7 @@ export async function GET(request: Request) {
   const body: Record<string, unknown> = {
     ok: true,
     service: "blackglass-console",
+    app_url: process.env.NEXT_PUBLIC_APP_URL ?? null,
     diagnostics_scope: secretsProbeRun
       ? "runtime_configuration+secret_backend_reachability"
       : "runtime_configuration",

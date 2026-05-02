@@ -29,6 +29,11 @@ export default async function LoginPage({
             Incorrect passphrase. Please try again.
           </p>
         )}
+        {error === "too_many_attempts" && (
+          <p className="mt-4 rounded-card border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
+            Too many login attempts. Please wait 15 minutes before trying again.
+          </p>
+        )}
         <form action={signIn} className="mt-8 space-y-4">
           {safePath && (
             <input type="hidden" name="next" value={safePath} />

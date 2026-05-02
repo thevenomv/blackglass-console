@@ -53,3 +53,12 @@ export function checkScanPollRate(ip: string): boolean {
 export function checkHealthSecretsProbeRate(ip: string): boolean {
   return allow(`health:secrets:${ip}`, 12, 60_000);
 }
+
+/**
+ * POST login — brute-force guard.
+ * 10 attempts per IP per 15 minutes.
+ * Returns false when the caller should be blocked.
+ */
+export function checkLoginRate(ip: string): boolean {
+  return allow(`login:${ip}`, 10, 15 * 60_000);
+}

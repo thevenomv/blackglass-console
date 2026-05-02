@@ -9,6 +9,25 @@ import { recordDriftScanDayStamp } from "@/lib/server/drift-history";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
 import { resolveScan } from "@/lib/server/scan-jobs";
 
+// ---------------------------------------------------------------------------
+// Slack alerting — fire-and-forget; no-op when SLACK_ALERT_WEBHOOK_URL is unset
+// ---------------------------------------------------------------------------
+
+async function alertSlack(text: string): Promise<void> {
+  const url = process.env.SLACK_ALERT_WEBHOOK_URL;
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+  } catch (alertErr) {
+    // Never let alerting failure mask the original error
+    console.error("[scan-drift-job] Slack alert failed:", alertErr);
+  }
+}
+
 export async function executeDriftScanJob(
   jobId: string,
   collectOpts: CollectScanOptions,
@@ -53,6 +72,7 @@ export async function executeDriftScanJob(
         detail: `Scan ${jobId} failed: ${failures.join("; ")}`,
         scan_id: jobId,
       });
+      void alertSlack(`:x: *Scan failed* \`${jobId}\`\n${failures.join("\n")}`);
     } else {
       await recordDriftScanDayStamp(totalDrift);
       resolveScan(jobId, "succeeded", failures.length ? failures.join("; ") : undefined, totalDrift);
@@ -65,6 +85,7 @@ export async function executeDriftScanJob(
       detail: `Scan ${jobId} failed: ${message}`,
       scan_id: jobId,
     });
+    void alertSlack(`:x: *Scan exception* \`${jobId}\`\n${message}`);
   } finally {
     revalidateIntegritySurfaces();
   }

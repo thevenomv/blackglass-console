@@ -2,8 +2,9 @@
 
 import { signSession } from "@/lib/auth/session-signing";
 import { timingSafeEqual, createHash } from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { checkLoginRate } from "@/lib/server/rate-limit";
 
 const SESSION = "bg-session";
 const ROLE = "bg-role";
@@ -12,6 +13,11 @@ const ROLE = "bg-role";
  * Constant-time password check against AUTH_ADMIN_PASSWORD.
  * Uses SHA-256 digests to normalise length before timingSafeEqual.
  * Returns true when no password is configured (dev / AUTH_REQUIRED=false).
+ *
+ * TODO: When a `users` table is added and users can set their own passwords,
+ * replace SHA-256 digest comparison with Argon2id verification using the
+ * `argon2` npm package.  Argon2id is mandatory for any stored credential —
+ * env-var deployment secrets do not require hashing, but DB-stored passwords do.
  */
 function validatePassword(provided: string): boolean {
   const expected = process.env.AUTH_ADMIN_PASSWORD?.trim() ?? "";
@@ -31,10 +37,32 @@ function resolveRole(provided: string): "admin" | "operator" {
   return expected && provided ? "admin" : "operator";
 }
 
+function getClientIp(): string {
+  // headers() is available inside Server Actions.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hdrs = headers() as any;
+  const realIp = hdrs.get?.("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  const xf = hdrs.get?.("x-forwarded-for") as string | null;
+  if (xf) {
+    const parts = xf.split(",").map((s: string) => s.trim()).filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (last) return last;
+  }
+  return "local";
+}
+
 export async function signIn(formData: FormData) {
   const jar = await cookies();
   const nextParam = String(formData.get("next") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+
+  const ip = getClientIp();
+  if (!checkLoginRate(ip)) {
+    const qs = new URLSearchParams({ error: "too_many_attempts" });
+    if (nextParam.startsWith("/") && !nextParam.startsWith("//")) qs.set("next", nextParam);
+    redirect(`/login?${qs.toString()}`);
+  }
 
   if (!validatePassword(password)) {
     const qs = new URLSearchParams({ error: "invalid_credentials" });
@@ -73,3 +101,4 @@ export async function signOut() {
   jar.delete(ROLE);
   redirect("/login");
 }
+
