@@ -28,7 +28,7 @@ export interface PlanLimits {
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   free: {
     name: "free",
-    label: "Blackglass Local",
+    label: "BLACKGLASS Local",
     maxHosts: 3,
     maxUsers: 1,
     scheduledScans: false,
@@ -42,7 +42,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   pro: {
     name: "pro",
-    label: "Blackglass Team",
+    label: "BLACKGLASS Team",
     maxHosts: 25,
     maxUsers: 5,
     scheduledScans: true,
@@ -56,7 +56,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   enterprise: {
     name: "enterprise",
-    label: "Blackglass Fleet",
+    label: "BLACKGLASS Fleet",
     maxHosts: -1,
     maxUsers: -1,
     scheduledScans: true,

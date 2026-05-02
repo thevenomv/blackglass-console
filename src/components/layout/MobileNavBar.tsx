@@ -13,7 +13,7 @@ export function MobileNavBar({ onOpenNav }: { onOpenNav: () => void }) {
         Menu
       </button>
       <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
-        BLACKGLASS
+        BLACKGLASS <span className="ml-1 font-mono text-[9px] font-normal tracking-wide text-fg-faint">by Obsidian Dynamics</span>
       </span>
       <span className="ml-auto text-[11px] text-fg-faint">
         <kbd className="rounded border border-border-subtle px-1 font-mono text-[10px]">⌘K</kbd>

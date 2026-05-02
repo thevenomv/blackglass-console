@@ -263,7 +263,7 @@ export function CommandPalette() {
           )}
         </ul>
         <div className="border-t border-border-subtle px-4 py-2 text-[11px] text-fg-faint">
-          BLACKGLASS · operational integrity console
+          BLACKGLASS · Obsidian Dynamics Limited
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { stripe } from "@/lib/stripe";
 import BillingPortalButton from "@/components/pricing/BillingPortalButton";
 
 export const metadata = {
-  title: "Subscription confirmed — Blackglass",
+  title: "Subscription confirmed — BLACKGLASS by Obsidian Dynamics",
 };
 
 interface Props {
@@ -70,7 +70,7 @@ export default async function PricingSuccessPage({ searchParams }: Props) {
         </h1>
 
         <p className="mt-3 text-sm leading-relaxed text-fg-muted">
-          Your Blackglass Team subscription is active.
+          Your BLACKGLASS Team subscription is active.
           {sessionData?.email ? (
             <> A receipt has been sent to <strong>{sessionData.email}</strong>.</>
           ) : (

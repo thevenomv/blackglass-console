@@ -41,7 +41,7 @@ export default function SettingsPage() {
             <WebhookSection />
           ) : (
             <UpgradePrompt
-              feature="Webhooks require Blackglass Team"
+              feature="Webhooks require BLACKGLASS Team"
               description="Deliver real-time drift summaries to Slack, PagerDuty, or any HTTP endpoint. Available on Pro and above."
             />
           )}

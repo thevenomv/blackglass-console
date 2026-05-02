@@ -141,7 +141,7 @@ const icons = {
 
 export function SecurityOverviewSection() {
   return (
-    <CollapsibleSection title="Security overview — how Blackglass works and protects your data" id="security-overview">
+    <CollapsibleSection title="Security overview — how BLACKGLASS works and protects your data" id="security-overview">
       <div className="space-y-8 py-2">
 
         {/* Narrative */}
@@ -150,7 +150,7 @@ export function SecurityOverviewSection() {
             Integrity first, monitoring second
           </p>
           <p className="mt-2 text-sm leading-relaxed text-fg-muted">
-            Blackglass is not a SIEM, a vulnerability scanner, or a log aggregator. It is a
+            BLACKGLASS is not a SIEM, a vulnerability scanner, or a log aggregator. It is a
             configuration-integrity product. Its job is to answer one question:{" "}
             <em className="text-fg-primary not-italic">
               is this host still in the configuration we approved, and if not, what changed, when,
@@ -163,7 +163,7 @@ export function SecurityOverviewSection() {
 
         {/* Part 1: What it does */}
         <div>
-          <SectionHeading>What Blackglass does for security</SectionHeading>
+          <SectionHeading>What BLACKGLASS does for security</SectionHeading>
 
           <div className="space-y-5">
             <div>
@@ -182,11 +182,11 @@ export function SecurityOverviewSection() {
             <div>
               <p className="text-sm font-semibold text-fg-primary">Drift detection</p>
               <Prose>
-                At each scan, Blackglass re-collects the same surface areas and diffs against the
+                At each scan, BLACKGLASS re-collects the same surface areas and diffs against the
                 active baseline. Every changed, added, or removed item surfaces as a finding.
                 Configuration drift is a well-documented attack vector — attackers abuse CI
                 pipelines, provisioning scripts, and emergency access to make changes that are never
-                reviewed or reverted. Blackglass makes that drift visible and attributable.
+                reviewed or reverted. BLACKGLASS makes that drift visible and attributable.
               </Prose>
               <DriftTable />
             </div>
@@ -223,7 +223,7 @@ export function SecurityOverviewSection() {
 
         {/* Part 2: How we protect user data */}
         <div>
-          <SectionHeading>How Blackglass protects your data</SectionHeading>
+          <SectionHeading>How BLACKGLASS protects your data</SectionHeading>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 
             <DomainCard icon={icons.lock} title="Encryption and transport">
@@ -242,7 +242,7 @@ export function SecurityOverviewSection() {
             </DomainCard>
 
             <DomainCard icon={icons.clock} title="Data minimisation and retention">
-              Blackglass collects only what is needed to compute drift — not file contents, not
+              BLACKGLASS collects only what is needed to compute drift — not file contents, not
               environment variables, not secrets. Retention is configurable per plan (30 days free,
               180 days Pro, custom on Enterprise). Data is hard-deleted after the window closes —
               not hidden, removed.
@@ -280,7 +280,9 @@ export function SecurityOverviewSection() {
           <Link href="/settings" className="text-accent-blue hover:underline">
             Configure secrets backend
           </Link>
-          <span>Questions? hello@blackglass.io</span>
+          <span>Questions? <a href="mailto:hello@blackglass.io" className="text-accent-blue hover:underline">hello@blackglass.io</a></span>
+          <span className="text-fg-faint">·</span>
+          <span>© {new Date().getFullYear()} Obsidian Dynamics Limited. BLACKGLASS is a product of Obsidian Dynamics Limited.</span>
         </div>
 
       </div>

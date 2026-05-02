@@ -92,7 +92,7 @@ export function HostsView({
       {atCap && hostCap !== null && (
         <UpgradePrompt
           feature={`Host cap reached (${hostCap} hosts on free plan)`}
-          description="Upgrade to Blackglass Team to monitor up to 50 hosts, or Fleet for unlimited."
+          description="Upgrade to BLACKGLASS Team to monitor up to 50 hosts, or Fleet for unlimited."
         />
       )}
 

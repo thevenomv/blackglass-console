@@ -27,10 +27,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <aside className="flex w-60 shrink-0 flex-col border-r border-border-default bg-bg-sidebar">
       <div className="border-b border-border-subtle px-5 py-5">
         <p className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-fg-faint">
-          Blackglass
+          BLACKGLASS
         </p>
-        <p className="mt-1 text-sm font-semibold text-fg-primary">
-          Operational integrity
+        <p className="mt-1 text-[10px] font-medium text-fg-faint">
+          by Obsidian Dynamics Limited
         </p>
       </div>
       <nav className="flex flex-1 flex-col gap-0.5 p-3 pb-2" aria-label="Primary">

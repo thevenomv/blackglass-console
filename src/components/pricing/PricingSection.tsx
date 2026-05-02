@@ -29,7 +29,7 @@ interface PricingTier {
 const TIERS: PricingTier[] = [
   {
     key: "free",
-    label: "Blackglass Local",
+    label: "BLACKGLASS Local",
     price: "$0",
     priceSub: "/ month",
     tagline: "For individual admins, homelab, and small side projects.",
@@ -43,7 +43,7 @@ const TIERS: PricingTier[] = [
       "Basic evidence export (per host)",
     ],
     footer:
-      "Prove that Blackglass works on your own machines before you spend a penny.",
+      "Prove that BLACKGLASS works on your own machines before you spend a penny.",
     cta: "Get started free",
     ctaHref: "/onboarding",
     highlight: false,
@@ -51,7 +51,7 @@ const TIERS: PricingTier[] = [
   },
   {
     key: "pro",
-    label: "Blackglass Team",
+    label: "BLACKGLASS Team",
     price: "From $29",
     priceSub: "/ month",
     tagline:
@@ -68,7 +68,7 @@ const TIERS: PricingTier[] = [
       "Priority email support",
     ],
     footer:
-      "Run Blackglass across your real estate, investigate drift together, and export clean evidence for incidents and audits.",
+      "Run BLACKGLASS across your real estate, investigate drift together, and export clean evidence for incidents and audits.",
     cta: "Start Team plan",
     ctaHref: "/api/checkout",
     stripe: true,
@@ -78,7 +78,7 @@ const TIERS: PricingTier[] = [
   },
   {
     key: "enterprise",
-    label: "Blackglass Fleet",
+    label: "BLACKGLASS Fleet",
     price: "Talk to us",
     tagline:
       "For organizations that need governance, compliance and support at scale.",
@@ -96,7 +96,7 @@ const TIERS: PricingTier[] = [
     footer:
       "Standardize Linux integrity across your fleet with the controls and evidence your auditors expect.",
     cta: "Contact sales",
-    ctaHref: "mailto:hello@blackglass.io?subject=Blackglass+Fleet+Enquiry",
+    ctaHref: "mailto:hello@blackglass.io?subject=BLACKGLASS+Fleet+Enquiry",
     highlight: false,
     ctaVariant: "secondary",
   },
@@ -239,7 +239,7 @@ export default function PricingSection() {
 
         {/* Subheadline */}
         <p className="mx-auto mt-5 max-w-2xl text-center text-base leading-relaxed text-fg-muted">
-          Blackglass is free for personal and small‑lab use. Pay only when you
+          BLACKGLASS is free for personal and small‑lab use. Pay only when you
           need to protect a real fleet and collaborate as a team.
         </p>
 
@@ -261,6 +261,16 @@ export default function PricingSection() {
             Paid plans are about scale, automation, and team governance.
           </p>
         </div>
+
+        {/* Legal footer */}
+        <p className="mt-8 text-center text-xs text-fg-faint">
+          BLACKGLASS is a product of{" "}
+          <strong className="font-medium text-fg-faint">Obsidian Dynamics Limited</strong>.
+          {" "}Questions?{" "}
+          <a href="mailto:hello@blackglass.io" className="text-accent-blue hover:underline">
+            hello@blackglass.io
+          </a>
+        </p>
 
       </div>
     </section>
