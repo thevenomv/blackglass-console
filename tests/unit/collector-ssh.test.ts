@@ -1,5 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// probeTcp uses the native net module; resolve immediately so the ssh2 mock drives the test.
+vi.mock("net", () => ({
+  createConnection: (_opts: unknown) => {
+    const handlers: Record<string, ((...args: unknown[]) => void)[]> = {};
+    const socket = {
+      setTimeout: () => socket,
+      destroy: () => {},
+      on(ev: string, fn: (...args: unknown[]) => void) {
+        (handlers[ev] ??= []).push(fn);
+        if (ev === "connect") queueMicrotask(() => fn());
+        return socket;
+      },
+    };
+    return socket;
+  },
+}));
+
 function syntheticCommandOutput(cmd: string): string {
   if (cmd.includes("ss -tlnp") || cmd.includes("netstat")) {
     return `LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=1,fd=3))\n`;

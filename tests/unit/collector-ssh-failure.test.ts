@@ -1,5 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// probeTcp uses native net; resolve immediately so the ssh2 mock's error drives the assertion.
+vi.mock("net", () => ({
+  createConnection: (_opts: unknown) => {
+    const handlers: Record<string, ((...args: unknown[]) => void)[]> = {};
+    const socket = {
+      setTimeout: () => socket,
+      destroy: () => {},
+      on(ev: string, fn: (...args: unknown[]) => void) {
+        (handlers[ev] ??= []).push(fn);
+        if (ev === "connect") queueMicrotask(() => fn());
+        return socket;
+      },
+    };
+    return socket;
+  },
+}));
+
 vi.mock("ssh2", () => {
   class FailingClient {
     private handlers: Record<string, ((...args: unknown[]) => void)[]> = {};
