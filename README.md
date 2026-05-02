@@ -39,23 +39,26 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 
 ## Maintenance & upgrades
 
-- **Dependabot:** This repo receives weekly npm update PRs; review and merge (or decline with rationale) before they stack up.
+- **Dependabot:** Weekly npm PRs — triage on GitHub (merge or close with rationale); **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Remaining **moderate** findings are often **Next’s nested PostCSS** — fix by upgrading **Next** when upstream ships a safe version (avoid **`npm audit fix --force`**, which can pin ancient Next).
 - **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** via FlatCompat); `next lint` is not used.
 - **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, OpenAPI, Zod schema diff, typecheck, unit tests, production build).
 
 ## Shipping
 
-- **`git push` → GitHub Actions** on `main` / `staging` / PRs runs audit, lint, typecheck, OpenAPI, unit tests, build, Playwright smoke.
+- **`git push` → GitHub Actions** on `main` / `staging` / PRs runs audit, lint, typecheck, OpenAPI, unit tests, **`next build`** (TypeScript enforced), **`test:e2e`** and **`test:e2e:live`** (SSR with `NEXT_PUBLIC_USE_MOCK=false`).
 - **Sentry releases:** CI sets `SENTRY_RELEASE` and `NEXT_PUBLIC_SENTRY_RELEASE` to the git SHA during build when present; mirror that in Doppler for production (`SENTRY_RELEASE`, optional `NEXT_PUBLIC_SENTRY_RELEASE`).
 
 ## Stripe (go-live sanity)
 
-Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. Before accepting paid traffic: **`STRIPE_SECRET_KEY`** (restricted live), **`STRIPE_WEBHOOK_SECRET`** from the deployed endpoint’s signing secret, **`STRIPE_PRO_PRICE_ID`**, **`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`**, checkout success URLs, then complete a live-mode test checkout and confirm webhook → plan persistence (Spaces) — see [.env.example](.env.example) and [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md).
+Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. Detailed live vs test steps: **[docs/stripe-live-cutover.md](docs/stripe-live-cutover.md)**. Before accepting paid traffic: **`STRIPE_SECRET_KEY`** (restricted live), **`STRIPE_WEBHOOK_SECRET`**, **`STRIPE_PRO_PRICE_ID`**, **`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`**, then confirm webhook → plan persistence — see [.env.example](.env.example) and [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md).
 
 ## Operators
 
 - Deploy specs: [.do/](.do/) (see [.do/README.md](.do/README.md))
 - Runbooks: [docs/operator-guide.md](docs/operator-guide.md), [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md)
+- Staging probe workflow: [.github/workflows/staging-smoke.yml](.github/workflows/staging-smoke.yml) (**`STAGING_URL`** Actions secret — optional weekly cron)
+- Audit trail architecture: [docs/audit-trail.md](docs/audit-trail.md)
+- Future Next.js bumps: [docs/nextjs-16-upgrade.md](docs/nextjs-16-upgrade.md)
 - Architecture spine: [docs/architecture-flow.md](docs/architecture-flow.md)
 
 ## Project map

@@ -1,11 +1,18 @@
-# Optional: run against a deployed staging URL after you add repo secret STAGING_URL.
+# Optional weekly + manual staging checks. Requires repo secret STAGING_URL
+# (e.g. https://your-app.ondigitalocean.app).
+#
+# GitHub: Settings → Secrets and variables → Actions → New repository secret
 name: Staging smoke
 
 on:
   workflow_dispatch:
+  schedule:
+    # Weekly Monday 14:00 UTC — adjust or disable if you prefer manual-only.
+    - cron: "0 14 * * 1"
 
 jobs:
   verify:
+    if: ${{ secrets.STAGING_URL != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

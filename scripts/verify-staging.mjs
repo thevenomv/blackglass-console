@@ -11,7 +11,13 @@
 
 const base = process.env.STAGING_URL?.replace(/\/$/, "");
 if (!base) {
-  console.error("Set STAGING_URL to the deployed origin (e.g. https://console.example.com)");
+  console.error(
+    [
+      "Set STAGING_URL to the deployed origin (e.g. https://console.example.com).",
+      "GitHub Actions: add repository secret STAGING_URL (Settings → Secrets and variables → Actions).",
+      "Local: STAGING_URL=https://… npm run verify:staging",
+    ].join("\n"),
+  );
   process.exit(1);
 }
 

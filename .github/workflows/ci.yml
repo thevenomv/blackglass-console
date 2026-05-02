@@ -54,3 +54,9 @@ jobs:
         run: npm run test:e2e
         env:
           CI: true
+
+      - name: End-to-end tests (live SSR, NEXT_PUBLIC_USE_MOCK=false)
+        run: npm run test:e2e:live
+        env:
+          CI: true
+          PLAYWRIGHT_LIVE: "1"

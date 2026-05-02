@@ -4,14 +4,16 @@ Create BLACKGLASS on DigitalOcean App Platform and attach it to your DO Project.
 
 Prerequisites (one-time):
   1) Export DIGITALOCEAN_ACCESS_TOKEN (Personal Access Token with App write scope).
-  2) GitHub: grant the DigitalOcean GitHub App access to `thevenomv/blackglass-console`
+  2) GitHub: grant the DigitalOcean GitHub App access to your repository
      (GitHub -> Settings -> Applications -> DigitalOcean App Platform -> Configure -> Repository access).
+     Optional: BLACKGLASS_GITHUB_REPO=your-org/your-repo overrides the template in `.do/app-create.phase1.json`.
 
 Phase 1 POST uses NEXT_PUBLIC_USE_MOCK=true so SSR works before NEXT_PUBLIC_APP_URL is known.
 After the app has a live URL, this script PUTs the spec with NEXT_PUBLIC_APP_URL=<live> and USE_MOCK=false,
 then assigns the app to your Blackglass DO Project.
 
 Optional env:
+  BLACKGLASS_GITHUB_REPO — "owner/repo" for DO’s GitHub component (forks)
   BLACKGLASS_DO_PROJECT_ID (default: Blackglass project UUID below)
 """
 
@@ -54,6 +56,14 @@ def main() -> None:
     with open(PHASE1, encoding="utf-8") as f:
         create_body = json.load(f)
 
+    repo_override = os.environ.get("BLACKGLASS_GITHUB_REPO", "").strip()
+    if repo_override:
+        for svc in create_body.get("spec", {}).get("services", []):
+            gh = svc.get("github")
+            if isinstance(gh, dict):
+                gh["repo"] = repo_override
+        print(f"Using BLACKGLASS_GITHUB_REPO={repo_override!r} for GitHub component")
+
     print("POST /v2/apps (phase 1: mock data enabled)...")
     try:
         created = http("POST", "/apps", create_body)
@@ -61,9 +71,14 @@ def main() -> None:
         msg = str(e)
         print(msg, file=sys.stderr)
         if "GitHub user does not have access" in msg:
+            ref = (
+                repo_override
+                if repo_override
+                else "the `repo` in `.do/app-create.phase1.json` (export BLACKGLASS_GITHUB_REPO=owner/repo for forks)"
+            )
             print(
                 "\nFix: GitHub -> Settings -> Applications -> DigitalOcean App Platform -> Configure,\n"
-                "then add repository access for `thevenomv/blackglass-console` (or all repos).\n",
+                f"then add repository access for {ref!r} (or grant access to all repositories).\n",
                 file=sys.stderr,
             )
         raise SystemExit(1)

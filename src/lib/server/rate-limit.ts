@@ -6,6 +6,14 @@ type Bucket = number[];
 
 const buckets = new Map<string, Bucket>();
 
+/** Clears in-memory buckets — **Vitest only** (rate limit state is otherwise process-global). */
+export function resetRateLimitBucketsForTests(): void {
+  if (process.env.NODE_ENV !== "test") {
+    throw new Error("resetRateLimitBucketsForTests is only for unit tests");
+  }
+  buckets.clear();
+}
+
 function prune(now: number, windowMs: number, arr: Bucket): Bucket {
   return arr.filter((t) => now - t < windowMs);
 }

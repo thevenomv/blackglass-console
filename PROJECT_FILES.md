@@ -47,12 +47,13 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 
 | File                | Role                            |
 | ------------------- | ------------------------------- |
-| `ci.yml`            | Lint, **`typecheck`**, OpenAPI vs routes, schemas drift, unit tests, build, E2E |
-| `staging-smoke.yml` | Optional staging verification   |
+| `ci.yml`            | Lint, **`typecheck`**, OpenAPI vs routes, schemas drift, unit tests, **`next build`** (types on), **`test:e2e`** + **`test:e2e:live`** |
+| `staging-smoke.yml` | Manual + optional **weekly cron** **`STAGING_URL`** probe (skipped if secret unset) |
 | `uptime.yml`        | Scheduled health checks         |
 
 
-Notes: **`ci.yml`** runs `npm run typecheck` after lint.
+Notes: **`ci.yml`** runs lint → **`typecheck`** → OpenAPI/schema checks → **`next build`** (includes TypeScript validation) → Playwright (mock + live SSR).
+
 
 ---
 
@@ -77,7 +78,9 @@ Notes: **`ci.yml`** runs `npm run typecheck` after lint.
 | `staging-deployment-checklist.md` | Pre-external pilot deploy gates                                                               |
 | `do-list.md`                      | Post-deploy / DO follow-up checklist (Stage 0+)                                               |
 | `saas-customer-roadmap.md`        | Stages 0–4: internal → multi-tenant → enterprise                                              |
-
+| `stripe-live-cutover.md`           | Stripe live keys, webhook, smoke sequence                                                    |
+| `audit-trail.md`                   | `AUDIT_LOG_PATH`, Spaces **`audit/`** JSONL, compliance-facing notes                           |
+| `nextjs-16-upgrade.md`             | Branch checklist before Next majors                                                          |
 
 ---
 
@@ -114,7 +117,7 @@ Notes: **`ci.yml`** runs `npm run typecheck` after lint.
 | `run-do-apply-stage0.mjs`                        | npm launcher for `do_apply_stage0.py` (tries `py -3`, `python3`, `python`)       |
 | `verify-staging.mjs`                             | `**STAGING_URL**` health / hosts / audit (optional `**VERIFY_SECRETS_PROBE=1**`) |
 | `do_apply_stage0.py`                             | DO API: set `**AUTH_REQUIRED=true**` + `**AUTH_SESSION_SECRET**` on existing app |
-| `do_bootstrap_blackglass.py`                     | DO bootstrap                                                                     |
+| `do_bootstrap_blackglass.py`                     | DO bootstrap; optional **`BLACKGLASS_GITHUB_REPO`**                                              |
 | `do-docker-push.ps1` / `do-prepare-app-spec.ps1` | Deployment helpers                                                               |
 | `stripe-setup.mjs`                               | `**npm run stripe:setup**` — Stripe webhook / product bootstrap                     |
 | `create-do-droplet.ps1` / `create-do-volume.ps1` | Provision DO infrastructure (manual operator use)                                   |
@@ -269,7 +272,7 @@ Notes: **`ci.yml`** runs `npm run typecheck` after lint.
 | `http/schemas.ts`              | Zod: **POST bodies** (scan, audit), **queries** (audit limit, drift filters), **path id** pattern |
 | `integrity-revalidate.ts`      | `**revalidatePath`** for `/`, `/hosts`, `/drift` after baselines + scans                          |
 | `scan-jobs.ts`                 | Async scan job state                                                                              |
-| `rate-limit.ts`                | Scan POST rate limit                                                                              |
+| `rate-limit.ts`                | Scan / health / login / invite IP token buckets + test reset hook                                 |
 | `audit-log.ts`                 | Audit append                                                                                      |
 
 
@@ -301,6 +304,7 @@ Notes: **`ci.yml`** runs `npm run typecheck` after lint.
 | `drift-engine.test.ts`                                    | `**computeDrift`** edge cases                                 |
 | `collector-parsers.test.ts`                               | `**parseListeners**`, `**parseFirewall**`, etc.               |
 | `http-schemas.test.ts`                                    | Query + path Zod schemas                                      |
+| `rate-limit.test.ts`                                       | Token-bucket behaviour (scan post / poll / login / invite caps) |
 
 
 ---
