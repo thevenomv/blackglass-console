@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CheckoutButton from "./CheckoutButton";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -13,6 +14,8 @@ interface PricingTier {
   bullets: string[];
   footer: string;
   cta: string;
+  /** Set to true to route the CTA through Stripe Checkout instead of a plain link. */
+  stripe?: boolean;
   ctaHref: string;
   highlight?: boolean;
   highlightLabel?: string;
@@ -67,7 +70,8 @@ const TIERS: PricingTier[] = [
     footer:
       "Run Blackglass across your real estate, investigate drift together, and export clean evidence for incidents and audits.",
     cta: "Start Team plan",
-    ctaHref: "mailto:hello@blackglass.io?subject=Blackglass+Team+Plan",
+    ctaHref: "/api/checkout",
+    stripe: true,
     highlight: true,
     highlightLabel: "Most popular",
     ctaVariant: "primary",
@@ -182,13 +186,12 @@ function TierCard({ tier }: { tier: PricingTier }) {
 
       {/* CTA */}
       <div className="mt-6">
-        {tier.ctaVariant === "primary" ? (
-          <a
-            href={tier.ctaHref}
-            className="block w-full rounded-card bg-accent-blue py-2.5 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-bg-panel"
+        {tier.stripe ? (
+          <CheckoutButton
+            className="block w-full cursor-pointer rounded-card bg-accent-blue py-2.5 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-bg-panel disabled:opacity-60"
           >
             {tier.cta}
-          </a>
+          </CheckoutButton>
         ) : tier.ctaHref.startsWith("mailto:") ? (
           <a
             href={tier.ctaHref}

@@ -29,6 +29,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "ssh2": "^1.17.0",
+    "stripe": "^22.1.0",
     "zod": "^4.4.1"
   },
   "devDependencies": {
