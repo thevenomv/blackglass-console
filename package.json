@@ -10,7 +10,7 @@
     "dev": "next dev",
     "dev:doppler": "doppler run -- npm run dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "start:doppler": "doppler run -- npm run start",
     "doppler:verify": "node scripts/doppler-verify.mjs",
     "verify:staging": "node scripts/verify-staging.mjs",
