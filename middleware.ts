@@ -5,19 +5,33 @@ import { NextResponse } from "next/server";
 const SESSION = "bg-session";
 
 export async function middleware(request: NextRequest) {
+  // Generate a unique ID for this request so errors/events can be correlated
+  // across middleware, route handlers, audit log, and Sentry.
+  const requestId = crypto.randomUUID();
+
+  // Build a NextResponse.next() that forwards the ID to downstream route handlers
+  // (via request headers) and exposes it to clients (via response headers).
+  function passthrough(): NextResponse {
+    const fwdHeaders = new Headers(request.headers);
+    fwdHeaders.set("x-request-id", requestId);
+    const res = NextResponse.next({ request: { headers: fwdHeaders } });
+    res.headers.set("x-request-id", requestId);
+    return res;
+  }
+
   const authRequired = process.env.AUTH_REQUIRED === "true";
   if (!authRequired) {
-    return NextResponse.next();
+    return passthrough();
   }
 
   const { pathname } = request.nextUrl;
   if (pathname.startsWith("/login")) {
-    return NextResponse.next();
+    return passthrough();
   }
 
   // Invite redemption is intentionally unauthenticated — the token IS the credential
   if (pathname.startsWith("/api/auth/invite")) {
-    return NextResponse.next();
+    return passthrough();
   }
 
   const token = request.cookies.get(SESSION)?.value;
@@ -25,7 +39,9 @@ export async function middleware(request: NextRequest) {
     const login = new URL("/login", request.url);
     login.searchParams.set("next", pathname);
     login.searchParams.set("redirected", "1");
-    return NextResponse.redirect(login);
+    const res = NextResponse.redirect(login);
+    res.headers.set("x-request-id", requestId);
+    return res;
   }
 
   const payload = await verifySession(token);
@@ -34,12 +50,13 @@ export async function middleware(request: NextRequest) {
     const login = new URL("/login", request.url);
     login.searchParams.set("next", pathname);
     login.searchParams.set("redirected", "1");
-    const response = NextResponse.redirect(login);
-    response.cookies.delete(SESSION);
-    return response;
+    const res = NextResponse.redirect(login);
+    res.cookies.delete(SESSION);
+    res.headers.set("x-request-id", requestId);
+    return res;
   }
 
-  return NextResponse.next();
+  return passthrough();
 }
 
 export const config = {

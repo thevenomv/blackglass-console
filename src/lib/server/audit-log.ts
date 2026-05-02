@@ -12,6 +12,16 @@ import {
 // ---------------------------------------------------------------------------
 
 export const AUDIT_ACTIONS = {
+  // Auth lifecycle
+  AUTH_LOGIN_SUCCESS: "auth.login_success",
+  AUTH_LOGIN_FAILED: "auth.login_failed",
+  AUTH_LOGOUT: "auth.logout",
+
+  // Invite lifecycle
+  INVITE_GENERATED: "invite.generated",
+  INVITE_REDEEMED: "invite.redeemed",
+  INVITE_REJECTED: "invite.rejected",
+
   // Baseline lifecycle
   BASELINE_CAPTURE: "baseline.capture",
   BASELINE_CAPTURE_FAILED: "baseline.capture_failed",
@@ -31,6 +41,8 @@ export const AUDIT_ACTIONS = {
   // Plan / billing
   PLAN_CHANGED: "plan.changed",
   PLAN_REVERTED: "plan.reverted",
+  CHECKOUT_STARTED: "checkout.started",
+  CHECKOUT_COMPLETED: "checkout.completed",
 
   // Generic — prefer specific actions above when possible
   USER_ACTION: "user.action",

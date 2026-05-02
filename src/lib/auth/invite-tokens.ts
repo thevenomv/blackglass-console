@@ -8,8 +8,12 @@
  * Used tokens are tracked in-memory — they reset on process restart (acceptable
  * for Stage 2; migrate to DB for Stage 3).
  *
- * Tokens should be generated with `crypto.randomBytes(24).toString('base64url')`
- * and have a `tok_` prefix for easy identification.
+ * Token format (new):  tok_<10-hex-expiry-seconds>_<20-byte-base64url-random>
+ *   - Expiry is seconds since Unix epoch encoded as 10 lower-case hex characters.
+ *   - Default TTL: 72 hours.  Configurable via INVITE_TOKEN_TTL_HOURS env var.
+ *   - Old tokens without the structured prefix are still accepted (backward compat).
+ *
+ * Tokens should be generated with generateInviteToken() and added to INVITE_TOKENS.
  */
 
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -26,8 +30,20 @@ function loadTokens(): string[] {
 }
 
 /**
+ * Parse the embedded expiry from a new-format token.
+ * Returns expiry timestamp in ms, or null if the token uses the old format.
+ */
+function parseTokenExpiry(token: string): number | null {
+  // New format: tok_<10 lower-case hex digits>_<random>
+  const m = /^tok_([0-9a-f]{10})_/.exec(token);
+  if (!m) return null;
+  return parseInt(m[1], 16) * 1000;
+}
+
+/**
  * Validate a candidate token in constant time.
- * Returns true if the token exists in INVITE_TOKENS and has not been redeemed.
+ * Returns true if the token exists in INVITE_TOKENS, has not been redeemed,
+ * and has not expired (for new-format tokens).
  */
 export function validateInviteToken(candidate: string): boolean {
   if (!candidate || candidate.length < 8) return false;
@@ -37,6 +53,10 @@ export function validateInviteToken(candidate: string): boolean {
 
   // Check already redeemed (fast reject, not timing-sensitive)
   if (redeemed.has(candidate)) return false;
+
+  // Check expiry encoded in token (new format only — old tokens have no expiry)
+  const expMs = parseTokenExpiry(candidate);
+  if (expMs !== null && Date.now() > expMs) return false;
 
   // Constant-time membership check across all tokens
   const enc = (s: string) => Buffer.from(s, "utf8");
@@ -58,10 +78,14 @@ export function redeemInviteToken(token: string): void {
 }
 
 /**
- * Generate a new cryptographically random invite token.
+ * Generate a new cryptographically random invite token with an embedded expiry.
+ * Default TTL is 72 hours, or INVITE_TOKEN_TTL_HOURS if set.
  * Caller is responsible for adding it to INVITE_TOKENS.
  */
 export function generateInviteToken(): string {
   const { randomBytes } = require("node:crypto") as typeof import("node:crypto");
-  return "tok_" + randomBytes(24).toString("base64url");
+  const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS ?? "72", 10);
+  const expireSec = Math.floor((Date.now() + ttlHours * 3_600_000) / 1000);
+  const expHex = expireSec.toString(16).padStart(10, "0");
+  return `tok_${expHex}_${randomBytes(20).toString("base64url")}`;
 }

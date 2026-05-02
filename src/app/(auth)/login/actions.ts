@@ -5,6 +5,7 @@ import { timingSafeEqual, createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkLoginRate } from "@/lib/server/rate-limit";
+import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 
 const SESSION = "bg-session";
 const ROLE = "bg-role";
@@ -60,12 +61,14 @@ export async function signIn(formData: FormData) {
   if (!checkLoginRate(ip)) {
     const qs = new URLSearchParams({ error: "too_many_attempts" });
     if (nextParam.startsWith("/") && !nextParam.startsWith("//")) qs.set("next", nextParam);
+    appendAudit({ action: AUDIT_ACTIONS.AUTH_LOGIN_FAILED, detail: "Rate limited", actor: ip });
     redirect(`/login?${qs.toString()}`);
   }
 
   if (!validatePassword(password)) {
     const qs = new URLSearchParams({ error: "invalid_credentials" });
     if (nextParam.startsWith("/") && !nextParam.startsWith("//")) qs.set("next", nextParam);
+    appendAudit({ action: AUDIT_ACTIONS.AUTH_LOGIN_FAILED, detail: "Invalid credentials", actor: ip });
     redirect(`/login?${qs.toString()}`);
   }
 
@@ -92,6 +95,7 @@ export async function signIn(formData: FormData) {
     maxAge,
     secure,
   });
+  appendAudit({ action: AUDIT_ACTIONS.AUTH_LOGIN_SUCCESS, detail: `Role: ${role}`, actor: ip });
   // Validate the `next` path: only allow same-origin relative paths starting with /
   const safePath =
     nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";
@@ -102,6 +106,7 @@ export async function signOut() {
   const jar = await cookies();
   jar.delete(SESSION);
   jar.delete(ROLE);
+  appendAudit({ action: AUDIT_ACTIONS.AUTH_LOGOUT, detail: "Session ended" });
   redirect("/login");
 }
 

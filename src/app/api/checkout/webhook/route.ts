@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { provisionPlan, deprovisionPlan } from "@/lib/billing/provision";
+import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import type Stripe from "stripe";
 
 // Next.js must NOT parse the body for Stripe signature verification.
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
       const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id ?? "unknown";
       console.info(`[stripe/webhook] checkout.session.completed — customer=${customerId} sub=${subscriptionId}`);
       await provisionPlan("pro", { stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId });
+      appendAudit({ action: AUDIT_ACTIONS.CHECKOUT_COMPLETED, detail: `customer=${customerId} sub=${subscriptionId}` });
       break;
     }
 
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
       const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
       console.info(`[stripe/webhook] subscription.deleted — sub=${subscription.id} customer=${customerId}`);
       await deprovisionPlan({ stripeCustomerId: customerId, stripeSubscriptionId: subscription.id });
+      appendAudit({ action: AUDIT_ACTIONS.PLAN_REVERTED, detail: `sub=${subscription.id} customer=${customerId}` });
       break;
     }
 

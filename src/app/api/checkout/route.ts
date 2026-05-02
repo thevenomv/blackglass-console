@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 
 export async function POST(request: Request) {
   const origin = request.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -56,5 +57,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not create checkout session" }, { status: 500 });
   }
 
+  appendAudit({ action: AUDIT_ACTIONS.CHECKOUT_STARTED, detail: `Stripe checkout session created` });
   return NextResponse.json({ url: session.url });
 }

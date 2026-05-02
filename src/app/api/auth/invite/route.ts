@@ -3,6 +3,7 @@ import { signSession } from "@/lib/auth/session-signing";
 import { validateInviteToken, redeemInviteToken } from "@/lib/auth/invite-tokens";
 import { clientIp } from "@/lib/server/rate-limit";
 import { checkInviteRate } from "@/lib/server/rate-limit";
+import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 
 const SESSION = "bg-session";
 const ROLE = "bg-role";
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!validateInviteToken(token)) {
+    appendAudit({ action: AUDIT_ACTIONS.INVITE_REJECTED, detail: `Invalid or expired token — IP: ${ip}`, actor: ip });
     // Redirect to login with a generic error rather than leaking token validity
     const login = new URL("/login", request.url);
     login.searchParams.set("error", "invalid_invite");
@@ -28,6 +30,7 @@ export async function GET(request: NextRequest) {
 
   // Mark used — prevents replay within this process lifetime
   redeemInviteToken(token);
+  appendAudit({ action: AUDIT_ACTIONS.INVITE_REDEEMED, detail: `Invite redeemed — IP: ${ip}`, actor: ip });
 
   const sessionToken = await signSession({ role: "viewer", iat: Date.now() });
   const maxAge = 60 * 60 * 24 * 30; // 30-day viewer session
