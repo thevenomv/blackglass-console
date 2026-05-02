@@ -1,14 +1,19 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { FlatCompat } from "@eslint/eslintrc";
+import coreWebVitals from "eslint-config-next/core-web-vitals";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+/**
+ * Next 16's shareable preset enables stricter **`eslint-plugin-react-hooks`** (compiler) rules than our
+ * patterns yet satisfy — keep them relaxed until SSR pages + client providers are refactored.
+ *
+ * Revisit: jsx in try/catch on server components, effect-driven resets, onboarding timer init.
+ */
+const relaxedCompilerHooks = {
+  "react-hooks/error-boundaries": "off",
+  "react-hooks/set-state-in-effect": "off",
+  "react-hooks/purity": "off",
+  "react-hooks/incompatible-library": "off",
+};
 
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
+/** @type {import("eslint").Linter.Config[]} */
 const eslintConfig = [
   {
     ignores: [
@@ -20,7 +25,8 @@ const eslintConfig = [
       "**/coverage/**",
     ],
   },
-  ...compat.extends("next/core-web-vitals"),
+  ...coreWebVitals,
+  { rules: relaxedCompilerHooks },
 ];
 
 export default eslintConfig;

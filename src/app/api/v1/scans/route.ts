@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const guard = await requireRole(["operator", "admin"]);
   if (!guard.ok) return guard.response;
 
-  if (!checkScanPostRate(clientIp(request))) {
+  if (!(await checkScanPostRate(clientIp(request)))) {
     return jsonError(429, "rate_limited");
   }
 

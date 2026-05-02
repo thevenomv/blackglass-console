@@ -2,7 +2,7 @@
 
 [![CI — main](https://github.com/thevenomv/blackglass-console/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/thevenomv/blackglass-console/actions/workflows/ci.yml)
 
-Next.js fleet console for baselines, drift, evidence exports, Stripe billing hooks, and DigitalOcean-ready deployment.
+Next.js **16** fleet console for baselines, drift, evidence exports, Stripe billing hooks, and DigitalOcean-ready deployment.
 
 ## Requirements
 
@@ -32,6 +32,8 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `check:openapi` | OpenAPI ↔ `route.ts` parity |
 | `schemas:export` | Regenerate `openapi/zod-schemas.json` from Zod |
 | `verify:stage0` | CI-shaped gate (lint + OpenAPI + schema diff + **typecheck** + unit + build — no Playwright) |
+| `verify:stage0:clean` | **`clean:next`** then **`verify:stage0`** — helps Windows cloud-sync **`readlink`** failures |
+| `clean:next` | Deletes **`.next/`** (`scripts/clean-next.mjs`) |
 | `verify:staging` | Hit `STAGING_URL` health/hosts audit (`VERIFY_SECRETS_PROBE=1` optional) |
 | `audit:export-spaces` | List/download Spaces `audit/*.jsonl` (needs `DO_SPACES_*`; see [docs/audit-trail.md](docs/audit-trail.md)) |
 | `audit:verify-jsonl` | Deterministic NDJSON integrity digest (`stdin` or file argument) |
@@ -46,7 +48,8 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 
 - **Dependabot:** Weekly npm PRs — triage on GitHub (merge or close with rationale); **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Moderate **`postcss`** advisories via **`next/node_modules`** may persist until **Next** ships patched deps — avoid **`npm audit fix --force`**. DevDependency **`postcss`** stays on **^8.5.x** for direct toolchain use.
 - **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** via FlatCompat); `next lint` is not used.
-- **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, OpenAPI, Zod schema diff, typecheck, unit tests, production build).
+- **Next.js 16:** `main` ships **next@16** ([upgrade notes](docs/nextjs-16-upgrade.md)).
+- **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, OpenAPI, Zod schema diff, typecheck, unit tests, production build). Under OneDrive + Windows quirks, prefer **`npm run verify:stage0:clean`** (see [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)).
 
 ## Shipping
 
@@ -68,7 +71,7 @@ Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. De
 - Security / pen checklist: [docs/security-pentest-checklist.md](docs/security-pentest-checklist.md)
 - Access review cadence: [docs/access-review-playbook.md](docs/access-review-playbook.md)
 - Audit trail: [docs/audit-trail.md](docs/audit-trail.md) · PostgreSQL appendix: [docs/audit-postgresql-adrs.md](docs/audit-postgresql-adrs.md)
-- Scaling: collectors [docs/collector-fleet-scaling.md](docs/collector-fleet-scaling.md) · Distributed rate-limit ADR: [docs/rate-limit-redis-adrs.md](docs/rate-limit-redis-adrs.md)
+- Scaling: collectors [docs/collector-fleet-scaling.md](docs/collector-fleet-scaling.md) · Redis rate-limit (multi-instance): [docs/rate-limit-redis-adrs.md](docs/rate-limit-redis-adrs.md) · Limits table: [docs/http-rate-limit-budgets.md](docs/http-rate-limit-budgets.md)
 - Tenancy outline: [docs/multi-tenant-outline.md](docs/multi-tenant-outline.md) · Incident hooks: [docs/incident-notification.md](docs/incident-notification.md)
 - Next.js bumps: [docs/nextjs-16-upgrade.md](docs/nextjs-16-upgrade.md) — branch **`release/next-16`** tracks preparatory merges.
 - Architecture spine: [docs/architecture-flow.md](docs/architecture-flow.md)

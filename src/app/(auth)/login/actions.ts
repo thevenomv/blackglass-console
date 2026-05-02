@@ -58,7 +58,7 @@ export async function signIn(formData: FormData) {
   const password = String(formData.get("password") ?? "");
 
   const ip = await getClientIp();
-  if (!checkLoginRate(ip)) {
+  if (!(await checkLoginRate(ip))) {
     const qs = new URLSearchParams({ error: "too_many_attempts" });
     if (nextParam.startsWith("/") && !nextParam.startsWith("//")) qs.set("next", nextParam);
     appendAudit({ action: AUDIT_ACTIONS.AUTH_LOGIN_FAILED, detail: "Rate limited", actor: ip });

@@ -8,7 +8,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!checkScanPollRate(clientIp(request))) {
+  if (!(await checkScanPollRate(clientIp(request)))) {
     return jsonError(429, "rate_limited");
   }
 

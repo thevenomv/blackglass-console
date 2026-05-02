@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   };
 
   if (secretsProbeRun) {
-    if (!checkHealthSecretsProbeRate(clientIp(request))) {
+    if (!(await checkHealthSecretsProbeRate(clientIp(request)))) {
       return jsonError(429, "rate_limited");
     }
     body.secrets_probe = await probeSecretBackendReachable();

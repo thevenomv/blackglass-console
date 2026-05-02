@@ -16,6 +16,8 @@
     "doppler:verify": "node scripts/doppler-verify.mjs",
     "verify:staging": "node scripts/verify-staging.mjs",
     "verify:stage0": "npm run lint && npm run check:openapi && npm run schemas:export && git diff --exit-code openapi/zod-schemas.json && npm run typecheck && npm run test:unit && npm run build",
+    "verify:stage0:clean": "npm run clean:next && npm run verify:stage0",
+    "clean:next": "node scripts/clean-next.mjs",
     "do:apply-stage0": "node scripts/run-do-apply-stage0.mjs",
     "stripe:setup": "node scripts/stripe-setup.mjs",
     "audit:export-spaces": "node scripts/export-audit-spaces.mjs",
@@ -32,7 +34,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1041.0",
     "@sentry/nextjs": "^10.51.0",
-    "next": "^15.1.0",
+    "ioredis": "^5.10.1",
+    "next": "^16.2.4",
     "pg": "^8.15.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -41,7 +44,6 @@
     "zod": "^4.4.1"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.52.0",
     "@tanstack/react-virtual": "^3.13.0",
@@ -51,7 +53,7 @@
     "@types/ssh2": "^1.15.5",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.16.0",
-    "eslint-config-next": "^15.1.0",
+    "eslint-config-next": "^16.2.4",
     "postcss": "^8.5.10",
     "tailwindcss": "^3.4.16",
     "tsx": "^4.21.0",

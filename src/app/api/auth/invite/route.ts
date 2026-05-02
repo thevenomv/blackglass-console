@@ -1,8 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { signSession } from "@/lib/auth/session-signing";
 import { validateInviteToken, redeemInviteToken } from "@/lib/auth/invite-tokens";
-import { clientIp } from "@/lib/server/rate-limit";
-import { checkInviteRate } from "@/lib/server/rate-limit";
+import { checkInviteRate, clientIp } from "@/lib/server/rate-limit";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 
 const SESSION = "bg-session";
@@ -16,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   // Rate limit by IP — 10 attempts per minute
   const ip = clientIp(request);
-  if (!checkInviteRate(ip)) {
+  if (!(await checkInviteRate(ip))) {
     return NextResponse.json({ error: "too_many_attempts" }, { status: 429 });
   }
 

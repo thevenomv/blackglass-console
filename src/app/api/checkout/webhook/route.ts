@@ -4,10 +4,9 @@ import { provisionPlan, deprovisionPlan } from "@/lib/billing/provision";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import type Stripe from "stripe";
 
-// Next.js must NOT parse the body for Stripe signature verification.
-export const config = { api: { bodyParser: false } };
+// Stripe signature verification requires the raw POST body — use `request.text()` (not `.json()`).
 
-// App Router equivalent: disable body parsing via the route segment config.
+// App Router: ensure fresh execution (no static caching of webhook responses).
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {

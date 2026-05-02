@@ -10,9 +10,9 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | File                                 | Role                                                                                                                                                      |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `README.md`                          | Entry point: setup, npm scripts table, pointers to `.do/` and `docs/`                                                                                      |
-| `package.json` / `package-lock.json` | Dependencies, scripts (`dev`, `build`, `verify:stage0`, `typecheck`, `stripe:setup`, `audit:export-spaces`, `audit:verify-jsonl`, `load:rate-local`, `do:apply-stage0`, `verify:staging`, `lint`, `check:openapi`, `test:e2e`, `test:e2e:live`) |
+| `package.json` / `package-lock.json` | Dependencies (**Next.js 16**); scripts incl. **`clean:next`**, **`verify:stage0:clean`**, `verify:stage0`, `stripe:setup`, audit export/verify/load helpers, `verify:staging`, `lint`, `check:openapi`, Playwright |
 | `tsconfig.json`                      | TypeScript project                                                                                                                                        |
-| `next.config.ts`                     | Next.js configuration                                                                                                                                     |
+| `next.config.ts`                     | Next config; CSP / security headers; **`serverExternalPackages`**: **`ssh2`**, **`pg`**, **`ioredis`**                                                 |
 | `next-env.d.ts`                      | Next-generated types                                                                                                                                      |
 | `middleware.ts`                      | Edge middleware (e.g. auth gating)                                                                                                                        |
 | `tailwind.config.ts`                 | Tailwind theme / content paths                                                                                                                            |
@@ -20,7 +20,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `Dockerfile`                         | Container image                                                                                                                                           |
 | `.dockerignore`                      | Docker build context                                                                                                                                      |
 | `.env.example`                       | Documented env vars (API, collector, `BASELINE_STORE_PATH`, `DRIFT_HISTORY_PATH`)                                                                         |
-| `eslint.config.mjs`                     | ESLint Flat Config (Next `core-web-vitals` via `@eslint/eslintrc` FlatCompat)                                                                           |
+| `eslint.config.mjs`                     | ESLint flat config — **`eslint-config-next/core-web-vitals`** (compiler hook rules relaxed pending refactors)                                                                      |
 | `.editorconfig`                       | Indent / newline conventions for editors                                                                                                                  |
 | `.gitignore`                         | Git ignore rules                                                                                                                                          |
 | `.cursorignore`                      | Cursor indexer excludes (heavy dirs: **`node_modules`**, `.next`, reports)                                                                              |
@@ -49,7 +49,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | File                | Role                            |
 | ------------------- | ------------------------------- |
 | `ci.yml`                 | Lint, typecheck, OpenAPI, schemas, unit test, **`next build`**, Playwright mock + live; **concurrency** cancel-in-flight; **40m** timeout || `staging-smoke.yml` | Manual (**`staging_url_override`**) / weekly cron (**requires `STAGING_URL` secret**)                              |
-| `dast-zap-baseline.yml` | Schedule + manual passive **OWASP ZAP** (**`target_url_override`** optional); `fail_action: false`            |
+| `dast-zap-baseline.yml` | Passive **OWASP ZAP**: **`actions/checkout`** + **`rules_file_name`**; **`target_url_override`** optional; `fail_action: false`            |
 | `uptime.yml`        | Scheduled health checks         |
 
 
@@ -96,13 +96,14 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `github-actions-first-run.md`    | `gh workflow run` examples for staging smoke + ZAP                                                                               |
 | `stripe-live-soak.md`              | Stripe live checklist (extended soak cadence)                                                                                   |
 | `access-review-playbook.md`       | Quarterly access review roles / evidence                                                                                           |
-| `zap-baseline-rules.md`            | Tune **`.zap/rules.tsv`** when enabling `rules_file_name`                                                                        |
-| `rate-limit-redis-adrs.md`         | Horizontal scale rate limiting outline                                                            |
+| `zap-baseline-rules.md`            | Tune **`.zap/rules.tsv`** for baseline (**wired** in **`dast-zap-baseline`**)                                                                   |
+| `rate-limit-redis-adrs.md`         | Redis sliding-window quotas when **`RATE_LIMIT_REDIS_URL`** set                                                   |
+| `http-rate-limit-budgets.md`       | Per-route IP throttle table (scan / health / login / invite)                                                          |
 | `multi-tenant-outline.md`           | Tenant stages + session carrier notes                                                            |
 | `collector-fleet-scaling.md`        | Collector SSH concurrency / egress cost                                                            |
 | `incident-notification.md`        | `x-request-id`, Sentry, PagerDuty-style routing                                                  |
 | `security-pentest-checklist.md`    | GA-style security validation list                                                                |
-| `nextjs-16-upgrade.md`             | Branch checklist (**`release/next-16`**) before Next majors                                    |
+| `nextjs-16-upgrade.md`             | **`main`** targets Next 16+; **`release/next-16`** optional for spikes                              |
 
 ---
 
@@ -149,6 +150,7 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `export-audit-spaces.mjs`                          | **`npm run audit:export-spaces`** — fetch **`audit/`** JSONL from Spaces (reuse DO creds)      |
 | `verify-audit-jsonl-integrity.mjs`               | **`npm run audit:verify-jsonl`** — deterministic digest over NDJSON lines                      |
 | `rate-limit-burst-local.mjs`                     | **`npm run load:rate-local`** — burst POST until 429                                              |
+| `clean-next.mjs`                                 | **`npm run clean:next`** — delete **`.next/`**                                                                   |
 ---
 
 ## `src/app/` — App Router
@@ -297,7 +299,8 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `http/schemas.ts`              | Zod: **POST bodies** (scan, audit), **queries** (audit limit, drift filters), **path id** pattern |
 | `integrity-revalidate.ts`      | `**revalidatePath`** for `/`, `/hosts`, `/drift` after baselines + scans                          |
 | `scan-jobs.ts`                 | Async scan job state                                                                              |
-| `rate-limit.ts`                | Scan / health / login / invite IP token buckets + test reset hook                                 |
+| `rate-limit.ts`                | IP token buckets (**async** guards); **`RATE_LIMIT_REDIS_URL`** delegates to **`rate-limit-redis`** |
+| `rate-limit-redis.ts`           | Redis ZSET sliding window (Lua) when URL set                                                               |
 | `audit-log.ts`                 | Audit append                                                                                      |
 | `audit-append-pg.ts`           | Optional Postgres append (`**AUDIT_DATABASE_URL**`; lazy **`pg`** pool)                             |
 
@@ -338,7 +341,7 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `drift-engine.test.ts`                                    | `**computeDrift`** edge cases                                 |
 | `collector-parsers.test.ts`                               | `**parseListeners**`, `**parseFirewall**`, etc.               |
 | `http-schemas.test.ts`                                    | Query + path Zod schemas                                      |
-| `rate-limit.test.ts`                                       | Token-bucket behaviour (scan post / poll / login / invite caps) |
+| `rate-limit.test.ts`                                       | In-memory quotas (Redis disabled in **`NODE_ENV=test`**)                                                      |
 
 
 ---
@@ -373,4 +376,4 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 
 ---
 
-*Last updated: audit Postgres sink + export/verify scripts; `docs/migrations/`; `.cursorignore`.*
+*Last updated: Next.js 16; optional **`RATE_LIMIT_REDIS_URL`** quotas; **`verify:stage0:clean`**; ZAP checkout + **`rules.tsv`**.*

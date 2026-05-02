@@ -4,7 +4,7 @@
 
 Common when the repo lives under **OneDrive / iCloud / cloud-synced folders** on Windows — the toolchain expects normal NTFS semantics.
 
-**Fix:** Delete `.next/` then rebuild (`Remove-Item -Recurse .next` PowerShell); long-term, clone Blackglass onto a non-synced path (e.g. `C:\\dev\\blackglass`). Add **`.cursorignore`** covering `.next/` (this repo ships one) to reduce indexer churn.
+**Fix:** Run **`npm run clean:next`** (or **`npm run verify:stage0:clean`** before gates), or delete `.next/` manually (`Remove-Item -Recurse .next` in PowerShell). Long-term, clone onto a non-synced path (e.g. `C:\\dev\\blackglass`). Root **`.cursorignore`** lists `.next/` to reduce indexer churn.
 
 ## **Playwright steals port 3100**
 

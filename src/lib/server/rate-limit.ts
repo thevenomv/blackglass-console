@@ -1,5 +1,6 @@
 /**
- * In-memory token buckets per client key (adequate for demo / single-region stubs).
+ * Token-bucket–style limits per client key. In-memory buckets are used when
+ * **`RATE_LIMIT_REDIS_URL`** is unset, in tests, or when Redis errors (fail-open to local state).
  */
 
 type Bucket = number[];
@@ -18,7 +19,7 @@ function prune(now: number, windowMs: number, arr: Bucket): Bucket {
   return arr.filter((t) => now - t < windowMs);
 }
 
-function allow(key: string, limit: number, windowMs: number): boolean {
+function allowMemory(key: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
   const pruned = prune(now, windowMs, buckets.get(key) ?? []);
   if (pruned.length >= limit) {
@@ -28,6 +29,13 @@ function allow(key: string, limit: number, windowMs: number): boolean {
   pruned.push(now);
   buckets.set(key, pruned);
   return true;
+}
+
+async function allowHybrid(key: string, limit: number, windowMs: number): Promise<boolean> {
+  const { allowRedisSlidingWindow } = await import("./rate-limit-redis");
+  const redis = await allowRedisSlidingWindow(key, limit, windowMs);
+  if (redis !== null) return redis;
+  return allowMemory(key, limit, windowMs);
 }
 
 export function clientIp(request: Request): string {
@@ -40,7 +48,10 @@ export function clientIp(request: Request): string {
   // by the trusted downstream proxy — so a client-supplied forged prefix is ignored.
   const xf = request.headers.get("x-forwarded-for");
   if (xf) {
-    const parts = xf.split(",").map((s) => s.trim()).filter(Boolean);
+    const parts = xf
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const last = parts[parts.length - 1];
     if (last) return last;
   }
@@ -48,18 +59,18 @@ export function clientIp(request: Request): string {
 }
 
 /** POST /api/v1/scans — enqueue abuse guard */
-export function checkScanPostRate(ip: string): boolean {
-  return allow(`scan:post:${ip}`, 24, 60_000);
+export function checkScanPostRate(ip: string): Promise<boolean> {
+  return allowHybrid(`scan:post:${ip}`, 24, 60_000);
 }
 
 /** GET /api/v1/scans/:id — polling guard */
-export function checkScanPollRate(ip: string): boolean {
-  return allow(`scan:get:${ip}`, 320, 60_000);
+export function checkScanPollRate(ip: string): Promise<boolean> {
+  return allowHybrid(`scan:get:${ip}`, 320, 60_000);
 }
 
 /** GET /api/health?probe=secrets — avoid hammering external secret backends */
-export function checkHealthSecretsProbeRate(ip: string): boolean {
-  return allow(`health:secrets:${ip}`, 12, 60_000);
+export function checkHealthSecretsProbeRate(ip: string): Promise<boolean> {
+  return allowHybrid(`health:secrets:${ip}`, 12, 60_000);
 }
 
 /**
@@ -67,14 +78,14 @@ export function checkHealthSecretsProbeRate(ip: string): boolean {
  * 10 attempts per IP per 15 minutes.
  * Returns false when the caller should be blocked.
  */
-export function checkLoginRate(ip: string): boolean {
-  return allow(`login:${ip}`, 10, 15 * 60_000);
+export function checkLoginRate(ip: string): Promise<boolean> {
+  return allowHybrid(`login:${ip}`, 10, 15 * 60_000);
 }
 
 /**
  * GET /api/auth/invite — token-enumeration guard.
  * 10 attempts per IP per minute.
  */
-export function checkInviteRate(ip: string): boolean {
-  return allow(`invite:${ip}`, 10, 60_000);
+export function checkInviteRate(ip: string): Promise<boolean> {
+  return allowHybrid(`invite:${ip}`, 10, 60_000);
 }

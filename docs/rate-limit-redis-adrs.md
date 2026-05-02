@@ -1,6 +1,6 @@
 # ADR sketch — Distributed rate limiting (Redis / Upstash)
 
-Current: **`src/lib/server/rate-limit.ts`** — in-process token buckets keyed by client IP prefixes.
+**Implemented (optional):** when **`RATE_LIMIT_REDIS_URL`** is set, **`src/lib/server/rate-limit-redis.ts`** applies a **Redis sorted-set sliding window** (Lua) for the same keys as **`src/lib/server/rate-limit.ts`**. Tests and missing/broken Redis **fail open to in-memory** buckets (same behaviour as a single instance).
 
 ## Limits of in-memory buckets
 
@@ -9,8 +9,8 @@ Current: **`src/lib/server/rate-limit.ts`** — in-process token buckets keyed b
 
 ## Standard upgrade path
 
-1. **Redis sliding window** (`INCR` + `EXPIRE`) keyed by `{route}:{ip_hash}`.  
-2. **Fail-open**: if Redis down, optionally allow vs deny (finance apps often deny).  
+1. **Redis sliding window** — done (ZSET + atomic script).  
+2. **Fail-open**: Redis errors → local token bucket (current default). For stricter finance posture, switch to fail-closed in code.  
 3. **Edge**: optionally move hot paths (login) to **Cloudflare Workers** KV / DO rate limiting.
 
-Suggested env:**`RATE_LIMIT_REDIS_URL`** (`rediss://` for TLS). Implement only after you run **>1** App Platform instance with real abuse signals.
+Set **`RATE_LIMIT_REDIS_URL`** (`rediss://` for TLS, e.g. Upstash). Enable when you run **>1** App Platform instance or see abuse skew across replicas. Budgets: **`docs/http-rate-limit-budgets.md`**.

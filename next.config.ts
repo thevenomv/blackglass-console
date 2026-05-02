@@ -35,15 +35,13 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   allowedDevOrigins: ["127.0.0.1", "localhost"],
-  // Run lint in CI (verify:stage0) not during the production build — saves ~15s.
-  eslint: { ignoreDuringBuilds: true },
-  // Typecheck also runs via `npm run verify:stage0` / CI; failures block `next build`.
+  // Lint runs via `npm run lint` / verify:stage0 / CI — not duplicated in `next build`.
   typescript: { ignoreBuildErrors: false },
   // Exclude ssh2 (and its native modules) from webpack bundling entirely.
   // On Linux build environments the native sshcrypto.node binary is compiled
   // by npm ci; webpack cannot parse a .node binary, so we keep ssh2 as a
   // server-side CJS require rather than bundling it.
-  serverExternalPackages: ["ssh2", "pg"],
+  serverExternalPackages: ["ssh2", "pg", "ioredis"],
 
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
