@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable react-hooks/incompatible-library -- TanStack Virtual's useVirtualizer is intentionally skipped by the React Compiler */
 import type { DriftEvent, DriftSeverity, FindingLifecycle } from "@/data/mock/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";

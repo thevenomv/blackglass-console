@@ -9,50 +9,63 @@ import { baselineStoreHealth } from "@/lib/server/baseline-store";
 import { collectorConfigured } from "@/lib/server/collector";
 import { deriveDriftCardsFromEvents, pickSpotlightHost } from "@/lib/server/dashboard-context";
 import { resolveDriftEventsForDashboard } from "@/lib/server/drift-resolve";
+import type { HostRecord } from "@/data/mock/types";
 import { loadHosts } from "@/lib/server/inventory";
 
 // Dashboard always needs live data — skip static prerender.
 export const dynamic = "force-dynamic";
 
 async function DashboardDeferred() {
+  let fleet: Awaited<ReturnType<typeof fetchFleetPageData>>["fleet"];
+  let showDemoKpiDeltas: boolean;
+  let driftTopCategories: ReturnType<typeof deriveDriftCardsFromEvents>["driftTopCategories"];
+  let spotlightHost: HostRecord | null;
+  let ctaHostId: string | null;
+  let baselinePersistence: ReturnType<typeof baselineStoreHealth>;
+  let collectorOn: boolean;
+
   try {
-    const { fleet, showDemoKpiDeltas } = await fetchFleetPageData();
+    const page = await fetchFleetPageData();
+    fleet = page.fleet;
+    showDemoKpiDeltas = page.showDemoKpiDeltas;
     const liveMode = !showDemoKpiDeltas;
-    const collectorOn = collectorConfigured();
-    const baselinePersistence = baselineStoreHealth();
+    collectorOn = collectorConfigured();
+    baselinePersistence = baselineStoreHealth();
     const driftEvents = resolveDriftEventsForDashboard();
 
-    let spotlightHost = (collectorOn ? pickSpotlightHost(await loadHosts()) : null) ?? null;
-    if (liveMode && !spotlightHost) {
-      spotlightHost = pickSpotlightHost((await fetchHosts()).items);
+    let sh = (collectorOn ? pickSpotlightHost(await loadHosts()) : null) ?? null;
+    if (liveMode && !sh) {
+      sh = pickSpotlightHost((await fetchHosts()).items);
     }
+    spotlightHost = sh;
 
-    const { driftTopCategories, recommendedActionHostId } = liveMode
+    const derived = liveMode
       ? deriveDriftCardsFromEvents(driftEvents, spotlightHost)
       : { driftTopCategories: [], recommendedActionHostId: null };
+    driftTopCategories = derived.driftTopCategories;
 
-    const ctaHostId =
-      recommendedActionHostId ??
+    ctaHostId =
+      derived.recommendedActionHostId ??
       fleet.notableEvents[0]?.hostId ??
       spotlightHost?.id ??
       null;
-
-    return (
-      <DashboardV3
-        fleet={fleet}
-        showDemoKpiDeltas={showDemoKpiDeltas}
-        collectorConfigured={collectorOn}
-        driftTopCategories={driftTopCategories}
-        spotlightHost={spotlightHost}
-        ctaHostId={ctaHostId}
-        baselinePersistence={baselinePersistence}
-      />
-    );
   } catch {
     return (
       <FetchFailed title="Fleet snapshot unavailable" description="Could not load fleet KPIs from the configured API." />
     );
   }
+
+  return (
+    <DashboardV3
+      fleet={fleet}
+      showDemoKpiDeltas={showDemoKpiDeltas}
+      collectorConfigured={collectorOn}
+      driftTopCategories={driftTopCategories}
+      spotlightHost={spotlightHost}
+      ctaHostId={ctaHostId}
+      baselinePersistence={baselinePersistence}
+    />
+  );
 }
 
 export default function HomePage() {

@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -26,11 +25,7 @@ function readThemeFromDom(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>("dark");
-
-  useLayoutEffect(() => {
-    setThemeState(readThemeFromDom());
-  }, []);
+  const [theme, setThemeState] = useState<ThemeMode>(() => readThemeFromDom());
 
   const setTheme = useCallback((t: ThemeMode) => {
     setThemeState(t);

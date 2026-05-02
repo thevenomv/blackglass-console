@@ -95,9 +95,12 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
-  const [recents, setRecents] = useState<PaletteItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const trapRef = useFocusTrap(open, () => setOpen(false));
+  const closePalette = useCallback(() => {
+    setQuery("");
+    setOpen(false);
+  }, []);
+  const trapRef = useFocusTrap(open, closePalette);
 
   const items = useMemo(() => {
     const scanItem: PaletteItem | null =
@@ -114,35 +117,34 @@ export function CommandPalette() {
     return base.filter((i) => matches(query, i));
   }, [allowed, loading, query, startFleetScan]);
 
-  useEffect(() => {
-    setActive(0);
-  }, [query, items.length]);
+  const recents = useMemo(() => (open ? readRecent() : []), [open]);
 
-  useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setOpen((v) => !v);
+  const showRecentBlock = Boolean(open && !query.trim() && recents.length > 0);
+
+  const selectableCount =
+    query.trim().length > 0
+      ? items.length
+      : showRecentBlock
+        ? recents.length + items.length
+        : items.length;
+
+  const safeActive = selectableCount > 0 ? Math.min(active, selectableCount - 1) : 0;
+
+  const resolveSelectableItem = useCallback(
+    (idx: number): PaletteItem | undefined => {
+      if (query.trim().length > 0) return items[idx];
+      if (showRecentBlock) {
+        if (idx < recents.length) return recents[idx];
+        return items[idx - recents.length];
       }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    if (!open) {
-      setQuery("");
-      return;
-    }
-    setRecents(readRecent());
-    const t = window.setTimeout(() => inputRef.current?.focus(), 0);
-    return () => window.clearTimeout(t);
-  }, [open]);
+      return items[idx];
+    },
+    [items, query, recents, showRecentBlock],
+  );
 
   const activate = useCallback(
     (idx: number) => {
-      const item = items[idx];
+      const item = resolveSelectableItem(idx);
       if (!item) return;
       setOpen(false);
       setQuery("");
@@ -153,19 +155,51 @@ export function CommandPalette() {
         void item.action?.();
       }
     },
-    [items, router],
+    [resolveSelectableItem, router],
   );
 
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setOpen((v) => {
+          if (v) {
+            setQuery("");
+            return false;
+          }
+          return true;
+        });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => inputRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [open]);
+
   const onInputKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (selectableCount === 0) return;
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((i) => Math.min(items.length - 1, i + 1));
+      setActive((prev) => {
+        const cur = Math.min(prev, selectableCount - 1);
+        return Math.min(selectableCount - 1, cur + 1);
+      });
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((i) => Math.max(0, i - 1));
+      setActive((prev) => {
+        const cur = Math.min(prev, selectableCount - 1);
+        return Math.max(0, cur - 1);
+      });
     } else if (e.key === "Enter") {
       e.preventDefault();
-      activate(active);
+      activate(safeActive);
     }
   };
 
@@ -175,7 +209,7 @@ export function CommandPalette() {
     <div
       className="fixed inset-0 z-[70] flex justify-center bg-black/55 px-4 pt-[15vh]"
       role="presentation"
-      onMouseDown={() => setOpen(false)}
+      onMouseDown={closePalette}
     >
       <div
         ref={trapRef}
@@ -195,7 +229,10 @@ export function CommandPalette() {
             spellCheck={false}
             placeholder="Search routes…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0);
+            }}
             onKeyDown={onInputKeyDown}
             className="mt-2 w-full rounded-md border border-border-default bg-bg-base px-3 py-2 text-sm text-fg-primary outline-none ring-accent-blue focus:ring-2"
           />
@@ -206,7 +243,7 @@ export function CommandPalette() {
           </p>
         </div>
         <ul className="flex-1 overflow-y-auto p-2" role="listbox">
-          {!query && recents.length > 0 ? (
+          {showRecentBlock ? (
             <>
               <li>
                 <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-faint">
@@ -214,11 +251,11 @@ export function CommandPalette() {
                 </p>
               </li>
               {recents.map((item, idx) => (
-                <li key={`recent-${item.id}`} role="option" aria-selected={idx === active}>
+                <li key={`recent-${item.id}`} role="option" aria-selected={idx === safeActive}>
                   <button
                     type="button"
                     className={`flex w-full flex-col items-start rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                      idx === active ? "bg-accent-blue-soft text-fg-primary" : "text-fg-muted hover:bg-bg-elevated"
+                      idx === safeActive ? "bg-accent-blue-soft text-fg-primary" : "text-fg-muted hover:bg-bg-elevated"
                     }`}
                     onMouseEnter={() => setActive(idx)}
                     onClick={() => activate(idx)}
@@ -241,13 +278,13 @@ export function CommandPalette() {
             <li className="px-3 py-6 text-center text-sm text-fg-muted">No matches</li>
           ) : (
             items.map((item, idx) => {
-              const listIdx = recents.length > 0 && !query ? idx + recents.length : idx;
+              const listIdx = showRecentBlock ? idx + recents.length : idx;
               return (
-                <li key={item.id} role="option" aria-selected={listIdx === active}>
+                <li key={item.id} role="option" aria-selected={listIdx === safeActive}>
                   <button
                     type="button"
                     className={`flex w-full flex-col items-start rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                      listIdx === active ? "bg-accent-blue-soft text-fg-primary" : "text-fg-muted hover:bg-bg-elevated"
+                      listIdx === safeActive ? "bg-accent-blue-soft text-fg-primary" : "text-fg-muted hover:bg-bg-elevated"
                     }`}
                     onMouseEnter={() => setActive(listIdx)}
                     onClick={() => activate(listIdx)}

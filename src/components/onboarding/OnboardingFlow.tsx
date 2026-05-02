@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 const STEPS = [
   "Welcome",
@@ -19,14 +19,14 @@ const POLL_TIMEOUT_MS = 120_000;
 function ConnectHostStep({ onNext }: { onNext: () => void }) {
   const [status, setStatus] = useState<"waiting" | "detected" | "timeout">("waiting");
   const [elapsed, setElapsed] = useState(0);
-  const startRef = useRef(Date.now());
 
   useEffect(() => {
+    const start = Date.now();
     let stopped = false;
 
     const poll = async () => {
       const now = Date.now();
-      const elapsedMs = now - startRef.current;
+      const elapsedMs = now - start;
       setElapsed(Math.floor(elapsedMs / 1000));
 
       if (elapsedMs >= POLL_TIMEOUT_MS) {

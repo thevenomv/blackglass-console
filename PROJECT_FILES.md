@@ -20,7 +20,7 @@ Single reference of **every tracked-ish source file** (excluding `node_modules/`
 | `Dockerfile`                         | Container image                                                                                                                                           |
 | `.dockerignore`                      | Docker build context                                                                                                                                      |
 | `.env.example`                       | Documented env vars (API, collector, `BASELINE_STORE_PATH`, `DRIFT_HISTORY_PATH`)                                                                         |
-| `eslint.config.mjs`                     | ESLint flat config — **`eslint-config-next/core-web-vitals`** (compiler hook rules relaxed pending refactors)                                                                      |
+| `eslint.config.mjs`                     | ESLint flat config — **`eslint-config-next/core-web-vitals`**                                                                              |
 | `.editorconfig`                       | Indent / newline conventions for editors                                                                                                                  |
 | `.gitignore`                         | Git ignore rules                                                                                                                                          |
 | `.cursorignore`                      | Cursor indexer excludes (heavy dirs: **`node_modules`**, `.next`, reports)                                                                              |

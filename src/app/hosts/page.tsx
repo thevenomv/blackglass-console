@@ -6,9 +6,9 @@ import { fetchHosts } from "@/lib/api/hosts";
 import { Suspense } from "react";
 
 async function HostsBody() {
+  let result: Awaited<ReturnType<typeof fetchHosts>>;
   try {
-    const result = await fetchHosts();
-    return <HostsView hosts={result.items} atCap={result.atCap} hostCap={result.hostCap} />;
+    result = await fetchHosts();
   } catch {
     return (
       <FetchFailed
@@ -17,6 +17,7 @@ async function HostsBody() {
       />
     );
   }
+  return <HostsView hosts={result.items} atCap={result.atCap} hostCap={result.hostCap} />;
 }
 
 export default function HostsPage() {

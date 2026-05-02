@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable react-hooks/incompatible-library -- TanStack Virtual's useVirtualizer is intentionally skipped by the React Compiler */
 import type { HostRecord } from "@/data/mock/types";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";

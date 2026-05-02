@@ -62,7 +62,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [pathname, router]);
 
   useEffect(() => {
-    void refresh();
+    queueMicrotask(() => {
+      void refresh();
+    });
   }, [refresh]);
 
   const value = useMemo(
