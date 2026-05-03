@@ -30,6 +30,8 @@ const clerkPublic = createRouteMatcher([
   "/pricing/success(.*)",
   "/demo(.*)",
   "/login(.*)",
+  "/use-cases(.*)",
+  "/guides(.*)",
   // API routes that authenticate via their own mechanisms (webhook sig / collector API key)
   "/api/health(.*)",
   "/api/webhooks/(.*)",
@@ -68,7 +70,9 @@ async function legacyMiddleware(request: NextRequest) {
     pathname.startsWith("/pricing") ||
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
-    pathname.startsWith("/login")
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/use-cases") ||
+    pathname.startsWith("/guides")
   ) {
     return withRequestId(request, requestId);
   }

@@ -43,7 +43,7 @@ const TIERS: PricingTier[] = [
       "180 days of drift history",
       "API access for pulling drift and evidence data",
     ],
-    overageNote: "+$2 / extra host Â· +$15 / extra operator seat",
+    overageNote: "+$2 / extra host · +$15 / extra operator seat",
     cta: "Start Starter plan",
     planCode: "starter",
     highlight: false,
@@ -65,7 +65,7 @@ const TIERS: PricingTier[] = [
       "Custom evidence and reporting templates",
       "Priority email support",
     ],
-    overageNote: "+$1.50 / extra host Â· +$20 / extra operator seat",
+    overageNote: "+$1.50 / extra host · +$20 / extra operator seat",
     cta: "Start Growth plan",
     planCode: "growth",
     highlight: true,
@@ -87,7 +87,7 @@ const TIERS: PricingTier[] = [
       "Baseline approval workflows",
       "Volume pricing for additional hosts",
     ],
-    overageNote: "+$25 / extra operator seat Â· additional hosts by volume",
+    overageNote: "+$25 / extra operator seat · additional hosts by volume",
     cta: "Start Business plan",
     planCode: "business",
     highlight: false,
@@ -250,7 +250,7 @@ export default function PricingSection() {
 
         {/* Subheadline */}
         <p className="mx-auto mt-5 max-w-2xl text-center text-base leading-relaxed text-fg-muted">
-          Per-host pricing that tracks infrastructure size â€” not seat count.
+          Per-host pricing that tracks infrastructure size – not seat count.
           Operators and admins count; read-only viewers never do.
         </p>
 
@@ -260,7 +260,7 @@ export default function PricingSection() {
             Every plan starts with a 14-day free trial
           </p>
           <p className="mt-1 text-sm text-fg-muted">
-            Up to 10 hosts, 2 operator seats, and unlimited viewers â€” no credit card required.
+            Up to 10 hosts, 2 operator seats, and unlimited viewers – no credit card required.
             After the trial, choose a plan to continue. If you don&apos;t, your workspace becomes
             read-only: no new scans, hosts, baselines, or secrets.
           </p>
@@ -268,10 +268,10 @@ export default function PricingSection() {
 
         {/* Annual discount teaser */}
         <p className="mt-4 text-center text-xs text-fg-faint">
-          Annual billing available â€” approximately two months free. Contact us to switch.
+          Annual billing available – approximately two months free. Contact us to switch.
         </p>
 
-        {/* Cards grid â€” 4 columns at lg */}
+        {/* Cards grid — 4 columns at lg */}
         <div className="mt-12 grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:items-start">
           {TIERS.map((tier) => (
             <TierCard key={tier.key} tier={tier} />
@@ -284,7 +284,7 @@ export default function PricingSection() {
             Viewers are always free, on every plan
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
-            Team members with read-only access â€” investigations, drift history, evidence review â€”
+            Team members with read-only access – investigations, drift history, evidence review –
             never consume a paid seat. Only operators and admins who can run scans, modify
             baselines, or manage secrets count toward your seat limit.
           </p>
@@ -300,9 +300,9 @@ export default function PricingSection() {
           <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
             jamie@obsidiandynamics.co.uk
           </a>
-          {" "}Â·{" "}
+          {" "}·{" "}
           <a href="/terms" className="text-accent-blue hover:underline">Terms</a>
-          {" "}Â·{" "}
+          {" "}·{" "}
           <a href="/privacy" className="text-accent-blue hover:underline">Privacy</a>
         </p>
 

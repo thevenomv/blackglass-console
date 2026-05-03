@@ -2,7 +2,6 @@ import Link from "next/link";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { PublicFooter } from "@/components/marketing/PublicFooter";
 import { TrialSignupLink } from "@/components/demo/DemoGateButton";
-import { COMMERCIAL_PLANS, PLAN_PRICING, TRIAL_DAYS, TRIAL_HOST_LIMIT, TRIAL_PAID_SEAT_LIMIT } from "@/lib/saas/plans";
 
 function MockConsolePreview() {
   return (
@@ -104,7 +103,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="problem" className="scroll-mt-20 px-4 py-16 sm:py-20">
+        <section id="problem" className="scroll-mt-20 px-4 py-14 sm:py-16">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-2xl font-semibold text-fg-primary">Why drift matters</h2>
             <p className="mt-4 max-w-3xl text-fg-muted">
@@ -131,7 +130,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="product" className="scroll-mt-20 border-t border-border-subtle bg-bg-panel/40 px-4 py-16 sm:py-20">
+        <section id="product" className="scroll-mt-20 border-t border-border-subtle bg-bg-panel/40 px-4 py-14 sm:py-16">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-2xl font-semibold text-fg-primary">How it works</h2>
             <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -167,112 +166,28 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="px-4 py-16 sm:py-20">
+        <section className="px-4 py-14 sm:py-16">
           <div className="mx-auto max-w-6xl">
-            <h2 className="text-2xl font-semibold text-fg-primary">Product proof</h2>
+            <h2 className="text-2xl font-semibold text-fg-primary">See it working</h2>
             <p className="mt-3 max-w-2xl text-fg-muted">
-              Representative panels — explore the interactive sample workspace for a navigable
-              walkthrough (still fictional data).
+              Step through the interactive demo workspace — fictional data, real workflows.
             </p>
-            <div className="mt-10 grid gap-4 lg:grid-cols-3">
-              {[
-                {
-                  title: "Drift finding",
-                  sample: "sshd PermitRootLogin=yes vs baseline prohibit-password",
-                  meta: "High · SSH · new",
-                },
-                {
-                  title: "SSH audit excerpt",
-                  sample: "MACs + KexAlgorithms vs CIS profile for Ubuntu 22.04",
-                  meta: "2 fails · 4 warns",
-                },
-                {
-                  title: "Remediation",
-                  sample: "Jump host hardening ticket — owner platform@… · due Friday",
-                  meta: "In progress",
-                },
-              ].map((c) => (
-                <div key={c.title} className="rounded-lg border border-border-default bg-bg-panel p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-fg-faint">
-                    {c.title}
-                  </p>
-                  <p className="mt-3 text-sm text-fg-primary">{c.sample}</p>
-                  <p className="mt-2 font-mono text-[10px] text-fg-faint">{c.meta}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-8 text-center">
-              <Link href="/demo" className="text-sm font-medium text-accent-blue hover:underline">
+            <p className="mt-6">
+              <Link href="/demo" className="inline-block rounded-lg bg-accent-blue px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-blue-hover">
                 Open interactive demo →
               </Link>
             </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-fg-faint">
-              <Link href="/use-cases/linux-configuration-drift-detection" className="hover:text-accent-blue hover:underline">
-                Drift detection deep-dive →
-              </Link>
-              <Link href="/use-cases/ssh-configuration-audit" className="hover:text-accent-blue hover:underline">
-                SSH audit use case →
-              </Link>
-              <Link href="/use-cases/linux-hardening-monitoring" className="hover:text-accent-blue hover:underline">
-                Hardening monitoring →
-              </Link>
-            </div>
           </div>
         </section>
 
-        <section id="pricing" className="scroll-mt-20 border-t border-border-subtle px-4 py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="text-2xl font-semibold text-fg-primary">Pricing preview</h2>
-            <p className="mt-3 max-w-2xl text-fg-muted">
-              We charge for <strong className="text-fg-primary">operator capacity</strong> (owner /
-              admin / operator seats) and <strong className="text-fg-primary">host volume</strong>.
-              Read-only viewers and guest auditors are always unlimited on paid plans.
-            </p>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {Object.values(COMMERCIAL_PLANS).map((p) => (
-                <div
-                  key={p.code}
-                  className="rounded-lg border border-border-default bg-bg-panel p-4"
-                >
-                  <p className="font-mono text-xs font-semibold text-accent-blue">{p.label}</p>
-                  <p className="mt-3 text-2xl font-semibold tabular-nums text-fg-primary">
-                    {p.hostLimit} hosts
-                  </p>
-                  <p className="mt-1 text-sm text-fg-muted">{p.paidSeatLimit} paid seats</p>
-                  <p className="mt-3 text-xs text-fg-faint">Unlimited viewers</p>
-                </div>
-              ))}
-              <div className="rounded-lg border border-border-default bg-bg-panel p-4">
-                <p className="font-mono text-xs font-semibold text-accent-blue">Enterprise</p>
-                <p className="mt-3 text-sm text-fg-primary">Custom hosts, seats, SSO, and contracts.</p>
-                <Link href="/book" className="mt-3 inline-block text-sm text-accent-blue hover:underline">
-                  Talk to us
-                </Link>
-              </div>
-            </div>
-            <div className="mt-8 rounded-lg border border-warning/30 bg-warning-soft p-4 text-sm text-warning">
-              <strong>Free trial:</strong> {TRIAL_DAYS} days · up to{" "}
-              {TRIAL_HOST_LIMIT} hosts · {TRIAL_PAID_SEAT_LIMIT} paid seats · no card required. After
-              trial: workspace stays readable; operational actions lock until you upgrade (no
-              permanent free operational tier).
-            </div>
-            <p className="mt-6">
-              <Link href="/pricing" className="text-sm font-medium text-accent-blue hover:underline">
-                Full pricing page →
-              </Link>
-            </p>
-          </div>
-        </section>
-
-        <section className="border-t border-border-subtle px-4 py-16 sm:py-20">
+        <section className="border-t border-border-subtle px-4 py-14 sm:py-16">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-2xl font-semibold text-fg-primary">Security &amp; trust</h2>
             <ul className="mt-6 grid gap-3 sm:grid-cols-2">
               {[
-                "Workspace data is fully isolated per tenant; access roles are enforced server-side — never from the browser alone.",
-                "Mandatory MFA on every account; optional step-up authentication for sensitive mutations.",
-                "Audit trail for invites, scans, baseline changes, and billing-related events.",
-                "TLS in transit; least-privilege collector semantics — no harvesting of env vars or private keys into BLACKGLASS storage.",
+                "Full tenant isolation — workspace data is never shared across accounts. Access roles enforced server-side.",
+                "Agentless by default — the collector reads metadata over SSH only. No env vars, keys, or secrets are stored in BLACKGLASS.",
+                "Audit trail for every state-changing action: scans, baseline changes, invites, and billing events.",
               ].map((t) => (
                 <li
                   key={t}
