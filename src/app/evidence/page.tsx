@@ -14,7 +14,7 @@ async function EvidenceBody() {
         title="Evidence"
         subtitle="Tamper-aware bundles for audits, regulated workflows, and incident review."
         breadcrumbs={[
-          { href: "/", label: "Dashboard" },
+          { href: "/dashboard", label: "Dashboard" },
           { href: "/evidence", label: "Evidence" },
         ]}
         actions={<EvidenceExportModal />}

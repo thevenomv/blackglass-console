@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/server/http/auth-guard";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { getBaseline } from "@/lib/server/baseline-store";
 import { getDriftEvents } from "@/lib/server/drift-engine";
+import { takeEvidenceBundleDownload } from "@/lib/server/evidence-bundle-quota";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,11 @@ export async function GET(
 ) {
   const guard = await requireRole(["auditor", "operator", "admin"]);
   if (!guard.ok) return guard.response;
+
+  const quota = takeEvidenceBundleDownload();
+  if (!quota.ok) {
+    return jsonError(429, quota.code, "Evidence bundle daily download limit reached for this deployment.");
+  }
 
   const { id: rawId } = await params;
   const idParsed = ResourceIdPathSchema.safeParse(rawId);

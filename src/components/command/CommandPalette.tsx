@@ -23,7 +23,7 @@ type PaletteItem = {
 };
 
 const ROUTES: PaletteItem[] = [
-  { id: "dash", label: "Fleet dashboard", hint: "Overview · KPIs", href: "/", keywords: "home" },
+  { id: "dash", label: "Fleet dashboard", hint: "Overview · KPIs", href: "/dashboard", keywords: "home" },
   { id: "hosts", label: "Hosts inventory", href: "/hosts", keywords: "fleet linux" },
   { id: "baselines", label: "Baselines", href: "/baselines", keywords: "snapshot diff" },
   { id: "drift", label: "Drift events", href: "/drift", keywords: "delta integrity" },

@@ -16,9 +16,13 @@
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
+import { requireSaasOperationalMutation } from "@/lib/server/http/saas-access";
+import { canGenerateReportsForTenant } from "@/lib/saas/operations";
 import { checkWebhooksTestRate, clientIp } from "@/lib/server/rate-limit";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
+import { emitSaasAudit } from "@/lib/saas/event-log";
 
 export const dynamic = "force-dynamic";
 
@@ -57,8 +61,18 @@ export async function POST(request: Request) {
     return jsonError(429, "rate_limited", "Too many webhook test requests. Wait 60 seconds.");
   }
 
-  const guard = await requireRole(["operator", "admin"]);
-  if (!guard.ok) return guard.response;
+  let legacyActor: string | null = null;
+  let saasCtx: { tenant: { id: string }; userId: string } | null = null;
+
+  if (isClerkAuthEnabled()) {
+    const m = await requireSaasOperationalMutation("drift.manage", canGenerateReportsForTenant);
+    if (!m.ok) return m.response;
+    saasCtx = m.ctx;
+  } else {
+    const guard = await requireRole(["operator", "admin"]);
+    if (!guard.ok) return guard.response;
+    legacyActor = guard.role;
+  }
 
   let url: string;
   try {
@@ -97,8 +111,17 @@ export async function POST(request: Request) {
   appendAudit({
     action: AUDIT_ACTIONS.WEBHOOK_TEST_SENT,
     detail: `Webhook test to ${hostname} — HTTP ${status}`,
-    actor: guard.role,
+    actor: legacyActor ?? saasCtx?.userId ?? "saas",
   });
+
+  if (saasCtx) {
+    void emitSaasAudit({
+      tenantId: saasCtx.tenant.id,
+      actorUserId: saasCtx.userId,
+      action: "webhook.test_sent",
+      metadata: { hostname, status },
+    });
+  }
 
   return NextResponse.json({ ok, status });
 }

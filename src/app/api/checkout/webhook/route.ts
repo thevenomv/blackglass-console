@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { provisionPlan, deprovisionPlan } from "@/lib/billing/provision";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
+import { tryGetDb } from "@/db";
+import {
+  syncSaasSubscriptionFromStripe,
+  getTenantIdByStripeCustomer,
+  clearStripeSubscriptionForTenant,
+} from "@/lib/saas/stripe-sync";
+import { claimWebhookEvent } from "@/lib/saas/webhook-idempotency";
+import { emitSaasSecurity } from "@/lib/saas/event-log";
 import type Stripe from "stripe";
 
 // Stripe signature verification requires the raw POST body — use `request.text()` (not `.json()`).
@@ -9,26 +17,21 @@ import type Stripe from "stripe";
 // App Router: ensure fresh execution (no static caching of webhook responses).
 export const dynamic = "force-dynamic";
 
-// ---------------------------------------------------------------------------
-// Idempotency guard — Stripe may redeliver the same event on transient failures.
-// This in-process Set deduplicates within a single replica. For multi-instance
-// deployments, move this to a shared store (Redis/DB) at Stage 3.
-// ---------------------------------------------------------------------------
-const MAX_DEDUP = (() => {
-  const n = parseInt(process.env.STRIPE_WEBHOOK_DEDUP_SIZE ?? "1000", 10);
-  return Number.isFinite(n) && n > 0 ? n : 1000;
-})();
-const processedEventIds = new Set<string>();
-
-function isDuplicateEvent(eventId: string): boolean {
-  if (processedEventIds.has(eventId)) return true;
-  // Bounded FIFO eviction — Set preserves insertion order.
-  if (processedEventIds.size >= MAX_DEDUP) {
-    const oldest = processedEventIds.values().next().value;
-    if (oldest !== undefined) processedEventIds.delete(oldest);
+async function maybeSyncSaasSubscription(sub: Stripe.Subscription): Promise<void> {
+  if (!tryGetDb()) return;
+  try {
+    const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+    const tenantId = await getTenantIdByStripeCustomer(customerId);
+    if (!tenantId) return;
+    await syncSaasSubscriptionFromStripe({
+      tenantId,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: sub.id,
+      subscription: sub,
+    });
+  } catch (e) {
+    console.error("[stripe/webhook] saas subscription sync failed:", e);
   }
-  processedEventIds.add(eventId);
-  return false;
 }
 
 export async function POST(request: Request) {
@@ -53,17 +56,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  switch (event.type) {
-    // Deduplicate redelivered events before any state mutation.
-    // Stripe guarantees at-least-once delivery, not exactly-once.
-    default:
-      if (isDuplicateEvent(event.id)) {
-        console.info(`[stripe/webhook] duplicate event ${event.id} — skipping`);
-        return NextResponse.json({ received: true });
-      }
+  const firstDelivery = await claimWebhookEvent("stripe", event.id);
+  if (!firstDelivery) {
+    console.info(`[stripe/webhook] duplicate event ${event.id} — skipping`);
+    return NextResponse.json({ received: true });
   }
 
-  switch (event.type) {
+  try {
+    switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id ?? "unknown";
@@ -71,6 +71,23 @@ export async function POST(request: Request) {
       console.info(`[stripe/webhook] checkout.session.completed — customer=${customerId} sub=${subscriptionId}`);
       await provisionPlan("pro", { stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId });
       appendAudit({ action: AUDIT_ACTIONS.CHECKOUT_COMPLETED, detail: `customer=${customerId} sub=${subscriptionId}` });
+      if (tryGetDb() && subscriptionId !== "unknown" && customerId !== "unknown") {
+        try {
+          const meta = session.metadata ?? {};
+          const tenantId = typeof meta.saas_tenant_id === "string" ? meta.saas_tenant_id : null;
+          if (tenantId) {
+            const fullSub = await stripe.subscriptions.retrieve(subscriptionId);
+            await syncSaasSubscriptionFromStripe({
+              tenantId,
+              stripeCustomerId: customerId,
+              stripeSubscriptionId: fullSub.id,
+              subscription: fullSub,
+            });
+          }
+        } catch (e) {
+          console.error("[stripe/webhook] saas checkout sync failed:", e);
+        }
+      }
       break;
     }
 
@@ -80,6 +97,14 @@ export async function POST(request: Request) {
       console.info(`[stripe/webhook] subscription.deleted — sub=${subscription.id} customer=${customerId}`);
       await deprovisionPlan({ stripeCustomerId: customerId, stripeSubscriptionId: subscription.id });
       appendAudit({ action: AUDIT_ACTIONS.PLAN_REVERTED, detail: `sub=${subscription.id} customer=${customerId}` });
+      if (tryGetDb()) {
+        try {
+          const tenantId = await getTenantIdByStripeCustomer(customerId);
+          if (tenantId) await clearStripeSubscriptionForTenant(tenantId);
+        } catch (e) {
+          console.error("[stripe/webhook] saas detach failed:", e);
+        }
+      }
       break;
     }
 
@@ -100,6 +125,7 @@ export async function POST(request: Request) {
         // past_due, trialing, paused — log only; don't change plan until definitely cancelled.
         console.warn(`[stripe/webhook] subscription.updated non-terminal status: ${subscription.status} — sub=${subscription.id}`);
       }
+      await maybeSyncSaasSubscription(subscription);
       break;
     }
 
@@ -113,6 +139,12 @@ export async function POST(request: Request) {
       if (subscriptionId) {
         // Re-assert pro plan so a prior Spaces outage doesn't leave the tenant on free.
         await provisionPlan("pro", { stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId });
+        try {
+          const fullSub = await stripe.subscriptions.retrieve(subscriptionId);
+          await maybeSyncSaasSubscription(fullSub);
+        } catch (e) {
+          console.error("[stripe/webhook] saas invoice sync:", e);
+        }
       }
       break;
     }
@@ -139,6 +171,31 @@ export async function POST(request: Request) {
     default:
       console.warn(`[stripe/webhook] Unhandled event type "${event.type}" — skipping`);
       break;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[stripe/webhook] handler failed", event.type, msg);
+    if (tryGetDb()) {
+      try {
+        const data = event.data.object as { customer?: string | { id?: string } | null };
+        const c = data.customer;
+        const customerId = typeof c === "string" ? c : c?.id ?? null;
+        if (customerId) {
+          const tenantId = await getTenantIdByStripeCustomer(customerId);
+          if (tenantId) {
+            await emitSaasSecurity({
+              tenantId,
+              severity: "high",
+              eventType: "stripe_webhook_handler_failed",
+              metadata: { event_type: event.type, error: msg.slice(0, 500) },
+            });
+          }
+        }
+      } catch {
+        /* best-effort */
+      }
+    }
+    return NextResponse.json({ received: false, error: "handler_failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

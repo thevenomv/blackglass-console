@@ -1,177 +1,101 @@
-import { AppShell } from "@/components/layout/AppShell";
-import Link from "next/link";
+import { DEMO_AUDIT, DEMO_DRIFT, DEMO_HOSTS, DEMO_REMEDIATIONS } from "@/lib/demo/seed";
+import { DemoGateButton, TrialSignupLink } from "@/components/demo/DemoGateButton";
 
-const STEPS = [
-  {
-    title: "Establish baseline",
-    detail: "Pin an approved snapshot after change freeze — /baselines · /onboarding.",
-  },
-  {
-    title: "Run fleet integrity scan",
-    detail: "Use Run scan — routes through POST /api/v1/scans with live polling when mock mode is off.",
-  },
-  {
-    title: "Triage drift",
-    detail: "Open /drift, investigate drawer, acknowledge or approve with operator/admin roles.",
-  },
-  {
-    title: "Export evidence",
-    detail: "Evidence meta + artifact stubs under /api/v1/evidence/bundles/:id (+ /file).",
-  },
-];
+function sevColor(s: string) {
+  switch (s) {
+    case "critical":
+      return "text-red-400";
+    case "high":
+      return "text-orange-400";
+    case "medium":
+      return "text-amber-300";
+    default:
+      return "text-fg-muted";
+  }
+}
 
-const PERSONAS = [
-  {
-    title: "SOC analyst",
-    intent: "Prioritize noisy listeners and identity deltas.",
-    links: [
-      { href: "/drift", label: "Drift queue" },
-      { href: "/hosts/host-07", label: "Hot host host-07" },
-      { href: "/", label: "Fleet dashboard" },
-    ],
-  },
-  {
-    title: "SRE / platform",
-    intent: "Verify baselines after change windows and scan coverage.",
-    links: [
-      { href: "/baselines", label: "Baseline diff" },
-      { href: "/hosts", label: "Hosts inventory" },
-      { href: "/demo", label: "Reload this script" },
-    ],
-  },
-  {
-    title: "Auditor",
-    intent: "Read-only drift review and evidence exports.",
-    links: [
-      { href: "/evidence", label: "Evidence bundles" },
-      { href: "/reports", label: "Reports" },
-      { href: "/login", label: "Sign in" },
-    ],
-  },
-];
+export default function DemoOverviewPage() {
+  const openDrift = DEMO_DRIFT.filter((d) => d.lifecycle === "new").length;
+  const fails = DEMO_HOSTS.filter((h) => h.sshHardening === "fail").length;
 
-export default function DemoPage() {
   return (
-    <AppShell>
-      <div className="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-10">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Field narrative</p>
-          <h1 className="mt-2 text-xl font-semibold text-fg-primary">Partner demo script</h1>
-          <p className="mt-2 text-sm text-fg-muted">
-            Four-stop flow for design partners — links jump straight into the console surfaces that
-            engineers will extend against real collectors. Use{" "}
-            <kbd className="rounded border border-border-subtle px-1 font-mono text-[11px]">⌘K</kbd>{" "}
-            for quick navigation anywhere.
+          <h1 className="text-xl font-semibold text-fg-primary">Fleet overview</h1>
+          <p className="mt-1 text-sm text-fg-muted">
+            Integrity posture across Linux SSH targets — sample KPIs only.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <DemoGateButton actionLabel="Run fleet scan">Run scan</DemoGateButton>
+          <DemoGateButton actionLabel="Capture baseline">Capture baseline</DemoGateButton>
+          <TrialSignupLink className="rounded-card border border-accent-blue/50 px-3 py-2 text-sm font-medium text-accent-blue hover:bg-accent-blue/10">
+            Start free trial
+          </TrialSignupLink>
+        </div>
+      </div>
 
-        <section aria-labelledby="personas-heading">
-          <h2 id="personas-heading" className="text-sm font-semibold text-fg-primary">
-            Guided entry points
-          </h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            {PERSONAS.map((p) => (
-              <div
-                key={p.title}
-                className="rounded-card border border-border-default bg-bg-panel px-4 py-3"
-              >
-                <p className="text-xs font-semibold uppercase tracking-wide text-accent-blue">
-                  {p.title}
-                </p>
-                <p className="mt-2 text-xs leading-relaxed text-fg-muted">{p.intent}</p>
-                <ul className="mt-3 space-y-1.5 text-xs">
-                  {p.links.map((l) => (
-                    <li key={l.href}>
-                      <Link href={l.href} className="font-medium text-accent-blue hover:underline">
-                        {l.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+      <div className="grid gap-4 sm:grid-cols-4">
+        {[
+          { k: "Hosts", v: String(DEMO_HOSTS.length), d: "Imported / connected" },
+          { k: "Open findings", v: String(openDrift), d: "New + acknowledged" },
+          { k: "SSH hardening fails", v: String(fails), d: "vs last baseline" },
+          { k: "Remediation items", v: String(DEMO_REMEDIATIONS.length), d: "tracked actions" },
+        ].map((x) => (
+          <div
+            key={x.k}
+            className="rounded-card border border-border-default bg-bg-panel px-4 py-3"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-faint">{x.k}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-fg-primary">{x.v}</p>
+            <p className="mt-0.5 text-xs text-fg-faint">{x.d}</p>
           </div>
+        ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="rounded-card border border-border-default bg-bg-panel p-4">
+          <h2 className="text-sm font-semibold text-fg-primary">Recent drift</h2>
+          <ul className="mt-3 divide-y divide-border-subtle text-sm">
+            {DEMO_DRIFT.slice(0, 4).map((d) => (
+              <li key={d.id} className="flex gap-3 py-2.5">
+                <span className={`shrink-0 font-mono text-xs ${sevColor(d.severity)}`}>
+                  {d.severity}
+                </span>
+                <span className="text-fg-muted">{d.title}</span>
+              </li>
+            ))}
+          </ul>
         </section>
-
-        <ol className="space-y-5">
-          {STEPS.map((s, i) => (
-            <li
-              key={s.title}
-              className="rounded-card border border-border-default bg-bg-panel px-5 py-4"
-            >
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent-blue">
-                Step {i + 1}
-              </p>
-              <p className="mt-2 text-sm font-semibold text-fg-primary">{s.title}</p>
-              <p className="mt-2 text-sm leading-relaxed text-fg-muted">{s.detail}</p>
-            </li>
-          ))}
-        </ol>
-
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/onboarding"
-            className="rounded-card border border-border-default px-4 py-2 text-sm font-medium text-accent-blue hover:bg-bg-elevated"
-          >
-            Open onboarding
-          </Link>
-          <Link
-            href="/hosts/host-07"
-            className="rounded-card border border-border-default px-4 py-2 text-sm font-medium text-accent-blue hover:bg-bg-elevated"
-          >
-            Seed host investigation
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-card border border-border-default px-4 py-2 text-sm font-medium text-accent-blue hover:bg-bg-elevated"
-          >
-            Sign in
-          </Link>
-        </div>
-
-        <section aria-labelledby="presets-heading" className="border-t border-border-subtle pt-8">
-          <h2 id="presets-heading" className="text-sm font-semibold text-fg-primary">
-            Deep-link presets
-          </h2>
-          <p className="mt-2 text-sm text-fg-muted">
-            Bookmarkable queries aligned with drift lifecycle filters and demo flows.
-          </p>
-          <ul className="mt-3 flex flex-wrap gap-2 text-sm">
-            <li>
-              <Link
-                href="/drift?severity=high&lifecycle=new"
-                className="rounded-full border border-border-default px-3 py-1 font-medium text-accent-blue hover:bg-bg-elevated"
+        <section className="rounded-card border border-border-default bg-bg-panel p-4">
+          <h2 className="text-sm font-semibold text-fg-primary">Remediation queue</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            {DEMO_REMEDIATIONS.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center justify-between gap-2 rounded-md border border-border-subtle px-3 py-2"
               >
-                High + new findings
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/drift?host=host-07&event=d-001"
-                className="rounded-full border border-border-default px-3 py-1 font-medium text-accent-blue hover:bg-bg-elevated"
-              >
-                host-07 · TCP listener drawer
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/workspace"
-                className="rounded-full border border-border-default px-3 py-1 font-medium text-accent-blue hover:bg-bg-elevated"
-              >
-                Incident workspace (INC-2047)
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/baselines?host=host-07"
-                className="rounded-full border border-border-default px-3 py-1 font-medium text-accent-blue hover:bg-bg-elevated"
-              >
-                Baseline diff · host-07
-              </Link>
-            </li>
+                <span className="text-fg-muted">{r.title}</span>
+                <span className="shrink-0 font-mono text-[10px] uppercase text-fg-faint">
+                  {r.status.replace("_", " ")}
+                </span>
+              </li>
+            ))}
           </ul>
         </section>
       </div>
-    </AppShell>
+
+      <section className="rounded-card border border-border-default bg-bg-panel p-4">
+        <h2 className="text-sm font-semibold text-fg-primary">Audit tail (sample)</h2>
+        <ul className="mt-3 font-mono text-xs text-fg-muted">
+          {DEMO_AUDIT.map((a) => (
+            <li key={a.at + a.action} className="border-b border-border-subtle py-2 last:border-0">
+              <span className="text-fg-faint">{a.at}</span> · {a.actor} · {a.action} — {a.detail}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   );
 }

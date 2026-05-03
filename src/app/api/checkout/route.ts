@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { stripe } from "@/lib/stripe";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { checkCheckoutRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
+import { getTenantRowByClerkOrg } from "@/lib/saas/tenant-service";
 
 export async function POST(request: Request) {
   if (!(await checkCheckoutRate(clientIp(request)))) {
@@ -36,6 +39,22 @@ export async function POST(request: Request) {
           },
         ];
 
+  let sessionMetadata: Record<string, string> = { plan: "pro", source: "blackglass_checkout" };
+  if (isClerkAuthEnabled()) {
+    const { orgId } = await auth();
+    if (orgId) {
+      const rows = await getTenantRowByClerkOrg(orgId);
+      const tenant = rows[0];
+      if (tenant) {
+        sessionMetadata = {
+          ...sessionMetadata,
+          saas_tenant_id: tenant.id,
+          clerk_org_id: orgId,
+        };
+      }
+    }
+  }
+
   let session: Awaited<ReturnType<typeof stripe.checkout.sessions.create>>;
   try {
     session = await stripe.checkout.sessions.create({
@@ -51,8 +70,9 @@ export async function POST(request: Request) {
       payment_method_collection: "always",
       subscription_data: {
         // Pass metadata so the webhook can identify this subscription.
-        metadata: { plan: "pro", source: "blackglass_checkout" },
+        metadata: { ...sessionMetadata },
       },
+      metadata: sessionMetadata,
       // Attach invoice settings so every payment creates a downloadable PDF invoice.
       invoice_creation: undefined, // subscription mode creates invoices automatically
       // Auto-tax (disabled for now — enable once Stripe Tax is configured)

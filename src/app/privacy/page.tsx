@@ -39,7 +39,11 @@ export default function PrivacyPage() {
         <p>We process the following categories of personal data:</p>
         <Table
           rows={[
-            ["Account data", "Name, email address, password hash", "Account creation and authentication"],
+            [
+              "Account & access data",
+              "Billing contact via Stripe when subscribed; console authentication events (session tokens, IP at sign-in, role); deployment passphrase is not stored by us when supplied only via environment configuration",
+              "Account access, security audit trail, and subscription management",
+            ],
             ["Billing data", "Billing email, Stripe customer ID, subscription status", "Processing payments and managing your subscription"],
             ["Usage data", "IP address, browser/device type, pages visited, session duration", "Security, fraud prevention, service improvement"],
             ["Host configuration metadata", "Configuration state of Linux hosts you enrol (ports, users, packages, kernel params, etc.)", "Core service — computing drift and generating reports"],
@@ -83,7 +87,11 @@ export default function PrivacyPage() {
         <Table
           rows={[
             ["Stripe, Inc.", "Payment processing and billing portal", "United States (SCCs in place)"],
-            ["DigitalOcean, LLC", "Cloud infrastructure hosting (App Platform, Spaces)", "United States / EU (SCCs in place)"],
+            [
+              "DigitalOcean, LLC",
+              "Cloud infrastructure — App Platform (compute), Managed Databases (PostgreSQL when used), Managed Redis/Valkey (rate limits when configured), Spaces (S3-compatible object storage for optional audit/baseline artefacts)",
+              "United States / EU regions per your deployment (SCCs / UK IDTA as applicable)",
+            ],
             ["Sentry (Functional Software, Inc.)", "Error monitoring and performance tracing", "United States (SCCs in place)"],
           ]}
           headers={["Processor", "Purpose", "Location"]}
@@ -162,7 +170,18 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section title="12. Contact and complaints">
+      <Section title="12. Organisational customers (processor relationship)">
+        <p>
+          Where you deploy BLACKGLASS for an organisation and we process personal data on your
+          instructions, our{" "}
+          <Link href="/dpa" className="text-accent-blue hover:underline">
+            Data Processing Addendum
+          </Link>{" "}
+          supplements these disclosures for controller–processor relationships.
+        </p>
+      </Section>
+
+      <Section title="13. Contact and complaints">
         <p>
           Data protection enquiries:{" "}
           <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
@@ -178,8 +197,9 @@ export default function PrivacyPage() {
 
       <div className="mt-14 flex flex-wrap gap-4 border-t border-border-subtle pt-6 text-xs text-fg-faint">
         <Link href="/terms" className="text-accent-blue hover:underline">Terms of Service</Link>
+        <Link href="/dpa" className="text-accent-blue hover:underline">Data Processing Addendum</Link>
         <Link href="/pricing" className="text-accent-blue hover:underline">Pricing</Link>
-        <Link href="/" className="text-accent-blue hover:underline">Back to console</Link>
+        <Link href="/dashboard" className="text-accent-blue hover:underline">Back to console</Link>
         <span className="ml-auto">© {new Date().getFullYear()} Obsidian Dynamics Limited</span>
       </div>
     </main>

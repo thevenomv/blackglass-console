@@ -23,12 +23,15 @@ import {
 } from "@/lib/server/report-store";
 import { z } from "zod";
 import { NextResponse } from "next/server";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
+import {
+  requireSaasOperationalMutation,
+  requireSaasOrLegacyPermission,
+} from "@/lib/server/http/saas-access";
+import { canGenerateReportsForTenant } from "@/lib/saas/operations";
+import { emitSaasAudit } from "@/lib/saas/event-log";
 
 export const dynamic = "force-dynamic";
-
-// ---------------------------------------------------------------------------
-// POST body schema
-// ---------------------------------------------------------------------------
 
 const ReportPostSchema = z.object({
   scope: z.enum(["fleet", "tags", "host"]),
@@ -36,21 +39,34 @@ const ReportPostSchema = z.object({
   hostId: z.string().optional(),
 });
 
-// ---------------------------------------------------------------------------
-// Handlers
-// ---------------------------------------------------------------------------
-
 export async function GET() {
-  const guard = await requireRole(["auditor", "operator", "admin"]);
-  if (!guard.ok) return guard.response;
+  const access = await requireSaasOrLegacyPermission("reports.view", [
+    "viewer",
+    "auditor",
+    "operator",
+    "admin",
+  ]);
+  if (!access.ok) return access.response;
 
   const items = await listReports();
   return NextResponse.json({ items });
 }
 
 export async function POST(request: Request) {
-  const guard = await requireRole(["operator", "admin"]);
-  if (!guard.ok) return guard.response;
+  let legacyRole: string | null = null;
+  let saasUserId: string | null = null;
+  let saasTenantId: string | null = null;
+
+  if (isClerkAuthEnabled()) {
+    const m = await requireSaasOperationalMutation("drift.manage", canGenerateReportsForTenant);
+    if (!m.ok) return m.response;
+    saasUserId = m.ctx.userId;
+    saasTenantId = m.ctx.tenant.id;
+  } else {
+    const guard = await requireRole(["operator", "admin"]);
+    if (!guard.ok) return guard.response;
+    legacyRole = guard.role;
+  }
 
   if (!(await checkReportsPostRate(clientIp(request)))) {
     return jsonError(429, "rate_limited", "Too many report generation requests.");
@@ -68,16 +84,17 @@ export async function POST(request: Request) {
 
   const { scope, format, hostId } = parsed.data;
 
-  // Use crypto.randomUUID() for unguessable IDs — Math.random() is predictable.
   const id = `rpt-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
   const entry: ReportEntry = {
     id,
-    title: scope === "fleet"
-      ? `Fleet integrity — ${new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`
-      : scope === "host" && hostId
-        ? `Host ${hostId} — snapshot ${new Date().toISOString().slice(0, 10)}`
-        : `${scope} — ${new Date().toISOString().slice(0, 10)}`,
-    scope: scope === "fleet" ? "Fleet · all hosts" : scope === "host" ? `Host · ${hostId ?? "unknown"}` : `Tag · ${scope}`,
+    title:
+      scope === "fleet"
+        ? `Fleet integrity — ${new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`
+        : scope === "host" && hostId
+          ? `Host ${hostId} — snapshot ${new Date().toISOString().slice(0, 10)}`
+          : `${scope} — ${new Date().toISOString().slice(0, 10)}`,
+    scope:
+      scope === "fleet" ? "Fleet · all hosts" : scope === "host" ? `Host · ${hostId ?? "unknown"}` : `Tag · ${scope}`,
     generatedAt: new Date().toISOString(),
     status: "generating",
     format,
@@ -85,21 +102,27 @@ export async function POST(request: Request) {
 
   addReport(entry);
 
-  // Generate the report content asynchronously (fire-and-forget).
   void generateReport(id, scope, hostId);
 
   appendAudit({
     action: AUDIT_ACTIONS.REPORT_QUEUED,
     detail: `Report ${id} queued — scope: ${scope}, format: ${format}`,
-    actor: guard.role,
+    actor: legacyRole ?? saasUserId ?? "saas",
   });
+
+  if (saasTenantId && saasUserId) {
+    void emitSaasAudit({
+      tenantId: saasTenantId,
+      actorUserId: saasUserId,
+      action: "report.queued",
+      targetType: "report",
+      targetId: id,
+      metadata: { scope, format },
+    });
+  }
 
   return NextResponse.json(entry, { status: 202 });
 }
-
-// ---------------------------------------------------------------------------
-// Async report generation — builds JSON summary, marks ready/failed
-// ---------------------------------------------------------------------------
 
 async function generateReport(
   id: string,
@@ -124,4 +147,3 @@ async function generateReport(
     updateReport(id, { status: "failed", failReason: reason });
   }
 }
-

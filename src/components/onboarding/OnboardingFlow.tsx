@@ -266,7 +266,7 @@ export function OnboardingFlow() {
             · checksum <span className="font-mono text-xs text-fg-faint">sha256:5f2cb…</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/">
+            <Link href="/dashboard">
               <Button type="button">Open fleet dashboard</Button>
             </Link>
             <Link href="/hosts/host-07">

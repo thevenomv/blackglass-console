@@ -3,6 +3,10 @@ import { verifySession } from "@/lib/auth/session-signing";
 import { apiConfig, defaultGuestRole } from "@/lib/api/config";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
+import { requireTenantAuth } from "@/lib/saas/auth-context";
+import { toLegacyApiRole } from "@/lib/saas/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +14,38 @@ export const dynamic = "force-dynamic";
 const VALID: Role[] = ["viewer", "auditor", "operator", "admin"];
 
 export async function GET() {
+  if (isClerkAuthEnabled()) {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({
+        authenticated: false,
+        role: defaultGuestRole(),
+        tenantRole: null,
+        authRequired: true,
+        clerk: true,
+      });
+    }
+    try {
+      const ctx = await requireTenantAuth();
+      return NextResponse.json({
+        authenticated: true,
+        role: toLegacyApiRole(ctx.role),
+        tenantRole: ctx.role,
+        authRequired: true,
+        clerk: true,
+      });
+    } catch {
+      return NextResponse.json({
+        authenticated: true,
+        role: "viewer" as Role,
+        tenantRole: null,
+        authRequired: true,
+        clerk: true,
+        needsOrg: true,
+      });
+    }
+  }
+
   const jar = await cookies();
   const rawToken = jar.get("bg-session")?.value;
   // NOTE: bg-role is a plain (unsigned) cookie kept only so the client can
@@ -44,6 +80,7 @@ export async function GET() {
   return NextResponse.json({
     authenticated: authenticated || !apiConfig.authRequired,
     role,
+    tenantRole: null,
     authRequired: apiConfig.authRequired,
   });
 }

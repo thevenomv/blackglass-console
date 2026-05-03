@@ -253,7 +253,7 @@ export function ReportsView({ reports }: { reports: ReportRecord[] }) {
 
       <p className="text-xs text-fg-faint">
         Preview narratives reference{" "}
-        <Link href="/" className="text-accent-blue hover:underline">
+        <Link href="/dashboard" className="text-accent-blue hover:underline">
           fleet posture
         </Link>{" "}
         — swap mock rows for <span className="font-mono">GET /reports</span> when wiring APIs.

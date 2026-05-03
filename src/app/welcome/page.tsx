@@ -141,7 +141,7 @@ export default function WelcomePage() {
           {allDone ? (
             <div className="mt-3 rounded-card border border-success/40 bg-success-soft/25 px-4 py-3 text-sm text-fg-muted">
               All systems configured —{" "}
-              <Link href="/" className="font-medium text-accent-blue hover:underline">
+              <Link href="/dashboard" className="font-medium text-accent-blue hover:underline">
                 go to the fleet dashboard
               </Link>
               .
@@ -155,7 +155,7 @@ export default function WelcomePage() {
                 Run setup wizard
               </Link>
               <Link
-                href="/"
+                href="/dashboard"
                 className="inline-flex h-8 items-center rounded-md border border-border-default px-3 text-xs text-fg-muted transition-colors hover:text-fg-primary"
               >
                 Skip to dashboard

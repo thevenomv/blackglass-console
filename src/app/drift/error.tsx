@@ -20,7 +20,7 @@ export default function DriftRouteError({
         retryLabel="Retry"
         onRetry={reset}
       />
-      <Link href="/" className="text-sm font-medium text-accent-blue hover:underline">
+      <Link href="/dashboard" className="text-sm font-medium text-accent-blue hover:underline">
         Back to dashboard
       </Link>
       {error.digest ? (

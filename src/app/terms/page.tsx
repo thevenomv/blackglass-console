@@ -108,6 +108,15 @@ export default function TermsPage() {
           contents, environment variables, or secrets. You retain ownership of all host data
           collected through the Service.
         </p>
+        <p className="mt-2">
+          If you use BLACKGLASS on behalf of an organisation and we process personal data for you,
+          our{" "}
+          <Link href="/dpa" className="text-accent-blue hover:underline">
+            Data Processing Addendum
+          </Link>{" "}
+          describes our processor commitments and references infrastructure providers such as
+          DigitalOcean where the Service is hosted.
+        </p>
       </Section>
 
       <Section title="7. Intellectual property">
@@ -181,8 +190,9 @@ export default function TermsPage() {
 
       <div className="mt-14 flex flex-wrap gap-4 border-t border-border-subtle pt-6 text-xs text-fg-faint">
         <Link href="/privacy" className="text-accent-blue hover:underline">Privacy Policy</Link>
+        <Link href="/dpa" className="text-accent-blue hover:underline">Data Processing Addendum</Link>
         <Link href="/pricing" className="text-accent-blue hover:underline">Pricing</Link>
-        <Link href="/" className="text-accent-blue hover:underline">Back to console</Link>
+        <Link href="/dashboard" className="text-accent-blue hover:underline">Back to console</Link>
         <span className="ml-auto">© {new Date().getFullYear()} Obsidian Dynamics Limited</span>
       </div>
     </main>

@@ -4,7 +4,7 @@ import { signSession, SESSION_TTL_SECONDS } from "@/lib/auth/session-signing";
 import { timingSafeEqual, createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { checkLoginRate } from "@/lib/server/rate-limit";
+import { checkLoginRate, clientIpFromHeaders } from "@/lib/server/rate-limit";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 
 const SESSION = "bg-session";
@@ -38,37 +38,49 @@ function resolveRole(provided: string): "admin" | "operator" {
   return expected && provided ? "admin" : "operator";
 }
 
-async function getClientIp(): Promise<string> {
-  // headers() is async in Next.js 15 Server Actions.
-  const hdrs = await headers();
-  const realIp = hdrs.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-  const xf = hdrs.get("x-forwarded-for");
-  if (xf) {
-    const parts = xf.split(",").map((s: string) => s.trim()).filter(Boolean);
-    const last = parts[parts.length - 1];
-    if (last) return last;
-  }
-  return "local";
-}
-
 export async function signIn(formData: FormData) {
   const jar = await cookies();
+  const hdrs = await headers();
   const nextParam = String(formData.get("next") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const requestId = hdrs.get("x-request-id")?.trim() ?? undefined;
 
-  const ip = await getClientIp();
+  const ip = clientIpFromHeaders(hdrs);
+  const authRequired = process.env.AUTH_REQUIRED === "true";
+
+  if (authRequired && formData.get("legal_accept") !== "on") {
+    const qs = new URLSearchParams({ error: "legal_required" });
+    if (nextParam.startsWith("/") && !nextParam.startsWith("//")) qs.set("next", nextParam);
+    appendAudit({
+      action: AUDIT_ACTIONS.AUTH_LOGIN_FAILED,
+      detail: "Terms/Privacy acceptance not given",
+      actor: ip,
+      request_id: requestId,
+    });
+    redirect(`/login?${qs.toString()}`);
+  }
+
   if (!(await checkLoginRate(ip))) {
     const qs = new URLSearchParams({ error: "too_many_attempts" });
     if (nextParam.startsWith("/") && !nextParam.startsWith("//")) qs.set("next", nextParam);
-    appendAudit({ action: AUDIT_ACTIONS.AUTH_LOGIN_FAILED, detail: "Rate limited", actor: ip });
+    appendAudit({
+      action: AUDIT_ACTIONS.AUTH_LOGIN_FAILED,
+      detail: "Rate limited",
+      actor: ip,
+      request_id: requestId,
+    });
     redirect(`/login?${qs.toString()}`);
   }
 
   if (!validatePassword(password)) {
     const qs = new URLSearchParams({ error: "invalid_credentials" });
     if (nextParam.startsWith("/") && !nextParam.startsWith("//")) qs.set("next", nextParam);
-    appendAudit({ action: AUDIT_ACTIONS.AUTH_LOGIN_FAILED, detail: "Invalid credentials", actor: ip });
+    appendAudit({
+      action: AUDIT_ACTIONS.AUTH_LOGIN_FAILED,
+      detail: "Invalid credentials",
+      actor: ip,
+      request_id: requestId,
+    });
     redirect(`/login?${qs.toString()}`);
   }
 
@@ -95,18 +107,31 @@ export async function signIn(formData: FormData) {
     maxAge,
     secure,
   });
-  appendAudit({ action: AUDIT_ACTIONS.AUTH_LOGIN_SUCCESS, detail: `Role: ${role}`, actor: ip });
+  appendAudit({
+    action: AUDIT_ACTIONS.AUTH_LOGIN_SUCCESS,
+    detail: `Role: ${role}`,
+    actor: ip,
+    request_id: requestId,
+  });
   // Validate the `next` path: only allow same-origin relative paths starting with /
   const safePath =
-    nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";
+    nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/dashboard";
   redirect(safePath);
 }
 
 export async function signOut() {
   const jar = await cookies();
+  const hdrs = await headers();
+  const requestId = hdrs.get("x-request-id")?.trim() ?? undefined;
+  const ip = clientIpFromHeaders(hdrs);
   jar.delete(SESSION);
   jar.delete(ROLE);
-  appendAudit({ action: AUDIT_ACTIONS.AUTH_LOGOUT, detail: "Session ended" });
+  appendAudit({
+    action: AUDIT_ACTIONS.AUTH_LOGOUT,
+    detail: "Session ended",
+    actor: ip,
+    request_id: requestId,
+  });
   redirect("/login");
 }
 

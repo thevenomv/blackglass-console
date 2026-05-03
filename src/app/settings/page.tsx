@@ -1,3 +1,6 @@
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
+import { requireTenantAuth, SaasAuthError } from "@/lib/saas/auth-context";
+import { redirect } from "next/navigation";
 import { signOut } from "@/app/(auth)/login/actions";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -8,8 +11,21 @@ import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 import { Button } from "@/components/ui/Button";
 import { getLimits } from "@/lib/plan";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
   const limits = getLimits();
+
+  if (isClerkAuthEnabled()) {
+    try {
+      const ctx = await requireTenantAuth();
+      if (ctx.role === "guest_auditor") {
+        redirect("/reports");
+      }
+    } catch (e) {
+      if (e instanceof SaasAuthError && e.status === 400) {
+        redirect("/select-workspace");
+      }
+    }
+  }
 
   return (
     <AppShell>

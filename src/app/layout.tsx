@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { ClerkProvider } from "@clerk/nextjs";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/auth/SessionProvider";
 import { Providers } from "@/components/providers/Providers";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { siteOrigin, siteShouldNoindex } from "@/lib/site";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 
 const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -84,6 +86,15 @@ export default function RootLayout({
         })
       : null;
 
+  const clerkOn = isClerkAuthEnabled();
+  const inner = (
+        <ThemeProvider>
+          <SessionProvider>
+            <Providers>{children}</Providers>
+          </SessionProvider>
+        </ThemeProvider>
+  );
+
   return (
     <html lang="en-GB" data-theme="dark" suppressHydrationWarning>
       <body className={`${plexSans.variable} ${plexMono.variable}`}>
@@ -97,11 +108,13 @@ export default function RootLayout({
         <Script id="blackglass-theme-init" strategy="beforeInteractive">
           {themeInit}
         </Script>
-        <ThemeProvider>
-          <SessionProvider>
-            <Providers>{children}</Providers>
-          </SessionProvider>
-        </ThemeProvider>
+        {clerkOn ? (
+          <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!}>
+            {inner}
+          </ClerkProvider>
+        ) : (
+          inner
+        )}
       </body>
     </html>
   );

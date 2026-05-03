@@ -195,6 +195,7 @@ export function appendAudit(
     detail: row.detail,
     actor: row.actor,
     scan_id: row.scan_id,
+    request_id: row.request_id,
   };
   const entries = store();
   entries.unshift(entry);
@@ -209,6 +210,20 @@ export function appendAudit(
   return entry;
 }
 
-export function readAudit(limit = 100): AuditEntry[] {
-  return store().slice(0, Math.min(limit, MAX));
+export function readAudit(
+  limit = 100,
+  opts?: { actionContains?: string; sinceIso?: string },
+): AuditEntry[] {
+  let rows = store();
+  if (opts?.actionContains) {
+    const q = opts.actionContains.toLowerCase();
+    rows = rows.filter((e) => e.action.toLowerCase().includes(q));
+  }
+  if (opts?.sinceIso) {
+    const since = Date.parse(opts.sinceIso);
+    if (Number.isFinite(since)) {
+      rows = rows.filter((e) => Date.parse(e.ts) >= since);
+    }
+  }
+  return rows.slice(0, Math.min(limit, MAX));
 }

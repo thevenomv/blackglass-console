@@ -267,7 +267,7 @@ export function DriftEventsView({
           title="Drift"
           subtitle="High-signal deltas grouped by integrity class — open an event to investigate."
           breadcrumbs={[
-            { href: "/", label: "Dashboard" },
+            { href: "/dashboard", label: "Dashboard" },
             { href: "/drift", label: "Drift" },
           ]}
           actions={<RunScanButton />}
@@ -506,7 +506,7 @@ function CardHint() {
   return (
     <div className="rounded-card border border-border-subtle bg-bg-panel/60 px-4 py-3 text-sm text-fg-muted">
       Need fleet context? Cross-check recommended actions on the{" "}
-      <Link href="/" className="text-accent-blue hover:underline">
+      <Link href="/dashboard" className="text-accent-blue hover:underline">
         fleet dashboard
       </Link>
       .

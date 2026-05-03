@@ -109,7 +109,7 @@ export default async function PricingSuccessPage({ searchParams }: Props) {
 
         <div className="mt-8 flex flex-col gap-3">
           <Link
-            href="/"
+            href="/dashboard"
             className="block w-full rounded-card bg-accent-blue py-2.5 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-bg-panel"
           >
             Go to console

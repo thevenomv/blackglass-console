@@ -11,13 +11,25 @@ export const AuditPostBodySchema = z.object({
   scan_id: z.string().min(1).max(512).trim().optional(),
 });
 
-/** GET /api/v1/audit/events?limit= */
+const optionalQueryTrimmed = (max: number) =>
+  z
+    .union([z.string(), z.null(), z.undefined()])
+    .optional()
+    .transform((v) => {
+      if (v == null) return undefined;
+      const t = String(v).trim();
+      return t === "" ? undefined : t.slice(0, max);
+    });
+
+/** GET /api/v1/audit/events?limit=&action=&since= */
 export const AuditEventsQuerySchema = z.object({
   limit: z.preprocess((val: unknown) => {
     if (val === null || val === undefined || val === "") return 80;
     const n = typeof val === "string" ? Number(val.trim()) : Number(val);
     return Number.isFinite(n) ? n : NaN;
   }, z.number().int().min(1).max(200)),
+  action: optionalQueryTrimmed(200),
+  since: optionalQueryTrimmed(40),
 });
 
 const LIFECYCLES = [
@@ -28,7 +40,7 @@ const LIFECYCLES = [
   "verified",
 ] as const;
 
-/** GET /api/v1/drift?hostId=&lifecycle= */
+/** GET /api/v1/drift?hostId=&lifecycle=&limit=&cursor= */
 export const DriftQuerySchema = z.object({
   hostId: z.preprocess((val: unknown) => {
     if (val === null || val === undefined) return undefined;
@@ -40,6 +52,16 @@ export const DriftQuerySchema = z.object({
     const s = String(val).trim();
     return s === "" ? undefined : s;
   }, z.enum(LIFECYCLES).optional()),
+  limit: z
+    .union([z.string(), z.number(), z.null(), z.undefined()])
+    .optional()
+    .transform((v) => {
+      if (v === null || v === undefined || v === "") return 100;
+      const n = typeof v === "string" ? Number(String(v).trim()) : Number(v);
+      if (!Number.isFinite(n)) return 100;
+      return Math.min(200, Math.max(1, Math.floor(n)));
+    }),
+  cursor: optionalQueryTrimmed(256),
 });
 
 /**

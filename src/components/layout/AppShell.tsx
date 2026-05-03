@@ -5,12 +5,19 @@ import { useState } from "react";
 import { MockDataBanner } from "@/components/layout/MockDataBanner";
 import { MobileNavBar } from "@/components/layout/MobileNavBar";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { SaasTrialBanner } from "@/components/saas/SaasTrialBanner";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-bg-base">
+      <a
+        href="#main-content"
+        className="fixed left-2 top-2 z-[60] -translate-y-20 rounded-md bg-bg-elevated px-3 py-2 text-sm text-fg-primary opacity-0 shadow-elevated transition focus:translate-y-0 focus:opacity-100"
+      >
+        Skip to main content
+      </a>
       <div className="hidden shrink-0 lg:block">
         <Sidebar />
       </div>
@@ -36,8 +43,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <MobileNavBar onOpenNav={() => setMobileOpen(true)} />
+        <SaasTrialBanner />
         <MockDataBanner />
-        <div className="min-w-0 flex-1">{children}</div>
+        <div id="main-content" tabIndex={-1} className="min-w-0 flex-1 outline-none">
+          {children}
+        </div>
       </div>
     </div>
   );

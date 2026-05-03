@@ -2,6 +2,7 @@
 
 import type { Role } from "@/lib/auth/permissions";
 import { can } from "@/lib/auth/permissions";
+import type { TenantRole } from "@/lib/saas/tenant-role";
 import {
   createContext,
   useCallback,
@@ -17,6 +18,8 @@ type SessionState = {
   loading: boolean;
   role: Role;
   authenticated: boolean;
+  /** Clerk workspace role when authenticated; null for legacy sessions or needsOrg. */
+  tenantRole: TenantRole | null;
 };
 
 type SessionApi = SessionState & {
@@ -33,6 +36,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     loading: true,
     role: "operator",
     authenticated: false,
+    tenantRole: null,
   });
 
   const refresh = useCallback(async () => {
@@ -45,7 +49,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const data = (await res.json()) as SessionState & { authRequired?: boolean };
+    const data = (await res.json()) as SessionState & {
+      authRequired?: boolean;
+      needsOrg?: boolean;
+    };
 
     // authRequired=true but not authenticated → redirect to login.
     if (data.authRequired && !data.authenticated) {
@@ -58,6 +65,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loading: false,
       role: data.role,
       authenticated: data.authenticated,
+      tenantRole: data.tenantRole ?? null,
     });
   }, [pathname, router]);
 

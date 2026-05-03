@@ -13,7 +13,7 @@ export default function PricingPage() {
       <PricingSection />
       <div className="pb-16 text-center">
         <Link
-          href="/"
+          href="/dashboard"
           className="text-sm font-medium text-accent-blue hover:underline focus-visible:outline-none"
         >
           Back to console

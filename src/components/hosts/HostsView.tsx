@@ -84,7 +84,7 @@ export function HostsView({
         title="Hosts"
         subtitle="Inventory, readiness, and entry points into integrity review."
         breadcrumbs={[
-          { href: "/", label: "Dashboard" },
+          { href: "/dashboard", label: "Dashboard" },
           { href: "/hosts", label: "Hosts" },
         ]}
         actions={<RunScanButton />}

@@ -43,24 +43,32 @@ async function allowHybrid(key: string, limit: number, windowMs: number): Promis
   return allowed;
 }
 
-export function clientIp(request: Request): string {
-  // X-Real-IP is set by DigitalOcean / nginx to the originating client IP and
-  // cannot be spoofed by the client once the LB strips incoming headers.
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-
+function clientIpFromXff(xf: string | null): string | undefined {
+  if (!xf) return undefined;
+  const parts = xf
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   // X-Forwarded-For: "client, proxy1, proxyN". Take the LAST entry — appended
   // by the trusted downstream proxy — so a client-supplied forged prefix is ignored.
-  const xf = request.headers.get("x-forwarded-for");
-  if (xf) {
-    const parts = xf
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const last = parts[parts.length - 1];
-    if (last) return last;
-  }
+  const last = parts[parts.length - 1];
+  return last || undefined;
+}
+
+/**
+ * Client IP from **`Headers`** (Server Actions, Route Handlers with `headers()`).
+ * Prefer **`x-real-ip`** when set by DigitalOcean / nginx in front of App Platform.
+ */
+export function clientIpFromHeaders(h: Headers): string {
+  const realIp = h.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  const fromXff = clientIpFromXff(h.get("x-forwarded-for"));
+  if (fromXff) return fromXff;
   return "local";
+}
+
+export function clientIp(request: Request): string {
+  return clientIpFromHeaders(request.headers);
 }
 
 /** POST /api/v1/scans — enqueue abuse guard */
@@ -93,6 +101,11 @@ export function checkLoginRate(ip: string): Promise<boolean> {
  */
 export function checkInviteRate(ip: string): Promise<boolean> {
   return allowHybrid(`invite:${ip}`, 10, 60_000);
+}
+
+/** Clerk org invitation server actions — per IP throttle. */
+export function checkSaasMemberInviteRate(ip: string): Promise<boolean> {
+  return allowHybrid(`saas:invite:${ip}`, 24, 60_000);
 }
 
 /**
