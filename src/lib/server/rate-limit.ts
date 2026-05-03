@@ -35,11 +35,33 @@ async function allowHybrid(key: string, limit: number, windowMs: number): Promis
   const { allowRedisSlidingWindow } = await import("./rate-limit-redis");
   const redis = await allowRedisSlidingWindow(key, limit, windowMs);
   if (redis !== null) {
-    if (!redis) console.warn(`[rate-limit] Exceeded (redis): key=${key}`);
+    if (!redis) {
+      console.warn(
+        JSON.stringify({
+          level: "security",
+          event: "rate_limit_exceeded",
+          backend: "redis",
+          key,
+          limit,
+          windowMs,
+        }),
+      );
+    }
     return redis;
   }
   const allowed = allowMemory(key, limit, windowMs);
-  if (!allowed) console.warn(`[rate-limit] Exceeded (memory): key=${key}`);
+  if (!allowed) {
+    console.warn(
+      JSON.stringify({
+        level: "security",
+        event: "rate_limit_exceeded",
+        backend: "memory",
+        key,
+        limit,
+        windowMs,
+      }),
+    );
+  }
   return allowed;
 }
 

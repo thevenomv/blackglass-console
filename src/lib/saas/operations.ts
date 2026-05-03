@@ -1,11 +1,15 @@
 import type { SaasSubscription } from "@/db/schema";
 import { hasPermission } from "./permissions";
+import { canAssignRole } from "./permissions";
 import type { TenantRole } from "./tenant-role";
 import {
   isSubscriptionOperational,
   operationalBlockReason,
 } from "./trial";
 import { TRIAL_READ_ONLY } from "./trial-messages";
+import { soleOwnerDemotionBlocked } from "./member-guards";
+import { canAddPaidSeat, canApplyRoleChange } from "./seats";
+import { SaasAuthError } from "./auth-context";
 
 export function canRunScansForTenant(
   role: TenantRole,
@@ -148,4 +152,90 @@ export function withinHostAllowance(
     code: "host_cap",
     detail: `Host allowance is ${limit} on this plan.`,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Throwing policy wrappers — use these in route handlers instead of manual
+// `if (!can*(...)) return NextResponse.json(...)` checks.
+// ---------------------------------------------------------------------------
+
+type PolicyCtx = { role: TenantRole; subscription: SaasSubscription };
+
+function throwPolicy(result: { ok: true } | { ok: false; code: string; detail: string }): void {
+  if (!result.ok) {
+    const status = result.code === "host_cap" || result.code === "seat_cap_exceeded" ? 402 : 403;
+    throw new SaasAuthError(status, result.code, result.detail);
+  }
+}
+
+export function ensureCanRunScan(ctx: PolicyCtx): void {
+  throwPolicy(canRunScansForTenant(ctx.role, ctx.subscription));
+}
+
+export function ensureCanModifyBaselines(ctx: PolicyCtx): void {
+  throwPolicy(canModifyBaselinesForTenant(ctx.role, ctx.subscription));
+}
+
+export function ensureCanManageHosts(ctx: PolicyCtx): void {
+  throwPolicy(canManageHostsForTenant(ctx.role, ctx.subscription));
+}
+
+export function ensureCanGenerateReports(ctx: PolicyCtx): void {
+  throwPolicy(canGenerateReportsForTenant(ctx.role, ctx.subscription));
+}
+
+export function ensureCanRotateSecrets(ctx: PolicyCtx): void {
+  throwPolicy(canRotateSecretsForTenant(ctx.role, ctx.subscription));
+}
+
+export function ensureCanAppendInvestigationAudit(ctx: PolicyCtx): void {
+  throwPolicy(canAppendInvestigationAuditForTenant(ctx.role, ctx.subscription));
+}
+
+export function ensureCanChangeBilling(ctx: PolicyCtx): void {
+  throwPolicy(canChangeBillingForTenant(ctx.role, ctx.subscription));
+}
+
+export function ensureWithinHostAllowance(ctx: PolicyCtx, currentHostCount: number, delta = 1): void {
+  throwPolicy(withinHostAllowance(ctx.subscription, currentHostCount, delta));
+}
+
+/**
+ * Throws 403 if actor cannot assign `targetRole`, or 402 if the seat cap is reached.
+ * `memberships` — active membership rows for the tenant (from DB); used for seat-cap math.
+ */
+export function ensureCanInviteWithRole(
+  ctx: PolicyCtx,
+  targetRole: TenantRole,
+  memberships: { role: TenantRole; status: string }[],
+): void {
+  if (!canAssignRole(ctx.role, targetRole)) {
+    throw new SaasAuthError(403, "forbidden", `Role cannot assign '${targetRole}'.`);
+  }
+  const seat = canAddPaidSeat(memberships, ctx.subscription.paidSeatLimit, targetRole);
+  if (!seat.ok) {
+    throw new SaasAuthError(402, seat.reason, "Seat cap reached. Upgrade to add paid members.");
+  }
+}
+
+/**
+ * Throws 403 if actor cannot assign `targetRole` or if demoting the only owner,
+ * or 402 if the seat cap is exceeded after the role change.
+ */
+export function ensureCanChangeRole(
+  ctx: PolicyCtx,
+  targetRole: TenantRole,
+  targetUserId: string,
+  memberships: { userId: string; role: TenantRole; status: string }[],
+): void {
+  if (!canAssignRole(ctx.role, targetRole)) {
+    throw new SaasAuthError(403, "forbidden", `Role cannot assign '${targetRole}'.`);
+  }
+  if (soleOwnerDemotionBlocked(memberships, targetUserId, targetRole)) {
+    throw new SaasAuthError(403, "sole_owner", "Cannot demote the only active owner.");
+  }
+  const seat = canApplyRoleChange(memberships, targetUserId, targetRole, ctx.subscription.paidSeatLimit);
+  if (!seat.ok) {
+    throw new SaasAuthError(402, seat.reason, "Seat cap reached. Upgrade to change this role.");
+  }
 }

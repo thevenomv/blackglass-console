@@ -11,7 +11,6 @@ import { TRIAL_DAYS, TRIAL_HOST_LIMIT, TRIAL_PAID_SEAT_LIMIT } from "@/lib/saas/
 import { isTrialReadOnlyState } from "@/lib/saas/trial";
 
 const { saasTenants, saasSubscriptions, saasTenantMemberships } = schema;
-
 async function ensureTenantForClerkOrgWithDb(db: BlackglassDb, clerkOrgId: string, orgName: string) {
   const existing = await db
     .select()
@@ -145,5 +144,42 @@ export async function getMembership(tenantId: string, userId: string) {
       )
       .limit(1);
     return rows[0] ?? null;
+  });
+}
+
+/**
+ * Cancel a tenant's subscription when the Clerk organization is deleted.
+ * Deactivates all memberships and marks the subscription as "canceled".
+ * The tenant row and audit history are preserved for compliance.
+ */
+export async function cancelTenantByClerkOrg(clerkOrgId: string): Promise<void> {
+  return withBypassRls(async (db) => {
+    const tenantRows = await db
+      .select({ id: saasTenants.id })
+      .from(saasTenants)
+      .where(eq(saasTenants.clerkOrgId, clerkOrgId))
+      .limit(1);
+    const tenantId = tenantRows[0]?.id;
+    if (!tenantId) return;
+    await db
+      .update(saasSubscriptions)
+      .set({ status: "canceled", updatedAt: new Date() })
+      .where(eq(saasSubscriptions.tenantId, tenantId));
+    await db
+      .update(saasTenantMemberships)
+      .set({ status: "deactivated" })
+      .where(eq(saasTenantMemberships.tenantId, tenantId));
+  });
+}
+
+/**
+ * Remove all memberships for a deleted Clerk user across all tenants.
+ * Called when a `user.deleted` event is received from Clerk.
+ */
+export async function deleteAllMembershipsForUser(userId: string): Promise<void> {
+  return withBypassRls(async (db) => {
+    await db
+      .delete(saasTenantMemberships)
+      .where(eq(saasTenantMemberships.userId, userId));
   });
 }

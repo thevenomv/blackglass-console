@@ -30,6 +30,12 @@ const clerkPublic = createRouteMatcher([
   "/pricing/success(.*)",
   "/demo(.*)",
   "/login(.*)",
+  // API routes that authenticate via their own mechanisms (webhook sig / collector API key)
+  "/api/health(.*)",
+  "/api/webhooks/(.*)",
+  "/api/checkout/webhook(.*)",
+  "/api/v1/ingest(.*)",
+  "/api/v1/collector/(.*)",
 ]);
 
 const clerkMw = clerkMiddleware(async (auth, request) => {
@@ -68,6 +74,17 @@ async function legacyMiddleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/api/auth/invite")) {
+    return withRequestId(request, requestId);
+  }
+
+  // Routes with their own auth (webhook signatures, collector API keys)
+  if (
+    pathname.startsWith("/api/health") ||
+    pathname.startsWith("/api/webhooks") ||
+    pathname.startsWith("/api/checkout/webhook") ||
+    pathname.startsWith("/api/v1/ingest") ||
+    pathname.startsWith("/api/v1/collector")
+  ) {
     return withRequestId(request, requestId);
   }
 

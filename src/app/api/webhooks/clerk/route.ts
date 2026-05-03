@@ -9,6 +9,8 @@ import {
   getTenantRowByClerkOrg,
   parseMembershipRole,
   upsertMembership,
+  cancelTenantByClerkOrg,
+  deleteAllMembershipsForUser,
 } from "@/lib/saas/tenant-service";
 import { claimWebhookEvent } from "@/lib/saas/webhook-idempotency";
 import { emitSaasAudit, emitSaasSecurity } from "@/lib/saas/event-log";
@@ -149,6 +151,35 @@ export async function POST(request: Request) {
             }
             await deleteMembership(orgId, userId);
           }
+        }
+        break;
+      }
+      case "organization.deleted": {
+        // Clerk org deleted — cancel subscription and deactivate all memberships.
+        // Tenant row and audit history are retained for compliance.
+        const orgId = typeof evt.data.id === "string" ? evt.data.id : "";
+        if (orgId) {
+          const rows = await getTenantRowByClerkOrg(orgId);
+          const tenantId = rows[0]?.id;
+          await cancelTenantByClerkOrg(orgId);
+          if (tenantId) {
+            await emitSaasAudit({
+              tenantId,
+              actorUserId: null,
+              action: "tenant.canceled",
+              targetType: "organization",
+              targetId: orgId,
+              metadata: { source: "clerk_webhook", clerkEvent: "organization.deleted" },
+            });
+          }
+        }
+        break;
+      }
+      case "user.deleted": {
+        // User deleted from Clerk — remove from all tenants.
+        const userId = typeof evt.data.id === "string" ? evt.data.id : "";
+        if (userId) {
+          await deleteAllMembershipsForUser(userId);
         }
         break;
       }

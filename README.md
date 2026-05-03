@@ -55,6 +55,28 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 - **Next.js 16:** `main` ships **next@16** ([upgrade notes](docs/nextjs-16-upgrade.md)).
 - **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, OpenAPI, Zod schema diff, typecheck, unit tests, production build). Under OneDrive + Windows quirks, prefer **`npm run verify:stage0:clean`** (see [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)).
 
+## Architecture overview
+
+Multi-tenant SaaS console with Clerk for auth, Drizzle ORM + PostgreSQL for data, Stripe for billing, and DigitalOcean App Platform for hosting. See [PROJECT_FILES.md](PROJECT_FILES.md) for the full file map.
+
+### Key data-flow invariants
+
+| Concern | Canonical file |
+|---------|---------------|
+| Tenant auth context | [`src/lib/saas/auth-context.ts`](src/lib/saas/auth-context.ts) — `requireTenantContext()` is the entry point for every authenticated route |
+| Authorization policy | [`src/lib/saas/operations.ts`](src/lib/saas/operations.ts) — `can*` checks + `ensure*` throwing wrappers; never duplicated in route handlers |
+| Data isolation (RLS) | [`src/db/index.ts`](src/db/index.ts) — `withTenantRls` for app reads/writes, `withBypassRls` for webhooks/migrations only |
+| Schema | [`src/db/schema.ts`](src/db/schema.ts) + migrations in [`docs/migrations/`](docs/migrations/) |
+| Billing | [`src/lib/saas/stripe-sync.ts`](src/lib/saas/stripe-sync.ts) — idempotent status mapping from Stripe events |
+| Plan limits | [`src/lib/saas/plans.ts`](src/lib/saas/plans.ts) — only source of `hostLimit` / `paidSeatLimit` |
+| Observability | [`src/lib/observability/sentry-saas.ts`](src/lib/observability/sentry-saas.ts) — Sentry tags `tenant_id`, `user_id`, `plan`, `env` |
+
+### Migration safety
+
+- Always connect via direct port `25060` (not pgBouncer `25061`) when running `drizzle-kit migrate`.
+- Migration `008_subscription_status_past_due.sql` (`ALTER TYPE ... ADD VALUE`) **must** be executed **outside a transaction block** — use `scripts/run-migration-008.mjs`.
+- Apply migrations `004`–`006`, `008` first. Deploy app. Then apply `007` (RLS policies) once the app is confirmed live and setting `bg.tenant_id` GUC per request.
+
 ## Shipping
 
 - **`git push` → GitHub Actions** on `main` / `staging` / PRs runs audit, lint, typecheck, OpenAPI, unit tests, **`next build`** (TypeScript enforced), **`test:e2e`** and **`test:e2e:live`** (SSR with `NEXT_PUBLIC_USE_MOCK=false`).

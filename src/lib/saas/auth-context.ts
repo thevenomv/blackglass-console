@@ -22,6 +22,18 @@ export type TenantAuthContext = {
   subscription: SaasSubscription;
 };
 
+/**
+ * Flat, strongly-typed context object passed to policy functions and route handlers.
+ * Use `requireTenantContext()` to obtain one; it throws `SaasAuthError` on failure.
+ */
+export type SaasContext = {
+  tenantId: string;
+  userId: string;
+  role: TenantRole;
+  subscription: SaasSubscription;
+  clerkOrgId: string;
+};
+
 export class SaasAuthError extends Error {
   constructor(
     public status: number,
@@ -104,6 +116,8 @@ export async function requireTenantAuth(): Promise<TenantAuthContext> {
     tenantId: tenant.id,
     clerkOrgId: orgId,
     requestId: h.get("x-request-id") ?? undefined,
+    userId,
+    plan: subscription.planCode,
   });
 
   return {
@@ -143,5 +157,35 @@ export async function requireRecentPrimaryVerification(maxAgeSeconds = 600): Pro
       "step_up_required",
       "Recent reverification required for this action.",
     );
+  }
+}
+
+/**
+ * Resolves the authenticated tenant context as a flat `SaasContext` object.
+ * Throws `SaasAuthError` (401/403/503) if the caller is not authenticated,
+ * not a member of an organization, or the database is unavailable.
+ *
+ * Prefer this over `requireTenantAuth()` in new code — the flat shape makes
+ * policy functions, `ensure*` wrappers, and Sentry tagging straightforward.
+ */
+export async function requireTenantContext(): Promise<SaasContext> {
+  const ctx = await requireTenantAuth();
+  return {
+    tenantId: ctx.tenant.id,
+    userId: ctx.userId,
+    role: ctx.role,
+    subscription: ctx.subscription,
+    clerkOrgId: ctx.orgId,
+  };
+}
+
+/**
+ * Throws `SaasAuthError(403)` if `ctx.role` does not hold `permission`.
+ * Call after `requireTenantContext()` or `requireTenantAuth()` for fine-grained
+ * per-action checks without writing inline `if (!hasPermission(...))` blocks.
+ */
+export function requirePermission(permission: SaasPermission, ctx: SaasContext): void {
+  if (!hasPermission(ctx.role, permission)) {
+    throw new SaasAuthError(403, "forbidden", `Missing permission: ${permission}`);
   }
 }

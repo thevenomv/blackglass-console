@@ -276,6 +276,52 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 
 ## `src/lib/server/` — Server-only
 
+---
+
+## Source of Truth — Authoritative files by concern
+
+> When modifying auth, data access, billing, or tenant logic, start here.
+> These files contain the single, canonical implementation — do not duplicate their logic elsewhere.
+
+### Auth / Tenant Context
+
+| File | Purpose |
+|------|---------|
+| `src/lib/saas/auth-context.ts` | `requireTenantContext()`, `requirePermission()`, `SaasContext` type, `SaasAuthError` |
+| `src/lib/saas/tenant-service.ts` | DB access for tenant provisioning, membership CRUD, subscription lookup |
+
+### Authorization / Policy
+
+| File | Purpose |
+|------|---------|
+| `src/lib/saas/operations.ts` | `can*` check functions + `ensure*` throwing wrappers — the **only** place operational policy is evaluated |
+| `src/lib/saas/permissions.ts` | Role → permission matrix (`hasPermission`, `canAssignRole`) |
+| `src/lib/saas/seats.ts` | Seat-cap math (`canAddPaidSeat`, `canApplyRoleChange`) |
+| `src/lib/saas/trial.ts` | Trial / subscription state gates (`isSubscriptionOperational`, `operationalBlockReason`) |
+| `src/lib/saas/member-guards.ts` | Sole-owner demotion guard |
+
+### Data Isolation (RLS)
+
+| File | Purpose |
+|------|---------|
+| `src/db/schema.ts` | Drizzle schema — single source of table definitions and types |
+| `src/db/index.ts` | `withTenantRls` (tenant reads/writes) + `withBypassRls` (webhooks/migrations only) |
+| `docs/migrations/007_saas_rls.sql` | PostgreSQL RLS policies — apply **after** deploying app code |
+
+### Billing / Stripe
+
+| File | Purpose |
+|------|---------|
+| `src/lib/saas/stripe-sync.ts` | `syncSaasSubscriptionFromStripe` — idempotent status mapping |
+| `src/lib/saas/plans.ts` | Plan definitions (`hostLimit`, `paidSeatLimit`) — the only source of plan limits |
+| `src/app/api/checkout/webhook/route.ts` | Stripe webhook handler (sig verification + idempotency) |
+
+### Observability
+
+| File | Purpose |
+|------|---------|
+| `src/lib/observability/sentry-saas.ts` | `applySaasSentryContext` — tags every Sentry event with `tenant_id`, `user_id`, `plan`, `env` |
+| `src/lib/saas/event-log.ts` | `emitSaasAudit` / `emitSaasSecurity` — structured DB security event log |
 
 | File                           | Role                                                                                              |
 | ------------------------------ | ------------------------------------------------------------------------------------------------- |

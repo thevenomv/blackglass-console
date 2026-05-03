@@ -44,8 +44,15 @@ export function getDb() {
 export type BlackglassDb = ReturnType<typeof createDb>;
 
 /**
- * Trusted server paths only (Clerk/Stripe webhooks, tenant provisioning).
- * Sets Postgres GUCs for one transaction so RLS policies allow cross-tenant writes.
+ * @internal — **Restricted to a small set of trusted server paths.**
+ * Allowed callers:
+ *   - Clerk/Stripe webhook handlers (`src/app/api/webhooks/`)
+ *   - Tenant provisioning (`src/lib/saas/tenant-service.ts`)
+ *   - Admin / maintenance scripts (`scripts/`)
+ *   - Drizzle migrations
+ *
+ * All other app code **must** use `withTenantRls` to enforce per-tenant data isolation.
+ * Sets `app.bypass_rls=1` so RLS policies allow cross-tenant writes for one transaction.
  * @see docs/migrations/007_saas_rls.sql
  */
 export async function withBypassRls<T>(fn: (db: BlackglassDb) => Promise<T>): Promise<T> {
@@ -60,6 +67,10 @@ export async function withBypassRls<T>(fn: (db: BlackglassDb) => Promise<T>): Pr
 /**
  * Per-request tenant scope for RLS. Must match the authenticated workspace UUID
  * (`saas_tenants.id`), not the Clerk organization id.
+ *
+ * This is the **only** way app code should read or write tenant-scoped data.
+ * GUCs are scoped to the transaction and automatically reset when it completes,
+ * which is safe under pgBouncer's transaction-mode pooling.
  */
 export async function withTenantRls<T>(
   tenantId: string,
