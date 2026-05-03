@@ -1,4 +1,6 @@
 -- Row-level security for multi-tenant SaaS tables (defense in depth).
+-- **Apply only after deploying application code** that uses `withTenantRls` / `withBypassRls`
+-- (`src/db/index.ts`). Otherwise tenant-scoped queries may return no rows.
 -- App sessions set GUCs per transaction:
 --   SELECT set_config('app.tenant_id', '<uuid>', true);
 --   SELECT set_config('app.bypass_rls', '1', true);   -- trusted webhooks / maintenance only
