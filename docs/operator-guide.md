@@ -344,6 +344,19 @@ curl -X POST http://localhost:3000/api/v1/scans -H "Content-Type: application/js
 
 ---
 
+## 9b. Managed Postgres backup (SaaS)
+
+For Clerk + `DATABASE_URL` deployments:
+
+1. **Enable automated backups** on your provider (e.g. DigitalOcean Managed Postgres daily backups + point-in-time where offered).
+2. **Test a restore** at least once into a scratch instance and run `docs/migrations/*.sql` from scratch on empty DB, then document your RPO/RTO with stakeholders.
+3. **Store credentials** for standby restores only in your secrets manager; never in the repo.
+4. **Webhook idempotency** (`saas_webhook_idempotency`) is safe to restore with the rest of the tenant snapshot — replayed Stripe/Clerk events will no-op on unique `(source, event_key)`. Schedule `npm run prune:webhooks` weekly (or `scripts/prune-webhook-idempotency.mjs --days=30`) to cap table growth.
+5. **Row-level security:** after `docs/migrations/004`–`006`, apply `docs/migrations/007_saas_rls.sql`. The app sets `app.tenant_id` / `app.bypass_rls` per transaction (`src/db/index.ts`). Ops scripts that delete across tenants (e.g. audit prune) must set bypass or use a privileged role (see `docs/postgres-rls-sketch.md`).
+6. **Billing consistency:** schedule `npm run reconcile:billing` daily (Stripe + optional `RECONCILE_CLERK_ORGS=1` with `CLERK_SECRET_KEY`) to catch webhook gaps.
+
+---
+
 ## 10. Troubleshooting
 
 
