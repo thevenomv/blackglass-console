@@ -28,13 +28,13 @@ export default function ProductPage() {
         </h1>
         <p className="mt-4 text-lg leading-relaxed">
           BLACKGLASS standardizes how you capture approved SSH and listener baselines, run drift
-          scans on demand, and export auditor-ready evidence — with Clerk organizations for workspace
-          isolation and Stripe-backed plans when you move from trial to production.
+          scans on demand, and export auditor-ready evidence — with workspace isolation per
+          organisation and subscription-backed plans when you move from trial to production.
         </p>
         <ul className="mt-8 list-disc space-y-2 pl-5 text-sm">
           <li>Push-ingest agents for hosts that cannot be pulled over SSH from the internet.</li>
           <li>Role-based access including read-only guest auditors for external review.</li>
-          <li>Hosted webhook idempotency for Stripe and Clerk at scale-out.</li>
+          <li>Reliable event delivery with idempotent webhook processing at scale.</li>
         </ul>
         <div className="mt-10 flex flex-wrap gap-3">
           <Link

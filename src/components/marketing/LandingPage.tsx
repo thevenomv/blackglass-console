@@ -241,8 +241,8 @@ export function LandingPage() {
             <h2 className="text-2xl font-semibold text-fg-primary">Security &amp; trust</h2>
             <ul className="mt-6 grid gap-3 sm:grid-cols-2">
               {[
-                "Tenant-isolated workspace data in PostgreSQL; app roles enforced server-side — never from the browser alone.",
-                "Clerk-hosted authentication with mandatory MFA; optional step-up for sensitive mutations.",
+                "Workspace data is fully isolated per tenant; access roles are enforced server-side — never from the browser alone.",
+                "Mandatory MFA on every account; optional step-up authentication for sensitive mutations.",
                 "Audit trail for invites, scans, baseline changes, and billing-related events.",
                 "TLS in transit; least-privilege collector semantics — no harvesting of env vars or private keys into BLACKGLASS storage.",
               ].map((t) => (
@@ -286,8 +286,7 @@ export function LandingPage() {
             Already using BLACKGLASS?{" "}
             <Link href={signIn} className="text-accent-blue hover:underline">
               Sign in to console
-            </Link>{" "}
-            (<Link href="/dashboard" className="text-accent-blue hover:underline">/dashboard</Link>).
+            </Link>.
           </p>
         </section>
       </main>

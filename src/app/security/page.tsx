@@ -24,16 +24,16 @@ export default function SecurityPage() {
         <h2 className="mt-10 text-base font-semibold text-fg-primary">Identity &amp; access</h2>
         <ul className="mt-3 list-disc space-y-2 pl-5">
           <li>
-            Production workspaces use <strong className="text-fg-primary">Clerk</strong> for
-            sign-in, organizations, and sessions.
+            Sign-in, workspace organisations, and sessions are handled by a dedicated identity
+            provider — no passwords stored directly in BLACKGLASS.
           </li>
           <li>
-            <strong className="text-fg-primary">MFA is mandatory</strong> — configure your Clerk
-            instance for TOTP-first authentication, SMS only as fallback, with backup codes enabled.
+            <strong className="text-fg-primary">MFA is mandatory</strong> — TOTP-first with SMS
+            fallback and backup codes. We do not issue long-lived API tokens to end users.
           </li>
           <li>
-            App authorization (owner/admin/operator/viewer/guest_auditor) is stored per tenant in
-            PostgreSQL and enforced on the server for every privileged mutation.
+            Role-based access (owner, admin, operator, viewer, guest auditor) is enforced
+            server-side for every privileged action — it cannot be bypassed from the browser.
           </li>
         </ul>
         <h2 className="mt-10 text-base font-semibold text-fg-primary">Data handling</h2>
