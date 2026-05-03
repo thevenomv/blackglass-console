@@ -48,8 +48,8 @@ export async function getScanQueue(): Promise<import("bullmq").Queue<ScanJobPayl
     g[QUEUE_KEY] = new Queue<ScanJobPayload>(QUEUE_NAME, {
       connection: { url: redisUrl },
       defaultJobOptions: {
-        attempts: 2,
-        backoff: { type: "exponential", delay: 5_000 },
+        attempts: 3,
+        backoff: { type: "exponential", delay: 2_000 },
         removeOnComplete: { count: 200 },
         removeOnFail: { count: 100 },
       },

@@ -55,17 +55,24 @@ const worker = new Worker<ScanJobPayload>(
   async (job) => {
     const { jobId, collectOpts, saasTenantId } = job.data;
     console.info(
-      `[scan-worker] Processing job ${job.id} — scanId=${jobId}` +
+      `[scan-worker] Processing job ${job.id} — scanId=${jobId} attempt=${job.attemptsMade + 1}` +
         (saasTenantId ? ` saasTenantId=${saasTenantId}` : ""),
     );
     if (saasTenantId) {
-      logStructured("info", "scan_job_tenant_context", { jobId, saasTenantId });
+      logStructured("info", "scan_job_tenant_context", { jobId, saasTenantId, attempt: job.attemptsMade + 1 });
     }
     await executeDriftScanJob(jobId, collectOpts);
   },
   {
     connection: { url: redisUrl },
     concurrency,
+    // Retry up to 3 times with exponential back-off (2 s, 4 s, 8 s)
+    settings: {
+      backoffStrategy: (attemptsMade) => Math.pow(2, attemptsMade) * 1000,
+    },
+    // Stalled job detection: re-queue jobs that stop heartbeating after 30 s
+    stalledInterval: 30_000,
+    maxStalledCount: 2,
   },
 );
 
@@ -82,7 +89,18 @@ worker.on("completed", (job) => {
 });
 
 worker.on("failed", (job, err) => {
-  console.error(`[scan-worker] Job ${job?.id} failed:`, err);
+  const isFinal = (job?.attemptsMade ?? 0) >= (job?.opts?.attempts ?? 1);
+  logStructured(isFinal ? "error" : "warn", "scan_job_failed", {
+    jobId: job?.id,
+    scanId: job?.data?.jobId,
+    attempt: job?.attemptsMade,
+    final: isFinal,
+    error: err instanceof Error ? err.message : String(err),
+  });
+});
+
+worker.on("stalled", (jobId) => {
+  logStructured("warn", "scan_job_stalled", { jobId });
 });
 
 // Graceful shutdown — drain active jobs before exit

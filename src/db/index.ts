@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
+import { logStructured } from "@/lib/server/log";
 
 const POOL_KEY = "__blackglass_drizzle_pool_v1" as const;
 type G = typeof globalThis & { [POOL_KEY]?: pg.Pool };
@@ -56,6 +57,10 @@ export type BlackglassDb = ReturnType<typeof createDb>;
  * @see docs/migrations/007_saas_rls.sql
  */
 export async function withBypassRls<T>(fn: (db: BlackglassDb) => Promise<T>): Promise<T> {
+  // Emit a structured security event every time bypass mode is entered so that
+  // unexpected callers are visible in production logs.
+  const caller = new Error().stack?.split("\n")[2]?.trim() ?? "unknown";
+  logStructured("warn", "rls_bypass_entered", { caller });
   const db = getDb();
   return db.transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.bypass_rls', '1', true)`);
