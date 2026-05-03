@@ -1,0 +1,12 @@
+---
+description: SaaS authorization — keep mutations behind shared gateways, not ad hoc checks in routes
+globs: src/app/api/**/*.ts
+alwaysApply: false
+---
+
+# SaaS authz boundaries
+
+- **Identity:** Clerk provides `userId` / `orgId`. **Permissions:** `saas_tenant_memberships.role` in Postgres is authoritative for app RBAC (see `src/lib/saas/permissions.ts`).
+- **Route handlers** should call `requireTenantAuth`, `requireTenantPermission`, or helpers from `src/lib/server/http/saas-access.ts` — avoid inline role strings or duplicate limit checks unless the pattern already exists in that file for legacy paths.
+- **Plan limits, trial state, seats, billing side effects:** implement checks in `src/lib/saas/*` (e.g. `operations.ts`, `member-guards.ts`, `tenant-service.ts`) and invoke those helpers from routes — do not re-parse entitlements ad hoc in handlers.
+- **Database:** tenant-scoped reads/writes to SaaS tables go through `withTenantRls(tenantId, …)`; webhooks and provisioning use `withBypassRls` only in trusted server code (`src/db/index.ts`). Do not bypass RLS from user-reachable code paths.

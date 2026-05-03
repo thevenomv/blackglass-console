@@ -22,6 +22,8 @@ export const QUEUE_NAME = "blackglass:scans" as const;
 export type ScanJobPayload = {
   jobId: string;
   collectOpts: CollectScanOptions;
+  /** Saas workspace id (`saas_tenants.id`) when the job was enqueued from Clerk mode — for logs and future per-tenant secrets. */
+  saasTenantId?: string;
 };
 
 // ---------------------------------------------------------------------------

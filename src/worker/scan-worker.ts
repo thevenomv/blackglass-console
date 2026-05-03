@@ -24,11 +24,17 @@
  * Concurrency: set WORKER_CONCURRENCY (default 4) to control how many scans
  * run in parallel.  Each scan already uses COLLECTOR_MAX_PARALLEL_SSH for
  * intra-scan SSH concurrency.
+ *
+ * Multi-tenant: queue payloads may include `saasTenantId` for correlation. The worker
+ * must remain stateless — do not reuse SSH keys or host credentials across jobs;
+ * load per-job config from env (today) or per-tenant secret storage (future) inside
+ * the job handler and clear sensitive references before returning.
  */
 
-import { Worker } from "bullmq";
+import { Worker, Queue } from "bullmq";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
 import { QUEUE_NAME, type ScanJobPayload } from "@/lib/server/queue/scan-queue";
+import { logStructured } from "@/lib/server/log";
 
 const redisUrl = process.env.REDIS_QUEUE_URL?.trim();
 if (!redisUrl) {
@@ -40,11 +46,21 @@ const concurrency = parseInt(process.env.WORKER_CONCURRENCY ?? "4", 10);
 
 console.info(`[scan-worker] Starting — queue=${QUEUE_NAME} concurrency=${concurrency}`);
 
+const metricsQueue = new Queue<ScanJobPayload>(QUEUE_NAME, {
+  connection: { url: redisUrl },
+});
+
 const worker = new Worker<ScanJobPayload>(
   QUEUE_NAME,
   async (job) => {
-    const { jobId, collectOpts } = job.data;
-    console.info(`[scan-worker] Processing job ${job.id} — scanId=${jobId}`);
+    const { jobId, collectOpts, saasTenantId } = job.data;
+    console.info(
+      `[scan-worker] Processing job ${job.id} — scanId=${jobId}` +
+        (saasTenantId ? ` saasTenantId=${saasTenantId}` : ""),
+    );
+    if (saasTenantId) {
+      logStructured("info", "scan_job_tenant_context", { jobId, saasTenantId });
+    }
     await executeDriftScanJob(jobId, collectOpts);
   },
   {
@@ -55,6 +71,14 @@ const worker = new Worker<ScanJobPayload>(
 
 worker.on("completed", (job) => {
   console.info(`[scan-worker] Job ${job.id} completed`);
+  void metricsQueue
+    .getJobCounts("waiting", "active", "delayed", "completed", "failed")
+    .then((counts) => {
+      logStructured("info", "scan_queue_metrics", { ...counts, lastJobId: job.id });
+    })
+    .catch(() => {
+      logStructured("warn", "scan_queue_metrics_unavailable", {});
+    });
 });
 
 worker.on("failed", (job, err) => {
@@ -65,6 +89,7 @@ worker.on("failed", (job, err) => {
 async function shutdown(signal: string) {
   console.info(`[scan-worker] ${signal}: closing worker...`);
   await worker.close();
+  await metricsQueue.close();
   console.info("[scan-worker] Worker closed — exiting");
   process.exit(0);
 }

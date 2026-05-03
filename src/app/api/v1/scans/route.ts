@@ -5,17 +5,18 @@ import { collectorConfigured } from "@/lib/server/collector";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
 import { getScanQueue } from "@/lib/server/queue/scan-queue";
 import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
-import { requireRole } from "@/lib/server/http/auth-guard";
+import { requireScanEnqueueAccess } from "@/lib/server/http/saas-access";
 import { ScanPostBodySchema } from "@/lib/server/http/schemas";
 import { getLimits } from "@/lib/plan";
 import { NextResponse } from "next/server";
+import { emitSaasAudit } from "@/lib/saas/event-log";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const guard = await requireRole(["operator", "admin"]);
-  if (!guard.ok) return guard.response;
+  const access = await requireScanEnqueueAccess();
+  if (!access.ok) return access.response;
 
   if (!(await checkScanPostRate(clientIp(request)))) {
     return jsonError(429, "rate_limited");
@@ -29,15 +30,24 @@ export async function POST(request: Request) {
 
   const host_ids = parsed.data.host_ids ?? [];
 
-  // Enforce plan host cap for explicit host_id lists.
-  // Fleet scans (empty host_ids) are capped at the inventory layer.
-  const limits = getLimits();
-  if (host_ids.length > 0 && limits.maxHosts !== -1 && host_ids.length > limits.maxHosts) {
-    return jsonError(
-      403,
-      "plan_limit_exceeded",
-      `Your plan allows scanning up to ${limits.maxHosts} host(s) at a time. Upgrade to scan more.`,
-    );
+  if (access.mode === "saas") {
+    const hlim = access.ctx.subscription.hostLimit;
+    if (host_ids.length > 0 && hlim >= 0 && host_ids.length > hlim) {
+      return jsonError(
+        403,
+        "plan_limit_exceeded",
+        `Your workspace allows scanning up to ${hlim} host(s) at a time on the current plan.`,
+      );
+    }
+  } else {
+    const limits = getLimits();
+    if (host_ids.length > 0 && limits.maxHosts !== -1 && host_ids.length > limits.maxHosts) {
+      return jsonError(
+        403,
+        "plan_limit_exceeded",
+        `Your plan allows scanning up to ${limits.maxHosts} host(s) at a time. Upgrade to scan more.`,
+      );
+    }
   }
 
   if (collectorConfigured() && host_ids.length > 0) {
@@ -64,10 +74,25 @@ export async function POST(request: Request) {
     // Falls back to in-process execution for Stage 0/1 deployments.
     const queue = await getScanQueue();
     if (queue) {
-      await queue.add("scan", { jobId: job.id, collectOpts });
+      await queue.add("scan", {
+        jobId: job.id,
+        collectOpts,
+        ...(access.mode === "saas" ? { saasTenantId: access.ctx.tenant.id } : {}),
+      });
     } else {
       void executeDriftScanJob(job.id, collectOpts);
     }
+  }
+
+  if (access.mode === "saas") {
+    void emitSaasAudit({
+      tenantId: access.ctx.tenant.id,
+      actorUserId: access.ctx.userId,
+      action: "scan.queued",
+      targetType: "scan_job",
+      targetId: job.id,
+      metadata: { hostIds: host_ids.length },
+    });
   }
 
   return NextResponse.json(
