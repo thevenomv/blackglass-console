@@ -5,6 +5,7 @@ import { getBaseline } from "@/lib/server/baseline-store";
 import { getDriftEvents } from "@/lib/server/drift-engine";
 import { takeEvidenceBundleDownload } from "@/lib/server/evidence-bundle-quota";
 import { NextResponse } from "next/server";
+import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,6 +26,11 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const ip = clientIp(_request);
+  if (!(await checkReadApiRate(ip))) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   const guard = await requireRole(["auditor", "operator", "admin"]);
   if (!guard.ok) return guard.response;
 

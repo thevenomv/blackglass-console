@@ -1,0 +1,52 @@
+# BLACKGLASS scan worker — BullMQ consumer image.
+#
+# Separate from the Next.js web image so the worker can be deployed as a
+# DigitalOcean App Platform Worker component (no HTTP port, restarts on crash).
+#
+# Build & push:
+#   .\scripts\do-docker-push.ps1 -RegistryName <name> -BuildWorker
+#
+# Environment variables required at runtime (set in DO App Platform or Doppler):
+#   REDIS_QUEUE_URL        — Redis connection URL for BullMQ
+#   COLLECTOR_HOST_1       — Target host IP / hostname
+#   SSH_PRIVATE_KEY        — PEM key OR SECRET_PROVIDER + provider env vars
+#   BASELINE_STORE_PATH    — OR DO_SPACES_* for Spaces-backed storage
+#   WORKER_CONCURRENCY     — (optional) parallel scan jobs, default 4
+# ---
+
+FROM node:22-alpine AS deps
+WORKDIR /app
+# Native deps (ssh2 / cpu-features) require build tools
+RUN apk add --no-cache python3 make g++
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# ---- bundle worker with esbuild (resolves @/* path aliases) ---
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# esbuild is available transitively through Next; mark runtime-only native deps external.
+RUN node_modules/.bin/esbuild src/worker/scan-worker.ts \
+    --bundle \
+    --platform=node \
+    --target=node22 \
+    --outfile=dist/worker.cjs \
+    --external:ssh2 \
+    --external:pg \
+    --external:ioredis \
+    --external:bullmq
+
+# ---- lean runner: prod deps + bundle ----
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+RUN apk add --no-cache python3 make g++ && \
+    addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 bgworker
+COPY package.json package-lock.json* ./
+# Production-only install; native deps are compiled here
+RUN npm ci --omit=dev
+COPY --from=builder --chown=bgworker:nodejs /app/dist/worker.cjs ./worker.cjs
+USER bgworker
+CMD ["node", "worker.cjs"]

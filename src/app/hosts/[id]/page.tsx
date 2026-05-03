@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { DriftInvestigationDrawer } from "@/components/drift/DriftInvestigationDrawer";
 import { HostDetailView } from "@/components/hosts/HostDetailView";

@@ -12,6 +12,7 @@ import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { loadHosts } from "@/lib/server/inventory";
 import { getHostDetail } from "@/data/mock/hosts";
 import { NextResponse } from "next/server";
+import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,11 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const ip = clientIp(_request);
+  if (!(await checkReadApiRate(ip))) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   if (isClerkAuthEnabled()) {
     const access = await requireSaasOrLegacyPermission("reports.view", [
       "viewer",

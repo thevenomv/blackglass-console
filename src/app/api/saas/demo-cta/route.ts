@@ -4,6 +4,7 @@ import { requireTenantAuth, SaasAuthError } from "@/lib/saas/auth-context";
 import { emitSaasAudit } from "@/lib/saas/event-log";
 import { readJsonBodyOptional, jsonError } from "@/lib/server/http/json-error";
 import { z } from "zod";
+import { checkDemoCtaRate, clientIp } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,6 +23,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const ip = clientIp(request);
+  if (!(await checkDemoCtaRate(ip))) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   const raw = await readJsonBodyOptional(request);
   if (!raw.ok) return raw.response;
   const parsed = BodySchema.safeParse(raw.data);

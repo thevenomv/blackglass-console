@@ -3,6 +3,7 @@ import { zodErrorResponse } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { NextResponse } from "next/server";
+import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,11 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const ip = clientIp(request);
+  if (!(await checkReadApiRate(ip))) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   const guard = await requireRole(["auditor", "operator", "admin"]);
   if (!guard.ok) return guard.response;
 

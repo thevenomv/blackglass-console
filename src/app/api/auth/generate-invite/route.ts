@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/session-signing";
 import { generateInviteToken } from "@/lib/auth/invite-tokens";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
+import { checkGenerateInviteRate, clientIp } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +10,11 @@ export const dynamic = "force-dynamic";
 const SESSION = "bg-session";
 
 export async function POST(request: NextRequest) {
+  const ip = clientIp(request);
+  if (!(await checkGenerateInviteRate(ip))) {
+    return NextResponse.json({ error: "too_many_attempts" }, { status: 429 });
+  }
+
   // Must be authenticated as admin
   const sessionToken = request.cookies.get(SESSION)?.value;
   if (!sessionToken) {

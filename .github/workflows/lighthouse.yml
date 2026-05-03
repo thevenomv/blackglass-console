@@ -1,0 +1,66 @@
+# Lighthouse CI — runs against a live staging URL (manual dispatch + weekly cron).
+#
+# Requires:
+#   - Repository secret **STAGING_URL** (https://your-host.ondigitalocean.app)
+#   - No additional secrets for temporary-public-storage upload target.
+#
+# Assertions are defined in lighthouserc.json:
+#   - performance >= 0.70 (warn)  — auth-gated pages skew lower; relax if needed
+#   - accessibility >= 0.85 (fail)
+#   - best-practices >= 0.90 (fail)
+#   - seo >= 0.80 (warn)
+#
+# Pages audited: / (marketing) and /product (feature overview) — unauthenticated views.
+# Add more URLs to the startServerReadyPattern matrix when gated pages stabilise.
+name: "Performance — Lighthouse CI"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url_override:
+        description: Optional https origin (empty = use STAGING_URL secret)
+        required: false
+        default: ""
+
+  schedule:
+    # Weekly Tuesday 08:00 UTC — skipped when STAGING_URL secret absent
+    - cron: "0 8 * * 2"
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      secrets.STAGING_URL != ''
+    strategy:
+      matrix:
+        path: ["/", "/product"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve target
+        id: tgt
+        env:
+          OVERRIDE: ${{ github.event.inputs.target_url_override }}
+          SECRET: ${{ secrets.STAGING_URL }}
+        run: |
+          BASE=""
+          if [ -n "$OVERRIDE" ]; then BASE="$OVERRIDE"
+          elif [ -n "$SECRET" ]; then BASE="$SECRET"
+          fi
+          if [ -z "$BASE" ]; then
+            echo "::notice::Lighthouse skipped — set STAGING_URL or pass target_url_override."
+            echo "url=" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=${BASE}${{ matrix.path }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Lighthouse CI
+        if: steps.tgt.outputs.url != ''
+        run: npm install -g @lhci/cli@0.14.x
+
+      - name: Run Lighthouse
+        if: steps.tgt.outputs.url != ''
+        run: lhci autorun --config=lighthouserc.json --collect.url="${{ steps.tgt.outputs.url }}"
+        env:
+          LHCI_BUILD_CONTEXT__EXTERNAL_BUILD_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

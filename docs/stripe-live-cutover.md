@@ -27,6 +27,10 @@ Restart/redeploy after changing **`NEXT_PUBLIC_*`**.
 2. **Checkout:** `/pricing` → complete **live-mode** checkout with a real/test card Stripe allows → confirm subscription in Stripe dashboard.
 3. **CLI verification (optional):** `stripe listen --forward-to localhost:3000/api/checkout/webhook` in dev only; prod uses Stripe dashboard **Events** tab.
 
+## International / presentment
+
+Stripe Checkout and invoices follow the **currency and tax settings** on your Stripe account and the customer’s country. This console does not hard-code a display currency — keep **Prices** and **Tax** behavior in Stripe aligned with your go-to-market regions before enabling live mode.
+
 ## 4. Rollback
 
 - Pause webhook in Stripe or rotate **`STRIPE_WEBHOOK_SECRET`**.

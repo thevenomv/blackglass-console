@@ -5,11 +5,17 @@ import { getSeatUsage } from "@/lib/saas/seats";
 import { isTrialReadOnlyState } from "@/lib/saas/trial";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { isPaidSeatRole } from "@/lib/saas/tenant-role";
+import { checkSaasContextRate, clientIp } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const ip = clientIp(request);
+  if (!(await checkSaasContextRate(ip))) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   if (!isClerkAuthEnabled()) {
     return NextResponse.json({ clerk: false });
   }

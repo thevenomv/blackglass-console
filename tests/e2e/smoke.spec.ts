@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("BLACKGLASS console smoke", () => {
+  test("marketing landing exposes demo and trial CTAs", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: /explore demo/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /start free trial/i }).first()).toBeVisible();
+  });
+
   test("health endpoint responds", async ({ request }) => {
     const res = await request.get("/api/health");
     expect(res.ok()).toBeTruthy();
@@ -60,12 +66,12 @@ test.describe("BLACKGLASS console smoke", () => {
   });
 
   test("mock data banner appears when NEXT_PUBLIC_USE_MOCK is enabled", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page.getByRole("status", { name: "Mock data mode" })).toBeVisible();
   });
 
   test("fleet dashboard renders KPI row", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();
     await expect(page.getByText("Hosts checked", { exact: true })).toBeVisible();
     await expect(page.getByText("Telemetry coverage & freshness")).toBeVisible();
@@ -80,7 +86,7 @@ test.describe("BLACKGLASS console smoke", () => {
   });
 
   test("Run scan shows sticky job banner", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await page.getByRole("button", { name: "Run scan" }).click();
     await expect(page.getByText("Fleet integrity scan")).toBeVisible();
     await expect(page.getByRole("status", { name: /active integrity scans/i })).toBeVisible();
@@ -105,9 +111,10 @@ test.describe("BLACKGLASS console smoke", () => {
     await expect(page.getByText("INC-2047").first()).toBeVisible();
   });
 
-  test("demo script page", async ({ page }) => {
+  test("interactive demo sample workspace", async ({ page }) => {
     await page.goto("/demo");
-    await expect(page.getByRole("heading", { name: "Partner demo script" })).toBeVisible();
+    await expect(page.getByText("Sample workspace")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fleet overview" })).toBeVisible();
   });
 
   test("evidence bundle meta returns JSON", async ({ request }) => {
@@ -119,7 +126,7 @@ test.describe("BLACKGLASS console smoke", () => {
   });
 
   test("command palette opens and closes with keyboard shortcut", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await page.keyboard.press("Meta+k");
     await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
     await page.keyboard.press("Escape");
@@ -127,7 +134,7 @@ test.describe("BLACKGLASS console smoke", () => {
   });
 
   test("command palette navigates to hosts via search", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");
     await page.keyboard.press("Meta+k");
     await page.getByPlaceholder("Search routes…").fill("hosts");
@@ -141,7 +148,7 @@ test.describe("BLACKGLASS console smoke", () => {
   });
 
   test("dashboard time range selector updates label", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page.getByRole("group", { name: "Time range" })).toBeVisible();
     await page.getByRole("group", { name: "Time range" }).getByText("7d").click();
     // KPI delta text should reflect 7d

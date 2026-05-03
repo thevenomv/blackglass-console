@@ -5,10 +5,16 @@ import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { NextResponse } from "next/server";
 import { withinHostAllowance } from "@/lib/saas/operations";
+import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const ip = clientIp(request);
+  if (!(await checkReadApiRate(ip))) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   if (isClerkAuthEnabled()) {
     const access = await requireSaasOrLegacyPermission("reports.view", [
       "viewer",

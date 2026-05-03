@@ -2,7 +2,7 @@
 
 ## Request correlation
 
-- **`middleware.ts`** stamps **`x-request-id`** (UUID) on every gated HTML request and forwards it downstream. Surface that ID in audit rows when you persist **`request_id`** (see **`docs/audit-postgresql-adrs.md`** sketch).
+- **`middleware.ts`** stamps **`x-request-id`** (UUID) on every gated HTML request and forwards it downstream. Surface that ID in audit rows when you persist **`request_id`** (see **`docs/audit-trail.md`** — PostgreSQL sink).
 
 ## Sentry
 

@@ -1,12 +1,13 @@
 import type { Role } from "@/lib/auth/permissions";
 import { verifySession } from "@/lib/auth/session-signing";
 import { apiConfig, defaultGuestRole } from "@/lib/api/config";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { requireTenantAuth } from "@/lib/saas/auth-context";
 import { toLegacyApiRole } from "@/lib/saas/plans";
+import { checkSaasContextRate, clientIpFromHeaders } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,12 @@ export const dynamic = "force-dynamic";
 const VALID: Role[] = ["viewer", "auditor", "operator", "admin"];
 
 export async function GET() {
+  const h = await headers();
+  const ip = clientIpFromHeaders(h);
+  if (!(await checkSaasContextRate(ip))) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   if (isClerkAuthEnabled()) {
     const { userId } = await auth();
     if (!userId) {

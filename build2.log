@@ -1,0 +1,143 @@
+﻿2026-05-03T16:27:19.892686257Z [34mÔò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ[34m[30m[44m git repo clone [0m[0m[34mÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò╝[0m
+2026-05-03T16:27:19.892710340Z [34mÔöé[0m [34m ÔÇ║ fetching app source code[0m
+2026-05-03T16:27:19.892713658Z [34mÔöé[0m => Selecting branch "main"
+2026-05-03T16:27:19.892716443Z [34mÔöé[0m => Checking out commit "523b899e951261b46b4575765b306388d5cd873e"
+2026-05-03T16:27:19.892718243Z [34mÔöé[0m 
+2026-05-03T16:27:19.892720014Z [34mÔöé[0m [32m Ô£ö cloned repo to [35m/workspace[0m[0m
+2026-05-03T16:27:19.892722758Z [34mÔò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò╝[0m
+2026-05-03T16:27:19.892724528Z 
+2026-05-03T16:27:20.218173958Z [34m ÔÇ║ configuring build-time app environment variables:[0m
+2026-05-03T16:27:20.218192566Z      DO_SPACES_BUCKET NEXT_PUBLIC_API_URL DO_SPACES_SECRET NEXT_PUBLIC_SENTRY_DSN DO_SPACES_KEY COLLECTOR_USER DO_SPACES_ENDPOINT NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY NEXT_PUBLIC_USE_MOCK SSH_PRIVATE_KEY AUTH_SESSION_SECRET NEXT_PUBLIC_APP_URL SENTRY_DSN COLLECTOR_HOST_1_NAME NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY NODE_ENV COLLECTOR_HOST_1 SENTRY_AUTH_TOKEN
+2026-05-03T16:27:20.218195937Z 
+2026-05-03T16:27:20.220844252Z [34m ÔÇ║ configuring custom build command to be run at the end of the build:[0m
+2026-05-03T16:27:20.224796718Z    [34mÔöé[0m npm install && npm run build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public
+2026-05-03T16:27:20.224937933Z 
+2026-05-03T16:27:20.347342784Z [34mÔò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ[34m[30m[44m buildpack detection [0m[0m[34mÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò╝[0m
+2026-05-03T16:27:20.367989637Z [34mÔöé[0m [34m ÔÇ║ using Ubuntu 22.04 stack[0m
+2026-05-03T16:27:22.181997759Z [34mÔöé[0m Detected the following buildpacks suitable to build your app:
+2026-05-03T16:27:22.182022083Z [34mÔöé[0m 
+2026-05-03T16:27:22.182025180Z [34mÔöé[0m    digitalocean/nodejs-appdetect  v0.1.2    
+2026-05-03T16:27:22.182027627Z [34mÔöé[0m    heroku/nodejs                  v0.341.5  (Node.js)
+2026-05-03T16:27:22.182029433Z [34mÔöé[0m    digitalocean/procfile          v0.1.0    (Procfile)
+2026-05-03T16:27:22.182031359Z [34mÔöé[0m    digitalocean/custom            v0.2.0    (Custom Build Command)
+2026-05-03T16:27:22.184660001Z [34mÔò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò╝[0m
+2026-05-03T16:27:22.184674323Z 
+2026-05-03T16:27:22.187032618Z [34mÔò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ[34m[30m[44m build caching [0m[0m[34mÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò╝[0m
+2026-05-03T16:27:22.189709019Z [34mÔöé[0m [34m ÔÇ║ checking for cache from a previous build[0m
+2026-05-03T16:27:22.489414629Z [34mÔöé[0m Timer: Analyzer started at 2026-05-03T16:27:22Z
+2026-05-03T16:27:23.241116383Z [34mÔöé[0m Restoring metadata for "heroku/nodejs:shim" from cache
+2026-05-03T16:27:23.245736238Z [34mÔöé[0m Timer: Analyzer ran for 754.646654ms and ended at 2026-05-03T16:27:23Z
+2026-05-03T16:27:23.428454301Z [34mÔöé[0m Timer: Restorer started at 2026-05-03T16:27:23Z
+2026-05-03T16:27:23.598349257Z [34mÔöé[0m Restoring data for "heroku/nodejs:shim" from cache
+2026-05-03T16:27:28.846281209Z [34mÔöé[0m Timer: Restorer ran for 5.417803064s and ended at 2026-05-03T16:27:28Z
+2026-05-03T16:27:28.864892513Z [34mÔò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò╝[0m
+2026-05-03T16:27:28.864911832Z 
+2026-05-03T16:27:28.867402962Z [34mÔò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ[34m[30m[44m app build [0m[0m[34mÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò╝[0m
+2026-05-03T16:27:28.906116968Z [34mÔöé[0m Timer: Builder started at 2026-05-03T16:27:28Z
+2026-05-03T16:27:29.530168908Z [34mÔöé[0m        
+2026-05-03T16:27:29.530192877Z [34mÔöé[0m -----> Creating runtime environment
+2026-05-03T16:27:29.598414775Z [34mÔöé[0m        
+2026-05-03T16:27:29.601751600Z [34mÔöé[0m        NPM_CONFIG_LOGLEVEL=error
+2026-05-03T16:27:29.607156644Z [34mÔöé[0m        NODE_VERBOSE=false
+2026-05-03T16:27:29.607169103Z [34mÔöé[0m        NODE_ENV=production
+2026-05-03T16:27:29.607171893Z [34mÔöé[0m        NODE_MODULES_CACHE=true
+2026-05-03T16:27:29.612163184Z [34mÔöé[0m        
+2026-05-03T16:27:29.612343396Z [34mÔöé[0m -----> Installing binaries
+2026-05-03T16:27:29.737603818Z [34mÔöé[0m        engines.node (package.json):   >=22 <23
+2026-05-03T16:27:29.737621850Z [34mÔöé[0m        engines.npm (package.json):    >=10
+2026-05-03T16:27:29.737795849Z [34mÔöé[0m        
+2026-05-03T16:27:29.842304721Z [34mÔöé[0m        Resolving node version >=22 <23...
+2026-05-03T16:27:29.954206280Z [34mÔöé[0m        Downloading and installing node 22.22.2...
+2026-05-03T16:27:30.471829182Z [34mÔöé[0m        Validating checksum
+2026-05-03T16:27:32.689419631Z [34mÔöé[0m        Bootstrapping npm >=10 (replacing 10.9.7)...
+2026-05-03T16:27:36.012164378Z [34mÔöé[0m        Installing npm@~11.10.0 to workaround Node.js 22.22.2 regression (https://github.com/npm/cli/issues/9151)
+2026-05-03T16:27:38.826179128Z [34mÔöé[0m        npm warn Unknown cli config "--unsafe-perm". This will stop working in the next major version of npm.
+2026-05-03T16:27:41.446167778Z [34mÔöé[0m        npm 11.13.0 installed
+2026-05-03T16:27:42.139304754Z [34mÔöé[0m        
+2026-05-03T16:27:42.139327551Z [34mÔöé[0m -----> Restoring cache
+2026-05-03T16:27:42.144796464Z [34mÔöé[0m        - npm cache
+2026-05-03T16:27:42.235410615Z [34mÔöé[0m        
+2026-05-03T16:27:42.235431058Z [34mÔöé[0m -----> Installing dependencies
+2026-05-03T16:27:42.355561023Z [34mÔöé[0m        Installing node modules
+2026-05-03T16:28:18.289533887Z [34mÔöé[0m        
+2026-05-03T16:28:18.289707410Z [34mÔöé[0m        added 757 packages, and audited 758 packages in 36s
+2026-05-03T16:28:18.289711281Z [34mÔöé[0m        
+2026-05-03T16:28:18.289713568Z [34mÔöé[0m        186 packages are looking for funding
+2026-05-03T16:28:18.289715940Z [34mÔöé[0m          run `npm fund` for details
+2026-05-03T16:28:18.329684195Z [34mÔöé[0m        
+2026-05-03T16:28:18.329700672Z [34mÔöé[0m        6 moderate severity vulnerabilities
+2026-05-03T16:28:18.329703066Z [34mÔöé[0m        
+2026-05-03T16:28:18.329705657Z [34mÔöé[0m        To address all issues (including breaking changes), run:
+2026-05-03T16:28:18.329708315Z [34mÔöé[0m          npm audit fix --force
+2026-05-03T16:28:18.329886297Z [34mÔöé[0m        
+2026-05-03T16:28:18.329904607Z [34mÔöé[0m        Run `npm audit` for details.
+2026-05-03T16:28:18.459068277Z [34mÔöé[0m        
+2026-05-03T16:28:18.459090122Z [34mÔöé[0m -----> Build
+2026-05-03T16:28:18.551553306Z [34mÔöé[0m        
+2026-05-03T16:28:18.551725285Z [34mÔöé[0m -----> Caching build
+2026-05-03T16:28:18.553283547Z [34mÔöé[0m        - npm cache
+2026-05-03T16:28:18.706983446Z [34mÔöé[0m        
+2026-05-03T16:28:18.706998873Z [34mÔöé[0m -----> Pruning devDependencies
+2026-05-03T16:28:21.634860930Z [34mÔöé[0m        
+2026-05-03T16:28:21.634890850Z [34mÔöé[0m        removed 278 packages, and audited 480 packages in 3s
+2026-05-03T16:28:21.634893266Z [34mÔöé[0m        
+2026-05-03T16:28:21.634895461Z [34mÔöé[0m        60 packages are looking for funding
+2026-05-03T16:28:21.634897845Z [34mÔöé[0m          run `npm fund` for details
+2026-05-03T16:28:21.658956317Z [34mÔöé[0m        
+2026-05-03T16:28:21.658964685Z [34mÔöé[0m        2 moderate severity vulnerabilities
+2026-05-03T16:28:21.658966604Z [34mÔöé[0m        
+2026-05-03T16:28:21.658981826Z [34mÔöé[0m        To address all issues (including breaking changes), run:
+2026-05-03T16:28:21.658984791Z [34mÔöé[0m          npm audit fix --force
+2026-05-03T16:28:21.658986711Z [34mÔöé[0m        
+2026-05-03T16:28:21.658988716Z [34mÔöé[0m        Run `npm audit` for details.
+2026-05-03T16:28:21.846578311Z [34mÔöé[0m        
+2026-05-03T16:28:21.846596641Z [34mÔöé[0m -----> Build succeeded!
+2026-05-03T16:28:22.096493740Z [34mÔöé[0m Running custom build command: npm install && npm run build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public
+2026-05-03T16:28:25.013480291Z [34mÔöé[0m 
+2026-05-03T16:28:25.013509649Z [34mÔöé[0m up to date, audited 480 packages in 3s
+2026-05-03T16:28:25.013511810Z [34mÔöé[0m 
+2026-05-03T16:28:25.013707025Z [34mÔöé[0m 60 packages are looking for funding
+2026-05-03T16:28:25.013867169Z [34mÔöé[0m   run `npm fund` for details
+2026-05-03T16:28:25.038815494Z [34mÔöé[0m 
+2026-05-03T16:28:25.038836075Z [34mÔöé[0m 2 moderate severity vulnerabilities
+2026-05-03T16:28:25.038839099Z [34mÔöé[0m 
+2026-05-03T16:28:25.038842116Z [34mÔöé[0m To address all issues (including breaking changes), run:
+2026-05-03T16:28:25.038844611Z [34mÔöé[0m   npm audit fix --force
+2026-05-03T16:28:25.038846834Z [34mÔöé[0m 
+2026-05-03T16:28:25.038849302Z [34mÔöé[0m Run `npm audit` for details.
+2026-05-03T16:28:25.156413453Z [34mÔöé[0m 
+2026-05-03T16:28:25.156437380Z [34mÔöé[0m > blackglass@0.1.0 build
+2026-05-03T16:28:25.156440378Z [34mÔöé[0m > next build
+2026-05-03T16:28:25.156442791Z [34mÔöé[0m 
+2026-05-03T16:28:25.944253846Z [34mÔöé[0m ÔÜá No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+2026-05-03T16:28:25.949912917Z [34mÔöé[0m Attention: Next.js now collects completely anonymous telemetry regarding usage.
+2026-05-03T16:28:25.949930087Z [34mÔöé[0m This information is used to shape Next.js' roadmap and prioritize features.
+2026-05-03T16:28:25.949933991Z [34mÔöé[0m You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+2026-05-03T16:28:25.949937573Z [34mÔöé[0m https://nextjs.org/telemetry
+2026-05-03T16:28:25.949940018Z [34mÔöé[0m 
+2026-05-03T16:28:25.965031454Z [34mÔöé[0m Ôû▓ Next.js 16.2.4 (Turbopack)
+2026-05-03T16:28:25.965046783Z [34mÔöé[0m - Experiments (use with caution):
+2026-05-03T16:28:25.965049753Z [34mÔöé[0m   ┬À clientTraceMetadata
+2026-05-03T16:28:25.965326230Z [34mÔöé[0m 
+2026-05-03T16:28:26.021291367Z [34mÔöé[0m   Creating an optimized production build ...
+2026-05-03T16:28:34.050281517Z [34mÔöé[0m Ô£ô Compiled successfully in 7.7s
+2026-05-03T16:28:34.051366493Z [34mÔöé[0m   Running next.config.js provided runAfterProductionCompile ...
+2026-05-03T16:28:41.860717227Z [34mÔöé[0m Ô£ô Completed runAfterProductionCompile in 7.8s
+2026-05-03T16:28:41.862143669Z [34mÔöé[0m   Running TypeScript ...
+2026-05-03T16:28:47.952321750Z [34mÔöé[0m   Finished TypeScript in 6.1s ...
+2026-05-03T16:28:47.956168603Z [34mÔöé[0m   Collecting page data using 9 workers ...
+2026-05-03T16:28:48.802822234Z [34mÔöé[0m   Generating static pages using 9 workers (0/34) ...
+2026-05-03T16:28:49.102659886Z [34mÔöé[0m   Generating static pages using 9 workers (8/34) 
+2026-05-03T16:28:49.121544719Z [34mÔöé[0m Error occurred prerendering page "/reports". Read more: https://nextjs.org/docs/messages/prerender-error
+2026-05-03T16:28:49.125376419Z [34mÔöé[0m Error: @clerk/react: OrganizationSwitcher can only be used within the <ClerkProvider /> component. Learn more: https://clerk.com/docs/components/clerk-provider
+2026-05-03T16:28:49.125395689Z [34mÔöé[0m     at ignore-listed frames {
+2026-05-03T16:28:49.125398332Z [34mÔöé[0m   digest: '2926388296'
+2026-05-03T16:28:49.125400094Z [34mÔöé[0m }
+2026-05-03T16:28:49.125699038Z [34mÔöé[0m Export encountered an error on /reports/page: /reports, exiting the build.
+2026-05-03T16:28:49.157181907Z [34mÔöé[0m Ô¿» Next.js build worker exited with code: 1 and signal: null
+2026-05-03T16:28:49.199356989Z [34mÔöé[0m building: exit status 1
+2026-05-03T16:28:49.199937614Z [34mÔöé[0m Timer: Builder ran for 1m20.292311938s and ended at 2026-05-03T16:28:49Z
+2026-05-03T16:28:49.199942712Z [34mÔöé[0m [31;1mERROR: [0mfailed to build: exit status 1
+2026-05-03T16:28:49.425336040Z [34mÔöé[0m 
+2026-05-03T16:28:49.429389814Z [34mÔöé[0m 
+2026-05-03T16:28:49.438316501Z [34mÔöé[0m [31m Ô£ÿ build failed[0m

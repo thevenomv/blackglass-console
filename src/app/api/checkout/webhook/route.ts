@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { provisionPlan, deprovisionPlan } from "@/lib/billing/provision";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
+import { checkStripeWebhookRate, clientIp } from "@/lib/server/rate-limit";
 import { tryGetDb } from "@/db";
 import {
   syncSaasSubscriptionFromStripe,
@@ -35,6 +36,11 @@ async function maybeSyncSaasSubscription(sub: Stripe.Subscription): Promise<void
 }
 
 export async function POST(request: Request) {
+  const ip = clientIp(request);
+  if (!(await checkStripeWebhookRate(ip))) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     console.error("[stripe/webhook] STRIPE_WEBHOOK_SECRET not set");

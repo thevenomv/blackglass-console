@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { EvidenceExportModal } from "@/components/evidence/EvidenceExportModal";
 import { EvidenceView } from "@/components/evidence/EvidenceView";

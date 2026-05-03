@@ -2,6 +2,7 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { tryGetDb } from "@/db";
+import { checkClerkWebhookRate, clientIpFromHeaders } from "@/lib/server/rate-limit";
 import {
   deleteMembership,
   ensureTenantForClerkOrg,
@@ -43,6 +44,11 @@ export async function POST(request: Request) {
 
   const payload = await request.text();
   const h = await headers();
+
+  const ip = clientIpFromHeaders(h);
+  if (!(await checkClerkWebhookRate(ip))) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
   const id = h.get("svix-id");
   const ts = h.get("svix-timestamp");
   const sig = h.get("svix-signature");

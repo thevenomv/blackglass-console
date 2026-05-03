@@ -11,7 +11,7 @@ Action items after **`npm run do:apply-stage0`** or any prod deploy. Copy into a
 - [x] **Collector:** Set **`COLLECTOR_HOST_1`** (+ optional **`_NAME`**, **`COLLECTOR_USER`**) and **`SSH_PRIVATE_KEY`** or **`SECRET_PROVIDER`** + provider tokens so **`GET /api/v1/hosts`** returns real rows (not `0 items`).
 - [x] **`npm run verify:staging`** with **`STAGING_URL=https://<your-host>`** — all checks pass after each deploy.
 - [x] **Optional:** `VERIFY_SECRETS_PROBE=1` for one extra health check (do not hammer; rate limits).
-- [ ] Deployment failure **alerts** enabled in App Platform → Notifications. *(manual — DO Console → App → Settings → Notifications)*
+- [x] Deployment failure **alerts** enabled — `alerts: - rule: DEPLOYMENT_FAILED` is declared in `.do/app.yaml` and applied on every `doctl apps create/update`. DO Console → App → Settings → Notifications can add email/Slack recipients on top.
 - [x] GitHub repo secret **`STAGING_URL`** → run workflow **Staging smoke** (`workflow_dispatch`) after deploys.
 
 ## Container Registry

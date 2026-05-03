@@ -1,2 +1,16 @@
 # ZAP baseline rule overrides — RULE_ID	ACTION	optional description per ZAP baseline format
-10096	IGNORE	(Timestamp Disclosure — replace with alerts from your real staging baseline report)
+# WARN = flag in report but don't fail  |  IGNORE = suppress  |  FAIL = break the run
+#
+# Replace these starters with findings from your real staging scan report.
+# Set fail_action: true in dast-zap-baseline.yml once high/medium rules are stable.
+#
+# ── Common low-signal false positives for Next.js / Clerk / Stripe apps ──────
+10096	IGNORE	Timestamp Disclosure — server-date headers; informational, not exploitable
+10027	IGNORE	Information Disclosure: Suspicious Comments — build hashes in JS bundles
+10055	WARN	CSP Scanner — warn until CSP policy is locked down for all routes
+10038	WARN	Content Security Policy Not Set — pages with Clerk-injected scripts may vary
+90033	IGNORE	Loosely Scoped Cookie — Clerk session cookies have broad subdomain scope by design
+10049	WARN	Storable and Cacheable Content — static Next.js pages are intentionally cached
+10050	IGNORE	Retrieved from Cache — CDN cache hits are expected; not a vulnerability
+10054	IGNORE	Cookie Without SameSite Attribute — third-party Stripe/Clerk cookies; not our code
+10021	IGNORE	X-Content-Type-Options Header Missing — set via securityHeaders in next.config.ts for all routes (source: "/(.*)")

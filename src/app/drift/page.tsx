@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { DriftEventsView } from "@/components/drift/DriftEventsView";
 import { TableSkeletonRows } from "@/components/ui/Skeleton";

@@ -1,4 +1,6 @@
 import Link from "next/link";
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { collectorConfigured } from "@/lib/server/collector";
 import { baselineStoreHealth } from "@/lib/server/baseline-store";

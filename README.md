@@ -38,7 +38,9 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `audit:export-spaces` | List/download Spaces `audit/*.jsonl` (needs `DO_SPACES_*`; see [docs/audit-trail.md](docs/audit-trail.md)) |
 | `audit:verify-jsonl` | Deterministic NDJSON integrity digest (`stdin` or file argument) |
 | `load:rate-local` | Burst `POST /api/v1/scans` until HTTP 429 (local dev; `BASE_URL`, `BURST_LIMIT`) |
-| `doppler:verify` | Doppler secrets download smoke test |
+| `pen-test:smoke` | Print curl snippets for quick manual probes (`BASE_URL` optional) |
+| `blackglassctl` | Minimal health / scan CLI (`node scripts/blackglassctl.mjs help` pattern) |
+| `prune:webhooks` | Delete old `saas_webhook_idempotency` rows (`DATABASE_URL`, optional `--days=`) |
 | `stripe:setup` | Interactive Stripe webhook/price bootstrap ([script](scripts/stripe-setup.mjs)) |
 | `do:apply-stage0` | Applies Stage-0 auth env on an existing DO app |
 
@@ -47,6 +49,7 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 ## Maintenance & upgrades
 
 - **Dependabot:** Weekly npm PRs — triage on GitHub (merge or close with rationale); **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Moderate **`postcss`** advisories via **`next/node_modules`** may persist until **Next** ships patched deps — avoid **`npm audit fix --force`**. DevDependency **`postcss`** stays on **^8.5.x** for direct toolchain use.
+- **SBOM artifact:** CI uploads `cyclonedx-sbom.json` from `npm run sbom` — diff across releases or feed into dependency review alongside Dependabot / Dependency review for transitive CVEs.
 - **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** flat preset); `next lint` is not used.
 - **SEO / discovery:** **`NEXT_PUBLIC_APP_URL`** feeds canonical/meta Open Graph (**no Twitter / social-account fields**); **`/sitemap.xml`** + **`/robots.txt`**; staging uses **`NEXT_PUBLIC_SITE_NOINDEX=true`** (see [.env.example](.env.example)).
 - **Next.js 16:** `main` ships **next@16** ([upgrade notes](docs/nextjs-16-upgrade.md)).
@@ -71,11 +74,59 @@ Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. De
 - ZAP passive DAST: [.github/workflows/dast-zap-baseline.yml](.github/workflows/dast-zap-baseline.yml) (optional **`target_url_override`**; **`fail_action`** off — review logs / ZAP report manually); rule tuning: [docs/zap-baseline-rules.md](docs/zap-baseline-rules.md)
 - Security / pen checklist: [docs/security-pentest-checklist.md](docs/security-pentest-checklist.md)
 - Access review cadence: [docs/access-review-playbook.md](docs/access-review-playbook.md)
-- Audit trail: [docs/audit-trail.md](docs/audit-trail.md) · PostgreSQL appendix: [docs/audit-postgresql-adrs.md](docs/audit-postgresql-adrs.md)
+- Audit trail: [docs/audit-trail.md](docs/audit-trail.md) (legacy append + optional Postgres + SaaS `saas_audit_events`)
 - Scaling: collectors [docs/collector-fleet-scaling.md](docs/collector-fleet-scaling.md) · Redis rate-limit (multi-instance): [docs/rate-limit-redis-adrs.md](docs/rate-limit-redis-adrs.md) · Limits table: [docs/http-rate-limit-budgets.md](docs/http-rate-limit-budgets.md)
-- Tenancy outline: [docs/multi-tenant-outline.md](docs/multi-tenant-outline.md) · Incident hooks: [docs/incident-notification.md](docs/incident-notification.md)
+- Auth / billing matrix (Clerk vs legacy, Stripe): [docs/auth-clerk-legacy-matrix.md](docs/auth-clerk-legacy-matrix.md)
+- Clerk ops checklist: [docs/clerk-ops-checklist.md](docs/clerk-ops-checklist.md)
+- Session / CSRF notes: [docs/session-security-notes.md](docs/session-security-notes.md)
+- SaaS audit retention: [docs/data-retention-saas.md](docs/data-retention-saas.md)
+- Webhook semantics & failures: [docs/webhook-processing.md](docs/webhook-processing.md)
+- Residency: [docs/data-residency.md](docs/data-residency.md)
+- i18n prep: [docs/i18n-prep.md](docs/i18n-prep.md)
+- Terraform sketch: [docs/terraform-skeleton.md](docs/terraform-skeleton.md)
+- Lighthouse CI (optional): [docs/lighthouse-ci.md](docs/lighthouse-ci.md)
 - Next.js bumps: [docs/nextjs-16-upgrade.md](docs/nextjs-16-upgrade.md) — branch **`release/next-16`** tracks preparatory merges.
 - Architecture spine: [docs/architecture-flow.md](docs/architecture-flow.md)
+
+## Product front door (marketing vs console vs demo)
+
+- **`/`** — Public landing (no auth). Explains the product; primary CTAs point to **`/demo`** and trial/sign-up flows.
+- **`/product`** — Dedicated product summary page (public; also linked from the marketing nav).
+- **`/dashboard`** — Authenticated fleet console when [Clerk is configured](docs/saas-clerk-rbac.md); with Clerk off, local/dev uses legacy session or open access depending on **`AUTH_REQUIRED`**.
+- **`/demo`** — **Sample workspace only**: seeded fictional data (`src/lib/demo/`), no inventory or scan side effects. “Real” actions open an upgrade modal; never mixed with Postgres tenants.
+- **Pricing & seats** — Trial, paid-seat vs viewer model, and RBAC are documented in **[docs/saas-clerk-rbac.md](docs/saas-clerk-rbac.md)** (code sources: `src/lib/saas/plans.ts`, `permissions.ts`, `seats.ts`, `trial.ts`).
+
+### Authenticated request path (Clerk SaaS)
+
+```mermaid
+flowchart LR
+  MW[middleware.ts + x-request-id]
+  CK[Clerk session + orgId]
+  TA[requireTenantAuth + optional MFA gate]
+  TP[requireTenantPermission and operational / trial checks]
+  H[API handler]
+  AU[emitSaasAudit / emitSaasSecurity]
+  MW --> CK --> TA --> TP --> H --> AU
+```
+
+### Billing & webhooks (Clerk + Stripe)
+
+```mermaid
+sequenceDiagram
+  participant U as User (owner)
+  participant C as Console
+  participant K as Clerk
+  participant S as Stripe
+  participant W as /api/checkout/webhook
+  participant DB as Postgres
+
+  U->>C: Open pricing / billing portal
+  C->>K: Session + org context
+  C->>S: Checkout / portal session
+  S-->>W: subscription.updated / checkout.session.completed
+  W->>DB: sync saas_subscriptions + webhook idempotency
+  W-->>C: Audit + plan limits effective on next request
+```
 
 ## Project map
 

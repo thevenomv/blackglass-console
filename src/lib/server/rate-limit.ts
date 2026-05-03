@@ -163,3 +163,52 @@ export function checkAuditPostRate(ip: string): Promise<boolean> {
 export function checkWebhooksTestRate(ip: string): Promise<boolean> {
   return allowHybrid(`webhooks:test:${ip}`, 2, 60_000);
 }
+
+/**
+ * GET read-tier API endpoints — general authenticated read guard.
+ * 240 requests per IP per minute (4/s sustained) covers normal UI polling
+ * while blocking scraping / runaway clients.
+ */
+export function checkReadApiRate(ip: string): Promise<boolean> {
+  return allowHybrid(`read:api:${ip}`, 240, 60_000);
+}
+
+/**
+ * POST /api/checkout/webhook (Stripe) — webhook flood guard.
+ * 120 per IP per minute; Stripe signature verification is the real control.
+ */
+export function checkStripeWebhookRate(ip: string): Promise<boolean> {
+  return allowHybrid(`stripe:webhook:${ip}`, 120, 60_000);
+}
+
+/**
+ * POST /api/webhooks/clerk — Clerk webhook flood guard.
+ * 120 per IP per minute; Svix signature verification is the real control.
+ */
+export function checkClerkWebhookRate(ip: string): Promise<boolean> {
+  return allowHybrid(`clerk:webhook:${ip}`, 120, 60_000);
+}
+
+/**
+ * GET /api/saas/context — tenant context read guard.
+ * 60 per IP per minute; called on every authenticated page load.
+ */
+export function checkSaasContextRate(ip: string): Promise<boolean> {
+  return allowHybrid(`saas:ctx:${ip}`, 60, 60_000);
+}
+
+/**
+ * POST /api/saas/demo-cta — demo interest submission guard.
+ * 5 per IP per minute to prevent lead-spam.
+ */
+export function checkDemoCtaRate(ip: string): Promise<boolean> {
+  return allowHybrid(`demo:cta:${ip}`, 5, 60_000);
+}
+
+/**
+ * POST /api/auth/generate-invite — admin invite generation guard.
+ * 10 per IP per hour; admin-only endpoint.
+ */
+export function checkGenerateInviteRate(ip: string): Promise<boolean> {
+  return allowHybrid(`gen:invite:${ip}`, 10, 60 * 60_000);
+}

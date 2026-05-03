@@ -64,6 +64,10 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | File                    | Role                          |
 | ----------------------- | ----------------------------- |
 | `001_audit_events.sql` | `blackglass_audit` table for optional Postgres audit sink |
+| `002_baselines.sql`    | Baseline store columns (if used in your chain) |
+| `003_drift_events.sql` | Drift events persistence sketch |
+| `004_saas_clerk_core.sql` | SaaS tenants, subscriptions, memberships, audit/security tables |
+| `005_saas_stripe_link.sql` | `stripe_customer_id` / `stripe_subscription_id` on `saas_subscriptions` |
 
 
 ---
@@ -90,8 +94,7 @@ Notes: **`ci.yml`** uses **concurrency** (cancel superseded pushes on same ref),
 | `do-list.md`                      | Post-deploy / DO follow-up checklist (Stage 0+)                                               |
 | `saas-customer-roadmap.md`        | Stages 0–4: internal → multi-tenant → enterprise                                              |
 | `stripe-live-cutover.md`           | Stripe live keys, webhook, smoke sequence                                                    |
-| `audit-trail.md`                   | `AUDIT_LOG_PATH`, Spaces **`audit/`** JSONL, compliance-facing notes                           |
-| `audit-postgresql-adrs.md`         | Postgres-backed audit append (optional **`AUDIT_DATABASE_URL`**) + migration sketch                                           |
+| `audit-trail.md`                   | Audit sinks (`AUDIT_LOG_PATH`, Spaces **`audit/`** JSONL, optional Postgres **`001_audit_events.sql`**, SaaS `saas_audit_events`) |
 | `troubleshooting-local-build.md`   | OneDrive / Windows **`readlink`** on `.next` — wipe cache, clone outside sync                                                   |
 | `github-actions-first-run.md`    | `gh workflow run` examples for staging smoke + ZAP                                                                               |
 | `stripe-live-soak.md`              | Stripe live checklist (extended soak cadence)                                                                                   |

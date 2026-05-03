@@ -94,3 +94,22 @@ services:
       #   value: /data/blackglass/drift-history.json
       #   scope: RUN_TIME
       #
+      # --- DigitalOcean Managed Database (recommended): PostgreSQL
+      # Create a Managed DB cluster, allow App Platform trusted sources, then set as SECRET:
+      # - key: DATABASE_URL
+      #   value: postgresql://doadmin:...@db-host:25060/blackglass?sslmode=require
+      #   scope: RUN_TIME
+      #   type: SECRET
+      # Apply: docs/migrations/*.sql — enables tenant_id columns, audit table (blackglass_audit), baselines, drift.
+      #
+      # Optional: same cluster with different schema, or separate DB for audit-only isolation:
+      # - key: AUDIT_DATABASE_URL
+      #   scope: RUN_TIME
+      #   type: SECRET
+      #
+      # --- DigitalOcean Managed Redis / Valkey (multi-instance rate limits + future BullMQ)
+      # - key: RATE_LIMIT_REDIS_URL
+      #   value: rediss://default:...@...db.ondigitalocean.com:25061
+      #   scope: RUN_TIME
+      #   type: SECRET
+      #

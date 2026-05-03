@@ -31,6 +31,10 @@ jobs:
         run: npm ci
 
       - name: Dependency audit (high+critical)
+        # Moderate postcss CVE GHSA-qx2v-qp2m-jg93 lives inside next/node_modules/postcss
+        # (not the root postcss, which is already at >=8.5.10). Fixing it requires a
+        # breaking Next downgrade to 9.3.3. --audit-level=high intentionally skips it.
+        # Track via .github/dependabot.yml ignore rule; remove when Next ships a patch.
         run: npm audit --audit-level=high --omit=dev
 
       - name: Lint
@@ -47,6 +51,15 @@ jobs:
 
       - name: Unit tests
         run: npm run test:unit
+
+      - name: CycloneDX SBOM artifact
+        run: npm run sbom
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyclonedx-sbom
+          path: cyclonedx-sbom.json
 
       - name: Build
         run: npm run build

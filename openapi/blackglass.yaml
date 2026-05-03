@@ -9,6 +9,8 @@ info:
 servers:
   - url: https://api.blackglass.invalid/v1
     description: Production (stub host)
+  - url: https://console.blackglass.invalid/api/v1
+    description: SaaS console API prefix (Next.js `/api/v1`, Clerk session)
 
 tags:
   - name: Hosts
@@ -70,6 +72,14 @@ paths:
         - name: limit
           in: query
           schema: { type: integer, default: 80, maximum: 200 }
+        - name: action
+          in: query
+          description: Case-insensitive substring match on audit action
+          schema: { type: string }
+        - name: since
+          in: query
+          description: ISO-8601 timestamp — only events on or after this instant
+          schema: { type: string, format: date-time }
       responses:
         "200":
           description: Tail of audit log
@@ -109,6 +119,8 @@ paths:
           description: Record created
         "400":
           description: Invalid body
+        "429":
+          description: Audit-append rate limit
 
   /hosts:
     get:
@@ -273,6 +285,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ScanJob" }
+        "503":
+          description: Scan enqueue disabled (FEATURE_SCANS_DISABLED) or dependency unavailable
 
   /scans/{scanId}:
     get:
@@ -304,6 +318,13 @@ paths:
         - name: lifecycle
           in: query
           schema: { type: string, enum: [new, triaged, accepted_risk, remediated, verified] }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100, minimum: 1, maximum: 200 }
+        - name: cursor
+          in: query
+          description: Opaque pagination cursor from previous `next_cursor`
+          schema: { type: string }
       responses:
         "200":
           description: Drift event list
@@ -316,6 +337,10 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/DriftFinding" }
                   total: { type: integer }
+                  next_cursor:
+                    type: string
+                    nullable: true
+                    description: Present when more pages exist
 
   /hosts/{hostId}/drift:
     get:
@@ -431,7 +456,11 @@ paths:
       description: >
         Lightweight agents installed on monitored hosts call this endpoint to
         push their collected snapshot over HTTPS (pull-model alternative for
-        hosts in strict VPCs). Requires a Bearer token matching INGEST_API_KEY.
+        hosts in strict VPCs). When `INGEST_API_KEY` is set it is the default
+        Bearer secret; optional `INGEST_HOST_KEYS_JSON` maps `hostId` to a
+        per-host Bearer for compromised-key blast-radius reduction.
+        When INGEST_SAAS_TENANT_ID is set, the server enforces the tenant's host
+        allowance before accepting a snapshot for a **new** host_id.
       security:
         - BearerIngestKey: []
       requestBody:
@@ -455,6 +484,8 @@ paths:
           description: Missing or invalid Bearer token
         "429":
           description: Rate limit exceeded for this host_id
+        "403":
+          description: Tenant ingest scope or host allowance blocked the snapshot
         "503":
           description: INGEST_API_KEY not configured on this instance
 

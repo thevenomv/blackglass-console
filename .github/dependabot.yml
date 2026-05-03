@@ -1,7 +1,62 @@
 version: 2
 updates:
+  # npm packages — weekly, grouped by ecosystem area
   - package-ecosystem: npm
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: "UTC"
     open-pull-requests-limit: 10
+    groups:
+      next-ecosystem:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+          - "eslint-config-next"
+      sentry:
+        patterns:
+          - "@sentry/*"
+      clerk:
+        patterns:
+          - "@clerk/*"
+      stripe:
+        patterns:
+          - "stripe"
+          - "svix"
+      drizzle:
+        patterns:
+          - "drizzle-orm"
+          - "drizzle-kit"
+      aws-sdk:
+        patterns:
+          - "@aws-sdk/*"
+      testing:
+        patterns:
+          - "vitest"
+          - "@playwright/test"
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "postcss"
+          - "autoprefixer"
+    # postcss < 8.5.10 (GHSA-qx2v-qp2m-jg93) lives inside next/node_modules/postcss —
+    # fixing it forces a breaking Next downgrade. CI skips it via --audit-level=high.
+    # Remove this ignore once Next ships a patch that resolves the internal dep.
+    ignore:
+      - dependency-name: "postcss"
+        update-types: ["version-update:semver-patch"]
+
+  # GitHub Actions pins — keep action versions current
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5

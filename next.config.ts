@@ -30,6 +30,9 @@ const securityHeaders = [
   // HSTS — 1 year, include subdomains. Cloudflare passes this through to the client over TLS.
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
   { key: "Content-Security-Policy", value: csp },
+  ...(process.env.CSP_REPORT_ONLY === "true"
+    ? [{ key: "Content-Security-Policy-Report-Only", value: csp }]
+    : []),
 ];
 
 const nextConfig: NextConfig = {

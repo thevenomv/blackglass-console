@@ -1,0 +1,83 @@
+# Maintenance — scheduled pruning jobs for audit events and webhook idempotency keys.
+#
+# Both scripts read DATABASE_URL + DO_SPACES_* from repository secrets and prune
+# stale rows per the retention policy in docs/data-retention-saas.md.
+#
+# Schedule: Sundays 02:00 UTC (low-traffic window).
+# Manual dispatch: run either job individually via Actions → Run workflow.
+#
+# Required secrets (set under Settings → Secrets and variables → Actions):
+#   DATABASE_URL              — Postgres connection string for SaaS DB
+#   DO_SPACES_KEY             — Spaces access key (if Spaces audit adapter is in use)
+#   DO_SPACES_SECRET          — Spaces secret
+#   DO_SPACES_REGION          — e.g. nyc3
+#   DO_SPACES_BUCKET          — e.g. blackglass-state
+#   AUDIT_RETENTION_DAYS      — optional override (default defined in prune script)
+#   WEBHOOK_RETENTION_DAYS    — optional override (default defined in prune script)
+name: "Maintenance — prune stale data"
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Which pruning job to run"
+        required: false
+        default: "both"
+        type: choice
+        options:
+          - both
+          - audit-events
+          - webhook-idempotency
+
+  schedule:
+    # Sundays 02:00 UTC
+    - cron: "0 2 * * 0"
+
+jobs:
+  prune-audit-events:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event.inputs.job == 'both' ||
+      github.event.inputs.job == 'audit-events'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Prune saas_audit_events
+        run: node scripts/prune-saas-audit-events.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DO_SPACES_KEY: ${{ secrets.DO_SPACES_KEY }}
+          DO_SPACES_SECRET: ${{ secrets.DO_SPACES_SECRET }}
+          DO_SPACES_REGION: ${{ secrets.DO_SPACES_REGION }}
+          DO_SPACES_BUCKET: ${{ secrets.DO_SPACES_BUCKET }}
+          AUDIT_RETENTION_DAYS: ${{ secrets.AUDIT_RETENTION_DAYS }}
+
+  prune-webhook-idempotency:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event.inputs.job == 'both' ||
+      github.event.inputs.job == 'webhook-idempotency'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Prune webhook idempotency keys
+        run: node scripts/prune-webhook-idempotency.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          WEBHOOK_RETENTION_DAYS: ${{ secrets.WEBHOOK_RETENTION_DAYS }}

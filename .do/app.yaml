@@ -39,3 +39,32 @@ services:
       - key: AUTH_REQUIRED
         value: "false"
         scope: RUN_TIME
+      # Set RATE_LIMIT_REDIS_URL to enforce rate-limit budgets across all instances.
+      # When unset, limits are in-memory per-instance (adequate for single-instance deploys).
+      - key: RATE_LIMIT_REDIS_URL
+        value: ""
+        scope: RUN_TIME
+
+# Scan worker — BullMQ consumer; processes SSH fan-out jobs off the web tier.
+# Requires REDIS_QUEUE_URL (same Redis as RATE_LIMIT_REDIS_URL or a dedicated instance).
+# Build: .\scripts\do-docker-push.ps1 -RegistryName <name> -BuildWorker
+# Apply: doctl apps update <app-id> --spec .do/app.yaml
+workers:
+  - name: scan-worker
+    image:
+      registry_type: DOCR
+      registry: REGISTRY_NAME_PLACEHOLDER
+      repository: blackglass-worker
+      tag: latest
+    instance_count: 1
+    instance_size_slug: basic-xs
+    envs:
+      - key: NODE_ENV
+        value: production
+        scope: RUN_TIME
+      - key: REDIS_QUEUE_URL
+        value: ""
+        scope: RUN_TIME
+      - key: WORKER_CONCURRENCY
+        value: "4"
+        scope: RUN_TIME
