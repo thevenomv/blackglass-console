@@ -2,35 +2,52 @@ import Link from "next/link";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { PublicFooter } from "@/components/marketing/PublicFooter";
 import { TrialSignupLink } from "@/components/demo/DemoGateButton";
-import { COMMERCIAL_PLANS, TRIAL_DAYS, TRIAL_HOST_LIMIT, TRIAL_PAID_SEAT_LIMIT } from "@/lib/saas/plans";
+import { COMMERCIAL_PLANS, PLAN_PRICING, TRIAL_DAYS, TRIAL_HOST_LIMIT, TRIAL_PAID_SEAT_LIMIT } from "@/lib/saas/plans";
 
 function MockConsolePreview() {
   return (
-    <div className="relative overflow-hidden rounded-lg border border-border-default bg-bg-panel shadow-elevated">
+    <div className="relative overflow-hidden rounded-lg border border-border-default bg-bg-panel shadow-elevated" role="img" aria-label="BLACKGLASS console preview showing drift events and SSH posture">
+      {/* Title bar */}
       <div className="flex h-8 items-center gap-1.5 border-b border-border-subtle bg-bg-elevated px-3">
-        <span className="h-2 w-2 rounded-full bg-red-500/70" />
-        <span className="h-2 w-2 rounded-full bg-amber-500/70" />
-        <span className="h-2 w-2 rounded-full bg-emerald-500/70" />
+        <span className="h-2 w-2 rounded-full bg-red-500/70" aria-hidden="true" />
+        <span className="h-2 w-2 rounded-full bg-amber-500/70" aria-hidden="true" />
+        <span className="h-2 w-2 rounded-full bg-emerald-500/70" aria-hidden="true" />
         <span className="ml-3 font-mono text-[10px] text-fg-faint">blackglass / fleet</span>
       </div>
-      <div className="grid gap-2 p-3 sm:grid-cols-3">
-        <div className="rounded border border-border-subtle bg-bg-base p-2 sm:col-span-2">
-          <p className="font-mono text-[9px] text-fg-faint">Drift queue</p>
-          <div className="mt-2 space-y-1.5">
-            <div className="h-2 w-4/5 rounded bg-red-500/25" />
-            <div className="h-2 w-3/5 rounded bg-amber-500/20" />
-            <div className="h-2 w-2/3 rounded bg-border-subtle" />
+      {/* Drift queue row */}
+      <div className="border-b border-border-subtle px-3 py-2">
+        <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-fg-faint">Drift events — last scan</p>
+        <div className="mt-2 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />
+            <span className="font-mono text-[10px] text-fg-primary">sshd / PermitRootLogin</span>
+            <span className="ml-auto font-mono text-[9px] text-red-400">HIGH</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden="true" />
+            <span className="font-mono text-[10px] text-fg-primary">sysctl / net.ipv4.tcp_syncookies</span>
+            <span className="ml-auto font-mono text-[9px] text-amber-400">MEDIUM</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-border-subtle" aria-hidden="true" />
+            <span className="font-mono text-[10px] text-fg-muted">sshd / MACs — expected change</span>
+            <span className="ml-auto font-mono text-[9px] text-fg-faint">INFO</span>
           </div>
         </div>
-        <div className="space-y-2">
-          <div className="rounded border border-border-subtle bg-bg-base p-2">
-            <p className="font-mono text-[9px] text-fg-faint">SSH</p>
-            <div className="mt-1 h-8 rounded bg-emerald-500/10" />
+      </div>
+      {/* Bottom row: SSH + hosts */}
+      <div className="grid grid-cols-2 gap-2 p-3">
+        <div className="rounded border border-border-subtle bg-bg-base p-2">
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-fg-faint">SSH posture</p>
+          <p className="mt-1 font-mono text-[10px] text-emerald-400">2 pass · 1 warn · 0 fail</p>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-bg-elevated">
+            <div className="h-full w-4/5 rounded-full bg-emerald-500/50" />
           </div>
-          <div className="rounded border border-border-subtle bg-bg-base p-2">
-            <p className="font-mono text-[9px] text-fg-faint">Hosts</p>
-            <div className="mt-1 h-6 rounded bg-accent-blue/15" />
-          </div>
+        </div>
+        <div className="rounded border border-border-subtle bg-bg-base p-2">
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-fg-faint">Hosts online</p>
+          <p className="mt-1 font-mono text-[10px] text-accent-blue">8 / 8</p>
+          <p className="mt-0.5 font-mono text-[9px] text-fg-faint">Last scan 4 m ago</p>
         </div>
       </div>
     </div>
@@ -54,12 +71,11 @@ export function LandingPage() {
                 Linux server integrity
               </p>
               <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary sm:text-4xl">
-                Know when your SSH posture and baselines drift — before an auditor does.
+                Detect Linux configuration drift before it becomes an incident.
               </h1>
               <p className="mt-4 text-lg leading-relaxed text-fg-muted">
-                BLACKGLASS captures approved configuration baselines across your fleet, detects
-                meaningful drift (including sshd and listener surface), and keeps remediation work
-                traceable — without scraping secrets or file contents from hosts.
+                Blackglass audits SSH posture, tracks baseline changes on your Linux servers, and
+                gives ops and security teams a clear workflow to harden their fleet.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
@@ -99,9 +115,10 @@ export function LandingPage() {
             </p>
             <ul className="mt-8 grid gap-4 sm:grid-cols-2">
               {[
-                "SSH misconfiguration and new listeners are common blast-radius multipliers.",
-                "Ad-hoc fixes without baselines create “snowflake” hosts nobody can explain.",
-                "Compliance asks for evidence — screenshots in Slack threads do not scale.",
+                "Config drift you only notice when something breaks — or when an auditor asks.",
+                "Scattered SSH keys and inconsistent hardening across hosts make blast radius hard to scope.",
+                "Ad-hoc emergency fixes leave snowflake hosts nobody can explain or reproduce.",
+                "No clear evidence trail for security reviews — screenshots in Slack threads do not scale.",
               ].map((t) => (
                 <li
                   key={t}
@@ -189,6 +206,17 @@ export function LandingPage() {
                 Open interactive demo →
               </Link>
             </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-fg-faint">
+              <Link href="/use-cases/linux-configuration-drift-detection" className="hover:text-accent-blue hover:underline">
+                Drift detection deep-dive →
+              </Link>
+              <Link href="/use-cases/ssh-configuration-audit" className="hover:text-accent-blue hover:underline">
+                SSH audit use case →
+              </Link>
+              <Link href="/use-cases/linux-hardening-monitoring" className="hover:text-accent-blue hover:underline">
+                Hardening monitoring →
+              </Link>
+            </div>
           </div>
         </section>
 

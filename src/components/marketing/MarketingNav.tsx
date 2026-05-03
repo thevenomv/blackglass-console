@@ -16,6 +16,7 @@ export function MarketingNav() {
   const links = [
     { href: "/", label: "Home" },
     { href: "/product", label: "Product" },
+    { href: "/use-cases", label: "Use Cases" },
     { href: "/pricing", label: "Pricing" },
     { href: "/security", label: "Security" },
     { href: "/demo", label: "Demo" },
