@@ -30,9 +30,13 @@ function singleton(): Redis | null {
   if (!url || process.env.NODE_ENV === "test") return null;
   const g = globalThis as G;
   if (!g[REDIS_KEY]) {
+    // DO managed Valkey uses a self-signed CA with TLS (rediss://).
+    // Pass tls.rejectUnauthorized=false so ioredis can verify the server.
+    const tlsOpts = url.startsWith("rediss://") ? { tls: { rejectUnauthorized: false } } : {};
     g[REDIS_KEY] = new Redis(url, {
       maxRetriesPerRequest: 2,
       lazyConnect: true,
+      ...tlsOpts,
     });
   }
   return g[REDIS_KEY]!;

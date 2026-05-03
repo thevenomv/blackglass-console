@@ -10,9 +10,6 @@ export const metadata = {
   title: "Get started | BLACKGLASS",
 };
 
-// Reads env vars only — static is fine (no DB queries)
-export const dynamic = "force-static";
-
 const FEATURES = [
   {
     label: "SSH-based collection",

@@ -27,6 +27,7 @@ function priceIdToPlanCode(priceId: string | undefined): CommercialPlanCode {
 function mapStripeStatus(status: Stripe.Subscription.Status): SubRow["status"] {
   if (status === "trialing") return "trialing";
   if (status === "active") return "active";
+  if (status === "past_due") return "past_due";
   if (status === "canceled" || status === "unpaid" || status === "incomplete_expired") {
     return "canceled";
   }

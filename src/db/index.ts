@@ -17,7 +17,12 @@ export function createDb() {
   }
   const g = globalThis as G;
   if (!g[POOL_KEY]) {
-    g[POOL_KEY] = new pg.Pool({ connectionString: url, max: 8 });
+    // DO managed Postgres uses a self-signed CA. Strip sslmode from the URL
+    // and pass ssl options explicitly so pg v8 doesn't treat sslmode=require
+    // as verify-full (which causes SELF_SIGNED_CERT_IN_CHAIN).
+    const cleanUrl = url.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+    const sslOpts = url.includes("sslmode=") ? { ssl: { rejectUnauthorized: false } } : {};
+    g[POOL_KEY] = new pg.Pool({ connectionString: cleanUrl, max: 8, ...sslOpts });
   }
   return drizzle(g[POOL_KEY]!, { schema });
 }

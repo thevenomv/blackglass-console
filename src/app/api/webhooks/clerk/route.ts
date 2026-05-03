@@ -134,19 +134,21 @@ export async function POST(request: Request) {
           d.public_user_data?.user_id ??
           (typeof evt.data.user_id === "string" ? evt.data.user_id : undefined);
         if (orgId && userId) {
-          const rows = await getTenantRowByClerkOrg(orgId);
-          const tenantId = rows[0]?.id;
-          if (tenantId) {
-            await emitSaasAudit({
-              tenantId,
-              actorUserId: userId,
-              action: "member.removed",
-              targetType: "user",
-              targetId: userId,
-              metadata: { clerkEvent: evt.type },
-            });
+          if (tryGetDb()) {
+            const rows = await getTenantRowByClerkOrg(orgId);
+            const tenantId = rows[0]?.id;
+            if (tenantId) {
+              await emitSaasAudit({
+                tenantId,
+                actorUserId: userId,
+                action: "member.removed",
+                targetType: "user",
+                targetId: userId,
+                metadata: { clerkEvent: evt.type },
+              });
+            }
+            await deleteMembership(orgId, userId);
           }
-          await deleteMembership(orgId, userId);
         }
         break;
       }

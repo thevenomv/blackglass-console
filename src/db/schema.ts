@@ -22,6 +22,7 @@ export const tenantRoleEnum = pgEnum("tenant_role", [
 export const subscriptionStatusEnum = pgEnum("subscription_status", [
   "trialing",
   "active",
+  "past_due",
   "trial_expired",
   "canceled",
   "custom",

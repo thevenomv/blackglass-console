@@ -12,7 +12,7 @@
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { jsonError } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
-import { checkCheckoutRate, clientIp } from "@/lib/server/rate-limit";
+import { checkKeyRotateRate, clientIp } from "@/lib/server/rate-limit";
 import { NextResponse } from "next/server";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { requireSaasStepUpMutation } from "@/lib/server/http/saas-access";
@@ -22,7 +22,7 @@ import { emitSaasAudit } from "@/lib/saas/event-log";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  if (!(await checkCheckoutRate(clientIp(request)))) {
+  if (!(await checkKeyRotateRate(clientIp(request)))) {
     return jsonError(429, "rate_limited", "Too many rotation requests.");
   }
 

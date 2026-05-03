@@ -212,3 +212,11 @@ export function checkDemoCtaRate(ip: string): Promise<boolean> {
 export function checkGenerateInviteRate(ip: string): Promise<boolean> {
   return allowHybrid(`gen:invite:${ip}`, 10, 60 * 60_000);
 }
+
+/**
+ * POST /api/v1/collector/keys/rotate — key rotation guard.
+ * 5 per IP per hour; operator/admin-only, rate-limited to prevent churning secrets.
+ */
+export function checkKeyRotateRate(ip: string): Promise<boolean> {
+  return allowHybrid(`key:rotate:${ip}`, 5, 60 * 60_000);
+}

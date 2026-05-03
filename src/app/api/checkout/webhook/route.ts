@@ -156,11 +156,22 @@ export async function POST(request: Request) {
     }
 
     case "invoice.payment_failed": {
-      // Payment failed: alert ops and emit an audit event for the compliance trail.
+      // Payment failed: alert ops, emit audit, and mark the subscription past_due in the DB.
       const invoice = event.data.object as Stripe.Invoice;
       const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "unknown";
       console.warn(`[stripe/webhook] invoice.payment_failed — invoice=${invoice.id} customer=${customerId}`);
       appendAudit({ action: AUDIT_ACTIONS.INVOICE_PAYMENT_FAILED, detail: `invoice=${invoice.id} customer=${customerId} amount=${invoice.amount_due}` });
+      // Sync subscription status (should become past_due) to the DB.
+      const subRef = invoice.parent?.subscription_details?.subscription;
+      const failedSubId = typeof subRef === "string" ? subRef : subRef?.id ?? null;
+      if (failedSubId) {
+        try {
+          const failedSub = await stripe.subscriptions.retrieve(failedSubId);
+          await maybeSyncSaasSubscription(failedSub);
+        } catch (e) {
+          console.error("[stripe/webhook] past_due sync failed:", e);
+        }
+      }
       const slackUrl = process.env.SLACK_ALERT_WEBHOOK_URL;
       if (slackUrl) {
         await fetch(slackUrl, {

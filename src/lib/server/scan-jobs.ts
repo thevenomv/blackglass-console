@@ -53,7 +53,8 @@ function publishScanResultToRedis(rec: ScanJobRecord): void {
   void (async () => {
     try {
       const { default: Redis } = await import("ioredis");
-      const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1 });
+      const tlsOpts = url.startsWith("rediss://") ? { tls: { rejectUnauthorized: false } } : {};
+      const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1, ...tlsOpts });
       await client.set(
         scanRedisKey(rec.id),
         JSON.stringify(rec),
@@ -76,7 +77,8 @@ async function fetchScanFromRedis(id: string): Promise<ScanJobRecord | undefined
   if (!url) return undefined;
   try {
     const { default: Redis } = await import("ioredis");
-    const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1 });
+    const tlsOpts = url.startsWith("rediss://") ? { tls: { rejectUnauthorized: false } } : {};
+    const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1, ...tlsOpts });
     const raw = await client.get(scanRedisKey(id));
     client.disconnect();
     if (!raw) return undefined;
