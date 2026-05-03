@@ -311,14 +311,6 @@ export default function PricingSection() {
   );
 }
 
-
-// ---------------------------------------------------------------------------
-// Data — matches the exact copy spec
-// ---------------------------------------------------------------------------
-
-const TIERS: PricingTier[] = [
-  {
-    key: "free",
     label: "BLACKGLASS Local",
     price: "$0",
     priceSub: "/ month",
