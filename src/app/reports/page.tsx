@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { ReportsView } from "@/components/reports/ReportsView";
 import { Skeleton } from "@/components/ui/Skeleton";

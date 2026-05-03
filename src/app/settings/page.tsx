@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { requireTenantAuth, SaasAuthError } from "@/lib/saas/auth-context";
 import { redirect } from "next/navigation";
