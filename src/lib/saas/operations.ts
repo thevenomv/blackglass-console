@@ -68,6 +68,30 @@ export function canManageHostsForTenant(
   return { ok: true };
 }
 
+/**
+ * Check whether adding one more host is within the plan's host quota.
+ * Pass the number of hosts already registered (before the proposed add).
+ * `subscription.hostLimit === -1` means enterprise/unlimited.
+ */
+export function canAddHostForTenant(
+  role: TenantRole,
+  subscription: SaasSubscription,
+  currentHostCount: number,
+): { ok: true } | { ok: false; code: string; detail: string } {
+  const manage = canManageHostsForTenant(role, subscription);
+  if (!manage.ok) return manage;
+  const limit = subscription.hostLimit;
+  if (limit === -1) return { ok: true };
+  if (currentHostCount >= limit) {
+    return {
+      ok: false,
+      code: "host_cap_exceeded",
+      detail: `Your plan allows ${limit} host${limit === 1 ? "" : "s"}. Upgrade to add more.`,
+    };
+  }
+  return { ok: true };
+}
+
 export function canGenerateReportsForTenant(
   role: TenantRole,
   subscription: SaasSubscription,

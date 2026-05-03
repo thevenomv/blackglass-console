@@ -16,30 +16,49 @@ export async function POST(request: Request) {
   // fallback is intentionally HTTPS to prevent plaintext redirect targets in prod.
   const origin = request.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://localhost:3000";
 
-  // If you've created a recurring price in the Stripe dashboard, set
-  // STRIPE_PRO_PRICE_ID and it will be used directly.  Otherwise we fall
-  // back to inline price_data so you can test without dashboard setup.
-  const priceId = process.env.STRIPE_PRO_PRICE_ID;
+  // Resolve Stripe price ID by plan code.
+  // Set STRIPE_STARTER_PRICE_ID / STRIPE_GROWTH_PRICE_ID / STRIPE_BUSINESS_PRICE_ID in env.
+  // Falls back to inline price_data so checkout works without Stripe dashboard setup.
+  let planCode = "starter";
+  try {
+    const body = await request.json() as { planCode?: string };
+    if (body?.planCode && ["starter", "growth", "business"].includes(body.planCode)) {
+      planCode = body.planCode;
+    }
+  } catch {
+    // No body or non-JSON body — use default plan
+  }
 
-  const lineItems =    priceId
-      ? [{ price: priceId, quantity: 1 }]
-      : [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: "Blackglass Team",
-                description: "Up to 25 hosts · 5 users · scheduled scans · 180-day history",
-                images: [],
-              },
-              unit_amount: Number(process.env.STRIPE_FALLBACK_PRICE_AMOUNT ?? 2900), // $29.00 default; override via STRIPE_FALLBACK_PRICE_AMOUNT
-              recurring: { interval: "month" as const },
-            },
-            quantity: 1,
+  const PLAN_PRICE_ENV: Record<string, string | undefined> = {
+    starter:  process.env.STRIPE_STARTER_PRICE_ID,
+    growth:   process.env.STRIPE_GROWTH_PRICE_ID,
+    business: process.env.STRIPE_BUSINESS_PRICE_ID,
+  };
+
+  const PLAN_FALLBACK: Record<string, { name: string; description: string; amount: number }> = {
+    starter:  { name: "BLACKGLASS Starter",  description: "25 hosts · 2 operator seats · 180-day history", amount: 7900  },
+    growth:   { name: "BLACKGLASS Growth",   description: "100 hosts · 5 operator seats · fleet dashboard",  amount: 19900 },
+    business: { name: "BLACKGLASS Business", description: "300 hosts · 10 operator seats · approval workflows", amount: 49900 },
+  };
+
+  const priceId = PLAN_PRICE_ENV[planCode];
+  const fallback = PLAN_FALLBACK[planCode];
+
+  const lineItems = priceId
+    ? [{ price: priceId, quantity: 1 }]
+    : [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: fallback.name, description: fallback.description, images: [] as string[] },
+            unit_amount: fallback.amount,
+            recurring: { interval: "month" as const },
           },
-        ];
+          quantity: 1,
+        },
+      ];
 
-  let sessionMetadata: Record<string, string> = { plan: "pro", source: "blackglass_checkout" };
+  let sessionMetadata: Record<string, string> = { plan: planCode, source: "blackglass_checkout" };
   if (isClerkAuthEnabled()) {
     const { orgId } = await auth();
     if (orgId) {
