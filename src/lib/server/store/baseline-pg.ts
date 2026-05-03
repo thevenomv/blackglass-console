@@ -22,10 +22,10 @@ type G = typeof globalThis & { [POOL_KEY]?: Pool };
 function getPool(url: string): Pool {
   const g = globalThis as G;
   if (!g[POOL_KEY]) {
-    // Dynamic import keeps `pg` out of client bundles (serverExternalPackages).
-    // We assign synchronously after the first resolution to avoid races.
     const { Pool: PgPool } = require("pg") as typeof import("pg");
-    g[POOL_KEY] = new PgPool({ connectionString: url, max: 5 });
+    const cleanUrl = url.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+    const sslOpts = url.includes("sslmode=") ? { ssl: { rejectUnauthorized: false } } : {};
+    g[POOL_KEY] = new PgPool({ connectionString: cleanUrl, max: 5, ...sslOpts });
   }
   return g[POOL_KEY]!;
 }

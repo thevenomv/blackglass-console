@@ -18,7 +18,9 @@ function getPool(url: string): Pool {
   const g = globalThis as G;
   if (!g[POOL_KEY]) {
     const { Pool: PgPool } = require("pg") as typeof import("pg");
-    g[POOL_KEY] = new PgPool({ connectionString: url, max: 3 });
+    const cleanUrl = url.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+    const sslOpts = url.includes("sslmode=") ? { ssl: { rejectUnauthorized: false } } : {};
+    g[POOL_KEY] = new PgPool({ connectionString: cleanUrl, max: 3, ...sslOpts });
   }
   return g[POOL_KEY]!;
 }

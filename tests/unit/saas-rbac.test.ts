@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canAssignRole, hasPermission } from "@/lib/saas/permissions";
 import { canAddPaidSeat, countPaidSeats, getSeatUsage, canApplyRoleChange } from "@/lib/saas/seats";
-import { canRunScansForTenant } from "@/lib/saas/operations";
+import { canRunScansForTenant, canModifyBaselinesForTenant, canRotateSecretsForTenant } from "@/lib/saas/operations";
 import type { SaasSubscription } from "@/db/schema";
 
 function sub(over: Partial<SaasSubscription> = {}): SaasSubscription {
@@ -103,5 +103,56 @@ describe("saas RBAC", () => {
       { userId: "u3", role: "viewer" as const, status: "active" },
     ];
     expect(canApplyRoleChange(memberships, "u3", "operator", 2).ok).toBe(false);
+  });
+
+  it("past_due: canRunScansForTenant returns trial_read_only (Stripe grace period — not subscription_inactive)", () => {
+    const s = sub({
+      status: "past_due",
+      planCode: "growth",
+      trialEndsAt: null,
+      currentPeriodEndsAt: null,
+      hostLimit: 100,
+      paidSeatLimit: 8,
+      features: {},
+      updatedAt: new Date(),
+    });
+    const r = canRunScansForTenant("operator", s);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.code).toBe("trial_read_only");
+      expect(r.code).not.toBe("subscription_inactive");
+    }
+  });
+
+  it("past_due: canModifyBaselinesForTenant returns trial_read_only", () => {
+    const s = sub({
+      status: "past_due",
+      planCode: "growth",
+      trialEndsAt: null,
+      currentPeriodEndsAt: null,
+      hostLimit: 100,
+      paidSeatLimit: 8,
+      features: {},
+      updatedAt: new Date(),
+    });
+    const r = canModifyBaselinesForTenant("operator", s);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe("trial_read_only");
+  });
+
+  it("past_due: canRotateSecretsForTenant returns trial_read_only", () => {
+    const s = sub({
+      status: "past_due",
+      planCode: "growth",
+      trialEndsAt: null,
+      currentPeriodEndsAt: null,
+      hostLimit: 100,
+      paidSeatLimit: 8,
+      features: {},
+      updatedAt: new Date(),
+    });
+    const r = canRotateSecretsForTenant("admin", s);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe("trial_read_only");
   });
 });

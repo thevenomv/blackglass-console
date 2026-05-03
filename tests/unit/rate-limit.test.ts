@@ -4,6 +4,12 @@ import {
   checkLoginRate,
   checkScanPostRate,
   checkScanPollRate,
+  checkStripeWebhookRate,
+  checkClerkWebhookRate,
+  checkSaasContextRate,
+  checkDemoCtaRate,
+  checkGenerateInviteRate,
+  checkKeyRotateRate,
   resetRateLimitBucketsForTests,
 } from "@/lib/server/rate-limit";
 
@@ -41,5 +47,46 @@ describe("rate-limit", () => {
     const target = ip(30);
     for (let i = 0; i < 10; i++) await expect(checkInviteRate(target)).resolves.toBe(true);
     await expect(checkInviteRate(target)).resolves.toBe(false);
+  });
+
+  it("stripe webhook rate allows up to 120 then denies", async () => {
+    const target = ip(40);
+    for (let i = 0; i < 120; i++) await expect(checkStripeWebhookRate(target)).resolves.toBe(true);
+    await expect(checkStripeWebhookRate(target)).resolves.toBe(false);
+  });
+
+  it("clerk webhook rate allows up to 120 then denies", async () => {
+    const target = ip(41);
+    for (let i = 0; i < 120; i++) await expect(checkClerkWebhookRate(target)).resolves.toBe(true);
+    await expect(checkClerkWebhookRate(target)).resolves.toBe(false);
+  });
+
+  it("saas context rate allows 60 then denies", async () => {
+    const target = ip(42);
+    for (let i = 0; i < 60; i++) await expect(checkSaasContextRate(target)).resolves.toBe(true);
+    await expect(checkSaasContextRate(target)).resolves.toBe(false);
+  });
+
+  it("demo CTA rate allows 5 then denies", async () => {
+    const target = ip(43);
+    for (let i = 0; i < 5; i++) await expect(checkDemoCtaRate(target)).resolves.toBe(true);
+    await expect(checkDemoCtaRate(target)).resolves.toBe(false);
+  });
+
+  it("generate invite rate allows 10 then denies", async () => {
+    const target = ip(44);
+    for (let i = 0; i < 10; i++) await expect(checkGenerateInviteRate(target)).resolves.toBe(true);
+    await expect(checkGenerateInviteRate(target)).resolves.toBe(false);
+  });
+
+  it("key rotate rate allows 5 then denies", async () => {
+    const target = ip(45);
+    for (let i = 0; i < 5; i++) await expect(checkKeyRotateRate(target)).resolves.toBe(true);
+    await expect(checkKeyRotateRate(target)).resolves.toBe(false);
+  });
+
+  it("isolates quotas per IP for new functions", async () => {
+    await expect(checkDemoCtaRate(ip(50))).resolves.toBe(true);
+    await expect(checkDemoCtaRate(ip(51))).resolves.toBe(true);
   });
 });

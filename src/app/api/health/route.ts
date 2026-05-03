@@ -9,6 +9,7 @@ import { getLimits } from "@/lib/plan";
 import { verifySession } from "@/lib/auth/session-signing";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,23 @@ export async function GET(request: Request) {
   const authRequired = process.env.AUTH_REQUIRED === "true";
   let authenticated = !authRequired; // dev/demo mode: always full response
   if (authRequired) {
-    const jar = await cookies();
-    const token = jar.get("bg-session")?.value;
-    if (token) {
-      const payload = await verifySession(token);
-      authenticated = payload !== null;
+    if (isClerkAuthEnabled()) {
+      // In Clerk mode, check the Clerk session. Import lazily to avoid loading
+      // Clerk on every health check when not needed.
+      try {
+        const { auth } = await import("@clerk/nextjs/server");
+        const { userId } = await auth();
+        authenticated = userId != null;
+      } catch {
+        authenticated = false;
+      }
+    } else {
+      const jar = await cookies();
+      const token = jar.get("bg-session")?.value;
+      if (token) {
+        const payload = await verifySession(token);
+        authenticated = payload !== null;
+      }
     }
   }
 

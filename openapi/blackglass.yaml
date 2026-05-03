@@ -20,6 +20,8 @@ tags:
   - name: Evidence
   - name: Reports
   - name: Ingest
+  - name: Collector
+  - name: Webhooks
 
 paths:
   /api/health:
@@ -126,6 +128,8 @@ paths:
     get:
       tags: [Hosts]
       summary: List hosts in workspace
+      security:
+        - SessionCookie: []
       parameters:
         - name: cursor
           in: query
@@ -145,11 +149,16 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Host" }
                   next_cursor: { type: string, nullable: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
 
   /baselines:
     get:
       tags: [Baselines]
       summary: List captured baselines (summary per host)
+      security:
+        - SessionCookie: []
       responses:
         "200":
           content:
@@ -168,9 +177,14 @@ paths:
                         listenersCount: { type: integer }
                         usersCount: { type: integer }
                         servicesCount: { type: integer }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
     post:
       tags: [Baselines]
       summary: Capture baselines for all configured collector hosts
+      security:
+        - SessionCookie: []
       description: >
         Collects SSH snapshots from every COLLECTOR_HOST_N in parallel. Saves each
         successful baseline; partial failures are listed under `failed`.
@@ -216,6 +230,8 @@ paths:
     get:
       tags: [Hosts]
       summary: Get host detail and latest posture summary
+      security:
+        - SessionCookie: []
       parameters:
         - $ref: "#/components/parameters/hostId"
       responses:
@@ -223,12 +239,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/HostDetail" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
         "404": { description: Host not found }
+        "429": { description: Rate limit exceeded }
 
   /hosts/{hostId}/baselines:
     get:
       tags: [Baselines]
       summary: List baseline snapshots for a host
+      security:
+        - SessionCookie: []
       parameters:
         - $ref: "#/components/parameters/hostId"
       responses:
@@ -238,10 +259,15 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Baseline" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
 
     post:
       tags: [Baselines]
       summary: Create baseline from latest successful scan
+      security:
+        - SessionCookie: []
       parameters:
         - $ref: "#/components/parameters/hostId"
       requestBody:
@@ -262,90 +288,16 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Baseline" }
-
-  /scans:
-    post:
-      tags: [Scans]
-      summary: Enqueue scan job for one or more hosts
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [host_ids]
-              properties:
-                host_ids:
-                  type: array
-                  items: { type: string }
-                profile: { type: string, enum: [full, quick], default: full }
-      responses:
-        "202":
-          description: Accepted
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ScanJob" }
-        "503":
-          description: Scan enqueue disabled (FEATURE_SCANS_DISABLED) or dependency unavailable
-
-  /scans/{scanId}:
-    get:
-      tags: [Scans]
-      summary: Get scan job status and progress
-      parameters:
-        - name: scanId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ScanJob" }
-
-  /drift:
-    get:
-      tags: [Drift]
-      summary: List all drift events across the fleet
-      description: >
-        Returns real drift events when the collector is configured and a scan
-        has been completed; falls back to mock data otherwise.
-      parameters:
-        - name: hostId
-          in: query
-          schema: { type: string }
-          description: Filter to a specific host
-        - name: lifecycle
-          in: query
-          schema: { type: string, enum: [new, triaged, accepted_risk, remediated, verified] }
-        - name: limit
-          in: query
-          schema: { type: integer, default: 100, minimum: 1, maximum: 200 }
-        - name: cursor
-          in: query
-          description: Opaque pagination cursor from previous `next_cursor`
-          schema: { type: string }
-      responses:
-        "200":
-          description: Drift event list
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items: { $ref: "#/components/schemas/DriftFinding" }
-                  total: { type: integer }
-                  next_cursor:
-                    type: string
-                    nullable: true
-                    description: Present when more pages exist
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden (trial_read_only or insufficient role) }
+        "429": { description: Rate limit exceeded }
 
   /hosts/{hostId}/drift:
     get:
       tags: [Drift]
       summary: List drift findings for host (latest scan vs active baseline)
+      security:
+        - SessionCookie: []
       parameters:
         - $ref: "#/components/parameters/hostId"
         - name: severity
@@ -358,11 +310,16 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/DriftFinding" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
 
   /drift/{findingId}:
     get:
       tags: [Drift]
       summary: Get drift finding detail (evidence excerpts)
+      security:
+        - SessionCookie: []
       parameters:
         - name: findingId
           in: path
@@ -373,11 +330,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DriftFinding" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: Finding not found }
+        "429": { description: Rate limit exceeded }
 
   /hosts/{hostId}/diff:
     get:
       tags: [Drift]
       summary: Unified baseline vs current structured diff
+      security:
+        - SessionCookie: []
       parameters:
         - $ref: "#/components/parameters/hostId"
         - name: baseline_id
@@ -391,11 +354,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DiffResult" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: Host or baseline not found }
+        "429": { description: Rate limit exceeded }
 
   /evidence/bundles:
     post:
       tags: [Evidence]
       summary: Create evidence bundle export job
+      security:
+        - SessionCookie: []
       requestBody:
         required: true
         content:
@@ -430,11 +399,16 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EvidenceBundleJob" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
 
   /evidence/bundles/{bundleId}:
     get:
       tags: [Evidence]
       summary: Get bundle job status or download URL when ready
+      security:
+        - SessionCookie: []
       parameters:
         - name: bundleId
           in: path
@@ -445,6 +419,10 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EvidenceBundleJob" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: Bundle not found }
+        "429": { description: Rate limit exceeded }
 
   /api/v1/ingest:
     servers:
@@ -513,6 +491,246 @@ paths:
                   report_id: { type: string }
                   status: { type: string, enum: [queued, running, ready, failed] }
 
+  /reports:
+    post:
+      tags: [Reports]
+      summary: Generate integrity report
+      security:
+        - SessionCookie: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                fleet_tags: { type: array, items: { type: string } }
+                period: { type: string, description: ISO-8601 interval or preset }
+                format: { type: string, enum: [markdown, pdf], default: markdown }
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report_id: { type: string }
+                  status: { type: string, enum: [queued, running, ready, failed] }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
+    get:
+      tags: [Reports]
+      summary: List generated reports
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        title: { type: string }
+                        format: { type: string, enum: [markdown, pdf] }
+                        status: { type: string, enum: [queued, running, ready, failed] }
+                        created_at: { type: string, format: date-time }
+                  next_cursor: { type: string, nullable: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+
+  /scans:
+    post:
+      tags: [Scans]
+      summary: Enqueue a fleet drift scan
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                host_ids:
+                  type: array
+                  items: { type: string }
+                  description: Empty array triggers full-fleet scan
+      responses:
+        "202":
+          description: Scan job accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScanJob" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden (trial_read_only or subscription_inactive) }
+        "429": { description: Rate limit exceeded (24 per minute per IP) }
+    get:
+      tags: [Scans]
+      summary: List recent scan jobs
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ScanJob" }
+                  next_cursor: { type: string, nullable: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
+
+  /scans/{scanId}:
+    get:
+      tags: [Scans]
+      summary: Get scan job status
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: scanId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScanJob" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: Scan job not found }
+        "429": { description: Rate limit exceeded (320 polls per minute per IP) }
+
+  /drift:
+    get:
+      tags: [Drift]
+      summary: List all drift events across fleet (flat, paginated)
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: hostId
+          in: query
+          schema: { type: string }
+          description: Filter to a specific host
+        - name: lifecycle
+          in: query
+          schema:
+            type: string
+            enum: [new, triaged, accepted_risk, remediated, verified]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [high, medium, low]
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100, maximum: 200 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/DriftFinding" }
+                  total: { type: integer }
+                  next_cursor: { type: string, nullable: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
+
+  /evidence/bundles/{bundleId}/file:
+    get:
+      tags: [Evidence]
+      summary: Download evidence bundle archive (binary)
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: bundleId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Binary archive (.tar.gz or .zip)
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: Bundle not found or not yet ready }
+
+  /collector/keys/rotate:
+    post:
+      tags: [Collector]
+      summary: Rotate the collector ingest API key for this tenant
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rotated: { type: boolean }
+                  message: { type: string }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — owner or admin role required }
+        "429": { description: Rate limit exceeded (5 per hour per IP) }
+
+  /webhooks/test:
+    post:
+      tags: [Webhooks]
+      summary: Send a test webhook delivery to the configured endpoint
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status_code: { type: integer }
+                  latency_ms: { type: integer }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded (2 per minute per IP) }
+
 components:
   parameters:
     hostId:
@@ -526,6 +744,15 @@ components:
       type: http
       scheme: bearer
       description: INGEST_API_KEY bearer token for push-agent endpoints
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: bg-session
+      description: >
+        Signed session cookie (legacy auth) or Clerk session token
+        (when CLERK_AUTH_ENABLED=true). All authenticated console API
+        paths require one of these. Clerk issues __session cookie;
+        the server inspects CLERK_AUTH_ENABLED to pick the verification path.
 
   schemas:
     HostSnapshot:

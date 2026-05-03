@@ -16,6 +16,10 @@ export function isTrialReadOnlyState(sub: SaasSubscription, now = new Date()): b
 export function isSubscriptionOperational(sub: SaasSubscription, now = new Date()): boolean {
   if (sub.status === "canceled") return false;
   if (isTrialReadOnlyState(sub, now)) return false;
+  // past_due: Stripe has a configurable grace period before cancellation.
+  // Treat as degraded-read-only (same as trial_read_only) so mutation gates
+  // block while reads continue. Do NOT hard-lock as subscription_inactive.
+  if (sub.status === "past_due") return true;
   if (sub.status === "trialing" || sub.status === "active" || sub.status === "custom") return true;
   return false;
 }
@@ -23,6 +27,8 @@ export function isSubscriptionOperational(sub: SaasSubscription, now = new Date(
 export function operationalBlockReason(sub: SaasSubscription, now = new Date()): OperationalBlockReason {
   if (sub.status === "canceled") return "subscription_inactive";
   if (isTrialReadOnlyState(sub, now)) return "trial_read_only";
+  // past_due within Stripe grace period — degrade to read-only, not hard-lock.
+  if (sub.status === "past_due") return "trial_read_only";
   if (sub.status === "custom") {
     /* Enterprise custom — treat as operational if not expired; extend later with contract flags */
     return null;
