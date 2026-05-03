@@ -7,7 +7,6 @@ import { SessionProvider } from "@/components/auth/SessionProvider";
 import { Providers } from "@/components/providers/Providers";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { siteOrigin, siteShouldNoindex } from "@/lib/site";
-import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 
 const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -86,7 +85,11 @@ export default function RootLayout({
         })
       : null;
 
-  const clerkOn = isClerkAuthEnabled();
+  // ClerkProvider is a client component that only needs the publishable key.
+  // Do not gate on isClerkAuthEnabled() (which also checks CLERK_SECRET_KEY)
+  // because that server-only var may be absent at render time, causing
+  // <SignIn>/<SignUp> to render without context and throw.
+  const clerkPk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
   const inner = (
         <ThemeProvider>
           <SessionProvider>
@@ -108,8 +111,8 @@ export default function RootLayout({
         <Script id="blackglass-theme-init" strategy="beforeInteractive">
           {themeInit}
         </Script>
-        {clerkOn ? (
-          <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!}>
+        {clerkPk ? (
+          <ClerkProvider publishableKey={clerkPk}>
             {inner}
           </ClerkProvider>
         ) : (

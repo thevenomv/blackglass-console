@@ -222,8 +222,8 @@ export function LandingPage() {
                 </Link>
               </div>
             </div>
-            <div className="mt-8 rounded-lg border border-amber-500/35 bg-amber-500/10 p-4 text-sm text-amber-100">
-              <strong className="text-amber-50">Free trial:</strong> {TRIAL_DAYS} days · up to{" "}
+            <div className="mt-8 rounded-lg border border-warning/30 bg-warning-soft p-4 text-sm text-warning">
+              <strong>Free trial:</strong> {TRIAL_DAYS} days · up to{" "}
               {TRIAL_HOST_LIMIT} hosts · {TRIAL_PAID_SEAT_LIMIT} paid seats · no card required. After
               trial: workspace stays readable; operational actions lock until you upgrade (no
               permanent free operational tier).
