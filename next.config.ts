@@ -6,8 +6,11 @@ import { withSentryConfig } from "@sentry/nextjs";
 // pk_test_<base64>  → *.clerk.accounts.dev
 // pk_live_<base64>  → the decoded hostname (e.g. accounts.xxx.clerk.com)
 function clerkCspHosts(): string {
+  // Always include wildcard fallback so CSP is correct even when the env var
+  // is not available at build time (e.g. DO App Platform runtime-only vars).
+  const fallback = "https://*.clerk.accounts.dev https://*.clerk.com";
   const pk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
-  if (!pk) return "";
+  if (!pk) return fallback;
   try {
     const b64 = pk.replace(/^pk_(test|live)_/, "");
     // Base64 payload ends with '$', strip it after decoding
@@ -15,8 +18,7 @@ function clerkCspHosts(): string {
     // decoded is the frontend API host, e.g. "vast-jawfish-94.clerk.accounts.dev"
     return `https://${decoded}`;
   } catch {
-    // Fallback: allow all Clerk subdomains for both test and live
-    return "https://*.clerk.accounts.dev https://*.clerk.com";
+    return fallback;
   }
 }
 
