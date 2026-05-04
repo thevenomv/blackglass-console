@@ -1,7 +1,5 @@
 # BLACKGLASS — security contact (RFC 9116)
-Contact: mailto:security@blackglass.invalid
+Contact: mailto:jamie@obsidiandynamics.co.uk
 Expires: 2027-12-31T23:59:59.000Z
 Preferred-Languages: en
-Canonical: https://blackglass.invalid/.well-known/security.txt
-
-# Replace security@blackglass.invalid with your coordinated disclosure inbox before production.
+Canonical: https://blackglasssec.com/.well-known/security.txt

@@ -33,7 +33,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https: https://img.clerk.com",
   "font-src 'self' data:",
-  `connect-src 'self' https://api.stripe.com ${clerkHost} https://clerk.com`.trimEnd(),
+  `connect-src 'self' https://api.stripe.com ${clerkHost} https://clerk.com https://clerk-telemetry.com`.trimEnd(),
   "frame-src https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
   "object-src 'none'",
   "base-uri 'self'",
