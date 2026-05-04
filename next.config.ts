@@ -29,7 +29,7 @@ const clerkHost = clerkCspHosts();
 // Sentry requests are proxied via /monitoring (same-origin) — no external connect needed.
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com ${clerkHost}`.trimEnd(),
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://challenges.cloudflare.com ${clerkHost}`.trimEnd(),
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https: https://img.clerk.com",
   "font-src 'self' data:",
