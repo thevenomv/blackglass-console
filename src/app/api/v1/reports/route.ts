@@ -30,6 +30,9 @@ import {
 } from "@/lib/server/http/saas-access";
 import { canGenerateReportsForTenant } from "@/lib/saas/operations";
 import { emitSaasAudit } from "@/lib/saas/event-log";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
+import { applySaasSentryContext } from "@/lib/observability/sentry-saas";
+import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +56,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const requestId = getOrCreateRequestId(request);
   let legacyRole: string | null = null;
   let saasUserId: string | null = null;
   let saasTenantId: string | null = null;
@@ -62,6 +66,13 @@ export async function POST(request: Request) {
     if (!m.ok) return m.response;
     saasUserId = m.ctx.userId;
     saasTenantId = m.ctx.tenant.id;
+    void applySaasSentryContext({
+      requestId,
+      tenantId: m.ctx.tenant.id,
+      userId: m.ctx.userId,
+      clerkOrgId: m.ctx.tenant.clerkOrgId,
+      plan: m.ctx.subscription.planCode,
+    });
   } else {
     const guard = await requireRole(["operator", "admin"]);
     if (!guard.ok) return guard.response;
@@ -69,18 +80,18 @@ export async function POST(request: Request) {
   }
 
   if (!(await checkReportsPostRate(clientIp(request)))) {
-    return jsonError(429, "rate_limited", "Too many report generation requests.");
+    return jsonError(429, "rate_limited", "Too many report generation requests.", requestId);
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return jsonError(400, "invalid_json");
+    return jsonError(400, "invalid_json", undefined, requestId);
   }
 
   const parsed = ReportPostSchema.safeParse(body);
-  if (!parsed.success) return zodErrorResponse(parsed.error);
+  if (!parsed.success) return zodErrorResponse(parsed.error, requestId);
 
   const { scope, format, hostId } = parsed.data;
 
@@ -108,6 +119,7 @@ export async function POST(request: Request) {
     action: AUDIT_ACTIONS.REPORT_QUEUED,
     detail: `Report ${id} queued — scope: ${scope}, format: ${format}`,
     actor: legacyRole ?? saasUserId ?? "saas",
+    request_id: requestId,
   });
 
   if (saasTenantId && saasUserId) {
@@ -117,11 +129,11 @@ export async function POST(request: Request) {
       action: "report.queued",
       targetType: "report",
       targetId: id,
-      metadata: { scope, format },
+      metadata: { scope, format, request_id: requestId },
     });
   }
 
-  return NextResponse.json(entry, { status: 202 });
+  return jsonWithRequestId(entry, requestId, { status: 202 });
 }
 
 async function generateReport(

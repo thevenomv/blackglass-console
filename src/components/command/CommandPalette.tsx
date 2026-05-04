@@ -30,26 +30,19 @@ const ROUTES: PaletteItem[] = [
   {
     id: "workspace",
     label: "Incident workspace",
-    hint: "INC mock · tasks",
     href: "/workspace",
     keywords: "incident runbook",
   },
   { id: "evidence", label: "Evidence bundles", href: "/evidence", keywords: "export audit" },
   { id: "reports", label: "Reports", href: "/reports", keywords: "pdf digest" },
-  { id: "demo", label: "Partner demo script", href: "/demo", keywords: "walkthrough" },
+  { id: "demo", label: "Sample workspace (demo)", href: "/demo", keywords: "walkthrough fictional" },
+  { id: "welcome", label: "Get started", href: "/welcome", keywords: "onboarding" },
   { id: "settings", label: "Settings", href: "/settings", keywords: "rotate keys" },
   {
     id: "login",
     label: "Sign in",
     href: "/login",
     keywords: "sign in session auth",
-  },
-  {
-    id: "host-seed",
-    label: "Host detail · host-07",
-    hint: "Investigation seed",
-    href: "/hosts/host-07",
-    keywords: "detail drill",
   },
 ];
 

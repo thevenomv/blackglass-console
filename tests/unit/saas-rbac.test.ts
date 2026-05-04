@@ -135,7 +135,7 @@ describe("saas RBAC", () => {
       features: {},
       updatedAt: new Date(),
     });
-    const r = canModifyBaselinesForTenant("operator", s);
+    const r = canModifyBaselinesForTenant("admin", s);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe("trial_read_only");
   });

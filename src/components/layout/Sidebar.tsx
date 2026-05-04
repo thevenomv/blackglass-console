@@ -16,15 +16,20 @@ const clerkPk =
     : "";
 const clerkOn = clerkPk.length > 0;
 
-const NAV_BASE = [
+/** Primary workflow — discovery → anchors → triage → exports. */
+const NAV_WORKSPACE: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/hosts", label: "Hosts" },
   { href: "/baselines", label: "Baselines" },
   { href: "/drift", label: "Drift" },
-  { href: "/workspace", label: "Workspace" },
   { href: "/evidence", label: "Evidence" },
   { href: "/reports", label: "Reports" },
-  { href: "/demo", label: "Demo" },
+  { href: "/workspace", label: "Workspace" },
+];
+
+const NAV_RESOURCE: { href: string; label: string }[] = [
+  { href: "/welcome", label: "Get started" },
+  { href: "/demo", label: "Sample demo" },
   { href: "/settings", label: "Settings" },
   ...(clerkOn
     ? [
@@ -32,41 +37,43 @@ const NAV_BASE = [
         { href: "/settings/billing", label: "Billing" },
       ]
     : []),
-  { href: "/pricing", label: "Pricing" },
-  { href: "/welcome", label: "Get started" },
-] as const;
+];
 
 const GUEST_AUDITOR_HREFS = new Set([
   "/dashboard",
   "/evidence",
   "/reports",
-  "/pricing",
   "/welcome",
+  "/demo",
 ]);
 
-function navItemsForTenant(tenantRole: TenantRole | null): readonly (typeof NAV_BASE)[number][] {
-  if (tenantRole !== "guest_auditor") return NAV_BASE;
-  return NAV_BASE.filter((item) => GUEST_AUDITOR_HREFS.has(item.href));
+function navAllowed(href: string, tenantRole: TenantRole | null): boolean {
+  if (tenantRole !== "guest_auditor") return true;
+  return GUEST_AUDITOR_HREFS.has(href);
 }
 
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
-  const { role, authenticated, tenantRole } = useSession();
-
-  const NAV = navItemsForTenant(tenantRole);
-
+function NavGroup({
+  title,
+  items,
+  pathname,
+  tenantRole,
+  onNavigate,
+}: {
+  title: string;
+  items: readonly { href: string; label: string }[];
+  pathname: string;
+  tenantRole: TenantRole | null;
+  onNavigate?: () => void;
+}) {
+  const visible = items.filter((item) => navAllowed(item.href, tenantRole));
+  if (visible.length === 0) return null;
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border-default bg-bg-sidebar">
-      <div className="border-b border-border-subtle px-5 py-5">
-        <p className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-fg-faint">
-          BLACKGLASS
-        </p>
-        <p className="mt-1 text-[10px] font-medium text-fg-faint">
-          by Obsidian Dynamics Limited
-        </p>
-      </div>
-      <nav className="flex flex-1 flex-col gap-0.5 p-3 pb-2" aria-label="Primary">
-        {NAV.map((item) => {
+    <div className="px-1">
+      <p className="mb-1.5 px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
+        {title}
+      </p>
+      <div className="flex flex-col gap-0.5">
+        {visible.map((item) => {
           const active =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
@@ -86,6 +93,38 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </Link>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
+  const { role, authenticated, tenantRole } = useSession();
+
+  return (
+    <aside className="flex w-60 shrink-0 flex-col border-r border-border-default bg-bg-sidebar">
+      <div className="border-b border-border-subtle px-5 py-5">
+        <p className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-fg-faint">
+          BLACKGLASS
+        </p>
+        <p className="mt-1 text-[10px] font-medium text-fg-faint">by Obsidian Dynamics Limited</p>
+      </div>
+      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-3 pb-2" aria-label="Primary">
+        <NavGroup
+          title="Operations"
+          items={NAV_WORKSPACE}
+          pathname={pathname}
+          tenantRole={tenantRole}
+          onNavigate={onNavigate}
+        />
+        <NavGroup
+          title="Account & help"
+          items={NAV_RESOURCE}
+          pathname={pathname}
+          tenantRole={tenantRole}
+          onNavigate={onNavigate}
+        />
       </nav>
       <div className="border-t border-border-subtle p-3">
         <p className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">

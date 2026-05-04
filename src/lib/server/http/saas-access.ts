@@ -15,6 +15,7 @@ import type { SaasPermission } from "@/lib/saas/permissions";
 import type { TenantRole } from "@/lib/saas/tenant-role";
 import type { SaasSubscription } from "@/db/schema";
 import { emitSaasAudit, emitSaasSecurity } from "@/lib/saas/event-log";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 
 export type ScanAccess =
   | { ok: true; mode: "saas"; ctx: TenantAuthContext; legacyRole: Role }
@@ -26,18 +27,22 @@ type OpGate = (
   subscription: SaasSubscription,
 ) => { ok: true } | { ok: false; code: string; detail: string };
 
-function jsonForGate(gate: { ok: false; code: string; detail: string }) {
+function jsonForGate(
+  gate: { ok: false; code: string; detail: string },
+  requestId?: string,
+) {
   const status =
     gate.code === "trial_read_only" || gate.code === "forbidden" || gate.code === "host_cap"
       ? 403
       : gate.code === "subscription_inactive"
         ? 402
         : 403;
-  return jsonError(status, gate.code, gate.detail);
+  return jsonError(status, gate.code, gate.detail, requestId);
 }
 
 /** Enqueue drift scans — Clerk tenants use RBAC + trial rules; legacy uses cookie roles. */
-export async function requireScanEnqueueAccess(): Promise<ScanAccess> {
+export async function requireScanEnqueueAccess(request?: Request): Promise<ScanAccess> {
+  const requestId = request ? getOrCreateRequestId(request) : undefined;
   if (process.env.FEATURE_SCANS_DISABLED === "true") {
     if (isClerkAuthEnabled()) {
       try {
@@ -48,7 +53,7 @@ export async function requireScanEnqueueAccess(): Promise<ScanAccess> {
           action: "scan.feature_disabled",
           targetType: "config",
           targetId: "FEATURE_SCANS_DISABLED",
-          metadata: {},
+          metadata: { ...(requestId ? { request_id: requestId } : {}) },
         });
       } catch {
         /* unauthenticated — omit audit */
@@ -60,6 +65,7 @@ export async function requireScanEnqueueAccess(): Promise<ScanAccess> {
         503,
         "scans_disabled",
         "Scan enqueue is temporarily disabled on this deployment.",
+        requestId,
       ),
     };
   }
@@ -74,7 +80,7 @@ export async function requireScanEnqueueAccess(): Promise<ScanAccess> {
           action: "scan.blocked",
           targetType: "subscription",
           targetId: ctx.subscription.id,
-          metadata: { code: gate.code },
+          metadata: { code: gate.code, ...(requestId ? { request_id: requestId } : {}) },
         });
         if (gate.code === "trial_read_only") {
           void emitSaasSecurity({
@@ -82,10 +88,10 @@ export async function requireScanEnqueueAccess(): Promise<ScanAccess> {
             userId: ctx.userId,
             severity: "low",
             eventType: "trial_blocked_scan",
-            metadata: {},
+            metadata: { ...(requestId ? { request_id: requestId } : {}) },
           });
         }
-        return { ok: false, response: jsonForGate(gate) };
+        return { ok: false, response: jsonForGate(gate, requestId) };
       }
       return {
         ok: true,
@@ -97,7 +103,7 @@ export async function requireScanEnqueueAccess(): Promise<ScanAccess> {
       if (e instanceof SaasAuthError) {
         return {
           ok: false,
-          response: jsonError(e.status, e.code, e.message),
+          response: jsonError(e.status, e.code, e.message, requestId),
         };
       }
       throw e;

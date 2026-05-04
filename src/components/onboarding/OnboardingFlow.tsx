@@ -78,21 +78,17 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
         <ol className="list-decimal space-y-2 pl-5 text-fg-muted">
           <li>
             Create a <span className="font-mono text-fg-primary">blackglass</span> user on the target host
-            and add a <code className="rounded bg-bg-base px-1 text-xs">sudoers</code> entry for
-            read-only commands (see <span className="font-mono text-xs">docs/operator-guide.md</span>).
+            and configure <code className="rounded bg-bg-base px-1 text-xs">sudoers</code> for the read-only
+            command set your security team approves — your Blackglass administrator supplies the exact
+            checklist.
           </li>
           <li>
-            Set <code className="rounded bg-bg-base px-1 text-xs">COLLECTOR_HOST_N</code>,{" "}
-            <code className="rounded bg-bg-base px-1 text-xs">COLLECTOR_USER</code>, and{" "}
-            <code className="rounded bg-bg-base px-1 text-xs">SSH_PRIVATE_KEY</code> in the
-            App Platform environment variables (or Doppler config).
+            Your administrator sets <code className="rounded bg-bg-base px-1 text-xs">COLLECTOR_HOST_N</code>,{" "}
+            <code className="rounded bg-bg-base px-1 text-xs">COLLECTOR_USER</code>, and SSH credentials in the
+            deployment environment (or via your secrets manager).
           </li>
           <li>
-            Verify with{" "}
-            <code className="rounded bg-bg-base px-1 text-xs">
-              STAGING_URL=… npm run verify:staging
-            </code>{" "}
-            — the host count check will pass once SSH is reachable.
+            Once the platform can reach the host over SSH, this step completes automatically.
           </li>
         </ol>
       </div>
@@ -268,11 +264,6 @@ export function OnboardingFlow() {
           <div className="flex flex-wrap gap-2">
             <Link href="/dashboard">
               <Button type="button">Open fleet dashboard</Button>
-            </Link>
-            <Link href="/hosts/host-07">
-              <Button variant="secondary" type="button">
-                Inspect seeded host
-              </Button>
             </Link>
           </div>
         </section>

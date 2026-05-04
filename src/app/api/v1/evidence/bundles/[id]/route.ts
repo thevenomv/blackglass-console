@@ -1,5 +1,5 @@
 import { EVIDENCE_BUNDLE_META } from "@/lib/server/evidence-catalog";
-import { zodErrorResponse } from "@/lib/server/http/json-error";
+import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { NextResponse } from "next/server";
@@ -24,13 +24,8 @@ export async function GET(
   if (!idParsed.success) return zodErrorResponse(idParsed.error);
 
   const id = idParsed.data;
-  const meta =
-    EVIDENCE_BUNDLE_META[id] ??
-    ({
-      sha256: "0000000000000000000000000000000000000000000000000000000000000000",
-      expiresInSeconds: 600,
-      bytes: 4096,
-    } as const);
+  const meta = EVIDENCE_BUNDLE_META[id];
+  if (!meta) return jsonError(404, "bundle_not_found");
 
   const u = new URL(request.url);
   const fileUrl = `${u.origin}/api/v1/evidence/bundles/${encodeURIComponent(id)}/file`;

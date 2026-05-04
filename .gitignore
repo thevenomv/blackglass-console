@@ -30,8 +30,9 @@
 /.next/
 /out/
 
-# Production
-/build
+# Worker bundle output (esbuild)
+/dist/
+
 
 # Misc
 .DS_Store

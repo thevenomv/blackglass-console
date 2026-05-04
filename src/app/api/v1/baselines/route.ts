@@ -21,6 +21,10 @@ import {
 } from "@/lib/saas/operations";
 import { loadHosts } from "@/lib/server/inventory";
 import { emitSaasAudit } from "@/lib/saas/event-log";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
+import { applySaasSentryContext } from "@/lib/observability/sentry-saas";
+import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
+import type { TenantAuthContext } from "@/lib/saas/auth-context";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -31,19 +35,28 @@ async function enrolledHostCount(): Promise<number> {
 }
 
 export async function POST(request: Request) {
+  const requestId = getOrCreateRequestId(request);
+
   if (!(await checkBaselinesRate(clientIp(request)))) {
-    return jsonError(429, "rate_limited", "Too many baseline capture requests.");
+    return jsonError(429, "rate_limited", "Too many baseline capture requests.", requestId);
   }
 
-  let saasCtx: { tenant: { id: string }; userId: string } | null = null;
+  let saasCtx: TenantAuthContext | null = null;
 
   if (isClerkAuthEnabled()) {
     const m = await requireSaasOperationalMutation("baselines.manage", canModifyBaselinesForTenant);
     if (!m.ok) return m.response;
     saasCtx = m.ctx;
+    void applySaasSentryContext({
+      requestId,
+      tenantId: m.ctx.tenant.id,
+      userId: m.ctx.userId,
+      clerkOrgId: m.ctx.tenant.clerkOrgId,
+      plan: m.ctx.subscription.planCode,
+    });
     const n = await enrolledHostCount();
     const cap = withinHostAllowance(m.ctx.subscription, n, 0);
-    if (!cap.ok) return jsonError(403, cap.code, cap.detail);
+    if (!cap.ok) return jsonError(403, cap.code, cap.detail, requestId);
   } else {
     const guard = await requireRole(["operator", "admin"]);
     if (!guard.ok) return guard.response;
@@ -56,7 +69,7 @@ export async function POST(request: Request) {
         detail:
           "Set COLLECTOR_HOST_1 and a credential source: SSH_PRIVATE_KEY with SECRET_PROVIDER=env (default), or Doppler/Infisical per operator guide.",
       },
-      { status: 503 },
+      { status: 503, headers: { "x-request-id": requestId } },
     );
   }
 
@@ -68,15 +81,17 @@ export async function POST(request: Request) {
           tenantId: saasCtx.tenant.id,
           actorUserId: saasCtx.userId,
           action: "baseline.capture_failed",
-          metadata: { detail: outcome.detail },
+          metadata: { detail: outcome.detail, request_id: requestId },
         });
       }
-      return NextResponse.json({ error: "collection_failed", detail: outcome.detail }, { status: 503 });
+      return jsonError(503, "collection_failed", outcome.detail, requestId);
     case "exception":
       console.error("[baselines] Unexpected collection exception:", outcome.message);
-      return NextResponse.json(
-        { error: "collection_failed", detail: "An unexpected error occurred during collection." },
-        { status: 500 },
+      return jsonError(
+        500,
+        "collection_failed",
+        "An unexpected error occurred during collection.",
+        requestId,
       );
     case "ok":
       if (saasCtx) {
@@ -84,15 +99,18 @@ export async function POST(request: Request) {
           tenantId: saasCtx.tenant.id,
           actorUserId: saasCtx.userId,
           action: "baseline.captured",
-          metadata: { count: outcome.payload.captured.length },
+          metadata: { count: outcome.payload.captured.length, request_id: requestId },
         });
       }
-      return NextResponse.json({
-        captured: outcome.payload.captured,
-        ...(outcome.payload.failed?.length ? { failed: outcome.payload.failed } : {}),
-      });
+      return jsonWithRequestId(
+        {
+          captured: outcome.payload.captured,
+          ...(outcome.payload.failed?.length ? { failed: outcome.payload.failed } : {}),
+        },
+        requestId,
+      );
     default:
-      return NextResponse.json({ error: "internal_error" }, { status: 500 });
+      return jsonError(500, "internal_error", undefined, requestId);
   }
 }
 
@@ -100,7 +118,8 @@ export async function POST(request: Request) {
  * GET /api/v1/baselines
  * Return a summary of all captured baselines.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const requestId = getOrCreateRequestId(request);
   const access = await requireSaasOrLegacyPermission("reports.view", [
     "viewer",
     "auditor",
@@ -126,5 +145,5 @@ export async function GET() {
         : { hostId: id };
     }),
   );
-  return NextResponse.json({ baselines });
+  return jsonWithRequestId({ baselines }, requestId);
 }

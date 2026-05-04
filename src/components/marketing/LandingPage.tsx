@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { MarketingNav } from "@/components/marketing/MarketingNav";
-import { PublicFooter } from "@/components/marketing/PublicFooter";
 import { TrialSignupLink } from "@/components/demo/DemoGateButton";
 
 function MockConsolePreview() {
@@ -60,8 +58,7 @@ export function LandingPage() {
   const signIn = clerkOn ? "/sign-in" : "/login";
 
   return (
-    <div className="min-h-screen bg-bg-base text-fg-muted">
-      <MarketingNav />
+    <>
       <main>
         <section className="border-b border-border-subtle px-4 py-16 sm:py-24">
           <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
@@ -233,7 +230,6 @@ export function LandingPage() {
           </p>
         </section>
       </main>
-      <PublicFooter />
-    </div>
+    </>
   );
 }

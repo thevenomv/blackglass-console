@@ -28,7 +28,7 @@ type Ctx = {
 
 const ScanJobsContext = createContext<Ctx | null>(null);
 
-const USE_MOCK_SCANS = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+const USE_MOCK_SCANS = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 export function ScanJobsProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<ScanJob[]>([]);

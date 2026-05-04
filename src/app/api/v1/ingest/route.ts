@@ -14,7 +14,6 @@
  * Payload: IngestPayloadSchema (see src/lib/server/http/schemas.ts)
  */
 
-import { NextResponse } from "next/server";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { saveBaseline } from "@/lib/server/baseline-store";
 import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
@@ -24,6 +23,8 @@ import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
 import { listBaselineHostIds } from "@/lib/server/baseline-store";
 import { withinHostAllowance } from "@/lib/saas/operations";
 import { getSubscriptionForTenant } from "@/lib/saas/tenant-service";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
+import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 
 export const dynamic = "force-dynamic";
 
@@ -45,18 +46,19 @@ function parseHostIngestKeys(): Record<string, string> {
 }
 
 export async function POST(request: Request) {
+  const requestId = getOrCreateRequestId(request);
   const apiKey = process.env.INGEST_API_KEY?.trim();
   const hostKeyMap = parseHostIngestKeys();
   if (!apiKey && Object.keys(hostKeyMap).length === 0) {
     console.warn("[ingest] INGEST_API_KEY / INGEST_HOST_KEYS_JSON not configured — endpoint disabled");
-    return jsonError(503, "not_configured", "Push ingestion is not configured on this instance");
+    return jsonError(503, "not_configured", "Push ingestion is not configured on this instance", requestId);
   }
 
-  const raw = await readJsonBodyOptional(request);
+  const raw = await readJsonBodyOptional(request, requestId);
   if (!raw.ok) return raw.response;
 
   const parsed = IngestPayloadSchema.safeParse(raw.data);
-  if (!parsed.success) return zodErrorResponse(parsed.error);
+  if (!parsed.success) return zodErrorResponse(parsed.error, requestId);
 
   const snapshot = parsed.data;
 
@@ -77,50 +79,54 @@ export async function POST(request: Request) {
   }
 
   if (!authed) {
-    return jsonError(401, "unauthorized", "Invalid or missing Bearer token");
+    return jsonError(401, "unauthorized", "Invalid or missing Bearer token", requestId);
   }
 
   const ingestTenantId = process.env.INGEST_SAAS_TENANT_ID?.trim();
   if (ingestTenantId) {
     const { tryGetDb } = await import("@/db");
     if (!tryGetDb()) {
-      return jsonError(503, "database_unavailable", "Tenant-scoped ingest requires DATABASE_URL");
+      return jsonError(503, "database_unavailable", "Tenant-scoped ingest requires DATABASE_URL", requestId);
     }
     const sub = await getSubscriptionForTenant(ingestTenantId);
     if (!sub) {
-      return jsonError(403, "ingest_scope_invalid", "INGEST_SAAS_TENANT_ID does not match a tenant");
+      return jsonError(403, "ingest_scope_invalid", "INGEST_SAAS_TENANT_ID does not match a tenant", requestId);
     }
     const baselineIds = await listBaselineHostIds();
     const known = new Set(baselineIds);
     const isNewHost = !known.has(snapshot.hostId);
     const gate = withinHostAllowance(sub, known.size, isNewHost ? 1 : 0);
     if (!gate.ok) {
-      return jsonError(403, gate.code, gate.detail);
+      return jsonError(403, gate.code, gate.detail, requestId);
     }
   }
 
   if (!(await checkIngestRate(snapshot.hostId))) {
-    return jsonError(429, "rate_limited", `Ingest rate limit exceeded for host ${snapshot.hostId}`);
+    return jsonError(429, "rate_limited", `Ingest rate limit exceeded for host ${snapshot.hostId}`, requestId);
   }
 
   try {
     await saveBaseline(snapshot);
   } catch (err) {
     console.error("[ingest] Failed to save snapshot for host", snapshot.hostId, ":", err);
-    return jsonError(502, "store_error", "Snapshot could not be persisted. Check server logs.");
+    return jsonError(502, "store_error", "Snapshot could not be persisted. Check server logs.", requestId);
   }
 
   appendAudit({
     action: AUDIT_ACTIONS.BASELINE_CAPTURE,
     detail: `Push-agent ingest — host=${snapshot.hostId} hostname=${snapshot.hostname}`,
     actor: snapshot.hostId,
+    request_id: requestId,
   });
 
   revalidateIntegritySurfaces();
 
-  return NextResponse.json({
-    ok: true,
-    hostId: snapshot.hostId,
-    capturedAt: snapshot.collectedAt,
-  });
+  return jsonWithRequestId(
+    {
+      ok: true,
+      hostId: snapshot.hostId,
+      capturedAt: snapshot.collectedAt,
+    },
+    requestId,
+  );
 }

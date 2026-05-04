@@ -13,32 +13,44 @@ import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { jsonError } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { checkKeyRotateRate, clientIp } from "@/lib/server/rate-limit";
-import { NextResponse } from "next/server";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { requireSaasStepUpMutation } from "@/lib/server/http/saas-access";
 import { canRotateSecretsForTenant } from "@/lib/saas/operations";
 import { emitSaasAudit } from "@/lib/saas/event-log";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
+import { applySaasSentryContext } from "@/lib/observability/sentry-saas";
+import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const requestId = getOrCreateRequestId(request);
+
   if (!(await checkKeyRotateRate(clientIp(request)))) {
-    return jsonError(429, "rate_limited", "Too many rotation requests.");
+    return jsonError(429, "rate_limited", "Too many rotation requests.", requestId);
   }
 
   if (isClerkAuthEnabled()) {
     const m = await requireSaasStepUpMutation("secrets.manage", canRotateSecretsForTenant);
     if (!m.ok) return m.response;
+    void applySaasSentryContext({
+      requestId,
+      tenantId: m.ctx.tenant.id,
+      userId: m.ctx.userId,
+      clerkOrgId: m.ctx.tenant.clerkOrgId,
+      plan: m.ctx.subscription.planCode,
+    });
     appendAudit({
       action: AUDIT_ACTIONS.KEY_ROTATED,
       detail: "Collector API key rotation requested (stub — SaaS step-up verified)",
       actor: m.ctx.userId,
+      request_id: requestId,
     });
     void emitSaasAudit({
       tenantId: m.ctx.tenant.id,
       actorUserId: m.ctx.userId,
       action: "secrets.collector_rotate_requested",
-      metadata: { stub: true },
+      metadata: { stub: true, request_id: requestId },
     });
   } else {
     const guard = await requireRole(["operator", "admin"]);
@@ -47,11 +59,12 @@ export async function POST(request: Request) {
       action: AUDIT_ACTIONS.KEY_ROTATED,
       detail: "Collector API key rotation requested (stub — no persistent key store configured yet)",
       actor: guard.role,
+      request_id: requestId,
     });
   }
 
-  return NextResponse.json({
+  return jsonWithRequestId({
     rotated: true,
     message: "Key rotation noted in audit log. Connect a secrets backend to enable real rotation.",
-  });
+  }, requestId);
 }

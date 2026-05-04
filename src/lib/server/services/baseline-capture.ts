@@ -8,6 +8,7 @@ import {
 import { saveBaseline } from "@/lib/server/baseline-store";
 import { storeDriftEvents } from "@/lib/server/drift-engine";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
+import { StoreError } from "@/lib/server/store/types";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
 
 function snapshotSummary(snapshot: HostSnapshot) {
@@ -78,6 +79,9 @@ export async function captureBaselinesFromFleet(): Promise<BaselineCaptureOutcom
       },
     };
   } catch (err) {
+    if (err instanceof StoreError) {
+      return { kind: "collection_failed", detail: `Baseline store: ${err.message}` };
+    }
     const message = err instanceof Error ? err.message : String(err);
     return { kind: "exception", message };
   }

@@ -1,6 +1,7 @@
 import type { FleetSnapshot, HostDetail, HostPort, HostRecord, HostServiceRow, HostSSHFirewall, HostTrust, HostUserRow, TimelineEntry } from "@/data/mock/types";
 import { fleetSnapshot } from "@/data/mock/fleet";
 import { hosts } from "@/data/mock/hosts";
+import { apiConfig } from "@/lib/api/config";
 import { mockLatency } from "@/lib/mockLatency";
 import { collectorConfigured, configuredHostCount } from "./collector";
 import { getDriftEvents, hasDriftData } from "./drift-engine";
@@ -8,19 +9,51 @@ import { getBaseline, listBaselineHostIds } from "./baseline-store";
 import { getDriftVolumeChartFromHistory } from "./drift-history";
 import { evidenceBundleCatalogSize } from "./evidence-catalog";
 
-/** Single source for mock inventory — API routes and SSR can share this. */
+/** Fleet KPIs when no collector is configured — neutral empty shell. */
+export function emptyFleetSnapshot(): FleetSnapshot {
+  const expected = collectorConfigured() ? configuredHostCount() : 0;
+  return {
+    hostsChecked: 0,
+    highRiskDrift: 0,
+    readyHosts: 0,
+    evidenceBundles: evidenceBundleCatalogSize(),
+    driftVolumeByDay: [],
+    fleetBullets: [
+      collectorConfigured()
+        ? "Capture a baseline to start monitoring — see Baselines."
+        : "Configure COLLECTOR_HOST_1 and SSH credentials in Settings, then capture a baseline.",
+    ],
+    notableEvents: [],
+    coverage: {
+      collectorsExpected: expected,
+      collectorsOnline: 0,
+      lastFleetHeartbeatAt: new Date().toISOString(),
+      staleSlices: [],
+    },
+  };
+}
+
+/** Single source for inventory — API routes and SSR can share this. */
 export async function loadHosts(): Promise<HostRecord[]> {
-  if (!collectorConfigured()) {
+  if (apiConfig.useMock && !collectorConfigured()) {
     await mockLatency(40);
     return hosts;
+  }
+  if (!collectorConfigured()) {
+    await mockLatency(40);
+    return [];
   }
   return buildRealHosts();
 }
 
 export async function loadFleetSnapshot(): Promise<FleetSnapshot> {
-  if (!collectorConfigured()) {
+  if (apiConfig.useMock && !collectorConfigured()) {
     await mockLatency(40);
     return fleetSnapshot;
+  }
+  if (!collectorConfigured()) {
+    await mockLatency(40);
+    return emptyFleetSnapshot();
   }
   return buildRealFleetSnapshot();
 }

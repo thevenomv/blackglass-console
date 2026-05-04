@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import {
   getMemberInviteContextAction,
   inviteMemberAction,
-} from "@/app/settings/members/actions";
+} from "@/app/(app)/settings/members/actions";
 import { Button } from "@/components/ui/Button";
 
 export function InviteMemberModal({ onClose }: { onClose: () => void }) {

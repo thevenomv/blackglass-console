@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import Redis from "ioredis";
 
 export type ScanJobStatus = "queued" | "running" | "succeeded" | "failed";
 
@@ -52,7 +53,6 @@ function publishScanResultToRedis(rec: ScanJobRecord): void {
   if (!url) return;
   void (async () => {
     try {
-      const { default: Redis } = await import("ioredis");
       const tlsOpts = url.startsWith("rediss://") ? { tls: { rejectUnauthorized: false } } : {};
       const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1, ...tlsOpts });
       await client.set(
@@ -76,7 +76,6 @@ async function fetchScanFromRedis(id: string): Promise<ScanJobRecord | undefined
   const url = process.env.REDIS_QUEUE_URL?.trim();
   if (!url) return undefined;
   try {
-    const { default: Redis } = await import("ioredis");
     const tlsOpts = url.startsWith("rediss://") ? { tls: { rejectUnauthorized: false } } : {};
     const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1, ...tlsOpts });
     const raw = await client.get(scanRedisKey(id));

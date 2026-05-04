@@ -56,7 +56,7 @@ export async function fetchHosts(): Promise<HostsResult> {
   // function directly — avoids an HTTP round-trip that breaks on DO App Platform
   // when NEXT_PUBLIC_APP_URL is not set (would resolve to 127.0.0.1:3000).
   const limits = getLimits();
-  const all = collectorConfigured() ? await loadHosts() : mockHosts;
+  const all = await loadHosts();
   const items = limits.maxHosts === -1 ? all : all.slice(0, limits.maxHosts);
   return {
     items,

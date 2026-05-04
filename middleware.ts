@@ -7,6 +7,13 @@ import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 
 const SESSION = "bg-session";
 
+/** Prefer upstream `x-request-id` when safe; otherwise generate (see `src/lib/server/http/request-id.ts`). */
+function resolveRequestId(request: NextRequest): string {
+  const raw = request.headers.get("x-request-id")?.trim();
+  if (raw && /^[\w.+=/@:-]{8,256}$/.test(raw)) return raw;
+  return crypto.randomUUID();
+}
+
 function withRequestId(request: NextRequest, requestId: string): NextResponse {
   const fwdHeaders = new Headers(request.headers);
   fwdHeaders.set("x-request-id", requestId);
@@ -41,16 +48,14 @@ const clerkPublic = createRouteMatcher([
 ]);
 
 const clerkMw = clerkMiddleware(async (auth, request) => {
-  const requestId = crypto.randomUUID();
+  const requestId = resolveRequestId(request);
   if (!clerkPublic(request)) {
     await auth.protect();
   }
   return withRequestId(request, requestId);
 });
 
-async function legacyMiddleware(request: NextRequest) {
-  const requestId = crypto.randomUUID();
-
+async function legacyMiddleware(request: NextRequest, requestId: string) {
   const authRequired = process.env.AUTH_REQUIRED === "true";
   if (!authRequired) {
     return withRequestId(request, requestId);
@@ -73,21 +78,6 @@ async function legacyMiddleware(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/use-cases") ||
     pathname.startsWith("/guides")
-  ) {
-    return withRequestId(request, requestId);
-  }
-
-  if (pathname.startsWith("/api/auth/invite")) {
-    return withRequestId(request, requestId);
-  }
-
-  // Routes with their own auth (webhook signatures, collector API keys)
-  if (
-    pathname.startsWith("/api/health") ||
-    pathname.startsWith("/api/webhooks") ||
-    pathname.startsWith("/api/checkout") ||
-    pathname.startsWith("/api/v1/ingest") ||
-    pathname.startsWith("/api/v1/collector")
   ) {
     return withRequestId(request, requestId);
   }
@@ -124,14 +114,23 @@ async function legacyMiddleware(request: NextRequest) {
 }
 
 export default async function middleware(request: NextRequest, event: NextFetchEvent) {
+  const requestId = resolveRequestId(request);
+
+  // API routes: stamp `x-request-id` for handlers and outbound error envelopes;
+  // auth remains per-route (Clerk session, API keys, legacy cookie).
+  if (request.nextUrl.pathname.startsWith("/api")) {
+    return withRequestId(request, requestId);
+  }
+
   if (isClerkAuthEnabled()) {
     return clerkMw(request, event);
   }
-  return legacyMiddleware(request);
+  return legacyMiddleware(request, requestId);
 }
 
 export const config = {
   matcher: [
-    "/((?!monitoring|terms|privacy|dpa|pricing|_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Exclude static assets and Next internals; include `/api` so correlation ids propagate.
+    "/((?!monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

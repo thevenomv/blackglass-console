@@ -2,20 +2,21 @@
 /**
  * Lightweight operator CLI (no extra deps beyond postgres for the db commands).
  *
+ * Core:
+ *   node scripts/blackglassctl.mjs help
+ *   node scripts/blackglassctl.mjs doctor
+ *   node scripts/blackglassctl.mjs run <npm-script> [-- forwarded-args]
+ *
  * HTTP commands (require a running app):
  *   node scripts/blackglassctl.mjs health [--base=http://127.0.0.1:3000]
  *   node scripts/blackglassctl.mjs scans:enqueue [--base=...] [--body={"host_ids":[]}]
  *
  * Break-glass DB commands (require DATABASE_URL; bypass RLS directly):
- *   node scripts/blackglassctl.mjs provision-tenant --clerk-org=<id> --name=<name> [--stripe-sub=<id>] [--stripe-customer=<id>]
+ *   node scripts/blackglassctl.mjs provision-tenant --clerk-org=<id> --name=<name>
  *   node scripts/blackglassctl.mjs reconcile-tenant --clerk-org=<id>
- *
- * These are manual recovery tools for situations where a Stripe or Clerk webhook
- * was swallowed (network partition, queue back-pressure, etc.) and a customer's
- * workspace is stuck in an incorrect state. Run against the direct DB port (not
- * pgBouncer) from a trusted network.
  */
 import process from "node:process";
+import { spawnSync } from "node:child_process";
 
 const args = process.argv.slice(2);
 const cmd = args[0];
@@ -26,6 +27,46 @@ const base = (baseArg?.split("=", 2)[1] ?? process.env.BASE_URL ?? "http://127.0
 );
 
 async function main() {
+  if (!cmd || cmd === "help" || cmd === "-h" || cmd === "--help") {
+    printUsage();
+    process.exit(0);
+  }
+
+  if (cmd === "doctor") {
+    const envCheck = spawnSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", "scripts/validate-env.ts"], {
+      stdio: "inherit",
+      shell: false,
+      cwd: process.cwd(),
+    });
+    const hints = {
+      node: process.version,
+      platform: process.platform,
+      cwd: process.cwd(),
+      DATABASE_URL: Boolean(process.env.DATABASE_URL?.trim()),
+      REDIS_QUEUE_URL: Boolean(process.env.REDIS_QUEUE_URL?.trim()),
+      COLLECTOR_HOST_1: Boolean(process.env.COLLECTOR_HOST_1?.trim()),
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()),
+      env_check_exit: envCheck.status ?? 0,
+    };
+    console.log("\n[blackglassctl doctor]", JSON.stringify(hints, null, 2));
+    process.exit(envCheck.status === 0 ? 0 : 1);
+  }
+
+  if (cmd === "run") {
+    const script = args[1];
+    if (!script) {
+      console.error("Usage: node scripts/blackglassctl.mjs run <npm-script> [-- args...]");
+      process.exit(2);
+    }
+    const forwarded = args.slice(2);
+    const npmArgs = ["run", script];
+    if (forwarded.length) {
+      npmArgs.push("--", ...forwarded);
+    }
+    const r = spawnSync("npm", npmArgs, { stdio: "inherit", shell: true, cwd: process.cwd() });
+    process.exit(r.status ?? 1);
+  }
+
   if (cmd === "health") {
     const res = await fetch(`${base}/api/health`);
     const j = await res.json();
@@ -163,16 +204,26 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`Usage:
-  # HTTP commands (app must be running):
-  node scripts/blackglassctl.mjs health [--base=URL]
-  node scripts/blackglassctl.mjs scans:enqueue [--base=URL] [--body=JSON]
+  printUsage();
+  process.exit(cmd ? 2 : 0);
+}
 
-  # Break-glass DB commands (DATABASE_URL required, use direct port not pgBouncer):
+function printUsage() {
+  console.log(`blackglassctl — operator CLI
+
+Core:
+  node scripts/blackglassctl.mjs help
+  node scripts/blackglassctl.mjs doctor
+  node scripts/blackglassctl.mjs run <npm-script> [-- forwarded-args]
+
+HTTP (requires a running app):
+  node scripts/blackglassctl.mjs health [--base=http://127.0.0.1:3000]
+  node scripts/blackglassctl.mjs scans:enqueue [--base=...] [--body={"host_ids":[]}]
+
+Break-glass DB (DATABASE_URL required; use direct port, not pgBouncer):
   node scripts/blackglassctl.mjs provision-tenant --clerk-org=<id> [--name=<name>]
   node scripts/blackglassctl.mjs reconcile-tenant --clerk-org=<id>
 `);
-  process.exit(cmd ? 2 : 0);
 }
 
 function arg(flag) {

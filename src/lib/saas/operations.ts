@@ -11,6 +11,24 @@ import { soleOwnerDemotionBlocked } from "./member-guards";
 import { canAddPaidSeat, canApplyRoleChange } from "./seats";
 import { SaasAuthError } from "./auth-context";
 
+/**
+ * Blocks operational mutations when the tenant is in a degraded state (`past_due`,
+ * expired trial, etc.) while still allowing `isSubscriptionOperational` to stay true
+ * for `past_due` so reads and login remain usable.
+ */
+function subscriptionMutationGate(
+  subscription: SaasSubscription,
+): { ok: true } | { ok: false; code: "trial_read_only" | "subscription_inactive" } {
+  const reason = operationalBlockReason(subscription);
+  if (reason === "trial_read_only") {
+    return { ok: false, code: "trial_read_only" };
+  }
+  if (!isSubscriptionOperational(subscription)) {
+    return { ok: false, code: "subscription_inactive" };
+  }
+  return { ok: true };
+}
+
 export function canRunScansForTenant(
   role: TenantRole,
   subscription: SaasSubscription,
@@ -18,14 +36,10 @@ export function canRunScansForTenant(
   if (!hasPermission(role, "scans.run")) {
     return { ok: false, code: "forbidden", detail: "Role cannot run scans." };
   }
-  if (!isSubscriptionOperational(subscription)) {
-    const reason = operationalBlockReason(subscription);
-    if (reason === "trial_read_only") {
-      return {
-        ok: false,
-        code: "trial_read_only",
-        detail: TRIAL_READ_ONLY.scans,
-      };
+  const gate = subscriptionMutationGate(subscription);
+  if (!gate.ok) {
+    if (gate.code === "trial_read_only") {
+      return { ok: false, code: "trial_read_only", detail: TRIAL_READ_ONLY.scans };
     }
     return { ok: false, code: "subscription_inactive", detail: "Subscription is not active." };
   }
@@ -39,12 +53,12 @@ export function canModifyBaselinesForTenant(
   if (!hasPermission(role, "baselines.manage")) {
     return { ok: false, code: "forbidden", detail: "Role cannot modify baselines." };
   }
-  if (!isSubscriptionOperational(subscription)) {
-    return {
-      ok: false,
-      code: "trial_read_only",
-      detail: TRIAL_READ_ONLY.baselines,
-    };
+  const gate = subscriptionMutationGate(subscription);
+  if (!gate.ok) {
+    if (gate.code === "trial_read_only") {
+      return { ok: false, code: "trial_read_only", detail: TRIAL_READ_ONLY.baselines };
+    }
+    return { ok: false, code: "subscription_inactive", detail: "Subscription is not active." };
   }
   return { ok: true };
 }
@@ -58,12 +72,12 @@ export function canManageHostsForTenant(
   if (!perm) {
     return { ok: false, code: "forbidden", detail: "Role cannot manage hosts." };
   }
-  if (!isSubscriptionOperational(subscription)) {
-    return {
-      ok: false,
-      code: "trial_read_only",
-      detail: TRIAL_READ_ONLY.hosts,
-    };
+  const gate = subscriptionMutationGate(subscription);
+  if (!gate.ok) {
+    if (gate.code === "trial_read_only") {
+      return { ok: false, code: "trial_read_only", detail: TRIAL_READ_ONLY.hosts };
+    }
+    return { ok: false, code: "subscription_inactive", detail: "Subscription is not active." };
   }
   return { ok: true };
 }
@@ -99,9 +113,9 @@ export function canGenerateReportsForTenant(
   if (!hasPermission(role, "drift.manage")) {
     return { ok: false, code: "forbidden", detail: "Role cannot generate reports." };
   }
-  if (!isSubscriptionOperational(subscription)) {
-    const reason = operationalBlockReason(subscription);
-    if (reason === "trial_read_only") {
+  const gate = subscriptionMutationGate(subscription);
+  if (!gate.ok) {
+    if (gate.code === "trial_read_only") {
       return { ok: false, code: "trial_read_only", detail: TRIAL_READ_ONLY.reports };
     }
     return { ok: false, code: "subscription_inactive", detail: "Subscription is not active." };
@@ -116,9 +130,9 @@ export function canRotateSecretsForTenant(
   if (!hasPermission(role, "secrets.manage")) {
     return { ok: false, code: "forbidden", detail: "Role cannot rotate collector secrets." };
   }
-  if (!isSubscriptionOperational(subscription)) {
-    const reason = operationalBlockReason(subscription);
-    if (reason === "trial_read_only") {
+  const gate = subscriptionMutationGate(subscription);
+  if (!gate.ok) {
+    if (gate.code === "trial_read_only") {
       return { ok: false, code: "trial_read_only", detail: TRIAL_READ_ONLY.secrets };
     }
     return { ok: false, code: "subscription_inactive", detail: "Subscription is not active." };
@@ -133,9 +147,9 @@ export function canAppendInvestigationAuditForTenant(
   if (!hasPermission(role, "drift.manage")) {
     return { ok: false, code: "forbidden", detail: "Role cannot append audit notes." };
   }
-  if (!isSubscriptionOperational(subscription)) {
-    const reason = operationalBlockReason(subscription);
-    if (reason === "trial_read_only") {
+  const gate = subscriptionMutationGate(subscription);
+  if (!gate.ok) {
+    if (gate.code === "trial_read_only") {
       return { ok: false, code: "trial_read_only", detail: TRIAL_READ_ONLY.auditAppend };
     }
     return { ok: false, code: "subscription_inactive", detail: "Subscription is not active." };
@@ -150,14 +164,16 @@ export function canChangeBillingForTenant(
   if (!hasPermission(role, "billing.manage")) {
     return { ok: false, code: "forbidden", detail: "Role cannot manage billing." };
   }
-  if (!isSubscriptionOperational(subscription)) {
-    const reason = operationalBlockReason(subscription);
-    if (reason === "trial_read_only") {
+  // Stripe grace period: allow portal / checkout updates while other mutations stay read-only.
+  if (subscription.status === "past_due") {
+    return { ok: true };
+  }
+  const gate = subscriptionMutationGate(subscription);
+  if (!gate.ok) {
+    if (gate.code === "trial_read_only") {
       return { ok: false, code: "trial_read_only", detail: TRIAL_READ_ONLY.billing };
     }
-    if (reason === "subscription_inactive") {
-      return { ok: false, code: "subscription_inactive", detail: "Subscription is not active." };
-    }
+    return { ok: false, code: "subscription_inactive", detail: "Subscription is not active." };
   }
   return { ok: true };
 }

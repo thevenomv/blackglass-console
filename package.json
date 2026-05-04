@@ -16,6 +16,7 @@
     "doppler:verify": "node scripts/doppler-verify.mjs",
     "verify:staging": "node scripts/verify-staging.mjs",
     "verify:stage0": "npm run lint && npm run check:openapi && npm run schemas:export && git diff --exit-code openapi/zod-schemas.json && npm run typecheck && npm run test:unit && npm run build",
+    "verify:release": "npm run verify:stage0 && npm run build:worker",
     "verify:stage0:clean": "npm run clean:next && npm run verify:stage0",
     "clean:next": "node scripts/clean-next.mjs",
     "do:apply-stage0": "node scripts/run-do-apply-stage0.mjs",
@@ -26,6 +27,7 @@
     "pen-test:smoke": "node scripts/pen-test-smoke.mjs",
     "sbom": "npx --yes @cyclonedx/cyclonedx-npm --output-file cyclonedx-sbom.json",
     "blackglassctl": "node scripts/blackglassctl.mjs",
+    "env:check": "tsx scripts/validate-env.ts",
     "prune:webhooks": "node scripts/prune-webhook-idempotency.mjs",
     "reconcile:billing": "node scripts/reconcile-saas-billing.mjs",
     "db:generate": "drizzle-kit generate",
@@ -38,7 +40,7 @@
     "test:e2e:ui": "playwright test --ui",
     "worker": "tsx src/worker/scan-worker.ts",
     "worker:doppler": "doppler run -- tsx src/worker/scan-worker.ts",
-    "build:worker": "tsc -p tsconfig.worker.json",
+    "build:worker": "node scripts/build-worker.mjs",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
@@ -70,6 +72,7 @@
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.52.0",
     "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.28.0",
     "eslint": "^9.16.0",
     "eslint-config-next": "^16.2.4",
     "tsx": "^4.21.0",

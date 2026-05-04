@@ -10,23 +10,27 @@ import { ScanPostBodySchema } from "@/lib/server/http/schemas";
 import { getLimits } from "@/lib/plan";
 import { NextResponse } from "next/server";
 import { emitSaasAudit } from "@/lib/saas/event-log";
+import { applySaasSentryContext } from "@/lib/observability/sentry-saas";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const access = await requireScanEnqueueAccess();
+  const requestId = getOrCreateRequestId(request);
+
+  const access = await requireScanEnqueueAccess(request);
   if (!access.ok) return access.response;
 
   if (!(await checkScanPostRate(clientIp(request)))) {
-    return jsonError(429, "rate_limited");
+    return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const raw = await readJsonBodyOptional(request);
+  const raw = await readJsonBodyOptional(request, requestId);
   if (!raw.ok) return raw.response;
 
   const parsed = ScanPostBodySchema.safeParse(raw.data);
-  if (!parsed.success) return zodErrorResponse(parsed.error);
+  if (!parsed.success) return zodErrorResponse(parsed.error, requestId);
 
   const host_ids = parsed.data.host_ids ?? [];
 
@@ -37,6 +41,7 @@ export async function POST(request: Request) {
         403,
         "plan_limit_exceeded",
         `Your workspace allows scanning up to ${hlim} host(s) at a time on the current plan.`,
+        requestId,
       );
     }
   } else {
@@ -46,6 +51,7 @@ export async function POST(request: Request) {
         403,
         "plan_limit_exceeded",
         `Your plan allows scanning up to ${limits.maxHosts} host(s) at a time. Upgrade to scan more.`,
+        requestId,
       );
     }
   }
@@ -58,6 +64,7 @@ export async function POST(request: Request) {
         400,
         "invalid_host_ids",
         `Unknown host_id(s): ${invalid.join(", ")}. Check your collector configuration.`,
+        requestId,
       );
     }
   }
@@ -68,6 +75,16 @@ export async function POST(request: Request) {
       ? { scanId: job.id, reason: "drift_scan" as const, hostIds: host_ids }
       : { scanId: job.id, reason: "drift_scan" as const };
 
+  if (access.mode === "saas") {
+    void applySaasSentryContext({
+      requestId,
+      tenantId: access.ctx.tenant.id,
+      userId: access.ctx.userId,
+    });
+  } else {
+    void applySaasSentryContext({ requestId });
+  }
+
   if (collectorConfigured()) {
     // Prefer BullMQ queue when REDIS_QUEUE_URL is set — the worker runs in a
     // separate process so SSH fan-out doesn't block the Next.js event loop.
@@ -77,6 +94,7 @@ export async function POST(request: Request) {
       await queue.add("scan", {
         jobId: job.id,
         collectOpts,
+        requestId,
         ...(access.mode === "saas" ? { saasTenantId: access.ctx.tenant.id } : {}),
       });
     } else {
@@ -91,12 +109,12 @@ export async function POST(request: Request) {
       action: "scan.queued",
       targetType: "scan_job",
       targetId: job.id,
-      metadata: { hostIds: host_ids.length },
+      metadata: { hostIds: host_ids.length, request_id: requestId },
     });
   }
 
   return NextResponse.json(
     { id: job.id, status: "queued" as const },
-    { status: 202 },
+    { status: 202, headers: { "x-request-id": requestId } },
   );
 }

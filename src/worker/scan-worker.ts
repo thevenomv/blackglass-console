@@ -53,13 +53,20 @@ const metricsQueue = new Queue<ScanJobPayload>(QUEUE_NAME, {
 const worker = new Worker<ScanJobPayload>(
   QUEUE_NAME,
   async (job) => {
-    const { jobId, collectOpts, saasTenantId } = job.data;
+    const { jobId, collectOpts, saasTenantId, requestId } = job.data;
     console.info(
       `[scan-worker] Processing job ${job.id} — scanId=${jobId} attempt=${job.attemptsMade + 1}` +
+        (requestId ? ` requestId=${requestId}` : "") +
         (saasTenantId ? ` saasTenantId=${saasTenantId}` : ""),
     );
-    if (saasTenantId) {
-      logStructured("info", "scan_job_tenant_context", { jobId, saasTenantId, attempt: job.attemptsMade + 1 });
+    if (saasTenantId || requestId) {
+      logStructured("info", "scan_job_start", {
+        jobId,
+        saasTenantId,
+        requestId,
+        bullJobId: job.id,
+        attempt: job.attemptsMade + 1,
+      });
     }
     await executeDriftScanJob(jobId, collectOpts);
   },
