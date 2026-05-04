@@ -33,7 +33,7 @@ export default async function WorkspacePage({
   // When not configured (demo mode), fall back to host-07 mock.
   const hostId = params.host ?? (live ? null : "host-07");
 
-  let timeline: Awaited<ReturnType<typeof loadHostDetail>>["timeline"] | [] = [];
+  let timeline: NonNullable<Awaited<ReturnType<typeof loadHostDetail>>>["timeline"] | [] = [];
   if (hostId) {
     const real = await loadHostDetail(hostId).catch(() => null);
     timeline = real?.timeline ?? (live ? [] : getHostDetail(hostId)?.timeline ?? []);
