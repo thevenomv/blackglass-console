@@ -11,21 +11,32 @@
 set -euo pipefail
 
 RELAY_IP="${RELAY_IP:-206.189.114.207}"
-INSTALL_SSH_KEY="${INSTALL_SSH_KEY:-1}"
-KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGSOFtWC+Tvl2LJnMnnVCtEDgkKRcIGZhqlxVod9Rbz4 sible@blackglass'
+# Optional: export KEY='ssh-ed25519 AAAA... comment' before running to install your public key.
+KEY="${KEY:-}"
 
 if hostname -I 2>/dev/null | grep -q '167\.99\.59\.55'; then
-  echo "ERROR: This host is the DEMO VM (167.99.59.55). Open the Droplet Console for 206.189.114.207 (rustdesk-server), not this one." >&2
+  echo "ERROR: This host looks like the DEMO VM (167.99.59.55). Run this on the RustDesk ID server, not the demo desktop." >&2
   exit 1
 fi
 
-if [[ "${INSTALL_SSH_KEY}" == "1" && -n "${KEY}" ]]; then
+if [[ -n "${KEY}" ]]; then
   mkdir -p /root/.ssh
   chmod 700 /root/.ssh
   touch /root/.ssh/authorized_keys
   chmod 600 /root/.ssh/authorized_keys
   grep -qF "${KEY}" /root/.ssh/authorized_keys || echo "${KEY}" >> /root/.ssh/authorized_keys
   echo "[ok] SSH public key added for root"
+else
+  echo "[skip] No KEY env set — SSH authorized_keys unchanged (set KEY='ssh-ed25519 ...' to add yours)"
+fi
+
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: active'; then
+  if ! ufw status 2>/dev/null | grep -qE '21114/tcp.*ALLOW'; then
+    ufw allow 21114/tcp comment 'RustDesk 1.4+ client probe'
+    echo "[ok] UFW: allowed TCP 21114 (avoid rendezvous timeouts when dropped)"
+  else
+    echo "[ok] UFW: 21114 already allowed"
+  fi
 fi
 
 if ! systemctl list-unit-files 2>/dev/null | grep -q '^hbbs\.service'; then

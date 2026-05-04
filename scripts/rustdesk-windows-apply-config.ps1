@@ -10,7 +10,8 @@
   Install RustDesk first, then run this script elevated (Run as Administrator).
 
 .NOTES
-  Your RustDesk server stays: ID 206.189.114.207, public key unchanged.
+  Defaults target the project RustDesk ID server; override with $env:RD_ID_SERVER and $env:RD_PUBLIC_KEY.
+  See docs/rustdesk-demo-setup.md for ports (21114), relay 21117, and split-server layout.
 #>
 
 $ErrorActionPreference = 'Stop'

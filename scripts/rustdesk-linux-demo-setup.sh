@@ -7,7 +7,8 @@
 #   ssh root@167.99.59.55 'bash /tmp/rustdesk-linux-demo-setup.sh'
 #
 # Override defaults if needed:
-#   RD_ID_SERVER=206.189.114.207 RD_PUBLIC_KEY='...' bash rustdesk-linux-demo-setup.sh
+#   RD_ID_SERVER=... RD_PUBLIC_KEY='...' bash rustdesk-linux-demo-setup.sh
+# Full guide: docs/rustdesk-demo-setup.md
 
 set -euo pipefail
 

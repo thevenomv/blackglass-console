@@ -68,6 +68,7 @@ After=xfce-desktop.service
 Environment=DISPLAY=:1
 Environment=HOME=/root
 ExecStartPre=/bin/sleep 10
+ExecStartPre=-/bin/rm -rf /tmp/RustDesk
 ExecStart=/usr/bin/rustdesk --service
 Restart=always
 RestartSec=5
