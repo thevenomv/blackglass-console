@@ -145,9 +145,9 @@ export default async function BaselinesPage({
       ? [
           {
             id: `bl-${hostId}-active`,
-            label: `baseline-${stored.capturedAt.slice(0, 10)}`,
+            label: `baseline-${stored.collectedAt.slice(0, 10)}`,
             hostId,
-            pinnedAt: stored.capturedAt,
+            pinnedAt: stored.collectedAt,
             scanId: "live",
             superseded: false,
           },
