@@ -9,12 +9,48 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getBaselineDiff, getBaselineSnapshots } from "@/data/mock/baselines";
 import { mockLatency } from "@/lib/mockLatency";
+import { collectorConfigured } from "@/lib/server/collector";
+import { configuredCollectorHostIds } from "@/lib/server/collector-env";
+import { getBaseline } from "@/lib/server/baseline-store";
+import { getDriftEvents } from "@/lib/server/drift-engine";
+import type { BaselineDiffCategory, BaselineDiffRow, BaselineSnapshotMeta, DriftEvent } from "@/data/mock/types";
 import Link from "next/link";
 import { Suspense } from "react";
 
-async function BaselineComparisonContent({ hostId }: { hostId: string }) {
-  await mockLatency(260);
-  const grouped = getBaselineDiff(hostId);
+function driftEventsToCategories(events: DriftEvent[]): BaselineDiffCategory[] {
+  const buckets: Record<string, { label: string; rows: BaselineDiffRow[] }> = {};
+  const labels: Record<string, string> = {
+    network_exposure: "Network exposure",
+    identity: "Identity / privilege",
+    firewall: "Firewall",
+    services: "Services",
+    configuration: "Configuration",
+    ssh: "SSH configuration",
+  };
+  for (const event of events) {
+    const catId = event.category ?? "other";
+    if (!buckets[catId]) buckets[catId] = { label: labels[catId] ?? catId, rows: [] };
+    let evidence: Record<string, unknown> = {};
+    try { evidence = JSON.parse(event.evidenceSummary ?? "{}") as Record<string, unknown>; } catch { /* ignore */ }
+    buckets[catId].rows.push({
+      path: event.title,
+      change: "added",
+      severity: event.severity as BaselineDiffRow["severity"],
+      summary: event.rationale,
+      ruleId: typeof evidence["ruleId"] === "string" ? evidence["ruleId"] : undefined,
+    });
+  }
+  return Object.entries(buckets)
+    .filter(([, v]) => v.rows.length > 0)
+    .map(([id, v]) => ({ id, label: v.label, rows: v.rows }));
+}
+
+async function BaselineComparisonContent({ hostId, live }: { hostId: string; live: boolean }) {
+  if (!live) await mockLatency(260);
+
+  const grouped: BaselineDiffCategory[] = live
+    ? driftEventsToCategories(getDriftEvents(hostId))
+    : getBaselineDiff(hostId);
 
   if (grouped.length === 0) {
     return (
@@ -98,8 +134,28 @@ export default async function BaselinesPage({
   searchParams: Promise<{ host?: string }>;
 }) {
   const { host } = await searchParams;
-  const hostId = host ?? "host-07";
-  const snapshots = getBaselineSnapshots(hostId);
+  const live = collectorConfigured();
+  const liveHostIds = live ? configuredCollectorHostIds() : [];
+  const hostId = host ?? (liveHostIds[0] ?? "host-07");
+
+  let snapshots: BaselineSnapshotMeta[];
+  if (live) {
+    const stored = await getBaseline(hostId);
+    snapshots = stored
+      ? [
+          {
+            id: `bl-${hostId}-active`,
+            label: `baseline-${stored.capturedAt.slice(0, 10)}`,
+            hostId,
+            pinnedAt: stored.capturedAt,
+            scanId: "live",
+            superseded: false,
+          },
+        ]
+      : [];
+  } else {
+    snapshots = getBaselineSnapshots(hostId);
+  }
 
   return (
     <AppShell>
@@ -162,7 +218,7 @@ export default async function BaselinesPage({
 
           <div className="min-w-0">
             <Suspense fallback={<BaselineFallback />}>
-              <BaselineComparisonContent hostId={hostId} />
+              <BaselineComparisonContent hostId={hostId} live={live} />
             </Suspense>
           </div>
         </div>
