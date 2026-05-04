@@ -14,7 +14,7 @@ export function RunScanButton({ label = "Run scan" }: { label?: string }) {
   }
 
   return (
-    <Button type="button" disabled={busy || loading} onClick={() => void startFleetScan()}>
+    <Button type="button" disabled={busy} onClick={() => void startFleetScan()}>
       {label}
     </Button>
   );

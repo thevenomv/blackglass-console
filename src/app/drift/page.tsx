@@ -9,8 +9,10 @@ import { getDriftEvents, hasDriftData } from "@/lib/server/drift-engine";
 import { Suspense } from "react";
 
 async function DriftBody({ eventId }: { eventId?: string }) {
-  const events =
-    collectorConfigured() && hasDriftData()
+  const live = collectorConfigured();
+  const events = live
+    ? getDriftEvents()
+    : hasDriftData()
       ? getDriftEvents()
       : mockDriftEvents;
   const selected = eventId ? events.find((e) => e.id === eventId) : undefined;

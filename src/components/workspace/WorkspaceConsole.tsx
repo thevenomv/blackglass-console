@@ -38,7 +38,7 @@ export function WorkspaceConsole({
     <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
       <PageHeader
         title="Incident workspace"
-        subtitle={`${incidentId} · scoped host ${hostId} — coordination surface for operators (mock).`}
+        subtitle={`${incidentId}${hostId ? ` · scoped host ${hostId}` : ""} — coordination surface for operators.`}
         breadcrumbs={[
           { href: "/dashboard", label: "Dashboard" },
           { href: `/workspace?incident=${encodeURIComponent(incidentId)}&host=${encodeURIComponent(hostId)}`, label: "Workspace" },
@@ -64,16 +64,7 @@ export function WorkspaceConsole({
                 Baseline diff · {hostId}
               </Link>
             </li>
-            <li>
-              <a
-                href="/api/v1/evidence/bundles/bundle-host-07-incident/file"
-                className="font-medium text-accent-blue hover:underline"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Evidence artifact stub (opens download route)
-              </a>
-            </li>
+
           </ul>
         </section>
 

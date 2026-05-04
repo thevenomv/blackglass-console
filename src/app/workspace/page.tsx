@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { WorkspaceConsole } from "@/components/workspace/WorkspaceConsole";
 import { getHostDetail } from "@/data/mock/hosts";
+import { collectorConfigured } from "@/lib/server/collector";
 import { loadHostDetail } from "@/lib/server/inventory";
 
 interface WorkspaceSearchParams {
@@ -26,16 +27,22 @@ export default async function WorkspacePage({
 }) {
   const params = await searchParams;
   const incidentId = params.incident ?? "INC-2047";
-  const hostId = params.host ?? "host-07";
+  const live = collectorConfigured();
 
-  // Prefer real data; fall back to mock for demo mode.
-  const real = await loadHostDetail(hostId).catch(() => null);
-  const timeline = real?.timeline ?? getHostDetail(hostId)?.timeline ?? [];
+  // When collector is configured, only use real data (no mock fallback).
+  // When not configured (demo mode), fall back to host-07 mock.
+  const hostId = params.host ?? (live ? null : "host-07");
+
+  let timeline: Awaited<ReturnType<typeof loadHostDetail>>["timeline"] | [] = [];
+  if (hostId) {
+    const real = await loadHostDetail(hostId).catch(() => null);
+    timeline = real?.timeline ?? (live ? [] : getHostDetail(hostId)?.timeline ?? []);
+  }
 
   return (
     <AppShell>
       <Suspense fallback={<WorkspaceLoading />}>
-        <WorkspaceConsole incidentId={incidentId} hostId={hostId} timeline={timeline} />
+        <WorkspaceConsole incidentId={incidentId} hostId={hostId ?? ""} timeline={timeline} />
       </Suspense>
     </AppShell>
   );

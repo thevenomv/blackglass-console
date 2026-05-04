@@ -3,12 +3,21 @@ export const dynamic = "force-dynamic";
 import { AppShell } from "@/components/layout/AppShell";
 import { ReportsView } from "@/components/reports/ReportsView";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { reports } from "@/data/mock/reports";
+import { reports as mockReports } from "@/data/mock/reports";
 import { mockLatency } from "@/lib/mockLatency";
+import { collectorConfigured } from "@/lib/server/collector";
+import type { ReportRecord } from "@/data/mock/types";
 import { Suspense } from "react";
 
 async function ReportsBody() {
-  await mockLatency(220);
+  const live = collectorConfigured();
+  let reports: ReportRecord[];
+  if (live) {
+    reports = [];
+  } else {
+    await mockLatency(220);
+    reports = mockReports;
+  }
   return <ReportsView reports={reports} />;
 }
 

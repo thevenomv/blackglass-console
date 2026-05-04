@@ -9,6 +9,7 @@ import { requireRole } from "@/lib/server/http/auth-guard";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
+import { collectorConfigured } from "@/lib/server/collector";
 import { loadHosts } from "@/lib/server/inventory";
 import { getHostDetail } from "@/data/mock/hosts";
 import { NextResponse } from "next/server";
@@ -48,6 +49,9 @@ export async function GET(
   const hosts = await loadHosts();
   const host = hosts.find((h) => h.id === id);
   if (host) return NextResponse.json(host);
+
+  // When collector is configured, don't fall back to mock data.
+  if (collectorConfigured()) return jsonError(404, "host_not_found");
 
   // Fall back to mock for demo/dev mode.
   const mock = getHostDetail(id);

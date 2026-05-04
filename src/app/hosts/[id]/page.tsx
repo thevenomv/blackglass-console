@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { getHostDetail } from "@/data/mock/hosts";
 import { resolveDriftInvestigation } from "@/lib/resolveInvestigation";
 import { mockLatency } from "@/lib/mockLatency";
+import { collectorConfigured } from "@/lib/server/collector";
 import { loadHostDetail } from "@/lib/server/inventory";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -18,8 +19,10 @@ async function HostDetailBody({
   id: string;
   finding?: string;
 }) {
-  // Use real collector data when available; fall back to mock.
+  // Use real collector data when available.
+  // When collector is configured, don't fall back to mock — return 404 for unknown hosts.
   const liveDetail = await loadHostDetail(id);
+  if (!liveDetail && collectorConfigured()) notFound();
   if (!liveDetail) await mockLatency(260);
   const detail = liveDetail ?? getHostDetail(id);
   if (!detail) notFound();
