@@ -138,6 +138,11 @@ export default async function BaselinesPage({
   const liveHostIds = live ? configuredCollectorHostIds() : [];
   const hostId = host ?? (liveHostIds[0] ?? "host-07");
 
+  // Use COLLECTOR_HOST_1_NAME as the display label if set, otherwise the hostId.
+  const hostDisplayName = live
+    ? (process.env.COLLECTOR_HOST_1_NAME?.trim() || hostId)
+    : hostId;
+
   let snapshots: BaselineSnapshotMeta[];
   if (live) {
     const stored = await getBaseline(hostId);
@@ -162,7 +167,7 @@ export default async function BaselinesPage({
       <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
         <PageHeader
           title="Baseline comparison"
-          subtitle={`Trusted snapshot versus latest integrity read · ${hostId}`}
+          subtitle={`Trusted snapshot versus latest integrity read · ${hostDisplayName}`}
           breadcrumbs={[
             { href: "/dashboard", label: "Dashboard" },
             { href: "/baselines", label: "Baselines" },

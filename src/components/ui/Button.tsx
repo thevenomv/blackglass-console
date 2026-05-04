@@ -26,7 +26,7 @@ export const Button = forwardRef<
     <button
       ref={ref}
       type="button"
-      className={`inline-flex h-9 items-center justify-center rounded-card px-4 text-sm font-medium transition-colors duration-150 ${variants[variant]} ${className}`}
+      className={`inline-flex h-9 items-center justify-center rounded-card px-4 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${variants[variant]} ${className}`}
       {...props}
     >
       {children}

@@ -40,7 +40,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   });
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/session", { cache: "no-store" });
+    let res: Response;
+    try {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 8000);
+      res = await fetch("/api/session", { cache: "no-store", signal: controller.signal });
+      window.clearTimeout(timeout);
+    } catch {
+      // Network error or timeout — fall back to operator so the UI stays functional.
+      setState((prev) => ({ ...prev, loading: false, role: "operator", authenticated: false }));
+      return;
+    }
 
     // Expired or invalid session — redirect to login preserving the current path.
     if (res.status === 401) {
