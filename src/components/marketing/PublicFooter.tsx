@@ -22,17 +22,27 @@ export function PublicFooter() {
             <li><Link href="/guides/how-to-detect-unauthorized-linux-config-changes" className="hover:text-fg-primary">Guide: detect config changes</Link></li>
           </ul>
         </div>
-        <div className="flex flex-wrap gap-x-6 gap-y-2 self-start">
-          <Link href="/product" className="hover:text-fg-primary">Product</Link>
-          <Link href="/book" className="hover:text-fg-primary">Book walkthrough</Link>
-          <Link href="/pricing" className="hover:text-fg-primary">Pricing</Link>
-          <Link href="/security" className="hover:text-fg-primary">Security</Link>
-          <Link href="/changelog" className="hover:text-fg-primary">Changelog</Link>
-          <Link href="/demo" className="hover:text-fg-primary">Demo</Link>
-          <Link href="/terms" className="hover:text-fg-primary">Terms</Link>
-          <Link href="/privacy" className="hover:text-fg-primary">Privacy</Link>
-          <Link href="/dpa" className="hover:text-fg-primary">Data processing</Link>
-          <Link href="/dashboard" className="hover:text-fg-primary">Console</Link>
+        <div className="space-y-6">
+          <div>
+            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-fg-faint">Platform</p>
+            <ul className="mt-2 space-y-1.5">
+              <li><Link href="/product" className="hover:text-fg-primary">Product</Link></li>
+              <li><Link href="/pricing" className="hover:text-fg-primary">Pricing</Link></li>
+              <li><Link href="/demo" className="hover:text-fg-primary">Demo</Link></li>
+              <li><Link href="/book" className="hover:text-fg-primary">Book walkthrough</Link></li>
+              <li><Link href="/changelog" className="hover:text-fg-primary">Changelog</Link></li>
+              <li><Link href="/security" className="hover:text-fg-primary">Security</Link></li>
+              <li><Link href="/dashboard" className="hover:text-fg-primary">Console</Link></li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-fg-faint">Legal</p>
+            <ul className="mt-2 space-y-1.5">
+              <li><Link href="/terms" className="hover:text-fg-primary">Terms</Link></li>
+              <li><Link href="/privacy" className="hover:text-fg-primary">Privacy</Link></li>
+              <li><Link href="/dpa" className="hover:text-fg-primary">Data processing</Link></li>
+            </ul>
+          </div>
         </div>
       </div>
       <p className="mx-auto mt-10 max-w-6xl px-4 text-xs text-fg-faint">

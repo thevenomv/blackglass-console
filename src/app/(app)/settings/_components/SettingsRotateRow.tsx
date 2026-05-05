@@ -21,6 +21,7 @@ export function SettingsRotateRow() {
     toastRef.current = toast;
   });
   const [loadingMeta, setLoadingMeta] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [meta, setMeta] = useState<KeysResponse | null>(null);
   const [rotating, setRotating] = useState(false);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
@@ -30,9 +31,11 @@ export function SettingsRotateRow() {
       const res = await fetch("/api/v1/collector/keys");
       if (!res.ok) throw new Error(String(res.status));
       const data = (await res.json()) as KeysResponse;
+      setFetchError(false);
       setMeta(data);
     } catch {
       setMeta(null);
+      setFetchError(true);
       toastRef.current("Could not load ingest key metadata.", "danger");
     }
   }, []);
@@ -44,10 +47,11 @@ export function SettingsRotateRow() {
         const res = await fetch("/api/v1/collector/keys");
         if (!res.ok) throw new Error(String(res.status));
         const data = (await res.json()) as KeysResponse;
-        if (!cancelled) setMeta(data);
+        if (!cancelled) { setFetchError(false); setMeta(data); }
       } catch {
         if (!cancelled) {
           setMeta(null);
+          setFetchError(true);
           toastRef.current("Could not load ingest key metadata.", "danger");
         }
       } finally {
@@ -122,7 +126,9 @@ export function SettingsRotateRow() {
           value={
             loadingMeta
               ? "Loading…"
-              : masked ?? (meta?.sshCollectorConfigured ? "No push-ingest key set (SSH collection only)" : "Not configured")
+              : fetchError
+              ? "Unable to load — check deployment or reload"
+              : masked ?? (meta?.sshCollectorConfigured ? "No push-ingest key set (SSH collection active)" : "Not configured — issue a key below to enable push ingest")
           }
           className="min-w-[12rem] flex-1 rounded-card border border-border-default bg-bg-base px-3 py-2 font-mono text-sm text-fg-muted"
           aria-label="Masked push ingest API key"
