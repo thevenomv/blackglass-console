@@ -15,12 +15,15 @@ const STEPS = [
 
 const POLL_INTERVAL_MS = 5_000;
 const POLL_TIMEOUT_MS = 120_000;
-/** If SSH collector hosts are configured in the deployment env, auto-advance after this many ms (soft signal). */
 const SOFT_READY_AFTER_MS = 25_000;
 
 function ConnectHostStep({ onNext }: { onNext: () => void }) {
   const [status, setStatus] = useState<"waiting" | "detected" | "timeout">("waiting");
   const [elapsed, setElapsed] = useState(0);
+  const [method, setMethod] = useState<"push" | "ssh">("push");
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [generatingKey, setGeneratingKey] = useState(false);
+  const [keyCopied, setKeyCopied] = useState(false);
 
   useEffect(() => {
     const start = Date.now();
@@ -46,28 +49,20 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
           const online = data.coverage?.collectorsOnline ?? 0;
           const expected = data.coverage?.collectorsExpected ?? 0;
           const checked = data.hostsChecked ?? 0;
-          if (
-            online > 0 ||
-            checked > 0 ||
-            (expected > 0 && elapsedMs >= SOFT_READY_AFTER_MS)
-          ) {
+          if (online > 0 || checked > 0 || (expected > 0 && elapsedMs >= SOFT_READY_AFTER_MS)) {
             setStatus("detected");
             return;
           }
         }
       } catch {
-        // network error — keep polling
+        // keep polling
       }
 
-      if (!stopped) {
-        window.setTimeout(poll, POLL_INTERVAL_MS);
-      }
+      if (!stopped) window.setTimeout(poll, POLL_INTERVAL_MS);
     };
 
     void poll();
-    return () => {
-      stopped = true;
-    };
+    return () => { stopped = true; };
   }, []);
 
   useEffect(() => {
@@ -77,81 +72,199 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
     }
   }, [status, onNext]);
 
+  const generateKey = async () => {
+    setGeneratingKey(true);
+    try {
+      const res = await fetch("/api/v1/collector/keys/rotate", { method: "POST" });
+      const body = (await res.json().catch(() => ({}))) as { api_key?: string };
+      if (body.api_key) setApiKey(body.api_key);
+    } catch {
+      // ignore
+    } finally {
+      setGeneratingKey(false);
+    }
+  };
+
+  const copyKey = async () => {
+    if (!apiKey) return;
+    await navigator.clipboard.writeText(apiKey);
+    setKeyCopied(true);
+    window.setTimeout(() => setKeyCopied(false), 2000);
+  };
+
   return (
     <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">
       <h2 className="text-sm font-semibold text-fg-primary">Connect your first host</h2>
       <p className="text-sm text-fg-muted">
-        Blackglass supports two ways to get data in: <strong className="font-medium text-fg-primary">SSH collection</strong>{" "}
-        (we connect to your servers) or a <strong className="font-medium text-fg-primary">small push agent</strong> on the host
-        that calls our HTTPS ingest API. Pick the one your security team prefers — both end up in the same console.
+        Choose how BLACKGLASS collects data from your server. Both methods give you the same
+        drift detection and evidence exports.
       </p>
-      <div className="space-y-3 rounded-card border border-border-subtle bg-bg-elevated p-4 text-sm">
-        <p className="font-medium text-fg-primary">Path A — SSH (most common)</p>
-        <ol className="list-decimal space-y-2 pl-5 text-fg-muted">
-          <li>
-            Someone with server access creates a dedicated low-privilege user (often named{" "}
-            <span className="font-mono text-fg-primary">blackglass</span>) and allows the approved read-only commands —
-            your runbook or security contact defines the exact sudo / SSH policy.
-          </li>
-          <li>
-            Your platform team adds the host address and SSH material to the Blackglass deployment environment (for
-            example <span className="font-mono text-xs">COLLECTOR_HOST_1</span>, user, and key — see Settings and{" "}
-            <Link href="/welcome" className="text-accent-blue hover:underline">
-              Get started
-            </Link>
-            ).
-          </li>
-          <li>
-            From the <Link href="/dashboard" className="text-accent-blue hover:underline">Dashboard</Link>, click{" "}
-            <strong className="text-fg-primary">Run scan</strong> so Blackglass pulls the first snapshot (or wait for
-            your schedule, if configured).
-          </li>
-        </ol>
+
+      {/* Method toggle */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMethod("push")}
+          className={`flex-1 rounded-card border px-3 py-2.5 text-sm font-medium transition-colors ${
+            method === "push"
+              ? "border-accent-blue bg-accent-blue/10 text-accent-blue"
+              : "border-border-default text-fg-muted hover:border-border-strong hover:text-fg-primary"
+          }`}
+        >
+          Push agent <span className="ml-1 rounded bg-success-soft px-1.5 py-0.5 text-xs font-semibold text-success">Recommended</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMethod("ssh")}
+          className={`flex-1 rounded-card border px-3 py-2.5 text-sm font-medium transition-colors ${
+            method === "ssh"
+              ? "border-accent-blue bg-accent-blue/10 text-accent-blue"
+              : "border-border-default text-fg-muted hover:border-border-strong hover:text-fg-primary"
+          }`}
+        >
+          SSH pull
+        </button>
       </div>
-      <div className="space-y-3 rounded-card border border-border-subtle bg-bg-elevated p-4 text-sm">
-        <p className="font-medium text-fg-primary">Path B — Push ingest (SSH not possible)</p>
-        <p className="text-fg-muted">
-          Install the lightweight agent on the host. In{" "}
-          <Link href="/settings" className="text-accent-blue hover:underline">
-            Settings
-          </Link>
-          , operators can <strong className="text-fg-primary">issue an ingest API key</strong>. The agent sends the same
-          integrity snapshot over <span className="font-mono text-xs">POST /api/v1/ingest</span> using{" "}
-          <span className="font-mono text-xs">Authorization: Bearer …</span>.
-        </p>
-      </div>
+
+      {method === "push" && (
+        <div className="space-y-4">
+          <div className="rounded-card border border-border-subtle bg-bg-elevated p-4 text-sm space-y-3">
+            <p className="font-medium text-fg-primary">How it works</p>
+            <p className="text-fg-muted">
+              A lightweight script runs on your server and sends a read-only snapshot to BLACKGLASS
+              over HTTPS. No inbound firewall rules needed — your server calls us, not the other way round.
+            </p>
+            <ol className="list-decimal space-y-3 pl-5 text-fg-muted">
+              <li>
+                <strong className="font-medium text-fg-primary">Generate an API key</strong> — click
+                the button below. Copy it somewhere safe; it is shown once.
+              </li>
+              <li>
+                <strong className="font-medium text-fg-primary">Run one command on your server</strong>{" "}
+                (as root or with sudo):
+                <pre className="mt-2 overflow-x-auto rounded bg-bg-base px-3 py-2 font-mono text-xs text-fg-primary">
+{`curl -fsSL https://blackglasssec.com/install-agent.sh | \\\n  BLACKGLASS_KEY=<your-key> bash`}
+                </pre>
+                <p className="mt-1 text-xs text-fg-faint">
+                  The script creates a read-only <span className="font-mono">blackglass</span> user,
+                  installs the agent, and starts it as a systemd service. One minute to run.
+                </p>
+              </li>
+              <li>
+                <strong className="font-medium text-fg-primary">Done.</strong> The agent sends its
+                first snapshot immediately. You will see your host appear in the fleet dashboard.
+              </li>
+            </ol>
+          </div>
+
+          {/* Key generation */}
+          {!apiKey ? (
+            <Button type="button" onClick={() => void generateKey()} disabled={generatingKey}>
+              {generatingKey ? "Generating…" : "Generate API key"}
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-fg-muted">Your API key — copy it now, it won&apos;t be shown again:</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 overflow-x-auto rounded bg-bg-base px-3 py-2 font-mono text-xs text-fg-primary">
+                  {apiKey}
+                </code>
+                <Button type="button" variant="secondary" onClick={() => void copyKey()}>
+                  {keyCopied ? "Copied!" : "Copy"}
+                </Button>
+              </div>
+              <p className="text-xs text-fg-faint">
+                Paste it into the install command above, replacing <span className="font-mono">&lt;your-key&gt;</span>.
+              </p>
+            </div>
+          )}
+
+          <p className="text-xs text-fg-faint">
+            Prefer SSH pull instead?{" "}
+            <button type="button" onClick={() => setMethod("ssh")} className="text-accent-blue hover:underline">
+              Switch to SSH setup
+            </button>
+            , or email{" "}
+            <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
+              jamie@obsidiandynamics.co.uk
+            </a>{" "}
+            and we will handle it for you.
+          </p>
+        </div>
+      )}
+
+      {method === "ssh" && (
+        <div className="space-y-4">
+          <div className="rounded-card border border-border-subtle bg-bg-elevated p-4 text-sm space-y-3">
+            <p className="font-medium text-fg-primary">SSH pull setup</p>
+            <p className="text-fg-muted">
+              BLACKGLASS SSHs into your server using a dedicated read-only account. Good for
+              environments where installing an agent is not permitted.
+            </p>
+            <p className="text-fg-muted">
+              This requires an SSH key pair to be configured in your BLACKGLASS deployment.{" "}
+              <strong className="font-medium text-fg-primary">
+                Email{" "}
+                <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20BLACKGLASS" className="text-accent-blue hover:underline">
+                  jamie@obsidiandynamics.co.uk
+                </a>
+              </strong>{" "}
+              with your server&apos;s IP address — we will generate the key pair, send you the public
+              half to add to your server, and configure the private half in your deployment. Usually
+              done within one business day.
+            </p>
+            <div className="rounded bg-bg-base px-3 py-2 text-xs text-fg-faint space-y-1">
+              <p className="font-medium text-fg-muted">Self-hosted / technical setup</p>
+              <p>
+                Run{" "}
+                <span className="font-mono">ssh-keygen -t ed25519 -C "blackglass-collector" -f blackglass_key -N ""</span>.
+                Add <span className="font-mono">blackglass_key.pub</span> to your server&apos;s{" "}
+                <span className="font-mono">~blackglass/.ssh/authorized_keys</span>, then set{" "}
+                <span className="font-mono">SSH_PRIVATE_KEY</span> (contents of{" "}
+                <span className="font-mono">blackglass_key</span>) and{" "}
+                <span className="font-mono">COLLECTOR_HOST_1</span> (server IP) as environment
+                variables in your BLACKGLASS deployment.
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-fg-faint">
+            Prefer the agent instead?{" "}
+            <button type="button" onClick={() => setMethod("push")} className="text-accent-blue hover:underline">
+              Switch to push agent
+            </button>
+            {" "}— no emails needed, self-serve in under a minute.
+          </p>
+        </div>
+      )}
+
+      {/* Fleet activity feedback */}
       {status === "waiting" && (
         <div className="flex items-center gap-2 text-xs text-fg-faint">
-          <svg
-            className="h-3.5 w-3.5 animate-spin text-accent-blue"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden
-          >
+          <svg className="h-3.5 w-3.5 animate-spin text-accent-blue" viewBox="0 0 24 24" fill="none" aria-hidden>
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
             <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
-          Watching for first fleet activity — hosts online, first scan, or configured targets ({elapsed}s)
+          Watching for first fleet activity ({elapsed}s)
         </div>
       )}
       {status === "detected" && (
-        <p className="text-xs text-success">Activity detected — advancing…</p>
+        <p className="text-xs text-success">Host detected — advancing…</p>
       )}
       {status === "timeout" && (
         <p className="text-xs text-warning">
-          No fleet activity after {POLL_TIMEOUT_MS / 1000}s. Confirm setup with your administrator, or continue and use{" "}
+          No activity yet. That&apos;s fine — finish setup and use{" "}
           <Link href="/dashboard" className="font-medium text-accent-blue hover:underline">
             Dashboard → Run scan
-          </Link>
-          .
+          </Link>{" "}
+          once your host is connected.
         </p>
       )}
       <div className="flex gap-2">
-        {status !== "detected" ? (
+        {status !== "detected" && (
           <Button type="button" onClick={onNext}>
-            {status === "timeout" ? "Skip for now" : "Continue anyway"}
+            {status === "timeout" ? "Skip for now" : "Continue"}
           </Button>
-        ) : null}
+        )}
       </div>
     </section>
   );

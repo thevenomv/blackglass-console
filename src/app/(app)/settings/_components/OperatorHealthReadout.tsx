@@ -38,15 +38,18 @@ export function OperatorHealthReadout() {
               <span className="text-success">Configured</span>
             ) : (
               <span>
-                Not configured —{" "}
+                Not configured — see{" "}
+                <a href="/settings#collector-hosts" className="text-accent-blue hover:underline">
+                  Collector hosts
+                </a>{" "}
+                below for setup instructions, or email{" "}
                 <a
-                  href="mailto:support@obsidiandynamics.co.uk?subject=SSH%20key%20setup"
+                  href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20BLACKGLASS"
                   className="text-accent-blue hover:underline"
                 >
-                  contact support to set this up
+                  jamie@obsidiandynamics.co.uk
                 </a>
-                , or paste your private key into the{" "}
-                <span className="font-mono text-xs">SSH_PRIVATE_KEY</span> environment variable.
+                .
               </span>
             )}
           </dd>

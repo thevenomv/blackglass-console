@@ -138,11 +138,33 @@ export function CollectorHostsSection() {
         <div>
           <h2 className="text-sm font-semibold text-fg-primary">Collector hosts</h2>
           <p className="mt-0.5 text-sm text-fg-muted">
-            Add each server you want BLACKGLASS to monitor. You will need two things:
-            the server&apos;s IP address (enter it here) and an SSH key — email{" "}
-            <a href="mailto:support@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">support@obsidiandynamics.co.uk</a>{" "}
-            to get the SSH key set up if you haven&apos;t already.
+            Add each server you want BLACKGLASS to monitor. BLACKGLASS connects over SSH — the
+            same secure protocol system administrators use to log into servers remotely. To make
+            that work you need two things: the server&apos;s IP address (add it below) and an SSH
+            key pair used as the login credential.
           </p>
+          <div className="mt-2 space-y-2 rounded-card border border-border-subtle bg-bg-elevated p-3 text-xs text-fg-muted">
+            <p className="font-medium text-fg-primary text-sm">How to get an SSH key</p>
+            <p>
+              <span className="font-medium text-fg-primary">Non-technical / managed setup:</span>{" "}
+              Email{" "}
+              <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20BLACKGLASS" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a>{" "}
+              with your server&apos;s IP address. We will generate a key pair, send you the
+              public half to add to your server, and configure the private half in your
+              BLACKGLASS deployment — you never have to handle a raw key file.
+            </p>
+            <p>
+              <span className="font-medium text-fg-primary">Technical / self-serve:</span>{" "}
+              Run <span className="font-mono bg-bg-base px-1 rounded">ssh-keygen -t ed25519 -C "blackglass-collector" -f blackglass_key -N ""</span> on
+              any machine. This creates two files: <span className="font-mono">blackglass_key.pub</span> (the
+              public key — copy its contents onto your server into{" "}
+              <span className="font-mono">~blackglass/.ssh/authorized_keys</span>) and{" "}
+              <span className="font-mono">blackglass_key</span> (the private key — send this to{" "}
+              <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20private%20key%20for%20BLACKGLASS" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a>{" "}
+              to be added to your deployment, or set it as the{" "}
+              <span className="font-mono">SSH_PRIVATE_KEY</span> environment variable if you self-host).
+            </p>
+          </div>
         </div>
         {!addingHost && (
           <Button variant="secondary" type="button" onClick={() => setAddingHost(true)}>

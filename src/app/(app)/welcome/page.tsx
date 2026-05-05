@@ -68,10 +68,10 @@ export default function WelcomePage() {
     {
       label: "Collector connected",
       done: collectorOn,
-      cta: { href: "/settings", text: "Configure in Settings" },
+      cta: { href: "/onboarding", text: "Run setup wizard" },
       detail: collectorOn
-        ? "Collector connected — at least one host is configured and the SSH key is in place."
-        : "Two things needed: (1) add your server's IP in Settings → Collector hosts, and (2) provide an SSH key — contact support@obsidiandynamics.co.uk if you need help with that.",
+        ? "Collector connected — at least one host is configured."
+        : "No host connected yet. Use the setup wizard — takes under a minute with the push agent.",
     },
     {
       label: "Baseline persistence",
