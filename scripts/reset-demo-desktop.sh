@@ -69,7 +69,7 @@ fi
 
 # ── SCENE 6 — Remove demo-beacon service ─────────────────────
 step "Scene 6 — Remove demo-beacon.service"
-if systemctl list-unit-files demo-beacon.service 2>/dev/null | grep -q demo-beacon; then
+if [ -f /etc/systemd/system/demo-beacon.service ]; then
   systemctl stop  demo-beacon 2>/dev/null || true
   systemctl disable demo-beacon 2>/dev/null || true
   rm -f /etc/systemd/system/demo-beacon.service
