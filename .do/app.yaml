@@ -1,12 +1,16 @@
-# DigitalOcean App Platform — Container Registry (DOCR) deploy.
+# DigitalOcean App Platform — GitHub Container Registry (GHCR) deploy.
 #
 # Prereqs:
-# 1. Create registry: .\scripts\provision-docr.ps1  (or: doctl registry create blackglass)
-# 2. Set DIGITALOCEAN_ACCESS_TOKEN in your shell (Personal Access Token with read/write).
-# 3. Build & push image: .\scripts\do-docker-push.ps1 -RegistryName blackglass
-# 4. If you used a different registry name, update the `registry:` fields below, then:
-#    doctl apps create --spec .do/app.yaml
-#    # updates: doctl apps update <app-id> --spec .do/app.yaml
+# 1. Create a GitHub PAT with read:packages scope and add it as a DO app secret:
+#    doctl apps update <app-id> --secret GHCR_TOKEN=<pat>
+# 2. Build & push images:
+#    docker build -t ghcr.io/<github-org>/blackglass-console:latest -f Dockerfile .
+#    docker build -t ghcr.io/<github-org>/blackglass-worker:latest -f Dockerfile.worker .
+#    echo <pat> | docker login ghcr.io -u <github-user> --password-stdin
+#    docker push ghcr.io/<github-org>/blackglass-console:latest
+#    docker push ghcr.io/<github-org>/blackglass-worker:latest
+# 3. Update the registry_credentials below with your GitHub org/username, then:
+#    doctl apps create --spec .do/app.yaml   (or: doctl apps update <app-id> --spec .do/app.yaml)
 #
 # After first deploy, set NEXT_PUBLIC_APP_URL to your live HTTPS URL and rebuild the image
 # (Next.js inlines NEXT_PUBLIC_* at build time).
@@ -25,9 +29,9 @@ region: nyc
 services:
   - name: web
     image:
-      registry_type: DOCR
-      registry: blackglass
-      repository: blackglass-console
+      registry_type: GHCR
+      registry: ghcr.io
+      repository: GITHUB_ORG/blackglass-console
       tag: latest
     http_port: 3000
     instance_count: 1
@@ -53,9 +57,9 @@ services:
 workers:
   - name: scan-worker
     image:
-      registry_type: DOCR
-      registry: blackglass
-      repository: blackglass-worker
+      registry_type: GHCR
+      registry: ghcr.io
+      repository: GITHUB_ORG/blackglass-worker
       tag: latest
     instance_count: 1
     instance_size_slug: basic-xs
