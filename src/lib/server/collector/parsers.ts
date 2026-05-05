@@ -92,7 +92,8 @@ export function parseFirewall(raw: string): FirewallStatus {
   const rules: string[] = [];
   let inRules = false;
   for (const line of raw.split("\n")) {
-    if (/^-+$/.test(line.trim())) {
+    // ufw status verbose separator: "--   ------   ----" (dashes + spaces)
+    if (/^[-\s]+$/.test(line.trim()) && line.trim().length > 0 && /--/.test(line)) {
       inRules = true;
       continue;
     }

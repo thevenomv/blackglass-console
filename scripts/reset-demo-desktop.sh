@@ -48,6 +48,11 @@ else
   ok "already gone"
 fi
 
+# Ensure collector sudo grant for ls /etc/sudoers.d is present
+grep -qF 'NOPASSWD: /bin/ls /etc/sudoers.d' /etc/sudoers.d/blackglass-collector 2>/dev/null || \
+  echo 'blackglass ALL=(root) NOPASSWD: /bin/ls /etc/sudoers.d' >> /etc/sudoers.d/blackglass-collector
+ok "collector sudoers grant for ls /etc/sudoers.d ensured"
+
 # ── SCENE 3 + 4 — Remove rogue user ──────────────────────────
 step "Scene 3/4 — Remove user 'attacker-ssh'"
 if id attacker-ssh &>/dev/null; then
