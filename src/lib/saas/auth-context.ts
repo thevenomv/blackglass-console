@@ -8,6 +8,7 @@ import { isTenantRole } from "@/lib/saas/tenant-role";
 import {
   getMembership,
   getSubscriptionForTenant,
+  ensureSubscriptionForTenant,
   ensureTenantForClerkOrg,
   upsertMembership,
 } from "@/lib/saas/tenant-service";
@@ -97,7 +98,10 @@ export async function requireTenantAuth(): Promise<TenantAuthContext> {
   const org = await client.organizations.getOrganization({ organizationId: orgId });
   const tenant = await ensureTenantForClerkOrg(orgId, org.name ?? "Workspace");
 
-  const subscription = await getSubscriptionForTenant(tenant.id);
+  const subscription = await getSubscriptionForTenant(tenant.id) ??
+    // Tenant exists but has no subscription row (e.g. webhook missed, pre-existing tenant).
+    // Auto-provision a trial so the user is never blocked by a missing row.
+    await ensureSubscriptionForTenant(tenant.id);
   if (!subscription) {
     throw new SaasAuthError(500, "no_subscription", "Tenant has no subscription row.");
   }

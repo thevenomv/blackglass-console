@@ -102,6 +102,36 @@ export async function getTenantRowByClerkOrg(clerkOrgId: string) {
   );
 }
 
+/**
+ * Auto-provision a trial subscription for an existing tenant that somehow has no subscription
+ * row (e.g. created before auto-provisioning, or webhook delivery failed).
+ */
+export async function ensureSubscriptionForTenant(tenantId: string) {
+  return withBypassRls(async (db) => {
+    const existing = await db
+      .select()
+      .from(saasSubscriptions)
+      .where(eq(saasSubscriptions.tenantId, tenantId))
+      .limit(1);
+    if (existing[0]) return existing[0];
+    const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86400000);
+    const [sub] = await db
+      .insert(saasSubscriptions)
+      .values({
+        tenantId,
+        planCode: "trial",
+        status: "trialing",
+        trialEndsAt,
+        currentPeriodEndsAt: null,
+        hostLimit: TRIAL_HOST_LIMIT,
+        paidSeatLimit: TRIAL_PAID_SEAT_LIMIT,
+        features: {},
+      })
+      .returning();
+    return sub;
+  });
+}
+
 export async function getSubscriptionForTenant(tenantId: string) {
   return withTenantRls(tenantId, async (db) => {
     const rows = await db
