@@ -3,13 +3,14 @@
  */
 
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/server/http/auth-guard";
-import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { getIngestCredentialSummary } from "@/lib/server/ingest-credentials";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
+import { jsonError } from "@/lib/server/http/json-error";
 
 export const dynamic = "force-dynamic";
 
@@ -20,14 +21,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
   }
 
+  // This endpoint only reads env var status — no DB query needed.
+  // Use a lightweight session check rather than full tenant+subscription auth.
   if (isClerkAuthEnabled()) {
-    const access = await requireSaasOrLegacyPermission("reports.view", [
-      "viewer",
-      "auditor",
-      "operator",
-      "admin",
-    ]);
-    if (!access.ok) return access.response;
+    const { userId, orgId } = await auth();
+    if (!userId) return jsonError(401, "unauthenticated", "Sign in required.", requestId);
+    if (!orgId) return jsonError(400, "no_organization", "Select a workspace first.", requestId);
   } else {
     const guard = await requireRole(["viewer", "auditor", "operator", "admin"]);
     if (!guard.ok) return guard.response;
