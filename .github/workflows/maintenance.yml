@@ -42,7 +42,7 @@ jobs:
       github.event.inputs.job == 'both' ||
       github.event.inputs.job == 'audit-events'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -68,7 +68,7 @@ jobs:
       github.event.inputs.job == 'both' ||
       github.event.inputs.job == 'webhook-idempotency'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -91,7 +91,7 @@ jobs:
       github.event.inputs.job == 'both' ||
       github.event.inputs.job == 'billing'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
