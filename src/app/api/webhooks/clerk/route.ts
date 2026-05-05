@@ -16,6 +16,8 @@ import { claimWebhookEvent } from "@/lib/saas/webhook-idempotency";
 import { emitSaasAudit, emitSaasSecurity } from "@/lib/saas/event-log";
 import { clerkClient } from "@clerk/nextjs/server";
 import type { TenantRole } from "@/lib/saas/tenant-role";
+import { sendEmail } from "@/lib/email/send";
+import { welcomeEmailHtml, welcomeEmailText } from "@/lib/email/templates/welcome";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -97,6 +99,31 @@ export async function POST(request: Request) {
             targetId: orgId,
             metadata: { source: "clerk_webhook" },
           });
+
+          // Send welcome email to the creator if we have their email address.
+          try {
+            const orgMembers = await (await clerkClient()).organizations.getOrganizationMembershipList({ organizationId: orgId });
+            const creator = orgMembers.data[0];
+            const userId = creator?.publicUserData?.userId;
+            if (userId) {
+              const user = await (await clerkClient()).users.getUser(userId);
+              const email = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress;
+              const firstName = user.firstName ?? email?.split("@")[0] ?? "there";
+              const consoleUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://blackglasssec.com").replace(/\/$/, "");
+              if (email) {
+                await sendEmail({
+                  to: email,
+                  subject: "Welcome to BLACKGLASS — your trial is ready",
+                  html: welcomeEmailHtml({ firstName, orgName: readOrgName(evt.data), consoleUrl }),
+                  text: welcomeEmailText({ firstName, orgName: readOrgName(evt.data), consoleUrl }),
+                  replyTo: "jamie@obsidiandynamics.co.uk",
+                });
+              }
+            }
+          } catch (emailErr) {
+            // Non-fatal — log but don't fail the webhook response.
+            console.error("[clerk-webhook] welcome email failed", emailErr);
+          }
         }
         break;
       }
