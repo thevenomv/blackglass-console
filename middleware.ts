@@ -40,12 +40,9 @@ const clerkPublic = createRouteMatcher([
   "/login(.*)",
   "/use-cases(.*)",
   "/guides(.*)",
-  // API routes that authenticate via their own mechanisms (webhook sig / collector API key)
-  "/api/health(.*)",
-  "/api/webhooks/(.*)",
-  "/api/checkout(.*)",
-  "/api/v1/ingest(.*)",
-  "/api/v1/collector/(.*)",
+  // All API routes manage their own auth (Clerk session, API keys, webhook sigs).
+  // Marking them public here means Clerk populates auth() context without force-redirecting.
+  "/api/(.*)",
 ]);
 
 const clerkMw = clerkMiddleware(async (auth, request) => {
@@ -118,14 +115,15 @@ async function legacyMiddleware(request: NextRequest, requestId: string) {
 export default async function middleware(request: NextRequest, event: NextFetchEvent) {
   const requestId = resolveRequestId(request);
 
-  // API routes: stamp `x-request-id` for handlers and outbound error envelopes;
-  // auth remains per-route (Clerk session, API keys, legacy cookie).
-  if (request.nextUrl.pathname.startsWith("/api")) {
-    return withRequestId(request, requestId);
+  if (isClerkAuthEnabled()) {
+    // Run clerkMw for ALL routes so auth() is populated in API route handlers.
+    // API routes are in clerkPublic above, so Clerk won't force-redirect them.
+    return clerkMw(request, event);
   }
 
-  if (isClerkAuthEnabled()) {
-    return clerkMw(request, event);
+  // Legacy (non-Clerk) mode: API routes just need request ID stamped; auth is per-route.
+  if (request.nextUrl.pathname.startsWith("/api")) {
+    return withRequestId(request, requestId);
   }
   return legacyMiddleware(request, requestId);
 }
