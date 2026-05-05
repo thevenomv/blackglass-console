@@ -15,8 +15,11 @@ export function MockDataBanner() {
       <span className="font-semibold text-warning-amber">Mock data mode</span>
       <span className="text-fg-muted">
         {" "}
-        — unset <code className="rounded bg-bg-panel px-1 py-0.5 font-mono text-[11px]">NEXT_PUBLIC_USE_MOCK</code> or set it to{" "}
-        <code className="rounded bg-bg-panel px-1 py-0.5 font-mono text-[11px]">false</code> for live collectors.
+        — production and normal dev should leave{" "}
+        <code className="rounded bg-bg-panel px-1 py-0.5 font-mono text-[11px]">NEXT_PUBLIC_USE_MOCK</code> unset or{" "}
+        <code className="rounded bg-bg-panel px-1 py-0.5 font-mono text-[11px]">false</code>, and configure{" "}
+        <code className="rounded bg-bg-panel px-1 py-0.5 font-mono text-[11px]">COLLECTOR_HOST_*</code> / ingest keys so
+        the console shows your fleet instead of fixtures.
       </span>
     </div>
   );

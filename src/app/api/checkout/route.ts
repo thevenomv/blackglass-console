@@ -6,15 +6,30 @@ import { checkCheckoutRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { getTenantRowByClerkOrg } from "@/lib/saas/tenant-service";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 
 export async function POST(request: Request) {
+  const requestId = getOrCreateRequestId(request);
+
   if (!(await checkCheckoutRate(clientIp(request)))) {
-    return jsonError(429, "rate_limited", "Too many checkout requests. Please wait before trying again.");
+    return jsonError(429, "rate_limited", "Too many checkout requests. Please wait before trying again.", requestId);
   }
 
-  // In production, NEXT_PUBLIC_APP_URL should always be set. The https://localhost:3000
-  // fallback is intentionally HTTPS to prevent plaintext redirect targets in prod.
-  const origin = request.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://localhost:3000";
+  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!stripeSecret) {
+    return jsonError(
+      503,
+      "billing_unavailable",
+      "Online checkout is not enabled on this deployment. Email jamie@obsidiandynamics.co.uk or book a walkthrough — we will send you a checkout link.",
+      requestId,
+    );
+  }
+
+  // Prefer browser Origin; then canonical app URL; then request URL (some proxies omit Origin).
+  const origin =
+    request.headers.get("origin")?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+    new URL(request.url).origin;
 
   // Resolve Stripe price ID by plan code.
   // Set STRIPE_STARTER_PRICE_ID / STRIPE_GROWTH_PRICE_ID / STRIPE_BUSINESS_PRICE_ID in env.
@@ -102,13 +117,16 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[checkout] Stripe API error:", err);
-    return jsonError(502, "stripe_error", "Could not create checkout session");
+    return jsonError(502, "stripe_error", "Could not create checkout session. Verify STRIPE_SECRET_KEY and price IDs.", requestId);
   }
 
   if (!session.url) {
-    return jsonError(500, "no_checkout_url", "Stripe returned a session with no URL");
+    return jsonError(500, "no_checkout_url", "Stripe returned a session with no URL", requestId);
   }
 
-  appendAudit({ action: AUDIT_ACTIONS.CHECKOUT_STARTED, detail: `Stripe checkout session created` });
-  return NextResponse.json({ url: session.url });
+  appendAudit({ action: AUDIT_ACTIONS.CHECKOUT_STARTED, detail: `Stripe checkout session created`, request_id: requestId });
+  return NextResponse.json(
+    { url: session.url },
+    { headers: requestId ? { "x-request-id": requestId } : undefined },
+  );
 }

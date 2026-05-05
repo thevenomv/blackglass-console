@@ -212,7 +212,7 @@ function TierCard({ tier }: { tier: PricingTier }) {
           </CheckoutButton>
         ) : (
           <a
-            href={tier.ctaHref}
+            href={tier.ctaHref ?? "mailto:jamie@obsidiandynamics.co.uk"}
             className="block w-full rounded-card border border-border-default bg-bg-elevated py-2.5 text-center text-sm font-semibold text-fg-primary transition-colors hover:border-accent-blue hover:text-accent-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-bg-panel"
           >
             {tier.cta}

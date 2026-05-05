@@ -48,6 +48,7 @@ const matrix: Record<TenantRole, readonly SaasPermission[]> = {
     "evidence.view",
   ],
   operator: [
+    "secrets.manage",
     "scans.run",
     "hosts.manage_limited",
     "drift.manage",

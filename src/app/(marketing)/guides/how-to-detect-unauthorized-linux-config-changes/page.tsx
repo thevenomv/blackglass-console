@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function DetectUnauthorizedChangesGuidePage() {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-16 text-fg-muted">
+    <main className="guide-article mx-auto max-w-3xl px-4 py-16 text-fg-muted">
         <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-blue">
           Guide
         </p>

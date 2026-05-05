@@ -10,6 +10,7 @@ const PATHS = [
   "/security",
   "/demo",
   "/book",
+  "/changelog",
   // Legal
   "/privacy",
   "/terms",
@@ -32,6 +33,7 @@ const PRIORITY: Record<string, number> = {
   "/pricing": 0.9,
   "/demo": 0.85,
   "/security": 0.7,
+  "/changelog": 0.55,
   "/book": 0.7,
   "/use-cases": 0.8,
   "/use-cases/linux-configuration-drift-detection": 0.8,

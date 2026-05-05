@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+const paletteModifier = process.platform === "darwin" ? "Meta" : "Control";
+
 test.describe("BLACKGLASS console smoke", () => {
   test("marketing landing exposes demo and trial CTAs", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("link", { name: /explore demo/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /explore demo/i }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: /start free trial/i }).first()).toBeVisible();
   });
 
@@ -106,7 +108,7 @@ test.describe("BLACKGLASS console smoke", () => {
   });
 
   test("workspace incident page renders", async ({ page }) => {
-    await page.goto("/workspace");
+    await page.goto("/workspace?incident=INC-2047");
     await expect(page.getByRole("heading", { name: "Incident workspace" })).toBeVisible();
     await expect(page.getByText("INC-2047").first()).toBeVisible();
   });
@@ -127,7 +129,10 @@ test.describe("BLACKGLASS console smoke", () => {
 
   test("command palette opens and closes with keyboard shortcut", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.keyboard.press("Meta+k");
+    await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await page.locator("body").click({ position: { x: 8, y: 8 } });
+    await page.keyboard.press(`${paletteModifier}+k`);
     await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog", { name: "Command palette" })).not.toBeVisible();
@@ -136,7 +141,7 @@ test.describe("BLACKGLASS console smoke", () => {
   test("command palette navigates to hosts via search", async ({ page }) => {
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");
-    await page.keyboard.press("Meta+k");
+    await page.keyboard.press(`${paletteModifier}+k`);
     await page.getByPlaceholder("Search routes…").fill("hosts");
     await page.getByRole("option").first().click();
     await expect(page).toHaveURL("/hosts");
@@ -144,7 +149,10 @@ test.describe("BLACKGLASS console smoke", () => {
 
   test("host detail tab deep-linking via ?tab= param", async ({ page }) => {
     await page.goto("/hosts/host-07?tab=users");
-    await expect(page.getByRole("tab", { name: /users/i })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "Users / groups" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   test("dashboard time range selector updates label", async ({ page }) => {
@@ -188,7 +196,7 @@ test.describe("BLACKGLASS console smoke", () => {
   test("drift page renders events grid", async ({ page }) => {
     await page.goto("/drift");
     await expect(page.getByRole("heading", { name: "Drift" })).toBeVisible();
-    await expect(page.getByRole("grid", { name: "Drift events" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Drift events" })).toBeVisible();
     await expect(page.getByText("Detection time", { exact: true })).toBeVisible();
   });
 

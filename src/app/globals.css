@@ -4,8 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark (default) — cool slate shell + blue + green */
-:root,
+/* Dark — cool slate shell + blue + green */
 :root[data-theme="dark"] {
   /* Neutrals — slate shell */
   --bg-base: #0f1419;
@@ -48,7 +47,8 @@
   --space-card: 16px;
 }
 
-/* Light — same structure: slate neutrals + blue accents + green success */
+/* Light tokens — default when `[data-theme]` missing or `light` */
+:root,
 :root[data-theme="light"] {
   --bg-base: #f1f5f9;
   --bg-sidebar: #e8eef6;
@@ -60,7 +60,7 @@
   --text-primary: #0f172a;
   --text-muted: #475569;
   --text-secondary: #475569;
-  --text-faint: #64748b;
+  --text-faint: #5c6570;
 
   --accent-blue: #2563eb;
   --accent-blue-hover: #1d4ed8;
@@ -82,11 +82,22 @@
 }
 
 html {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
   color-scheme: dark;
 }
 
-html[data-theme="light"] {
-  color-scheme: light;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {
@@ -96,4 +107,69 @@ body {
 *:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
+}
+
+@layer utilities {
+  .bg-overlay-scrim {
+    background: color-mix(in oklab, var(--text-primary) 16%, transparent);
+  }
+}
+
+/* Long-form marketing / guides: readable inline code */
+.guide-article code {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-blue);
+}
+
+.guide-article pre {
+  overflow-x: auto;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-card);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.guide-article pre code {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: inherit;
+}
+
+/* Strong OS contrast preference */
+@media (prefers-contrast: more) {
+  html[data-theme="light"] {
+    --border-default: #94a3b8;
+    --border-subtle: #cbd5e1;
+    --text-muted: #334155;
+    --text-faint: #475569;
+    --shadow-elevated: 0 2px 6px rgba(15, 23, 42, 0.14);
+  }
+
+  html[data-theme="dark"] {
+    --border-default: #64748b;
+    --border-subtle: #475569;
+    --text-muted: #cbd5e1;
+    --text-faint: #94a3b8;
+  }
+
+  *:focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* Dashboard drift mini-chart bars — clearer in high contrast */
+@media (prefers-contrast: more) {
+  .drift-volume-bar {
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    opacity: 1;
+  }
 }

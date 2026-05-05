@@ -140,6 +140,21 @@ describe("saas RBAC", () => {
     if (!r.ok) expect(r.code).toBe("trial_read_only");
   });
 
+  it("operator may rotate ingest secrets when subscription active", () => {
+    const s = sub({
+      status: "active",
+      planCode: "starter",
+      trialEndsAt: null,
+      currentPeriodEndsAt: null,
+      hostLimit: 25,
+      paidSeatLimit: 3,
+      features: {},
+      updatedAt: new Date(),
+    });
+    expect(hasPermission("operator", "secrets.manage")).toBe(true);
+    expect(canRotateSecretsForTenant("operator", s).ok).toBe(true);
+  });
+
   it("past_due: canRotateSecretsForTenant returns trial_read_only", () => {
     const s = sub({
       status: "past_due",

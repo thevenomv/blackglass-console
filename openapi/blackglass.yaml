@@ -471,30 +471,6 @@ paths:
     post:
       tags: [Reports]
       summary: Generate integrity report
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                title: { type: string }
-                fleet_tags: { type: array, items: { type: string } }
-                period: { type: string, description: ISO-8601 interval or preset }
-                format: { type: string, enum: [markdown, pdf], default: markdown }
-      responses:
-        "202":
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  report_id: { type: string }
-                  status: { type: string, enum: [queued, running, ready, failed] }
-
-  /reports:
-    post:
-      tags: [Reports]
-      summary: Generate integrity report
       security:
         - SessionCookie: []
       requestBody:

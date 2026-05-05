@@ -200,7 +200,7 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex justify-center bg-black/55 px-4 pt-[15vh]"
+      className="fixed inset-0 z-[70] flex justify-center bg-overlay-scrim px-4 pt-[15vh] backdrop-blur-[2px]"
       role="presentation"
       onMouseDown={closePalette}
     >
