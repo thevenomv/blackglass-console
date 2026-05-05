@@ -17,7 +17,7 @@
 
 import type { CollectScanOptions } from "@/lib/server/collector/types";
 
-export const QUEUE_NAME = "blackglass:scans" as const;
+export const QUEUE_NAME = "blackglass-scans" as const;
 
 export type ScanJobPayload = {
   jobId: string;

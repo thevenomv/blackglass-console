@@ -57,7 +57,9 @@ export function OperatorHealthReadout() {
         <div className="sm:col-span-2">
           <dt className="text-fg-faint">Baseline persistence</dt>
           <dd className="text-fg-primary">
-            {b.adapter === "spaces" ? (
+            {b.adapter === "postgres" ? (
+              "Postgres — persistent"
+            ) : b.adapter === "spaces" ? (
               "Object storage — persistent"
             ) : !b.configured ? (
               "In-memory only (set SPACES_KEY… for object storage, or BASELINE_STORE_PATH for local disk)"

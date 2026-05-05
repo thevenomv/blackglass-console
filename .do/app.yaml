@@ -53,6 +53,9 @@ services:
       - key: COLLECTOR_HOST_1_NAME
         value: "Demo Server"
         scope: RUN_TIME
+      - key: COLLECTOR_HOST_1_PORT
+        value: "2222"
+        scope: RUN_TIME
       # Distributed rate limits — set after provisioning: .\scripts\provision-do-redis.ps1
       # When unset, limits are in-memory per-instance (adequate for single-instance deploys).
       - key: RATE_LIMIT_REDIS_URL
