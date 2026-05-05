@@ -44,7 +44,7 @@ jobs:
 
       - name: ZAP baseline scan
         if: steps.tgt.outputs.url != ''
-        uses: zaproxy/action-baseline@v0.13.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: ${{ steps.tgt.outputs.url }}
           rules_file_name: ".zap/rules.tsv"
