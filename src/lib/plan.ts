@@ -37,7 +37,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     scheduledScans: false,
     multiUser: false,
     webhooks: false,
-    evidenceExport: true,   // basic single-host export always free
+    evidenceExport: false,
     sso: false,
     auditExport: false,
     apiAccess: false,

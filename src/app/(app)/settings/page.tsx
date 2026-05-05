@@ -44,10 +44,6 @@ export default async function SettingsPage() {
 
         <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">
           <h2 className="text-sm font-semibold text-fg-primary">Push ingest API key</h2>
-          <p className="text-sm text-fg-muted">
-            Bearer token for <span className="font-mono text-xs">POST /api/v1/ingest</span> — rotate when staff change
-            or on your security schedule.
-          </p>
           <SettingsRotateRow />
         </section>
 

@@ -226,12 +226,6 @@ export default function WelcomePage() {
             Invite a customer
           </h2>
           <div className="rounded-card border border-border-default bg-bg-panel px-4 py-4">
-            <p className="mb-3 text-sm text-fg-muted">
-              Generate a one-time invite link. The recipient clicks it to get a 30-day read-only
-              session — no password required. Add the token to{" "}
-              <span className="font-mono text-fg-primary">INVITE_TOKENS</span> in your environment
-              first.
-            </p>
             <GenerateInviteButton />
           </div>
         </section>

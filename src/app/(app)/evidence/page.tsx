@@ -1,15 +1,17 @@
 export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { EvidenceExportModal } from "./_components/EvidenceExportModal";
 import { EvidenceView } from "./_components/EvidenceView";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
+import { getLimits } from "@/lib/plan";
 import { mockLatency } from "@/lib/mockLatency";
 import { Suspense } from "react";
 
 async function EvidenceBody() {
   await mockLatency(200);
+  const limits = getLimits();
   return (
     <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
       <PageHeader
@@ -19,15 +21,16 @@ async function EvidenceBody() {
           { href: "/dashboard", label: "Dashboard" },
           { href: "/evidence", label: "Evidence" },
         ]}
-        actions={<EvidenceExportModal />}
       />
 
-      <EvidenceView />
-
-      <div className="rounded-card border border-border-subtle bg-bg-panel/60 px-4 py-3 text-sm text-fg-muted">
-        Bundles contain structured findings plus optional narrative summaries — configure retention and signing
-        policies before enabling automated exports.
-      </div>
+      {limits.evidenceExport ? (
+        <EvidenceView />
+      ) : (
+        <UpgradePrompt
+          feature="Evidence bundles require BLACKGLASS Team"
+          description="Export tamper-evident audit packages containing baselines, drift findings, acknowledgements, and operator notes — accepted for SOC 2, post-incident review, and CAB submissions."
+        />
+      )}
     </div>
   );
 }

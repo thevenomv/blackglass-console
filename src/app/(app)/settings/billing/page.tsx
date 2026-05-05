@@ -11,7 +11,6 @@ import { getSeatUsage } from "@/lib/saas/seats";
 import { hasPermission } from "@/lib/saas/permissions";
 import { isTrialReadOnlyState } from "@/lib/saas/trial";
 import { loadHosts } from "@/lib/server/inventory";
-import Link from "next/link";
 import { BillingPortalButton } from "@/components/saas/BillingPortalButton";
 
 export default async function BillingSettingsPage() {
@@ -137,15 +136,6 @@ export default async function BillingSettingsPage() {
               <BillingPortalButton customerId={ctx.subscription.stripeCustomerId} />
             </div>
           ) : null}
-          <p className="mt-4 text-xs text-fg-faint">
-            Checkout attaches your Clerk organization to Stripe metadata; the webhook syncs plan
-            limits and <span className="font-mono">stripe_customer_id</span> into{" "}
-            <span className="font-mono">saas_subscriptions</span>. Open billing via{" "}
-            <Link href="/pricing" className="text-accent-blue hover:underline">
-              pricing
-            </Link>{" "}
-            only from an owner session so the portal customer ID matches this workspace.
-          </p>
         </section>
       </div>
     </AppShell>

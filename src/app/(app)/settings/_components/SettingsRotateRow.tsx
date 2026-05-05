@@ -3,7 +3,6 @@
 import { PermissionGate } from "@/components/auth/SessionProvider";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type KeysResponse = {
@@ -108,18 +107,6 @@ export function SettingsRotateRow() {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-fg-faint">
-        Used by the optional <strong className="text-fg-muted">push-ingest</strong> agent as{" "}
-        <code className="rounded bg-bg-base px-1 font-mono text-[11px]">Authorization: Bearer …</code>
-        against <code className="rounded bg-bg-base px-1 font-mono text-[11px]">POST /api/v1/ingest</code>. SSH-based
-        collection uses <code className="rounded bg-bg-base px-1 font-mono text-[11px]">COLLECTOR_HOST_*</code> in the
-        deployment environment — see{" "}
-        <Link href="/welcome" className="text-accent-blue underline underline-offset-2 hover:underline">
-          Get started
-        </Link>
-        .
-      </p>
-
       <div className="flex flex-wrap gap-2">
         <input
           readOnly
