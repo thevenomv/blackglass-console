@@ -40,9 +40,10 @@ export default async function SettingsPage() {
         <OperatorHealthReadout />
 
         <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">
-          <h2 className="text-sm font-semibold text-fg-primary">Collector API key</h2>
+          <h2 className="text-sm font-semibold text-fg-primary">Push ingest API key</h2>
           <p className="text-sm text-fg-muted">
-            Rotate keys on a schedule — scopes limit ingestion to integrity payloads only.
+            Bearer token for <span className="font-mono text-xs">POST /api/v1/ingest</span> — rotate when staff change
+            or on your security schedule.
           </p>
           <SettingsRotateRow />
         </section>
@@ -63,6 +64,15 @@ export default async function SettingsPage() {
               description="Deliver real-time drift summaries to Slack, PagerDuty, or any HTTP endpoint. Available on Pro and above."
             />
           )}
+        </section>
+
+        <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">
+          <h2 className="text-sm font-semibold text-fg-primary">Data retention</h2>
+          <p className="text-sm text-fg-muted">
+            Baseline snapshots, drift events, and audit exports follow your plan&apos;s retention window.
+            Rotating collector credentials or signing out does not delete historical telemetry — use workspace
+            controls or support for governed deletion where your policy requires it.
+          </p>
         </section>
 
         <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">

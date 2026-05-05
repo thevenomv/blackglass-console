@@ -25,25 +25,9 @@ import { withinHostAllowance } from "@/lib/saas/operations";
 import { getSubscriptionForTenant } from "@/lib/saas/tenant-service";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
+import { parseHostIngestKeys } from "@/lib/server/ingest-credentials";
 
 export const dynamic = "force-dynamic";
-
-function parseHostIngestKeys(): Record<string, string> {
-  const raw = process.env.INGEST_HOST_KEYS_JSON?.trim();
-  if (!raw) return {};
-  try {
-    const o = JSON.parse(raw) as unknown;
-    if (!o || typeof o !== "object" || Array.isArray(o)) return {};
-    const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(o)) {
-      if (typeof v === "string" && v.length > 0) out[String(k)] = v;
-    }
-    return out;
-  } catch {
-    console.warn("[ingest] INGEST_HOST_KEYS_JSON parse failed");
-    return {};
-  }
-}
 
 export async function POST(request: Request) {
   const requestId = getOrCreateRequestId(request);

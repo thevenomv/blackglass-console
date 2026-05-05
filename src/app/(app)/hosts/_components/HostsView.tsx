@@ -135,17 +135,18 @@ export function HostsView({
         />
       ) : (
         <div
-          role="grid"
+          role="region"
           aria-label="Hosts inventory"
-          aria-rowcount={filtered.length}
           className="overflow-hidden rounded-card border border-border-default bg-bg-panel"
         >
-          <div role="row" className="flex border-b border-border-subtle px-4 py-3 text-xs uppercase tracking-wide text-fg-faint">
-            <div role="columnheader" className="min-w-0 flex-[1.4] font-medium">Host</div>
-            <div role="columnheader" className="w-36 font-medium">Posture</div>
-            <div role="columnheader" className="w-20 text-right font-medium">Ready</div>
-            <div role="columnheader" className="min-w-0 flex-1 px-4 font-medium">Last scan</div>
-            <div role="columnheader" className="w-16 text-right font-medium"><span className="sr-only">Actions</span></div>
+          <div className="flex border-b border-border-subtle px-4 py-3 text-xs uppercase tracking-wide text-fg-faint">
+            <div className="min-w-0 flex-[1.4] font-medium">Host</div>
+            <div className="w-36 font-medium">Posture</div>
+            <div className="w-20 text-right font-medium">Ready</div>
+            <div className="min-w-0 flex-1 px-4 font-medium">Last scan</div>
+            <div className="w-16 text-right font-medium">
+              <span className="sr-only">Actions</span>
+            </div>
           </div>
           <div
             ref={parentRef}
@@ -159,10 +160,11 @@ export function HostsView({
               >
                 {rowVirtualizer.getVirtualItems().map((vi) => {
                   const h = filtered[vi.index];
+                  const stripe = vi.index % 2 === 1 ? "bg-bg-elevated/45" : "";
                   return (
                     <div
                       key={h.id}
-                      className="absolute left-0 top-0 flex w-full items-center border-b border-border-subtle px-4 py-3 text-sm hover:bg-bg-elevated"
+                      className={`absolute left-0 top-0 flex w-full items-center border-b border-border-subtle px-4 py-3 text-sm hover:bg-bg-elevated ${stripe}`}
                       style={{
                         height: `${vi.size}px`,
                         transform: `translateY(${vi.start}px)`,
@@ -194,10 +196,12 @@ export function HostsView({
                 })}
               </div>
             ) : (
-              filtered.map((h) => (
+              filtered.map((h, rowIdx) => (
                 <div
                   key={h.id}
-                  className="flex w-full items-center border-b border-border-subtle px-4 py-3 text-sm hover:bg-bg-elevated"
+                  className={`flex w-full items-center border-b border-border-subtle px-4 py-3 text-sm hover:bg-bg-elevated ${
+                    rowIdx % 2 === 1 ? "bg-bg-elevated/45" : ""
+                  }`}
                 >
                   <div className="min-w-0 flex-[1.4]">
                     <p className="font-mono text-fg-primary">{h.id}</p>

@@ -14,18 +14,6 @@ export function ThemeToggle() {
       <button
         type="button"
         className={`flex-1 rounded-[5px] px-2 py-1.5 text-xs font-medium transition-colors ${
-          theme === "dark"
-            ? "bg-bg-elevated text-fg-primary shadow-sm"
-            : "text-fg-muted hover:text-fg-primary"
-        }`}
-        aria-pressed={theme === "dark"}
-        onClick={() => setTheme("dark")}
-      >
-        Dark
-      </button>
-      <button
-        type="button"
-        className={`flex-1 rounded-[5px] px-2 py-1.5 text-xs font-medium transition-colors ${
           theme === "light"
             ? "bg-bg-elevated text-fg-primary shadow-sm"
             : "text-fg-muted hover:text-fg-primary"
@@ -34,6 +22,18 @@ export function ThemeToggle() {
         onClick={() => setTheme("light")}
       >
         Light
+      </button>
+      <button
+        type="button"
+        className={`flex-1 rounded-[5px] px-2 py-1.5 text-xs font-medium transition-colors ${
+          theme === "dark"
+            ? "bg-bg-elevated text-fg-primary shadow-sm"
+            : "text-fg-muted hover:text-fg-primary"
+        }`}
+        aria-pressed={theme === "dark"}
+        onClick={() => setTheme("dark")}
+      >
+        Dark
       </button>
     </div>
   );

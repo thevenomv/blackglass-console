@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function SecurityPage() {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-14 text-sm leading-relaxed text-fg-muted">
+    <main className="guide-article mx-auto max-w-3xl px-4 py-14 text-sm leading-relaxed text-fg-muted">
         <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-blue">
           Trust
         </p>
@@ -102,6 +102,24 @@ export default function SecurityPage() {
           <li>
             Audit and security events are emitted for every privileged action. Secrets and sensitive
             values are never included in log payloads.
+          </li>
+        </ul>
+
+        {/* Availability & DR */}
+        <h2 className="mt-10 text-base font-semibold text-fg-primary">Availability &amp; disaster recovery</h2>
+        <ul className="mt-3 list-disc space-y-2 pl-5">
+          <li>
+            Production deployments use managed Postgres and Redis with automated backups. Point-in-time
+            recovery windows depend on your plan and provider configuration — confirm RPO/RTO with your
+            account team for Enterprise.
+          </li>
+          <li>
+            Application state is designed to be rebuildable from collectors and baselines: the control plane
+            stores configuration snapshots and audit history, not irreplaceable host-local secrets.
+          </li>
+          <li>
+            Incident communication follows the security contact above; operational status may be mirrored
+            on your customer success channel when configured.
           </li>
         </ul>
 

@@ -12,7 +12,22 @@ interface EvidenceBundle {
   sha256: string;
 }
 
-const BUNDLES: EvidenceBundle[] = [];
+const BUNDLES: EvidenceBundle[] = [
+  {
+    id: "host-07-incident",
+    title: "host-07-incident",
+    scope: "host-07 · INC linkage",
+    createdAt: "2026-05-01T10:00:00Z",
+    sha256: "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+  },
+  {
+    id: "bundle-production-weekly",
+    title: "production-weekly",
+    scope: "fleet · scheduled export",
+    createdAt: "2026-04-28T06:00:00Z",
+    sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  },
+];
 
 function CopySha256({ sha256 }: { sha256: string }) {
   const { toast } = useToast();
@@ -123,8 +138,11 @@ export function EvidenceView() {
                 </td>
               </tr>
             ) : (
-              filtered.map((b) => (
-                <tr key={b.id} className="hover:bg-bg-elevated">
+              filtered.map((b, i) => (
+                <tr
+                  key={b.id}
+                  className={`hover:bg-bg-elevated ${i % 2 === 1 ? "bg-bg-elevated/35" : ""}`}
+                >
                   <td className="px-4 py-3 text-fg-primary">{b.title}</td>
                   <td className="px-4 py-3 text-fg-muted">{b.scope}</td>
                   <td className="px-4 py-3 text-fg-muted">{b.createdAt}</td>

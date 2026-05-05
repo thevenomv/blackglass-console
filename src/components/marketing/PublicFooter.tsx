@@ -24,8 +24,10 @@ export function PublicFooter() {
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-2 self-start">
           <Link href="/product" className="hover:text-fg-primary">Product</Link>
+          <Link href="/book" className="hover:text-fg-primary">Book walkthrough</Link>
           <Link href="/pricing" className="hover:text-fg-primary">Pricing</Link>
           <Link href="/security" className="hover:text-fg-primary">Security</Link>
+          <Link href="/changelog" className="hover:text-fg-primary">Changelog</Link>
           <Link href="/demo" className="hover:text-fg-primary">Demo</Link>
           <Link href="/terms" className="hover:text-fg-primary">Terms</Link>
           <Link href="/privacy" className="hover:text-fg-primary">Privacy</Link>

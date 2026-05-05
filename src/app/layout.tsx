@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { ClerkProvider } from "@clerk/nextjs";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/auth/SessionProvider";
 import { Providers } from "@/components/providers/Providers";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ClerkThemedProvider } from "@/components/clerk/ClerkThemedProvider";
 import { siteOrigin, siteShouldNoindex } from "@/lib/site";
 
 const plexSans = IBM_Plex_Sans({
@@ -28,10 +28,8 @@ const SITE_DESCRIPTION =
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f1f5f9" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1419" },
-  ],
+  // Default shell matches light theme tokens (`globals.css`); dark mode uses toggle + `data-theme`.
+  themeColor: "#f1f5f9",
 };
 
 function metadataBaseOptional(): Metadata["metadataBase"] {
@@ -49,6 +47,11 @@ export const metadata: Metadata = {
   title: "BLACKGLASS",
   description: SITE_DESCRIPTION,
   applicationName: "BLACKGLASS",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: "/icon.svg",
+  },
   referrer: "strict-origin-when-cross-origin",
   robots: siteShouldNoindex()
     ? { index: false, follow: false, googleBot: { index: false, follow: false } }
@@ -59,14 +62,14 @@ export const metadata: Metadata = {
     siteName: "BLACKGLASS",
     title: "BLACKGLASS",
     description: SITE_DESCRIPTION,
-    // No twitter / social-property fields per product preference.
+    // Prefer light-themed artwork for og:image when added (see docs/theming.md).
     // Add `metadata.openGraph.images` plus a static asset under `public/` when you ship share art.
   },
   formatDetection: { telephone: false },
   category: "technology",
 };
 
-const themeInit = `(function(){try{var k="blackglass-theme";var t=localStorage.getItem(k);if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}else{document.documentElement.setAttribute("data-theme","dark");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();`;
+const themeInit = `(function(){try{var k="blackglass-theme";var t=localStorage.getItem(k);if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}else{var d=typeof matchMedia!=="undefined"&&matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.setAttribute("data-theme",d?"dark":"light");}}catch(e){document.documentElement.setAttribute("data-theme","light");}})();`;
 
 export default function RootLayout({
   children,
@@ -91,15 +94,13 @@ export default function RootLayout({
   // <SignIn>/<SignUp> to render without context and throw.
   const clerkPk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
   const inner = (
-        <ThemeProvider>
-          <SessionProvider>
-            <Providers>{children}</Providers>
-          </SessionProvider>
-        </ThemeProvider>
+    <SessionProvider>
+      <Providers>{children}</Providers>
+    </SessionProvider>
   );
 
   return (
-    <html lang="en-GB" data-theme="dark" suppressHydrationWarning>
+    <html lang="en-GB" data-theme="light" suppressHydrationWarning>
       <body className={`${plexSans.variable} ${plexMono.variable}`}>
         {jsonLdWebSite ? (
           <script
@@ -111,13 +112,9 @@ export default function RootLayout({
         <Script id="blackglass-theme-init" strategy="beforeInteractive">
           {themeInit}
         </Script>
-        {clerkPk ? (
-          <ClerkProvider publishableKey={clerkPk}>
-            {inner}
-          </ClerkProvider>
-        ) : (
-          inner
-        )}
+        <ThemeProvider>
+          {clerkPk ? <ClerkThemedProvider publishableKey={clerkPk}>{inner}</ClerkThemedProvider> : inner}
+        </ThemeProvider>
       </body>
     </html>
   );

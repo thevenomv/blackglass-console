@@ -5,7 +5,7 @@ const allow = {
   acceptBaseline: ["operator", "admin"] as Role[],
   captureBaseline: ["operator", "admin"] as Role[],
   driftMutation: ["operator", "admin"] as Role[],
-  rotateKeys: ["admin"] as Role[],
+  rotateKeys: ["operator", "admin"] as Role[],
   exportEvidence: ["auditor", "operator", "admin"] as Role[],
 };
 

@@ -1,6 +1,6 @@
 import type { FleetSnapshot, HostDetail, HostPort, HostRecord, HostServiceRow, HostSSHFirewall, HostTrust, HostUserRow, TimelineEntry } from "@/data/mock/types";
 import { fleetSnapshot } from "@/data/mock/fleet";
-import { hosts } from "@/data/mock/hosts";
+import { getHostDetail, hosts } from "@/data/mock/hosts";
 import { apiConfig } from "@/lib/api/config";
 import { mockLatency } from "@/lib/mockLatency";
 import { collectorConfigured, configuredHostCount } from "./collector";
@@ -171,6 +171,11 @@ const CATEGORY_LABEL_MAP: Record<string, string> = {
  * Returns null otherwise (caller falls back to mock data).
  */
 export async function loadHostDetail(id: string): Promise<HostDetail | null> {
+  if (apiConfig.useMock && !collectorConfigured()) {
+    await mockLatency(40);
+    return getHostDetail(id) ?? null;
+  }
+
   if (!collectorConfigured()) return null;
 
   const hosts = await buildRealHosts();

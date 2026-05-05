@@ -1,12 +1,9 @@
 /**
  * POST /api/v1/collector/keys/rotate
  *
- * Placeholder for collector API-key rotation. When a real key store is
- * implemented (Doppler, Infisical, or a DB secrets table), this handler should:
- *   1. Generate a new secure random key.
- *   2. Persist the new key to the secrets backend.
- *   3. Return the new key (redacted after first display) to the caller.
- *   4. Append an audit event.
+ * Issues a new push-ingest API key (`INGEST_API_KEY`). The server cannot update your
+ * deployment environment — copy the returned `api_key`, set `INGEST_API_KEY` (or your
+ * secrets manager entry), and restart. Until then, the previous key remains valid.
  */
 
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
@@ -20,6 +17,7 @@ import { emitSaasAudit } from "@/lib/saas/event-log";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { applySaasSentryContext } from "@/lib/observability/sentry-saas";
 import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
+import { generateIngestApiKey } from "@/lib/server/ingest-credentials";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +40,7 @@ export async function POST(request: Request) {
     });
     appendAudit({
       action: AUDIT_ACTIONS.KEY_ROTATED,
-      detail: "Collector API key rotation requested (stub — SaaS step-up verified)",
+      detail: "Push ingest API key issued — operator must set INGEST_API_KEY and restart",
       actor: m.ctx.userId,
       request_id: requestId,
     });
@@ -50,21 +48,28 @@ export async function POST(request: Request) {
       tenantId: m.ctx.tenant.id,
       actorUserId: m.ctx.userId,
       action: "secrets.collector_rotate_requested",
-      metadata: { stub: true, request_id: requestId },
+      metadata: { request_id: requestId },
     });
   } else {
     const guard = await requireRole(["operator", "admin"]);
     if (!guard.ok) return guard.response;
     appendAudit({
       action: AUDIT_ACTIONS.KEY_ROTATED,
-      detail: "Collector API key rotation requested (stub — no persistent key store configured yet)",
+      detail: "Push ingest API key issued — operator must set INGEST_API_KEY and restart",
       actor: guard.role,
       request_id: requestId,
     });
   }
 
-  return jsonWithRequestId({
-    rotated: true,
-    message: "Key rotation noted in audit log. Connect a secrets backend to enable real rotation.",
-  }, requestId);
+  const newKey = generateIngestApiKey();
+
+  return jsonWithRequestId(
+    {
+      rotated: true,
+      api_key: newKey,
+      detail:
+        "Copy this key now — it will not be shown again. Set INGEST_API_KEY in your environment or secrets manager and restart the app. Old keys work until replaced.",
+    },
+    requestId,
+  );
 }

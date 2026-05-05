@@ -15,6 +15,8 @@ const STEPS = [
 
 const POLL_INTERVAL_MS = 5_000;
 const POLL_TIMEOUT_MS = 120_000;
+/** If SSH collector hosts are configured in the deployment env, auto-advance after this many ms (soft signal). */
+const SOFT_READY_AFTER_MS = 25_000;
 
 function ConnectHostStep({ onNext }: { onNext: () => void }) {
   const [status, setStatus] = useState<"waiting" | "detected" | "timeout">("waiting");
@@ -37,8 +39,18 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
       try {
         const res = await fetch("/api/v1/fleet/snapshot");
         if (res.ok) {
-          const data = (await res.json()) as { collectorsOnline?: number };
-          if ((data.collectorsOnline ?? 0) > 0) {
+          const data = (await res.json()) as {
+            hostsChecked?: number;
+            coverage?: { collectorsOnline?: number; collectorsExpected?: number };
+          };
+          const online = data.coverage?.collectorsOnline ?? 0;
+          const expected = data.coverage?.collectorsExpected ?? 0;
+          const checked = data.hostsChecked ?? 0;
+          if (
+            online > 0 ||
+            checked > 0 ||
+            (expected > 0 && elapsedMs >= SOFT_READY_AFTER_MS)
+          ) {
             setStatus("detected");
             return;
           }
@@ -69,28 +81,44 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
     <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">
       <h2 className="text-sm font-semibold text-fg-primary">Connect your first host</h2>
       <p className="text-sm text-fg-muted">
-        BLACKGLASS uses SSH-based collection — no agent install required on the target host.
-        Ask your operator to configure the collector credentials, then this step will advance
-        automatically once a heartbeat is detected.
+        Blackglass supports two ways to get data in: <strong className="font-medium text-fg-primary">SSH collection</strong>{" "}
+        (we connect to your servers) or a <strong className="font-medium text-fg-primary">small push agent</strong> on the host
+        that calls our HTTPS ingest API. Pick the one your security team prefers — both end up in the same console.
       </p>
       <div className="space-y-3 rounded-card border border-border-subtle bg-bg-elevated p-4 text-sm">
-        <p className="font-medium text-fg-primary">Operator setup (one-time per host)</p>
+        <p className="font-medium text-fg-primary">Path A — SSH (most common)</p>
         <ol className="list-decimal space-y-2 pl-5 text-fg-muted">
           <li>
-            Create a <span className="font-mono text-fg-primary">blackglass</span> user on the target host
-            and configure <code className="rounded bg-bg-base px-1 text-xs">sudoers</code> for the read-only
-            command set your security team approves — your Blackglass administrator supplies the exact
-            checklist.
+            Someone with server access creates a dedicated low-privilege user (often named{" "}
+            <span className="font-mono text-fg-primary">blackglass</span>) and allows the approved read-only commands —
+            your runbook or security contact defines the exact sudo / SSH policy.
           </li>
           <li>
-            Your administrator sets <code className="rounded bg-bg-base px-1 text-xs">COLLECTOR_HOST_N</code>,{" "}
-            <code className="rounded bg-bg-base px-1 text-xs">COLLECTOR_USER</code>, and SSH credentials in the
-            deployment environment (or via your secrets manager).
+            Your platform team adds the host address and SSH material to the Blackglass deployment environment (for
+            example <span className="font-mono text-xs">COLLECTOR_HOST_1</span>, user, and key — see Settings and{" "}
+            <Link href="/welcome" className="text-accent-blue hover:underline">
+              Get started
+            </Link>
+            ).
           </li>
           <li>
-            Once the platform can reach the host over SSH, this step completes automatically.
+            From the <Link href="/dashboard" className="text-accent-blue hover:underline">Dashboard</Link>, click{" "}
+            <strong className="text-fg-primary">Run scan</strong> so Blackglass pulls the first snapshot (or wait for
+            your schedule, if configured).
           </li>
         </ol>
+      </div>
+      <div className="space-y-3 rounded-card border border-border-subtle bg-bg-elevated p-4 text-sm">
+        <p className="font-medium text-fg-primary">Path B — Push ingest (SSH not possible)</p>
+        <p className="text-fg-muted">
+          Install the lightweight agent on the host. In{" "}
+          <Link href="/settings" className="text-accent-blue hover:underline">
+            Settings
+          </Link>
+          , operators can <strong className="text-fg-primary">issue an ingest API key</strong>. The agent sends the same
+          integrity snapshot over <span className="font-mono text-xs">POST /api/v1/ingest</span> using{" "}
+          <span className="font-mono text-xs">Authorization: Bearer …</span>.
+        </p>
       </div>
       {status === "waiting" && (
         <div className="flex items-center gap-2 text-xs text-fg-faint">
@@ -103,15 +131,19 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
             <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
-          Polling for collector heartbeat… ({elapsed}s)
+          Watching for first fleet activity — hosts online, first scan, or configured targets ({elapsed}s)
         </div>
       )}
       {status === "detected" && (
-        <p className="text-xs text-success">Heartbeat detected — advancing…</p>
+        <p className="text-xs text-success">Activity detected — advancing…</p>
       )}
       {status === "timeout" && (
         <p className="text-xs text-warning">
-          No heartbeat detected after {POLL_TIMEOUT_MS / 1000}s. Check collector install, then skip or retry.
+          No fleet activity after {POLL_TIMEOUT_MS / 1000}s. Confirm setup with your administrator, or continue and use{" "}
+          <Link href="/dashboard" className="font-medium text-accent-blue hover:underline">
+            Dashboard → Run scan
+          </Link>
+          .
         </p>
       )}
       <div className="flex gap-2">
@@ -209,8 +241,22 @@ export function OnboardingFlow() {
         <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">
           <h2 className="text-sm font-semibold text-fg-primary">Confirm scan permissions</h2>
           <p className="text-sm text-fg-muted">
-            Scans enumerate listeners, accounts, systemd units, SSH configuration, firewall rules,
-            and installed packages without modifying system state.
+            A <strong className="font-medium text-fg-primary">scan</strong> is a read-only pass that records how the
+            server is configured right now (no reboots, no package installs, no config writes). Blackglass compares that
+            picture to your approved <strong className="font-medium text-fg-primary">baseline</strong> to flag anything
+            that drifted.
+          </p>
+          <p className="text-sm text-fg-muted">
+            Operators start scans from the{" "}
+            <Link href="/dashboard" className="font-medium text-accent-blue hover:underline">
+              Dashboard
+            </Link>{" "}
+            using <strong className="text-fg-primary">Run scan</strong>, or your team may configure automatic schedules
+            in deployment settings.
+          </p>
+          <p className="text-sm text-fg-muted">
+            Technically, each run gathers listeners, user accounts, selected systemd units, effective SSH settings,
+            firewall posture, and package metadata — enough to spot risky drift without touching application secrets.
           </p>
           <ul className="space-y-2 text-sm text-fg-muted">
             <label className="flex items-start gap-2">

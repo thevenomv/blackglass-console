@@ -23,7 +23,7 @@ export function MarketingNav() {
   ] as const;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border-default/80 bg-bg-base/95 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-border-default/80 bg-bg-base/90 backdrop-blur-md supports-[backdrop-filter]:bg-bg-base/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
         <Link href="/" className="font-mono text-sm font-semibold tracking-tight text-fg-primary">
           BLACKGLASS

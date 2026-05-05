@@ -366,7 +366,7 @@ export function DashboardV3({
                   {fleet.driftVolumeByDay.map((b) => (
                     <div key={b.day} className="flex flex-1 flex-col items-center gap-2">
                       <div
-                        className="w-full max-w-[28px] rounded-sm bg-accent-blue/25 hover:bg-accent-blue/45"
+                        className="drift-volume-bar w-full max-w-[28px] rounded-sm bg-accent-blue/25 hover:bg-accent-blue/45"
                         style={{ height: `${b.valuePct}%` }}
                         title={`${b.day}: drift index ${b.valuePct}%`}
                       />

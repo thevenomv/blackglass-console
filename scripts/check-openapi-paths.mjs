@@ -81,7 +81,7 @@ for (const seg of requiredPrefixes) {
 
 // Reverse check: every v1 route that is not a parameter-only segment should
 // appear in the OpenAPI spec.  Convert Next.js [param] to {param} for matching.
-const SKIP_INTERNAL = new Set(["collector/keys/rotate", "webhooks/test", "ingest"]);
+const SKIP_INTERNAL = new Set(["collector/keys", "webhooks/test", "ingest"]);
 for (const routePath of routes) {
   const rel = path.relative(apiV1, routePath).split(path.sep).join("/").replace(/\/route\.ts$/, "");
   // Skip internal/non-public routes and exact duplicates from nested [id] paths

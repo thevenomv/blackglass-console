@@ -27,6 +27,15 @@ type OpGate = (
   subscription: SaasSubscription,
 ) => { ok: true } | { ok: false; code: string; detail: string };
 
+function jsonForUnexpectedSaasError(requestId?: string) {
+  return jsonError(
+    500,
+    "internal_error",
+    "Authorization could not be completed. Try again or contact support.",
+    requestId,
+  );
+}
+
 function jsonForGate(
   gate: { ok: false; code: string; detail: string },
   requestId?: string,
@@ -106,7 +115,8 @@ export async function requireScanEnqueueAccess(request?: Request): Promise<ScanA
           response: jsonError(e.status, e.code, e.message, requestId),
         };
       }
-      throw e;
+      console.error("[saas-access] requireScanEnqueueAccess", e);
+      return { ok: false, response: jsonForUnexpectedSaasError(requestId) };
     }
   }
 
@@ -131,7 +141,8 @@ export async function requireSaasOrLegacyPermission(
       if (e instanceof SaasAuthError) {
         return { ok: false, response: jsonError(e.status, e.code, e.message) };
       }
-      throw e;
+      console.error("[saas-access] requireSaasOrLegacyPermission", e);
+      return { ok: false, response: jsonForUnexpectedSaasError() };
     }
   }
   const g = await requireRole(legacyAllowed);
@@ -161,7 +172,8 @@ export async function requireSaasOperationalMutation(
     if (e instanceof SaasAuthError) {
       return { ok: false, response: jsonError(e.status, e.code, e.message) };
     }
-    throw e;
+    console.error("[saas-access] requireSaasOperationalMutation", e);
+    return { ok: false, response: jsonForUnexpectedSaasError() };
   }
 }
 
@@ -178,7 +190,8 @@ export async function requireSaasStepUpMutation(
     if (e instanceof SaasAuthError) {
       return { ok: false, response: jsonError(e.status, e.code, e.message) };
     }
-    throw e;
+    console.error("[saas-access] requireSaasStepUpMutation (verification)", e);
+    return { ok: false, response: jsonForUnexpectedSaasError() };
   }
   return requireSaasOperationalMutation(permission, gate);
 }

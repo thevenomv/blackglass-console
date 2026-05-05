@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -19,9 +20,9 @@ const ThemeContext = createContext<{
 } | null>(null);
 
 function readThemeFromDom(): ThemeMode {
-  if (typeof document === "undefined") return "dark";
+  if (typeof document === "undefined") return "light";
   const t = document.documentElement.getAttribute("data-theme");
-  return t === "light" ? "light" : "dark";
+  return t === "dark" ? "dark" : "light";
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -36,6 +37,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     document.documentElement.setAttribute("data-theme", t);
   }, []);
+
+  useEffect(() => {
+    void import("@sentry/nextjs")
+      .then((Sentry) => {
+        Sentry.setTag("ui.theme", theme);
+      })
+      .catch(() => {});
+  }, [theme]);
 
   const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
 

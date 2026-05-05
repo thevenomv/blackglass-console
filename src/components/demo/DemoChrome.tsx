@@ -23,7 +23,7 @@ export function DemoChrome({ children }: { children: React.ReactNode }) {
       <div
         role="status"
         aria-live="polite"
-        className="border-b border-amber-500/35 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-100"
+        className="border-b border-amber-600/35 bg-amber-100/85 px-4 py-2 text-center text-xs text-amber-950"
       >
         <strong className="font-semibold">Sample workspace</strong> — {DEMO_TENANT_NAME}. Data is
         fictional and resets on refresh. No SSH or API calls to your systems.
