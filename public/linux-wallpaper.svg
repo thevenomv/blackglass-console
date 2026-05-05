@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <!-- Subtle dot grid -->
+    <pattern id="dots" width="48" height="48" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#1b2430" opacity="0.9"/>
+    </pattern>
+    <!-- Centre radial glow -->
+    <radialGradient id="centreGlow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%"   stop-color="#1e3a5f" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0f1419" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Sun core glow -->
+    <radialGradient id="sunCore" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#fbbf24" stop-opacity="1"/>
+      <stop offset="55%"  stop-color="#f59e0b" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Sun outer halo -->
+    <radialGradient id="sunHalo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#f59e0b" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Blue accent glow bottom line -->
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#3b82f6" stop-opacity="0"/>
+      <stop offset="35%"  stop-color="#3b82f6" stop-opacity="0.9"/>
+      <stop offset="65%"  stop-color="#3b82f6" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="subtleLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#2a3441" stop-opacity="0"/>
+      <stop offset="30%"  stop-color="#2a3441" stop-opacity="1"/>
+      <stop offset="70%"  stop-color="#2a3441" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#2a3441" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ── Base ── -->
+  <rect width="1920" height="1080" fill="#0f1419"/>
+  <rect width="1920" height="1080" fill="url(#dots)"/>
+  <ellipse cx="960" cy="490" rx="860" ry="600" fill="url(#centreGlow)"/>
+
+  <!-- ── Corner brackets (UI chrome feel) ── -->
+  <path d="M 52 52 L 52 28 L 108 28"   fill="none" stroke="#2a3441" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M 1868 52 L 1868 28 L 1812 28" fill="none" stroke="#2a3441" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M 52 1028 L 52 1052 L 108 1052" fill="none" stroke="#2a3441" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M 1868 1028 L 1868 1052 L 1812 1052" fill="none" stroke="#2a3441" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- ── Sun outer halo ── -->
+  <circle cx="960" cy="222" r="88" fill="url(#sunHalo)"/>
+
+  <!-- ── Sun rays (8 symmetric) ── -->
+  <g stroke="#f59e0b" stroke-linecap="round" opacity="0.75">
+    <!-- N  --> <line x1="960" y1="172" x2="960" y2="152" stroke-width="2.5"/>
+    <!-- S  --> <line x1="960" y1="272" x2="960" y2="292" stroke-width="2.5"/>
+    <!-- W  --> <line x1="910" y1="222" x2="890" y2="222" stroke-width="2.5"/>
+    <!-- E  --> <line x1="1010" y1="222" x2="1030" y2="222" stroke-width="2.5"/>
+    <!-- NW --> <line x1="924" y1="186" x2="910" y2="172" stroke-width="2"/>
+    <!-- NE --> <line x1="996" y1="186" x2="1010" y2="172" stroke-width="2"/>
+    <!-- SW --> <line x1="924" y1="258" x2="910" y2="272" stroke-width="2"/>
+    <!-- SE --> <line x1="996" y1="258" x2="1010" y2="272" stroke-width="2"/>
+  </g>
+
+  <!-- ── Sun ring ── -->
+  <circle cx="960" cy="222" r="42" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.85"/>
+  <!-- ── Sun core ── -->
+  <circle cx="960" cy="222" r="22" fill="url(#sunCore)"/>
+
+  <!-- ── Wordmark ── -->
+  <text
+    x="960" y="418"
+    font-family="'Courier New', 'Consolas', 'SF Mono', monospace"
+    font-size="104"
+    font-weight="700"
+    fill="#f2f5f8"
+    text-anchor="middle"
+    letter-spacing="18"
+  >BLACKGLASS</text>
+
+  <!-- ── Blue separator line ── -->
+  <rect x="480" y="444" width="960" height="1" fill="url(#lineGrad)"/>
+
+  <!-- ── Tagline ── -->
+  <text
+    x="960" y="490"
+    font-family="'Courier New', 'Consolas', 'SF Mono', monospace"
+    font-size="18"
+    font-weight="400"
+    fill="#3b82f6"
+    text-anchor="middle"
+    letter-spacing="9"
+  >SECURITY CONFIGURATION MONITORING</text>
+
+  <!-- ── Email ── -->
+  <text
+    x="960" y="536"
+    font-family="'Courier New', 'Consolas', 'SF Mono', monospace"
+    font-size="15"
+    fill="#6b7785"
+    text-anchor="middle"
+    letter-spacing="3"
+  >jamie@obsidiandynamics.co.uk</text>
+
+  <!-- ── Subtle lower divider ── -->
+  <rect x="680" y="562" width="560" height="1" fill="url(#subtleLineGrad)"/>
+
+  <!-- ── Status bar ── -->
+  <rect x="0" y="1046" width="1920" height="34" fill="#121922"/>
+  <rect x="0" y="1046" width="1920" height="1" fill="#2a3441"/>
+
+  <!-- Status bar left -->
+  <text
+    x="44" y="1068"
+    font-family="'Courier New', 'Consolas', 'SF Mono', monospace"
+    font-size="12" fill="#3b82f6" letter-spacing="2"
+  >BLACKGLASS</text>
+
+  <!-- Status bar centre -->
+  <text
+    x="960" y="1068"
+    font-family="'Courier New', 'Consolas', 'SF Mono', monospace"
+    font-size="11" fill="#2a3441" text-anchor="middle" letter-spacing="2"
+  >● ● ●</text>
+
+  <!-- Status bar right -->
+  <text
+    x="1876" y="1068"
+    font-family="'Courier New', 'Consolas', 'SF Mono', monospace"
+    font-size="11" fill="#6b7785" text-anchor="end" letter-spacing="1"
+  >obsidiandynamics.co.uk</text>
+
+  <!-- ── Subtle side accent lines ── -->
+  <rect x="0"    y="0" width="2"  height="1080" fill="#121922"/>
+  <rect x="1918" y="0" width="2"  height="1080" fill="#121922"/>
+</svg>
