@@ -29,10 +29,13 @@ on:
           - audit-events
           - webhook-idempotency
           - billing
+          - trial-emails
 
   schedule:
-    # Sundays 02:00 UTC
+    # Sundays 02:00 UTC — heavy maintenance (prune + reconcile)
     - cron: "0 2 * * 0"
+    # Daily 08:00 UTC — trial lifecycle emails
+    - cron: "0 8 * * *"
 
 jobs:
   prune-audit-events:
@@ -117,3 +120,43 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           RECONCILE_CLERK_ORGS: "1"
           SLACK_ALERT_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }}
+
+  trial-lifecycle-emails:
+    runs-on: ubuntu-latest
+    # Runs every day (08:00 UTC schedule) and on manual dispatch.
+    # The script uses time-window queries so running on the Sunday prune schedule
+    # is harmless — Resend idempotency keys prevent duplicate sends on the same day.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event.inputs.job == 'both' ||
+      github.event.inputs.job == 'trial-emails'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Check required secrets
+        id: check-trial-emails
+        run: |
+          if [ -z "$RESEND_API_KEY" ] || [ -z "$DATABASE_URL" ] || [ -z "$CLERK_SECRET_KEY" ]; then
+            echo "::notice::Trial lifecycle emails skipped — set RESEND_API_KEY, DATABASE_URL and CLERK_SECRET_KEY to enable."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+
+      - name: Send trial lifecycle emails
+        if: steps.check-trial-emails.outputs.skip != 'true'
+        run: node scripts/send-trial-lifecycle-emails.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          APP_URL: ${{ vars.APP_URL || 'https://blackglasssec.com' }}

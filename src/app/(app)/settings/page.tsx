@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { OperatorHealthReadout } from "./_components/OperatorHealthReadout";
 import { SettingsRotateRow } from "./_components/SettingsRotateRow";
 import { WebhookSection } from "./_components/WebhookSection";
+import { CollectorHostsSection } from "./_components/CollectorHostsSection";
 import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 import { Button } from "@/components/ui/Button";
 import { getLimits } from "@/lib/plan";
@@ -38,6 +39,8 @@ export default async function SettingsPage() {
         />
 
         <OperatorHealthReadout />
+
+        <CollectorHostsSection />
 
         <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">
           <h2 className="text-sm font-semibold text-fg-primary">Push ingest API key</h2>

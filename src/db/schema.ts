@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   jsonb,
   pgEnum,
@@ -110,6 +111,28 @@ export const saasWebhookIdempotency = pgTable(
   }),
 );
 
+/** Per-tenant SSH collector host registry. Each row represents one monitored host. */
+export const saasCollectorHosts = pgTable(
+  "saas_collector_hosts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => saasTenants.id, { onDelete: "cascade" }),
+    hostname: text("hostname").notNull(),
+    label: text("label"),
+    sshUser: text("ssh_user").notNull().default("blackglass"),
+    sshPort: integer("ssh_port").notNull().default(22),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    tenantHostUq: uniqueIndex("saas_collector_hosts_tenant_hostname_uq").on(t.tenantId, t.hostname),
+  }),
+);
+
 export type SaasTenant = typeof saasTenants.$inferSelect;
 export type SaasSubscription = typeof saasSubscriptions.$inferSelect;
 export type SaasTenantMembership = typeof saasTenantMemberships.$inferSelect;
+export type SaasCollectorHost = typeof saasCollectorHosts.$inferSelect;
