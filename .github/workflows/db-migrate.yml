@@ -4,7 +4,10 @@ name: "Apply database migration"
 # the GitHub Actions runner, which has network access to the DO managed database.
 #
 # Required secrets (already set as repo secrets):
-#   DATABASE_URL — production Postgres connection string
+#   DATABASE_URL    — production Postgres connection string
+#   DO_API_TOKEN    — DigitalOcean API token (to manage DB firewall)
+#
+# DO DB cluster: 4d063be8-1cc1-4b45-8b57-2a96a9c77161
 
 on:
   workflow_dispatch:
@@ -12,18 +15,71 @@ on:
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
+    env:
+      DO_DB_CLUSTER_ID: "4d063be8-1cc1-4b45-8b57-2a96a9c77161"
 
-      - uses: actions/setup-node@v6
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
 
       - name: Install dependencies
         run: npm ci --omit=dev
 
+      # --- Firewall: open -------------------------------------------------------
+      - name: Get runner public IP
+        id: runner_ip
+        run: echo "ip=$(curl -sf https://api.ipify.org)" >> "$GITHUB_OUTPUT"
+
+      - name: Add runner IP to DO DB trusted sources
+        run: |
+          # Fetch existing rules (keep them), append runner IP
+          EXISTING=$(curl -sf \
+            -H "Authorization: Bearer $DO_TOKEN" \
+            "https://api.digitalocean.com/v2/databases/$DO_DB_CLUSTER_ID/firewall" \
+            | jq '[.rules[] | {type,value}]')
+
+          NEW=$(echo "$EXISTING" | jq \
+            --arg ip "$RUNNER_IP" \
+            '. + [{type:"ip_addr",value:$ip}]')
+
+          curl -sf -X PUT \
+            -H "Authorization: Bearer $DO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"rules\":$NEW}" \
+            "https://api.digitalocean.com/v2/databases/$DO_DB_CLUSTER_ID/firewall"
+        env:
+          DO_TOKEN: ${{ secrets.DO_API_TOKEN }}
+          RUNNER_IP: ${{ steps.runner_ip.outputs.ip }}
+
+      # Brief pause for the firewall rule to propagate
+      - name: Wait for firewall propagation
+        run: sleep 15
+
+      # --- Migration ------------------------------------------------------------
       - name: Apply migrations
         run: node scripts/_apply-migration-0001.mjs
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NODE_NO_WARNINGS: "1"
+
+      # --- Firewall: close (always run) ----------------------------------------
+      - name: Remove runner IP from DO DB trusted sources
+        if: always()
+        run: |
+          RUNNER_IP="${{ steps.runner_ip.outputs.ip }}"
+          # Re-fetch rules and strip the runner IP entry
+          EXISTING=$(curl -sf \
+            -H "Authorization: Bearer $DO_TOKEN" \
+            "https://api.digitalocean.com/v2/databases/$DO_DB_CLUSTER_ID/firewall" \
+            | jq --arg ip "$RUNNER_IP" '[.rules[] | select(.value != $ip) | {type,value}]')
+
+          curl -sf -X PUT \
+            -H "Authorization: Bearer $DO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"rules\":$EXISTING}" \
+            "https://api.digitalocean.com/v2/databases/$DO_DB_CLUSTER_ID/firewall"
+        env:
+          DO_TOKEN: ${{ secrets.DO_API_TOKEN }}
