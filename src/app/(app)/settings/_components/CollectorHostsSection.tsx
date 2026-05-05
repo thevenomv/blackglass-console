@@ -138,8 +138,10 @@ export function CollectorHostsSection() {
         <div>
           <h2 className="text-sm font-semibold text-fg-primary">Collector hosts</h2>
           <p className="mt-0.5 text-sm text-fg-muted">
-            SSH targets scanned by the BLACKGLASS collector. Credentials are resolved
-            via your workspace&apos;s secret provider.
+            Add each server you want BLACKGLASS to monitor. You will need two things:
+            the server&apos;s IP address (enter it here) and an SSH key — email{" "}
+            <a href="mailto:support@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">support@obsidiandynamics.co.uk</a>{" "}
+            to get the SSH key set up if you haven&apos;t already.
           </p>
         </div>
         {!addingHost && (

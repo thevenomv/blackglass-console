@@ -32,6 +32,26 @@ export function OperatorHealthReadout() {
           <dd className="font-mono text-fg-primary">{c.max_parallel_ssh}</dd>
         </div>
         <div className="sm:col-span-2">
+          <dt className="text-fg-faint">SSH key</dt>
+          <dd className="text-fg-primary">
+            {c.credential_source_ready ? (
+              <span className="text-success">Configured</span>
+            ) : (
+              <span>
+                Not configured —{" "}
+                <a
+                  href="mailto:support@obsidiandynamics.co.uk?subject=SSH%20key%20setup"
+                  className="text-accent-blue hover:underline"
+                >
+                  contact support to set this up
+                </a>
+                , or paste your private key into the{" "}
+                <span className="font-mono text-xs">SSH_PRIVATE_KEY</span> environment variable.
+              </span>
+            )}
+          </dd>
+        </div>
+        <div className="sm:col-span-2">
           <dt className="text-fg-faint">Baseline persistence</dt>
           <dd className="text-fg-primary">
             {b.adapter === "spaces" ? (

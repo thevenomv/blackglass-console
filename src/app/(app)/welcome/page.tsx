@@ -70,8 +70,8 @@ export default function WelcomePage() {
       done: collectorOn,
       cta: { href: "/settings", text: "Configure in Settings" },
       detail: collectorOn
-        ? "At least one COLLECTOR_HOST_N is configured."
-        : "Set COLLECTOR_HOST_1 + SSH_PRIVATE_KEY in your environment.",
+        ? "Collector connected — at least one host is configured and the SSH key is in place."
+        : "Two things needed: (1) add your server's IP in Settings → Collector hosts, and (2) provide an SSH key — contact support@obsidiandynamics.co.uk if you need help with that.",
     },
     {
       label: "Baseline persistence",
