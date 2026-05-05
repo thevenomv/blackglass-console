@@ -68,6 +68,9 @@ export function allSshConfigs(
   return cfgs;
 }
 
+const EXEC_TIMEOUT_MS = 12_000;
+
+/** Run a single remote command and resolve with its stdout. Rejects on error or after EXEC_TIMEOUT_MS. */
 function exec(conn: Client, command: string): Promise<string> {
   return new Promise((resolve, reject) => {
     conn.exec(command, (err, stream) => {
@@ -76,10 +79,21 @@ function exec(conn: Client, command: string): Promise<string> {
         return;
       }
       let out = "";
-      stream.on("close", () => resolve(out));
-      stream.stdout.on("data", (d: Buffer) => {
-        out += d.toString();
-      });
+      let settled = false;
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        fn();
+      };
+      const timer = setTimeout(() => {
+        settle(() => {
+          stream.close();
+          reject(new Error(`exec timed out (${EXEC_TIMEOUT_MS / 1000}s): ${command.slice(0, 60)}`));
+        });
+      }, EXEC_TIMEOUT_MS);
+      stream.on("close", () => settle(() => resolve(out)));
+      stream.stdout.on("data", (d: Buffer) => { out += d.toString(); });
       stream.stderr.on("data", () => {});
     });
   });
@@ -96,19 +110,56 @@ function probeTcp(host: string, port: number, timeoutMs = 5000): Promise<void> {
   });
 }
 
-/** Open one SSH connection, run all collection commands, close. */
+/** Open one SSH connection, run all collection commands, close.
+ *  Pass an AbortSignal to destroy the connection if the caller times out.
+ */
 export async function runCollection(
   cfg: ConnectConfig & { hostId: string; displayName: string },
+  signal?: AbortSignal,
 ): Promise<HostSnapshot> {
+  if (signal?.aborted) throw new Error("Collection aborted before TCP probe");
+
   // First verify TCP connectivity to give a clear error if networking is blocked.
   await probeTcp(cfg.host as string, (cfg.port as number) ?? 22);
+
+  if (signal?.aborted) throw new Error("Collection aborted after TCP probe");
 
   return new Promise((resolve, reject) => {
     const conn = new Client();
 
+    let settled = false;
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+
+    // Called by caller's AbortSignal — destroy the live connection.
+    const onAbort = () => {
+      settle(() => {
+        conn.destroy();
+        reject(new Error("SSH collection aborted (timeout)"));
+      });
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+
+    const cleanup = () => signal?.removeEventListener("abort", onAbort);
+
+    // ssh2 emits "timeout" (not "error") when readyTimeout fires.
+    conn.on("timeout", () => {
+      settle(() => {
+        cleanup();
+        conn.destroy();
+        reject(new Error("SSH handshake timed out"));
+      });
+    });
+
     conn.on("error", (e) => {
-      conn.end();
-      reject(new Error(`SSH connection error: ${e.message}`));
+      settle(() => {
+        cleanup();
+        conn.destroy();
+        reject(new Error(`SSH connection error: ${e.message}`));
+      });
     });
 
     conn.on("ready", async () => {
@@ -122,53 +173,47 @@ export async function runCollection(
           sshdOut,
           ufwOut,
         ] = await Promise.all([
-          exec(conn, "ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null").catch(
-            () => "",
-          ),
-          exec(
-            conn,
-            "awk -F: '$3>=1000 && $3<65534 {print $1 \":\" $3}' /etc/passwd 2>/dev/null",
-          ).catch(() => ""),
-          exec(
-            conn,
-            "getent group sudo 2>/dev/null || getent group wheel 2>/dev/null",
-          ).catch(() => ""),
+          exec(conn, "ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null").catch(() => ""),
+          exec(conn, "awk -F: '$3>=1000 && $3<65534 {print $1 \":\" $3}' /etc/passwd 2>/dev/null").catch(() => ""),
+          exec(conn, "getent group sudo 2>/dev/null || getent group wheel 2>/dev/null").catch(() => ""),
           exec(conn, "ls /etc/cron.d/ 2>/dev/null").catch(() => ""),
-          exec(
-            conn,
-            "systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null",
-          ).catch(() => ""),
-          exec(
-            conn,
-            "sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication)'",
-          ).catch(() => ""),
+          exec(conn, "systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null").catch(() => ""),
+          exec(conn, "sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication)'").catch(() => ""),
           exec(conn, "sudo ufw status verbose 2>/dev/null").catch(() => ""),
         ]);
 
-        conn.end();
-
-        resolve({
-          hostId: cfg.hostId,
-          hostname: cfg.displayName,
-          collectedAt: new Date().toISOString(),
-          listeners: parseListeners(ssOut),
-          users: parseUsers(passwdOut),
-          sudoers: parseSudoers(sudoOut),
-          cronEntries: parseCron(cronOut),
-          services: parseServices(svcOut),
-          ssh: parseSshConfig(sshdOut),
-          firewall: parseFirewall(ufwOut),
+        settle(() => {
+          cleanup();
+          conn.end();
+          resolve({
+            hostId: cfg.hostId,
+            hostname: cfg.displayName,
+            collectedAt: new Date().toISOString(),
+            listeners: parseListeners(ssOut),
+            users: parseUsers(passwdOut),
+            sudoers: parseSudoers(sudoOut),
+            cronEntries: parseCron(cronOut),
+            services: parseServices(svcOut),
+            ssh: parseSshConfig(sshdOut),
+            firewall: parseFirewall(ufwOut),
+          });
         });
       } catch (e) {
-        conn.end();
-        reject(e);
+        settle(() => {
+          cleanup();
+          conn.destroy();
+          reject(e);
+        });
       }
     });
 
     try {
       conn.connect(cfg);
     } catch (e) {
-      reject(new Error(`SSH connect failed: ${(e as Error).message}`));
+      settle(() => {
+        cleanup();
+        reject(new Error(`SSH connect failed: ${(e as Error).message}`));
+      });
     }
   });
 }

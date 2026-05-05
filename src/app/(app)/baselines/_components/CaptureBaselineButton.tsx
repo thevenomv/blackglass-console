@@ -33,6 +33,7 @@ export function CaptureBaselineButton({
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: "{}",
+        signal: AbortSignal.timeout(60_000),
       });
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
@@ -50,8 +51,9 @@ export function CaptureBaselineButton({
       const n = Array.isArray(body.captured) ? body.captured.length : 0;
       toast(n ? `Baseline captured for ${n} host(s).` : "Baseline capture completed.", "success");
       router.refresh();
-    } catch {
-      toast("Network error while capturing baseline.", "danger");
+    } catch (err) {
+      const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+      toast(isTimeout ? "Baseline capture timed out — check collector host connectivity." : "Network error while capturing baseline.", "danger");
     } finally {
       setBusy(false);
     }

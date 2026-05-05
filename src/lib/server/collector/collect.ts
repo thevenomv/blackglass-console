@@ -52,19 +52,15 @@ async function collectAllSnapshotsWithAuth(
     parallel_ssh: parallel,
   });
 
-  const timeout = (hostId: string) =>
-    new Promise<never>((_, reject) =>
-      setTimeout(
-        () => reject(new Error(`SSH collection timed out for ${hostId}`)),
-        COLLECTION_TIMEOUT_MS,
-      ),
-    );
-
   const results = await mapPool(cfgs, parallel, async (cfg) => {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), COLLECTION_TIMEOUT_MS);
     try {
-      const snapshot = await Promise.race([runCollection(cfg), timeout(cfg.hostId)]);
+      const snapshot = await runCollection(cfg, ac.signal);
+      clearTimeout(timer);
       return { snapshot, hostId: cfg.hostId };
     } catch (err) {
+      clearTimeout(timer);
       const errorMsg = err instanceof Error ? err.message : String(err);
       logCollectorEvent("collector.ssh.error", {
         scan_id: ctx.scanId,
@@ -109,16 +105,12 @@ export async function collectSnapshot(opts?: CollectScanOptions): Promise<HostSn
       host_id: first.hostId,
     });
 
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(
-        () =>
-          reject(new Error(`SSH collection timed out after ${COLLECTION_TIMEOUT_MS / 1000}s`)),
-        COLLECTION_TIMEOUT_MS,
-      ),
-    );
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), COLLECTION_TIMEOUT_MS);
 
     try {
-      const snapshot = await Promise.race([runCollection(first), timeout]);
+      const snapshot = await runCollection(first, ac.signal);
+      clearTimeout(timer);
       logCollectorEvent("collector.collection.complete", {
         scan_id: ctx.scanId,
         reason: ctx.reason,
@@ -129,6 +121,7 @@ export async function collectSnapshot(opts?: CollectScanOptions): Promise<HostSn
       });
       return snapshot;
     } catch (e) {
+      clearTimeout(timer);
       logCollectorEvent("collector.collection.complete", {
         scan_id: ctx.scanId,
         reason: ctx.reason,
