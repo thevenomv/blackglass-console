@@ -53,7 +53,7 @@
     "@clerk/nextjs": "^7.3.0",
     "@sentry/nextjs": "^10.51.0",
     "@tanstack/react-virtual": "^3.13.0",
-    "@types/pg": "^8.11.0",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/ssh2": "^1.15.5",
