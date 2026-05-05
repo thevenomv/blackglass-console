@@ -85,11 +85,14 @@ export async function POST(request: Request) {
     void applySaasSentryContext({ requestId });
   }
 
-  if (collectorConfigured()) {
+  const collectorReady = collectorConfigured();
+  console.log(`[scans-route] jobId=${job.id} collectorReady=${collectorReady} mode=${access.mode}`);
+  if (collectorReady) {
     // Prefer BullMQ queue when REDIS_QUEUE_URL is set — the worker runs in a
     // separate process so SSH fan-out doesn't block the Next.js event loop.
     // Falls back to in-process execution for Stage 0/1 deployments.
     const queue = await getScanQueue();
+    console.log(`[scans-route] queue=${queue ? "bullmq" : "in-process"}`);
     if (queue) {
       await queue.add("scan", {
         jobId: job.id,
@@ -98,8 +101,11 @@ export async function POST(request: Request) {
         ...(access.mode === "saas" ? { saasTenantId: access.ctx.tenant.id } : {}),
       });
     } else {
+      console.log(`[scans-route] firing executeDriftScanJob for jobId=${job.id}`);
       void executeDriftScanJob(job.id, collectOpts);
     }
+  } else {
+    console.error(`[scans-route] collector NOT configured — SSH_PRIVATE_KEY set=${Boolean(process.env.SSH_PRIVATE_KEY?.trim())} COLLECTOR_HOST_1=${process.env.COLLECTOR_HOST_1}`);
   }
 
   if (access.mode === "saas") {
