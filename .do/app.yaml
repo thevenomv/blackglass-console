@@ -1,10 +1,10 @@
 # DigitalOcean App Platform — Container Registry (DOCR) deploy.
 #
 # Prereqs:
-# 1. Create registry: doctl registry create <registry-name>
+# 1. Create registry: .\scripts\provision-docr.ps1  (or: doctl registry create blackglass)
 # 2. Set DIGITALOCEAN_ACCESS_TOKEN in your shell (Personal Access Token with read/write).
-# 3. Build & push image (see scripts/do-docker-push.ps1 or docker commands below).
-# 4. Replace REGISTRY_NAME_PLACEHOLDER with your registry name, then:
+# 3. Build & push image: .\scripts\do-docker-push.ps1 -RegistryName blackglass
+# 4. If you used a different registry name, update the `registry:` fields below, then:
 #    doctl apps create --spec .do/app.yaml
 #    # updates: doctl apps update <app-id> --spec .do/app.yaml
 #
@@ -26,7 +26,7 @@ services:
   - name: web
     image:
       registry_type: DOCR
-      registry: REGISTRY_NAME_PLACEHOLDER
+      registry: blackglass
       repository: blackglass-console
       tag: latest
     http_port: 3000
@@ -39,11 +39,12 @@ services:
       - key: AUTH_REQUIRED
         value: "false"
         scope: RUN_TIME
-      # Set RATE_LIMIT_REDIS_URL to enforce rate-limit budgets across all instances.
+      # Distributed rate limits — set after provisioning: .\scripts\provision-do-redis.ps1
       # When unset, limits are in-memory per-instance (adequate for single-instance deploys).
       - key: RATE_LIMIT_REDIS_URL
         value: ""
         scope: RUN_TIME
+        type: SECRET
 
 # Scan worker — BullMQ consumer; processes SSH fan-out jobs off the web tier.
 # Requires REDIS_QUEUE_URL (same Redis as RATE_LIMIT_REDIS_URL or a dedicated instance).
@@ -53,7 +54,7 @@ workers:
   - name: scan-worker
     image:
       registry_type: DOCR
-      registry: REGISTRY_NAME_PLACEHOLDER
+      registry: blackglass
       repository: blackglass-worker
       tag: latest
     instance_count: 1
@@ -65,6 +66,7 @@ workers:
       - key: REDIS_QUEUE_URL
         value: ""
         scope: RUN_TIME
+        type: SECRET
       - key: WORKER_CONCURRENCY
         value: "4"
         scope: RUN_TIME
