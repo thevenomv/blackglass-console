@@ -398,6 +398,79 @@ export function computeDrift(
     });
   }
 
+  if (
+    baseline.ssh.passwordAuthentication !== current.ssh.passwordAuthentication &&
+    current.ssh.passwordAuthentication !== "unknown"
+  ) {
+    const isRiskier = current.ssh.passwordAuthentication === "yes";
+    events.push({
+      id: `drift-ssh-pw-${hostId}`,
+      hostId,
+      category: "ssh",
+      severity: isRiskier ? "high" : "medium",
+      lifecycle: "new",
+      title: `SSH PasswordAuthentication changed: ${baseline.ssh.passwordAuthentication} → ${current.ssh.passwordAuthentication}`,
+      detectedAt: now(),
+      rationale: isRiskier
+        ? "SSH password authentication is now enabled. This exposes the host to brute-force and credential-stuffing attacks."
+        : `PasswordAuthentication was set to "${current.ssh.passwordAuthentication}" (was "${baseline.ssh.passwordAuthentication}").`,
+      evidenceSummary: JSON.stringify({
+        key: "PasswordAuthentication",
+        baseline: baseline.ssh.passwordAuthentication,
+        current: current.ssh.passwordAuthentication,
+      }),
+      suggestedActions: [
+        "Set PasswordAuthentication no in /etc/ssh/sshd_config",
+        "Ensure all users have SSH key-based authentication configured",
+        "Reload sshd: systemctl reload ssh",
+      ],
+      provenance: {
+        collector: "ssh/sshd_config",
+        confidenceLabel: "high",
+        modelVersion: "drift-engine-v1",
+        verifiedAt: now(),
+      },
+    });
+  }
+
+  // Check additional sshd_config fields that could indicate weakening
+  const sshdChecks: Array<{ field: keyof typeof baseline.ssh; label: string; riskyValue: string }> = [
+    { field: "permitEmptyPasswords", label: "PermitEmptyPasswords", riskyValue: "yes" },
+    { field: "x11Forwarding", label: "X11Forwarding", riskyValue: "yes" },
+    { field: "allowTcpForwarding", label: "AllowTcpForwarding", riskyValue: "yes" },
+    { field: "allowAgentForwarding", label: "AllowAgentForwarding", riskyValue: "yes" },
+  ];
+  for (const { field, label, riskyValue } of sshdChecks) {
+    const bVal = baseline.ssh[field] ?? "unknown";
+    const cVal = current.ssh[field] ?? "unknown";
+    if (bVal !== cVal && cVal !== "unknown") {
+      const isRiskier = cVal === riskyValue;
+      events.push({
+        id: `drift-ssh-${field}-${hostId}`,
+        hostId,
+        category: "ssh",
+        severity: isRiskier ? "high" : "medium",
+        lifecycle: "new",
+        title: `SSH ${label} changed: ${bVal} → ${cVal}`,
+        detectedAt: now(),
+        rationale: isRiskier
+          ? `SSH ${label} was enabled. This weakens the host's SSH security posture.`
+          : `SSH ${label} changed from "${bVal}" to "${cVal}".`,
+        evidenceSummary: JSON.stringify({ key: label, baseline: bVal, current: cVal }),
+        suggestedActions: [
+          `Review /etc/ssh/sshd_config — set ${label} to the baseline value`,
+          "Reload sshd after changes: systemctl reload ssh",
+        ],
+        provenance: {
+          collector: "ssh/sshd_config",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
   // --- Firewall ---
   if (baseline.firewall.active && !current.firewall.active) {
     events.push({
@@ -489,6 +562,263 @@ export function computeDrift(
         provenance: {
           collector: "ssh/systemctl",
           confidenceLabel: "medium",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  // --- Authorized SSH keys ---
+  const baselineKeys = new Set(
+    (baseline.authorizedKeys ?? []).map(
+      (k) => `${k.user}:${k.keyType}:${k.keyFingerprint}`,
+    ),
+  );
+  for (const key of current.authorizedKeys ?? []) {
+    const k = `${key.user}:${key.keyType}:${key.keyFingerprint}`;
+    if (!baselineKeys.has(k)) {
+      events.push({
+        id: id("drift-authkey", `${key.user}-${key.keyFingerprint}`),
+        hostId,
+        category: "identity",
+        severity: "high",
+        lifecycle: "new",
+        title: `New SSH authorized key for ${key.user}${key.comment ? ` (${key.comment})` : ""}`,
+        detectedAt: now(),
+        rationale: `An SSH authorized key was added to the "${key.user}" account that was not present in the baseline. This grants the holder persistent SSH access without needing a password.`,
+        evidenceSummary: JSON.stringify({
+          user: key.user,
+          keyType: key.keyType,
+          comment: key.comment,
+          fingerprintSuffix: key.keyFingerprint,
+          baseline: "not present",
+        }),
+        suggestedActions: [
+          `Inspect ~/.ssh/authorized_keys for user "${key.user}"`,
+          "Remove the key if not authorised",
+          "Audit recent SSH logins: last, journalctl -u ssh",
+          "Rotate all credentials for this user",
+        ],
+        provenance: {
+          collector: "ssh/authorized_keys",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  // Also detect removed keys (attacker clearing tracks after access)
+  const currentKeys = new Set(
+    (current.authorizedKeys ?? []).map(
+      (k) => `${k.user}:${k.keyType}:${k.keyFingerprint}`,
+    ),
+  );
+  for (const key of baseline.authorizedKeys ?? []) {
+    const k = `${key.user}:${key.keyType}:${key.keyFingerprint}`;
+    if (!currentKeys.has(k)) {
+      events.push({
+        id: id("drift-authkey-removed", `${key.user}-${key.keyFingerprint}`),
+        hostId,
+        category: "identity",
+        severity: "medium",
+        lifecycle: "new",
+        title: `SSH authorized key removed for ${key.user}${key.comment ? ` (${key.comment})` : ""}`,
+        detectedAt: now(),
+        rationale: `An SSH authorized key was removed from the "${key.user}" account. This may indicate an attacker removing their own key to cover tracks, or a legitimate key rotation.`,
+        evidenceSummary: JSON.stringify({
+          user: key.user,
+          keyType: key.keyType,
+          comment: key.comment,
+          fingerprintSuffix: key.keyFingerprint,
+        }),
+        suggestedActions: [
+          "Confirm whether key removal was authorised",
+          "Update baseline if change is intentional",
+          "Audit recent SSH logins: last, journalctl -u ssh",
+        ],
+        provenance: {
+          collector: "ssh/authorized_keys",
+          confidenceLabel: "medium",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  // --- Critical file integrity (hash changes) ---
+  const baselineHashes = new Map(
+    (baseline.fileHashes ?? []).map((h) => [h.path, h.hash]),
+  );
+  for (const fh of current.fileHashes ?? []) {
+    const baseHash = baselineHashes.get(fh.path);
+    if (baseHash && baseHash !== fh.hash) {
+      const isCritical =
+        fh.path.includes("shadow") || fh.path.includes("sudoers");
+      events.push({
+        id: id("drift-filehash", fh.path),
+        hostId,
+        category: "integrity",
+        severity: isCritical ? "high" : "medium",
+        lifecycle: "new",
+        title: `Critical file modified: ${fh.path}`,
+        detectedAt: now(),
+        rationale: `The MD5 hash of "${fh.path}" has changed since the baseline was captured. Direct modification of this file may indicate privilege escalation, account backdooring, or SSH config weakening.`,
+        evidenceSummary: JSON.stringify({
+          path: fh.path,
+          baselineHash: baseHash,
+          currentHash: fh.hash,
+        }),
+        suggestedActions: [
+          `Inspect changes: diff <(cat baseline) <(cat ${fh.path})`,
+          "Check file modification time: stat " + fh.path,
+          "Audit recent auth activity in /var/log/auth.log",
+          "Update baseline if change is authorised",
+        ],
+        provenance: {
+          collector: "ssh/md5sum",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  // --- /etc/hosts tampering ---
+  const baselineHosts = new Set(
+    (baseline.hostsEntries ?? []).map(
+      (e) => `${e.ip} ${e.hostnames.join(" ")}`,
+    ),
+  );
+  for (const entry of current.hostsEntries ?? []) {
+    const key = `${entry.ip} ${entry.hostnames.join(" ")}`;
+    if (!baselineHosts.has(key)) {
+      events.push({
+        id: id("drift-hosts", key),
+        hostId,
+        category: "network_exposure",
+        severity: "high",
+        lifecycle: "new",
+        title: `New /etc/hosts entry: ${entry.ip} → ${entry.hostnames.join(", ")}`,
+        detectedAt: now(),
+        rationale: `/etc/hosts was modified to map ${entry.hostnames.join(", ")} to ${entry.ip}. This can redirect DNS resolution for critical domains, enabling supply-chain attacks, update hijacking, or lateral movement.`,
+        evidenceSummary: JSON.stringify({
+          ip: entry.ip,
+          hostnames: entry.hostnames,
+          baseline: "not present",
+        }),
+        suggestedActions: [
+          "Inspect /etc/hosts for unauthorised entries",
+          `Remove the entry: ${entry.ip} ${entry.hostnames.join(" ")}`,
+          "Audit network connections to that IP",
+          "Check if any package updates were run while this entry was active",
+        ],
+        provenance: {
+          collector: "ssh/hosts",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  // --- SUID/SGID binaries ---
+  const baselineSuid = new Set(baseline.suidBinaries ?? []);
+  for (const bin of current.suidBinaries ?? []) {
+    if (!baselineSuid.has(bin)) {
+      events.push({
+        id: id("drift-suid", bin),
+        hostId,
+        category: "privilege_escalation",
+        severity: "high",
+        lifecycle: "new",
+        title: `New SUID/SGID binary: ${bin}`,
+        detectedAt: now(),
+        rationale: `A new binary with SUID or SGID permissions was found at "${bin}" that was not in the baseline. SUID binaries allow any user to execute the file as the file's owner (often root), enabling privilege escalation.`,
+        evidenceSummary: JSON.stringify({
+          path: bin,
+          baseline: "not present",
+        }),
+        suggestedActions: [
+          `Inspect the binary: ls -la ${bin} && file ${bin}`,
+          `Remove SUID bit if not authorised: chmod -s ${bin}`,
+          "Check if binary is a copy of a shell: file " + bin,
+          "Audit recent privilege-escalation events in auth.log",
+        ],
+        provenance: {
+          collector: "ssh/find-suid",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  // --- Kernel modules ---
+  const baselineMods = new Set(baseline.kernelModules ?? []);
+  for (const mod of current.kernelModules ?? []) {
+    if (!baselineMods.has(mod)) {
+      events.push({
+        id: id("drift-kmod", mod),
+        hostId,
+        category: "integrity",
+        severity: "high",
+        lifecycle: "new",
+        title: `New kernel module loaded: ${mod}`,
+        detectedAt: now(),
+        rationale: `Kernel module "${mod}" is loaded but was not present in the baseline. Rogue kernel modules are used by rootkits to hide processes, network connections, and files from security tools.`,
+        evidenceSummary: JSON.stringify({
+          module: mod,
+          baseline: "not present",
+        }),
+        suggestedActions: [
+          `Inspect module: modinfo ${mod}`,
+          `Check if signed: modinfo ${mod} | grep sig`,
+          "If malicious: rmmod " + mod + " (reboot may be required)",
+          "Consider a full memory forensics analysis",
+        ],
+        provenance: {
+          collector: "ssh/lsmod",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  // --- User crontabs ---
+  const baselineCrontabs = new Set(baseline.userCrontabs ?? []);
+  for (const user of current.userCrontabs ?? []) {
+    if (!baselineCrontabs.has(user)) {
+      events.push({
+        id: id("drift-usercron", user),
+        hostId,
+        category: "persistence",
+        severity: "medium",
+        lifecycle: "new",
+        title: `New user crontab: ${user}`,
+        detectedAt: now(),
+        rationale: `User "${user}" now has a crontab that was not present in the baseline. Crontabs are commonly used for attacker persistence and scheduled command execution.`,
+        evidenceSummary: JSON.stringify({
+          user,
+          path: `/var/spool/cron/crontabs/${user}`,
+          baseline: "not present",
+        }),
+        suggestedActions: [
+          `Inspect crontab: crontab -l -u ${user}`,
+          `Remove if not authorised: crontab -r -u ${user}`,
+          "Check for associated processes spawned by the cron job",
+        ],
+        provenance: {
+          collector: "ssh/crontabs",
+          confidenceLabel: "high",
           modelVersion: "drift-engine-v1",
           verifiedAt: now(),
         },

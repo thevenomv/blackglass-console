@@ -29,6 +29,9 @@ export type {
   SSHConfig,
   FirewallStatus,
   CronEntry,
+  AuthorizedKey,
+  FileHash,
+  HostsEntry,
   HostSnapshot,
 } from "./types";
 
@@ -38,9 +41,15 @@ export {
   parseSudoers,
   parseSudoersFiles,
   parseCron,
+  parseUserCrontabs,
   parseServices,
   parseSshConfig,
   parseFirewall,
+  parseAuthorizedKeys,
+  parseFileHashes,
+  parseHostsEntries,
+  parseKernelModules,
+  parseSuidBinaries,
 } from "./parsers";
 
 export { collectorConfigured, configuredHostCount } from "./gates";

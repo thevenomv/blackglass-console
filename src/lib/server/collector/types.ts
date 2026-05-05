@@ -27,6 +27,12 @@ export type RunningService = {
 export type SSHConfig = {
   permitRootLogin: string;
   passwordAuthentication: string;
+  permitEmptyPasswords?: string;
+  x11Forwarding?: string;
+  allowTcpForwarding?: string;
+  allowAgentForwarding?: string;
+  maxAuthTries?: string;
+  port?: string;
 };
 
 export type FirewallStatus = {
@@ -39,6 +45,24 @@ export type CronEntry = {
   filename: string;
 };
 
+export type AuthorizedKey = {
+  user: string;
+  keyType: string;
+  /** Last 16 chars of key material — stable enough to detect additions/removals. */
+  keyFingerprint: string;
+  comment: string;
+};
+
+export type FileHash = {
+  path: string;
+  hash: string;
+};
+
+export type HostsEntry = {
+  ip: string;
+  hostnames: string[];
+};
+
 export type HostSnapshot = {
   hostId: string;
   hostname: string;
@@ -49,7 +73,19 @@ export type HostSnapshot = {
   /** Filenames present in /etc/sudoers.d/ — new files indicate privilege backdoors. */
   sudoersFiles: string[];
   cronEntries: CronEntry[];
+  /** Usernames with a crontab in /var/spool/cron/crontabs/. */
+  userCrontabs: string[];
   services: RunningService[];
   ssh: SSHConfig;
   firewall: FirewallStatus;
+  /** SSH authorized_keys entries for all login users. */
+  authorizedKeys: AuthorizedKey[];
+  /** MD5 hashes of critical config files to detect tampering. */
+  fileHashes: FileHash[];
+  /** Non-comment entries in /etc/hosts — detect DNS hijacking. */
+  hostsEntries: HostsEntry[];
+  /** Binaries with SUID/SGID bit set — detect planted privilege-escalation tools. */
+  suidBinaries: string[];
+  /** Loaded kernel modules — detect rootkits. */
+  kernelModules: string[];
 };

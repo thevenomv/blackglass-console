@@ -1,6 +1,9 @@
 import type {
+  AuthorizedKey,
   CronEntry,
+  FileHash,
   FirewallStatus,
+  HostsEntry,
   ListeningPort,
   LocalUser,
   RunningService,
@@ -71,15 +74,24 @@ export function parseSshConfig(raw: string): SSHConfig {
   const cfg: SSHConfig = {
     permitRootLogin: "unknown",
     passwordAuthentication: "unknown",
+    permitEmptyPasswords: "unknown",
+    x11Forwarding: "unknown",
+    allowTcpForwarding: "unknown",
+    allowAgentForwarding: "unknown",
+    maxAuthTries: "unknown",
+    port: "unknown",
   };
   for (const line of raw.split("\n")) {
     const lower = line.toLowerCase().trim();
-    if (lower.startsWith("permitrootlogin")) {
-      cfg.permitRootLogin = lower.split(/\s+/)[1] ?? "unknown";
-    }
-    if (lower.startsWith("passwordauthentication")) {
-      cfg.passwordAuthentication = lower.split(/\s+/)[1] ?? "unknown";
-    }
+    const val = lower.split(/\s+/)[1] ?? "unknown";
+    if (lower.startsWith("permitrootlogin")) cfg.permitRootLogin = val;
+    if (lower.startsWith("passwordauthentication")) cfg.passwordAuthentication = val;
+    if (lower.startsWith("permitemptypasswords")) cfg.permitEmptyPasswords = val;
+    if (lower.startsWith("x11forwarding")) cfg.x11Forwarding = val;
+    if (lower.startsWith("allowtcpforwarding")) cfg.allowTcpForwarding = val;
+    if (lower.startsWith("allowagentforwarding")) cfg.allowAgentForwarding = val;
+    if (lower.startsWith("maxauthtries")) cfg.maxAuthTries = val;
+    if (lower.startsWith("port ")) cfg.port = val;
   }
   return cfg;
 }
@@ -102,4 +114,96 @@ export function parseFirewall(raw: string): FirewallStatus {
     }
   }
   return { active, defaultInbound, rules };
+}
+
+// ---------------------------------------------------------------------------
+// Authorized SSH keys  (format from collector: "user:keytype keydata comment")
+// ---------------------------------------------------------------------------
+
+export function parseAuthorizedKeys(raw: string): AuthorizedKey[] {
+  const results: AuthorizedKey[] = [];
+  for (const line of raw.split("\n")) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) continue;
+    const user = line.slice(0, colonIdx).trim();
+    const rest = line.slice(colonIdx + 1).trim();
+    if (!rest || rest.startsWith("#")) continue;
+    const parts = rest.split(/\s+/);
+    if (parts.length < 2) continue;
+    const keyType = parts[0];
+    const keyData = parts[1];
+    const comment = parts.slice(2).join(" ") || "";
+    // Last 16 chars of key material are stable enough to identify a specific key
+    const keyFingerprint = keyData.slice(-16);
+    results.push({ user, keyType, keyFingerprint, comment });
+  }
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// Critical file hashes  (md5sum output: "hash  /path/to/file")
+// ---------------------------------------------------------------------------
+
+export function parseFileHashes(raw: string): FileHash[] {
+  const results: FileHash[] = [];
+  for (const line of raw.split("\n")) {
+    const m = line.match(/^([a-f0-9]{32})\s+(.+)$/);
+    if (!m) continue;
+    results.push({ path: m[2].trim(), hash: m[1] });
+  }
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// /etc/hosts entries
+// ---------------------------------------------------------------------------
+
+export function parseHostsEntries(raw: string): HostsEntry[] {
+  const results: HostsEntry[] = [];
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 2) continue;
+    const ip = parts[0];
+    const hostnames = parts.slice(1).filter((h) => !h.startsWith("#"));
+    if (hostnames.length > 0) results.push({ ip, hostnames });
+  }
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// Kernel modules  (lsmod first-column, sorted)
+// ---------------------------------------------------------------------------
+
+export function parseKernelModules(raw: string): string[] {
+  return raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .sort();
+}
+
+// ---------------------------------------------------------------------------
+// SUID/SGID binaries  (find output, one path per line)
+// ---------------------------------------------------------------------------
+
+export function parseSuidBinaries(raw: string): string[] {
+  return raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .sort();
+}
+
+// ---------------------------------------------------------------------------
+// User crontabs  (ls /var/spool/cron/crontabs/, one username per line)
+// ---------------------------------------------------------------------------
+
+export function parseUserCrontabs(raw: string): string[] {
+  return raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .sort();
 }

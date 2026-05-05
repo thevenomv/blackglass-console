@@ -100,6 +100,29 @@ const RunningServiceSchema = z.object({
 const SSHConfigSchema = z.object({
   permitRootLogin: z.string().max(32),
   passwordAuthentication: z.string().max(32),
+  permitEmptyPasswords: z.string().max(32).optional(),
+  x11Forwarding: z.string().max(32).optional(),
+  allowTcpForwarding: z.string().max(32).optional(),
+  allowAgentForwarding: z.string().max(32).optional(),
+  maxAuthTries: z.string().max(16).optional(),
+  port: z.string().max(8).optional(),
+});
+
+const AuthorizedKeySchema = z.object({
+  user: z.string().max(128),
+  keyType: z.string().max(64),
+  keyFingerprint: z.string().max(64),
+  comment: z.string().max(256),
+});
+
+const FileHashSchema = z.object({
+  path: z.string().max(512),
+  hash: z.string().max(64),
+});
+
+const HostsEntrySchema = z.object({
+  ip: z.string().max(64),
+  hostnames: z.array(z.string().max(253)).max(32),
 });
 
 const FirewallStatusSchema = z.object({
@@ -120,12 +143,17 @@ export const IngestPayloadSchema = z.object({
   listeners: z.array(ListeningPortSchema).max(4096),
   users: z.array(LocalUserSchema).max(1024),
   sudoers: z.array(z.string().max(512)).max(512),
-  /** Filenames in /etc/sudoers.d/ — optional for backwards compat with older agents */
   sudoersFiles: z.array(z.string().max(512)).max(512).optional().default([]),
   cronEntries: z.array(CronEntrySchema).max(512),
+  userCrontabs: z.array(z.string().max(128)).max(512).optional().default([]),
   services: z.array(RunningServiceSchema).max(4096),
   ssh: SSHConfigSchema,
   firewall: FirewallStatusSchema,
+  authorizedKeys: z.array(AuthorizedKeySchema).max(1024).optional().default([]),
+  fileHashes: z.array(FileHashSchema).max(64).optional().default([]),
+  hostsEntries: z.array(HostsEntrySchema).max(1024).optional().default([]),
+  suidBinaries: z.array(z.string().max(512)).max(2048).optional().default([]),
+  kernelModules: z.array(z.string().max(128)).max(4096).optional().default([]),
 });
 
 export type IngestPayload = z.infer<typeof IngestPayloadSchema>;

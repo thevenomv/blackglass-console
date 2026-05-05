@@ -28,7 +28,9 @@ export type DriftCategory =
   | "persistence"
   | "ssh"
   | "firewall"
-  | "packages";
+  | "packages"
+  | "integrity"
+  | "privilege_escalation";
 
 export type DriftProvenance = {
   collector: string;

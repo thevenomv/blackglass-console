@@ -8,6 +8,8 @@ const CATEGORY_LABELS: Record<DriftCategory, string> = {
   ssh: "SSH posture",
   firewall: "Firewall",
   packages: "Packages",
+  integrity: "File integrity",
+  privilege_escalation: "Privilege escalation",
 };
 
 export function pickSpotlightHost(hosts: HostRecord[]): HostRecord | null {

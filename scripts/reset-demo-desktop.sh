@@ -103,9 +103,36 @@ else
   ok "rule was not present"
 fi
 
+# ── SCENE 9 — Remove injected SSH authorized key ─────────────
+step "Scene 9 — Remove attacker key from /root/.ssh/authorized_keys"
+if [ -f /root/.ssh/authorized_keys ] && grep -q 'attacker@evil.com' /root/.ssh/authorized_keys; then
+  sed -i '/attacker@evil\.com/d' /root/.ssh/authorized_keys
+  ok "attacker key removed from /root/.ssh/authorized_keys"
+else
+  ok "key was not present"
+fi
+
+# ── SCENE 10 — Remove DNS hijack entry ───────────────────────
+step "Scene 10 — Remove DNS hijack entry from /etc/hosts"
+if grep -q 'demo-dns-hijack' /etc/hosts; then
+  sed -i '/demo-dns-hijack/d' /etc/hosts
+  ok "DNS hijack entry removed from /etc/hosts"
+else
+  ok "entry was not present"
+fi
+
+# ── SCENE 11 — Remove SUID binary ────────────────────────────
+step "Scene 11 — Remove SUID shell from /tmp/demo-suid-shell"
+if [ -f /tmp/demo-suid-shell ]; then
+  rm -f /tmp/demo-suid-shell
+  ok "/tmp/demo-suid-shell removed"
+else
+  ok "SUID binary was not present"
+fi
+
 echo ""
 echo -e "${CYN}============================================================${RST}"
-echo -e "${CYN}  RESET COMPLETE — demo VM is clean${RST}"
+echo -e "${CYN}  RESET COMPLETE — demo VM is clean (11 scenarios reversed)${RST}"
 echo -e "${CYN}============================================================${RST}"
 echo ""
 echo -e "  ${YEL}Capture a fresh baseline in BLACKGLASS before the next demo run.${RST}"

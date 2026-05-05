@@ -10,10 +10,17 @@ function baseSnap(overrides: Partial<HostSnapshot> = {}): HostSnapshot {
     listeners: [{ proto: "tcp", bind: "0.0.0.0", port: 22 }],
     users: [{ username: "alice", uid: 1000 }],
     sudoers: [],
+    sudoersFiles: [],
     cronEntries: [],
+    userCrontabs: [],
     services: [{ unit: "ssh.service", sub: "running" }],
     ssh: { permitRootLogin: "no", passwordAuthentication: "no" },
     firewall: { active: true, defaultInbound: "deny", rules: [] },
+    authorizedKeys: [],
+    fileHashes: [],
+    hostsEntries: [],
+    suidBinaries: [],
+    kernelModules: [],
   };
   return { ...base, ...overrides };
 }

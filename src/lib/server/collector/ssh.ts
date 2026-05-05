@@ -3,13 +3,19 @@ import * as net from "node:net";
 import type { SshAuthConfig } from "@/lib/server/secrets";
 import type { HostSnapshot } from "./types";
 import {
+  parseAuthorizedKeys,
   parseCron,
+  parseFileHashes,
   parseFirewall,
+  parseHostsEntries,
+  parseKernelModules,
   parseListeners,
   parseServices,
   parseSshConfig,
+  parseSuidBinaries,
   parseSudoers,
   parseSudoersFiles,
+  parseUserCrontabs,
   parseUsers,
 } from "./parsers";
 
@@ -189,6 +195,12 @@ export async function runCollection(
           svcOut,
           sshdOut,
           ufwOut,
+          authKeysOut,
+          fileHashesOut,
+          hostsOut,
+          lsmodOut,
+          suidOut,
+          userCronOut,
         ] = await Promise.all([
           exec(conn, "ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null").catch(() => ""),
           exec(conn, "awk -F: '$3>=1000 && $3<65534 {print $1 \":\" $3}' /etc/passwd 2>/dev/null").catch(() => ""),
@@ -196,8 +208,20 @@ export async function runCollection(
           exec(conn, "sudo ls /etc/sudoers.d/ 2>/dev/null").catch(() => ""),
           exec(conn, "ls /etc/cron.d/ 2>/dev/null").catch(() => ""),
           exec(conn, "systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null").catch(() => ""),
-          exec(conn, "sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication)'").catch(() => ""),
+          exec(conn, "sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication|permitemptypasswords|x11forwarding|allowtcpforwarding|allowagentforwarding|maxauthtries|port )'").catch(() => ""),
           exec(conn, "sudo ufw status verbose 2>/dev/null").catch(() => ""),
+          // Authorized keys for all login-shell users (including root)
+          exec(conn, "awk -F: '$7~/bash|sh$/{print $1 \":\" $6}' /etc/passwd | while IFS=: read u h; do f=\"$h/.ssh/authorized_keys\"; [ -f \"$f\" ] && awk -v u=\"$u\" '/^[^#]/{print u \":\" $0}' \"$f\"; done 2>/dev/null").catch(() => ""),
+          // MD5 hashes of critical files to detect tampering
+          exec(conn, "md5sum /etc/passwd /etc/shadow /etc/sudoers /etc/ssh/sshd_config /etc/hosts 2>/dev/null").catch(() => ""),
+          // /etc/hosts entries (non-comment, non-blank)
+          exec(conn, "cat /etc/hosts 2>/dev/null").catch(() => ""),
+          // Loaded kernel modules (first column only)
+          exec(conn, "lsmod 2>/dev/null | awk 'NR>1{print $1}' | sort").catch(() => ""),
+          // SUID/SGID binaries in common locations
+          exec(conn, "find /usr /bin /sbin /tmp /var/tmp -perm /6000 -type f 2>/dev/null | sort").catch(() => ""),
+          // Users with crontabs in /var/spool/cron/crontabs/
+          exec(conn, "ls /var/spool/cron/crontabs/ 2>/dev/null").catch(() => ""),
         ]);
 
         settle(() => {
@@ -212,9 +236,15 @@ export async function runCollection(
             sudoers: parseSudoers(sudoOut),
             sudoersFiles: parseSudoersFiles(sudoFilesOut),
             cronEntries: parseCron(cronOut),
+            userCrontabs: parseUserCrontabs(userCronOut),
             services: parseServices(svcOut),
             ssh: parseSshConfig(sshdOut),
             firewall: parseFirewall(ufwOut),
+            authorizedKeys: parseAuthorizedKeys(authKeysOut),
+            fileHashes: parseFileHashes(fileHashesOut),
+            hostsEntries: parseHostsEntries(hostsOut),
+            kernelModules: parseKernelModules(lsmodOut),
+            suidBinaries: parseSuidBinaries(suidOut),
           });
         });
       } catch (e) {
