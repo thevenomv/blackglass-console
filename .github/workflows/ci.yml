@@ -77,3 +77,62 @@ jobs:
         env:
           CI: true
           PLAYWRIGHT_LIVE: "1"
+
+  staging-smoke:
+    name: Staging smoke (post-deploy)
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    # Only runs on pushes to main — not PRs — and only when STAGING_URL secret is set.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check STAGING_URL secret
+        id: check
+        env:
+          HAS_URL: ${{ secrets.STAGING_URL != '' }}
+        run: |
+          if [ "$HAS_URL" != "true" ]; then
+            echo "::notice::Staging smoke skipped — set STAGING_URL repo secret to enable."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for DO deployment to go ACTIVE
+        if: steps.check.outputs.skip != 'true'
+        env:
+          DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
+          DO_APP_ID: ${{ secrets.DO_APP_ID }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$DO_API_TOKEN" ] || [ -z "$DO_APP_ID" ]; then
+            echo "::notice::DO_API_TOKEN or DO_APP_ID not set — skipping deployment poll, running smoke immediately."
+            exit 0
+          fi
+          echo "Polling DO for deployment of $COMMIT_SHA ..."
+          for i in $(seq 1 30); do
+            PHASE=$(curl -sf -H "Authorization: Bearer $DO_API_TOKEN" \
+              "https://api.digitalocean.com/v2/apps/$DO_APP_ID/deployments?per_page=1" \
+              | jq -r '.deployments[0].phase // "UNKNOWN"')
+            echo "Attempt $i: phase=$PHASE"
+            if [ "$PHASE" = "ACTIVE" ]; then
+              echo "Deployment is ACTIVE."
+              exit 0
+            fi
+            if [ "$PHASE" = "ERROR" ] || [ "$PHASE" = "CANCELED" ]; then
+              echo "::error::Deployment failed with phase=$PHASE"
+              exit 1
+            fi
+            sleep 20
+          done
+          echo "::warning::Timed out waiting for DO deployment — running smoke anyway."
+
+      - name: Run staging smoke
+        if: steps.check.outputs.skip != 'true'
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+        run: node scripts/verify-staging.mjs

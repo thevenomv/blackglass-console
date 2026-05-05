@@ -28,6 +28,7 @@ on:
           - both
           - audit-events
           - webhook-idempotency
+          - billing
 
   schedule:
     # Sundays 02:00 UTC
@@ -81,3 +82,38 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           WEBHOOK_RETENTION_DAYS: ${{ secrets.WEBHOOK_RETENTION_DAYS }}
+
+  reconcile-billing:
+    runs-on: ubuntu-latest
+    # Runs on schedule (Sundays) and on manual dispatch with job=both or job=billing.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event.inputs.job == 'both' ||
+      github.event.inputs.job == 'billing'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Check required secrets
+        id: check-reconcile
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ] || [ -z "${{ secrets.STRIPE_SECRET_KEY }}" ]; then
+            echo "::notice::Billing reconcile skipped — set DATABASE_URL and STRIPE_SECRET_KEY repo secrets to enable."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Reconcile SaaS billing (Stripe vs Postgres)
+        if: steps.check-reconcile.outputs.skip != 'true'
+        run: node scripts/reconcile-saas-billing.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          RECONCILE_CLERK_ORGS: "1"
+          SLACK_ALERT_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }}
