@@ -120,6 +120,8 @@ export const IngestPayloadSchema = z.object({
   listeners: z.array(ListeningPortSchema).max(4096),
   users: z.array(LocalUserSchema).max(1024),
   sudoers: z.array(z.string().max(512)).max(512),
+  /** Filenames in /etc/sudoers.d/ — optional for backwards compat with older agents */
+  sudoersFiles: z.array(z.string().max(512)).max(512).optional().default([]),
   cronEntries: z.array(CronEntrySchema).max(512),
   services: z.array(RunningServiceSchema).max(4096),
   ssh: SSHConfigSchema,

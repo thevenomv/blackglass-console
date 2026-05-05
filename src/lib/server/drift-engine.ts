@@ -83,8 +83,53 @@ export function getDriftEvents(hostId?: string): DriftEvent[] {
   );
 }
 
+/**
+ * Async variant — falls back to Postgres when DATABASE_URL is set and the
+ * in-memory store is empty (e.g. after a pod restart).  Hydrates memory as a
+ * side-effect so subsequent synchronous getDriftEvents() calls also work.
+ */
+export async function getDriftEventsAsync(hostId?: string): Promise<DriftEvent[]> {
+  const store = eventStore();
+  const isEmpty = store.size === 0;
+
+  if (isEmpty && process.env.DATABASE_URL?.trim()) {
+    try {
+      const { PostgresDriftEventsRepository: repo } = await import("./store/driftevents-pg");
+      const all = await repo.getAll();
+      // Group by hostId and hydrate the in-memory store
+      const byHost = new Map<string, DriftEvent[]>();
+      for (const evt of all) {
+        const list = byHost.get(evt.hostId) ?? [];
+        list.push(evt);
+        byHost.set(evt.hostId, list);
+      }
+      for (const [hid, evts] of byHost) {
+        store.set(hid, evts);
+      }
+    } catch (err) {
+      console.error("[drift-engine] Postgres hydration failed:", err);
+    }
+  }
+
+  return getDriftEvents(hostId);
+}
+
 export function hasDriftData(): boolean {
   return eventStore().size > 0;
+}
+
+/**
+ * Async variant of hasDriftData — checks Postgres when memory is empty.
+ */
+export async function hasDriftDataAsync(): Promise<boolean> {
+  if (hasDriftData()) return true;
+  if (!process.env.DATABASE_URL?.trim()) return false;
+  try {
+    const { PostgresDriftEventsRepository: repo } = await import("./store/driftevents-pg");
+    return repo.hasAny();
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +297,38 @@ export function computeDrift(
     }
   }
 
+  // --- Sudoers.d files ---
+  const baselineSudoersFiles = new Set(baseline.sudoersFiles ?? []);
+  for (const file of current.sudoersFiles ?? []) {
+    if (!baselineSudoersFiles.has(file)) {
+      events.push({
+        id: id("drift-sudoers-file", file),
+        hostId,
+        category: "identity",
+        severity: "high",
+        lifecycle: "new",
+        title: `New sudoers policy file: /etc/sudoers.d/${file}`,
+        detectedAt: now(),
+        rationale: `A new file was added to /etc/sudoers.d/ that was not present in the baseline. Sudoers files grant privilege escalation and are a primary persistence mechanism.`,
+        evidenceSummary: JSON.stringify({
+          file: `/etc/sudoers.d/${file}`,
+          baseline: "not present",
+        }),
+        suggestedActions: [
+          `Inspect /etc/sudoers.d/${file} for unauthorised privilege grants`,
+          `Remove if not authorised: \`sudo rm /etc/sudoers.d/${file}\``,
+          "Audit which users are affected",
+        ],
+        provenance: {
+          collector: "ssh/sudoers.d",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
   // --- Cron entries ---
   const baselineCron = new Set(baseline.cronEntries.map((c) => c.filename));
   for (const entry of current.cronEntries) {
@@ -348,6 +425,42 @@ export function computeDrift(
         verifiedAt: now(),
       },
     });
+  }
+
+  // --- Firewall rules (new rules added while firewall stays active) ---
+  if (current.firewall.active) {
+    const baselineRules = new Set(baseline.firewall.rules.map((r) => r.toLowerCase().trim()));
+    for (const rule of current.firewall.rules) {
+      const norm = rule.toLowerCase().trim();
+      if (!baselineRules.has(norm)) {
+        events.push({
+          id: id("drift-fw-rule", rule),
+          hostId,
+          category: "firewall",
+          severity: "medium",
+          lifecycle: "new",
+          title: `New firewall rule: ${rule}`,
+          detectedAt: now(),
+          rationale:
+            "A new inbound firewall rule was added that was not present in the baseline. New rules expand the attack surface by allowing previously blocked traffic.",
+          evidenceSummary: JSON.stringify({
+            rule,
+            baseline: "not present",
+          }),
+          suggestedActions: [
+            `Review the rule: \`sudo ufw status verbose\``,
+            `Remove if not authorised: \`sudo ufw delete allow <port>\``,
+            "Update baseline if change is intentional",
+          ],
+          provenance: {
+            collector: "ssh/ufw",
+            confidenceLabel: "high",
+            modelVersion: "drift-engine-v1",
+            verifiedAt: now(),
+          },
+        });
+      }
+    }
   }
 
   // --- Services ---

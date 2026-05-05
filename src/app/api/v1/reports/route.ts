@@ -10,7 +10,7 @@
 import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { checkReportsPostRate, clientIp } from "@/lib/server/rate-limit";
-import { getDriftEvents } from "@/lib/server/drift-engine";
+import { getDriftEventsAsync } from "@/lib/server/drift-engine";
 import { readAudit } from "@/lib/server/audit-log";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import {
@@ -142,7 +142,7 @@ async function generateReport(
   hostId?: string,
 ): Promise<void> {
   try {
-    const events = getDriftEvents(scope === "host" ? hostId : undefined);
+    const events = await getDriftEventsAsync(scope === "host" ? hostId : undefined);
     const audit = readAudit(50);
 
     const content = JSON.stringify(

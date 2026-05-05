@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { collectorConfigured } from "@/lib/server/collector";
 import { configuredCollectorHostIds } from "@/lib/server/collector-env";
 import { getBaseline, listBaselineHostIds } from "@/lib/server/baseline-store";
-import { getDriftEvents } from "@/lib/server/drift-engine";
+import { getDriftEventsAsync } from "@/lib/server/drift-engine";
 import type { BaselineDiffCategory, BaselineDiffRow, BaselineSnapshotMeta, DriftEvent } from "@/data/mock/types";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -49,7 +49,7 @@ function driftEventsToCategories(events: DriftEvent[]): BaselineDiffCategory[] {
 }
 
 async function BaselineComparisonContent({ hostId }: { hostId: string }) {
-  const grouped = driftEventsToCategories(getDriftEvents(hostId));
+  const grouped = driftEventsToCategories(await getDriftEventsAsync(hostId));
 
   if (grouped.length === 0) {
     return (

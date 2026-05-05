@@ -43,6 +43,13 @@ export function parseSudoers(raw: string): string[] {
     .filter(Boolean);
 }
 
+export function parseSudoersFiles(raw: string): string[] {
+  return raw
+    .split("\n")
+    .map((f) => f.trim())
+    .filter((f) => f.length > 0 && f !== "." && f !== "..");
+}
+
 export function parseCron(raw: string): CronEntry[] {
   return raw
     .split("\n")

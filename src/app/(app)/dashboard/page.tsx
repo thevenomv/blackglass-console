@@ -8,7 +8,7 @@ import { fetchHosts } from "@/lib/api/hosts";
 import { baselineStoreHealth } from "@/lib/server/baseline-store";
 import { collectorConfigured } from "@/lib/server/collector";
 import { deriveDriftCardsFromEvents, pickSpotlightHost } from "@/lib/server/dashboard-context";
-import { resolveDriftEventsForDashboard } from "@/lib/server/drift-resolve";
+import { resolveDriftEventsForDashboardAsync } from "@/lib/server/drift-resolve";
 import type { HostRecord } from "@/data/mock/types";
 import { loadHosts } from "@/lib/server/inventory";
 
@@ -30,7 +30,7 @@ async function DashboardDeferred() {
     const liveMode = !showDemoKpiDeltas;
     collectorOn = collectorConfigured();
     baselinePersistence = baselineStoreHealth();
-    const driftEvents = resolveDriftEventsForDashboard();
+    const driftEvents = await resolveDriftEventsForDashboardAsync();
 
     let sh = (collectorOn ? pickSpotlightHost(await loadHosts()) : null) ?? null;
     if (liveMode && !sh) {

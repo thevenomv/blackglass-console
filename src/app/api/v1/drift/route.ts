@@ -12,7 +12,7 @@ import { requireRole } from "@/lib/server/http/auth-guard";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { DriftQuerySchema } from "@/lib/server/http/schemas";
-import { resolveDriftEventsForDashboard } from "@/lib/server/drift-resolve";
+import { resolveDriftEventsForDashboardAsync } from "@/lib/server/drift-resolve";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
 
   const { hostId, lifecycle: lifecycleFilter, limit, cursor } = parsed.data;
 
-  let events = resolveDriftEventsForDashboard(hostId);
+  let events = await resolveDriftEventsForDashboardAsync(hostId);
 
   if (lifecycleFilter) {
     events = events.filter((e) => e.lifecycle === lifecycleFilter);

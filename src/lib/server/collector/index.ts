@@ -36,6 +36,7 @@ export {
   parseListeners,
   parseUsers,
   parseSudoers,
+  parseSudoersFiles,
   parseCron,
   parseServices,
   parseSshConfig,

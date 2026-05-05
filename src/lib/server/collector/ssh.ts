@@ -9,6 +9,7 @@ import {
   parseServices,
   parseSshConfig,
   parseSudoers,
+  parseSudoersFiles,
   parseUsers,
 } from "./parsers";
 
@@ -183,6 +184,7 @@ export async function runCollection(
           ssOut,
           passwdOut,
           sudoOut,
+          sudoFilesOut,
           cronOut,
           svcOut,
           sshdOut,
@@ -191,6 +193,7 @@ export async function runCollection(
           exec(conn, "ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null").catch(() => ""),
           exec(conn, "awk -F: '$3>=1000 && $3<65534 {print $1 \":\" $3}' /etc/passwd 2>/dev/null").catch(() => ""),
           exec(conn, "getent group sudo 2>/dev/null || getent group wheel 2>/dev/null").catch(() => ""),
+          exec(conn, "ls /etc/sudoers.d/ 2>/dev/null").catch(() => ""),
           exec(conn, "ls /etc/cron.d/ 2>/dev/null").catch(() => ""),
           exec(conn, "systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null").catch(() => ""),
           exec(conn, "sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication)'").catch(() => ""),
@@ -207,6 +210,7 @@ export async function runCollection(
             listeners: parseListeners(ssOut),
             users: parseUsers(passwdOut),
             sudoers: parseSudoers(sudoOut),
+            sudoersFiles: parseSudoersFiles(sudoFilesOut),
             cronEntries: parseCron(cronOut),
             services: parseServices(svcOut),
             ssh: parseSshConfig(sshdOut),

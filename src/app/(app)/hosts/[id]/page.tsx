@@ -23,7 +23,7 @@ async function HostDetailBody({
     notFound();
   }
 
-  const investigation = resolveDriftInvestigation(id, { findingSlug: finding });
+  const investigation = await resolveDriftInvestigation(id, { findingSlug: finding });
 
   return (
     <>

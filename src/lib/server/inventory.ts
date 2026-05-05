@@ -4,7 +4,7 @@ import { getHostDetail, hosts } from "@/data/mock/hosts";
 import { apiConfig } from "@/lib/api/config";
 import { mockLatency } from "@/lib/mockLatency";
 import { collectorConfigured, configuredHostCount } from "./collector";
-import { getDriftEvents, hasDriftData } from "./drift-engine";
+import { getDriftEvents, getDriftEventsAsync, hasDriftData, hasDriftDataAsync } from "./drift-engine";
 import { getBaseline, listBaselineHostIds } from "./baseline-store";
 import { getDriftVolumeChartFromHistory } from "./drift-history";
 import { evidenceBundleCatalogSize } from "./evidence-catalog";
@@ -75,7 +75,7 @@ async function buildRealHosts(): Promise<HostRecord[]> {
 
   return Promise.all(
     [...baselineIds].map(async (hostId) => {
-      const events = getDriftEvents(hostId);
+      const events = await getDriftEventsAsync(hostId);
       const high = events.filter((e) => e.severity === "high" && e.lifecycle === "new").length;
       const any = events.filter((e) => e.lifecycle === "new").length;
 
@@ -102,8 +102,8 @@ async function buildRealHosts(): Promise<HostRecord[]> {
 
 async function buildRealFleetSnapshot(): Promise<FleetSnapshot> {
   const baselineIds = await listBaselineHostIds();
-  const allEvents = getDriftEvents();
-  const hasData = hasDriftData();
+  const allEvents = await getDriftEventsAsync();
+  const hasData = allEvents.length > 0 || hasDriftData();
 
   const highRisk = allEvents.filter(
     (e) => e.severity === "high" && e.lifecycle === "new",
@@ -185,7 +185,7 @@ export async function loadHostDetail(id: string): Promise<HostDetail | null> {
   const baseline = await getBaseline(id);
   if (!baseline) return null;
 
-  const events = getDriftEvents(id);
+  const events = await getDriftEventsAsync(id);
   const newEvents = events.filter((e) => e.lifecycle === "new");
 
   // --- Ports ---

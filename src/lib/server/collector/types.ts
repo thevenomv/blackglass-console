@@ -46,6 +46,8 @@ export type HostSnapshot = {
   listeners: ListeningPort[];
   users: LocalUser[];
   sudoers: string[];
+  /** Filenames present in /etc/sudoers.d/ — new files indicate privilege backdoors. */
+  sudoersFiles: string[];
   cronEntries: CronEntry[];
   services: RunningService[];
   ssh: SSHConfig;

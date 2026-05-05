@@ -6,12 +6,12 @@ import { TableSkeletonRows } from "@/components/ui/Skeleton";
 import { apiConfig } from "@/lib/api/config";
 import { driftEvents as mockDriftEvents } from "@/data/mock/drift";
 import { collectorConfigured } from "@/lib/server/collector";
-import { getDriftEvents } from "@/lib/server/drift-engine";
+import { getDriftEventsAsync } from "@/lib/server/drift-engine";
 import { Suspense } from "react";
 
 async function DriftBody({ eventId }: { eventId?: string }) {
   const live = collectorConfigured();
-  const events = apiConfig.useMock && !live ? mockDriftEvents : getDriftEvents();
+  const events = apiConfig.useMock && !live ? mockDriftEvents : await getDriftEventsAsync();
   const selected = eventId ? events.find((e) => e.id === eventId) : undefined;
   return (
     <Suspense

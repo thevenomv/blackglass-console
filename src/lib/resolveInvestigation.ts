@@ -2,7 +2,7 @@ import { getDriftEvent } from "@/data/mock/drift";
 import type { DriftEvent } from "@/data/mock/types";
 import { apiConfig } from "@/lib/api/config";
 import { collectorConfigured } from "@/lib/server/collector";
-import { getDriftEvents } from "@/lib/server/drift-engine";
+import { getDriftEventsAsync } from "@/lib/server/drift-engine";
 
 const HOST_FINDING_TO_EVENT: Record<string, string> = {
   "host-07:tcp-4444": "d-001",
@@ -10,12 +10,12 @@ const HOST_FINDING_TO_EVENT: Record<string, string> = {
   "host-09:systemd": "d-003",
 };
 
-export function resolveDriftInvestigation(
+export async function resolveDriftInvestigation(
   hostId: string,
   opts: { findingSlug?: string; eventId?: string },
-): DriftEvent | undefined {
+): Promise<DriftEvent | undefined> {
   if (collectorConfigured()) {
-    const events = getDriftEvents(hostId);
+    const events = await getDriftEventsAsync(hostId);
     if (opts.eventId) {
       const found = events.find((e) => e.id === opts.eventId);
       if (found) return found;

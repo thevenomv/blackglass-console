@@ -6,7 +6,7 @@ import type { DriftEvent } from "@/data/mock/types";
 import { apiConfig } from "@/lib/api/config";
 import { driftEvents as mockDriftEvents } from "@/data/mock/drift";
 import { collectorConfigured } from "./collector";
-import { getDriftEvents } from "./drift-engine";
+import { getDriftEvents, getDriftEventsAsync } from "./drift-engine";
 
 export function resolveDriftEventsForDashboard(hostId?: string): DriftEvent[] {
   if (apiConfig.useMock && !collectorConfigured()) {
@@ -14,4 +14,12 @@ export function resolveDriftEventsForDashboard(hostId?: string): DriftEvent[] {
     return hostId ? all.filter((e) => e.hostId === hostId) : all;
   }
   return getDriftEvents(hostId);
+}
+
+export async function resolveDriftEventsForDashboardAsync(hostId?: string): Promise<DriftEvent[]> {
+  if (apiConfig.useMock && !collectorConfigured()) {
+    const all = mockDriftEvents;
+    return hostId ? all.filter((e) => e.hostId === hostId) : all;
+  }
+  return getDriftEventsAsync(hostId);
 }
