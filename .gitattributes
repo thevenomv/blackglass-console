@@ -1,0 +1,5 @@
+# Ensure shell scripts always have LF line endings (they run on Linux)
+*.sh text eol=lf
+
+# Default: normalize to LF in repo, checkout as-is on Windows
+* text=auto
