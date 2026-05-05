@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   const guard = planGuard("evidenceExport");
   if (!guard.ok) return guard.response;
 
-  const access = await requireSaasOrLegacyPermission("reports.view", ["viewer", "operator", "admin", "owner"]);
+  const access = await requireSaasOrLegacyPermission("reports.view", ["viewer", "operator", "admin"]);
   if (!access.ok) return access.response;
 
   if (access.mode === "legacy") {
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const guard = planGuard("evidenceExport");
   if (!guard.ok) return guard.response;
 
-  const access = await requireSaasOrLegacyPermission("reports.view", ["operator", "admin", "owner"]);
+  const access = await requireSaasOrLegacyPermission("reports.view", ["operator", "admin"]);
   if (!access.ok) return access.response;
 
   if (access.mode === "legacy") {

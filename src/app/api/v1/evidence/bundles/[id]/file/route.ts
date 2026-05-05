@@ -22,7 +22,7 @@ export async function GET(
   const guard = planGuard("evidenceExport");
   if (!guard.ok) return guard.response;
 
-  const access = await requireSaasOrLegacyPermission("reports.view", ["viewer", "operator", "admin", "owner"]);
+  const access = await requireSaasOrLegacyPermission("reports.view", ["viewer", "operator", "admin"]);
   if (!access.ok) return access.response;
 
   if (access.mode === "legacy") {
