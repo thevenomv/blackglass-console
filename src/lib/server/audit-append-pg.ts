@@ -19,7 +19,9 @@ export function appendAuditPostgres(entry: AuditEntry): void {
       const { Pool: PgPool } = await import("pg");
       const g = globalThis as G;
       if (!g[POOL_KEY]) {
-        g[POOL_KEY] = new PgPool({ connectionString: conn, max: 4 });
+        const cleanUrl = conn.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+        const sslOpts = conn.includes("sslmode=") ? { ssl: { rejectUnauthorized: false } } : {};
+        g[POOL_KEY] = new PgPool({ connectionString: cleanUrl, max: 4, ...sslOpts });
       }
       const pool = g[POOL_KEY]!;
       await pool.query(
