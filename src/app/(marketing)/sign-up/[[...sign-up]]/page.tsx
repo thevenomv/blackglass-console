@@ -1,8 +1,12 @@
 export const dynamic = "force-dynamic";
 
 import { SignUp } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
 
 export default function SignUpPage() {
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()) {
+    redirect("/login");
+  }
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-bg-base px-6">
       <p className="mb-6 font-mono text-xs font-medium uppercase tracking-[0.14em] text-fg-faint">

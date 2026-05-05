@@ -129,6 +129,9 @@ test.describe("BLACKGLASS console smoke", () => {
 
   test("command palette opens and closes with keyboard shortcut", async ({ page }) => {
     await page.goto("/dashboard");
+    await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await page.locator("body").click({ position: { x: 8, y: 8 } });
     await page.keyboard.press(`${paletteModifier}+k`);
     await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
     await page.keyboard.press("Escape");

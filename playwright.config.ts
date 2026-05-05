@@ -7,6 +7,10 @@ import { defineConfig, devices } from "@playwright/test";
  * Clerk: the web server clears Clerk publishable/secret keys unless `PLAYWRIGHT_CLERK=1` so local
  * `.env.local` cannot half-enable SaaS mode during default E2E (500s without DB). Live Clerk E2E
  * uses `PLAYWRIGHT_CLERK_LIVE` in `clerk-saas.spec.ts` against a real deployment / prepared env.
+ *
+ * Billing: unless `PLAYWRIGHT_FULL_COMMERCE=1`, `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are
+ * cleared so default E2E gets deterministic `billing_unavailable` from POST /api/checkout (see
+ * `wiring-revenue-identity.spec.ts`). Use full commerce only against staging with real test keys.
  */
 const e2ePort = process.env.PLAYWRIGHT_PORT ?? "3100";
 const e2eOrigin =
@@ -22,6 +26,10 @@ function e2eWebServerEnv(): NodeJS.ProcessEnv {
   if (process.env.PLAYWRIGHT_CLERK !== "1") {
     base.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "";
     base.CLERK_SECRET_KEY = "";
+  }
+  if (process.env.PLAYWRIGHT_FULL_COMMERCE !== "1") {
+    base.STRIPE_SECRET_KEY = "";
+    base.STRIPE_WEBHOOK_SECRET = "";
   }
   return base;
 }
