@@ -20,7 +20,11 @@ async function getPool(): Promise<Pool> {
   const g = globalThis as G;
   if (!g[POOL_KEY]) {
     const { Pool: PgPool } = await import("pg");
-    g[POOL_KEY] = new PgPool({ connectionString: conn, max: 4 });
+    // DO managed Postgres uses a self-signed CA — strip sslmode from URL and
+    // pass ssl options explicitly so pg v8 doesn't reject the cert chain.
+    const cleanUrl = conn.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+    const sslOpts = conn.includes("sslmode=") ? { ssl: { rejectUnauthorized: false } } : {};
+    g[POOL_KEY] = new PgPool({ connectionString: cleanUrl, max: 4, ...sslOpts });
   }
   return g[POOL_KEY]!;
 }

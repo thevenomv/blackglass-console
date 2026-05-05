@@ -32,8 +32,10 @@ export async function executeDriftScanJob(
   jobId: string,
   collectOpts: CollectScanOptions,
 ): Promise<void> {
+  console.log(`[scan-drift-job] START jobId=${jobId}`);
   try {
     const results = await collectAllSnapshots(collectOpts);
+    console.log(`[scan-drift-job] collected ${results.length} host(s)`);
 
     let totalDrift = 0;
     const failures: string[] = [];
@@ -41,6 +43,7 @@ export async function executeDriftScanJob(
     for (const result of results) {
       if (result.error || !result.snapshot) {
         failures.push(`${result.hostId}: ${result.error ?? "no snapshot"}`);
+        console.log(`[scan-drift-job] FAILED hostId=${result.hostId}: ${result.error}`);
         continue;
       }
 
@@ -51,10 +54,12 @@ export async function executeDriftScanJob(
         failures.push(
           `${current.hostId}: No baseline captured. Call POST /api/v1/baselines first.`,
         );
+        console.log(`[scan-drift-job] NO BASELINE hostId=${current.hostId}`);
         continue;
       }
 
       const events = computeDrift(baseline, current);
+      console.log(`[scan-drift-job] hostId=${current.hostId} drift=${events.length} events: ${events.map(e => e.title).join(", ") || "(none)"}`);
       storeDriftEvents(current.hostId, events);
       totalDrift += events.length;
 
