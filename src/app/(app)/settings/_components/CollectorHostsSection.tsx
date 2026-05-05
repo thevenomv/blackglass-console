@@ -135,40 +135,37 @@ export function CollectorHostsSection() {
   return (
     <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">
       <div className="flex items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-semibold text-fg-primary">Collector hosts</h2>
-          <p className="mt-0.5 text-sm text-fg-muted">
-            Add each server you want BLACKGLASS to monitor. BLACKGLASS connects over SSH — the
-            same secure protocol system administrators use to log into servers remotely. To make
-            that work you need two things: the server&apos;s IP address (add it below) and an SSH
-            key pair used as the login credential.
-          </p>
-          <div className="mt-2 space-y-2 rounded-card border border-border-subtle bg-bg-elevated p-3 text-xs text-fg-muted">
-            <p className="font-medium text-fg-primary text-sm">Setting up an SSH key</p>
-            <p>
-              <span className="font-medium text-fg-primary">Need a hand?</span>{" "}
-              Just email{" "}
-              <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20BLACKGLASS" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a>{" "}
-              with your server&apos;s IP address. We&apos;ll sort the key pair for you — no
-              command line required.
-            </p>
-            <p>
-              <span className="font-medium text-fg-primary">Prefer to do it yourself?</span>{" "}
-              Run{" "}
-              <span className="font-mono bg-bg-base px-1 rounded">ssh-keygen -t ed25519 -C "blackglass-collector" -f blackglass_key -N ""</span>{" "}
-              on any machine. Add the contents of <span className="font-mono">blackglass_key.pub</span> to{" "}
-              <span className="font-mono">~blackglass/.ssh/authorized_keys</span> on your server,
-              then send <span className="font-mono">blackglass_key</span> (the private key) to{" "}
-              <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20private%20key%20for%20BLACKGLASS" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a>{" "}
-              to be added to your deployment.
-            </p>
-          </div>
-        </div>
+        <h2 className="text-sm font-semibold text-fg-primary">Collector hosts</h2>
         {!addingHost && (
-          <Button variant="secondary" type="button" onClick={() => setAddingHost(true)}>
+          <Button variant="secondary" type="button" onClick={() => setAddingHost(true)} className="shrink-0 whitespace-nowrap">
             + Add host
           </Button>
         )}
+      </div>
+      <div>
+        <p className="text-sm text-fg-muted">
+          Add each server you want BLACKGLASS to monitor via SSH. You&apos;ll need the
+          server&apos;s IP address and an SSH key pair as the login credential.
+        </p>
+        <div className="mt-2 space-y-2 rounded-card border border-border-subtle bg-bg-elevated p-3 text-xs text-fg-muted">
+          <p className="font-medium text-fg-primary text-sm">SSH key setup</p>
+          <p>
+            <span className="font-medium text-fg-primary">Do it yourself:</span>{" "}
+            Run{" "}
+            <span className="font-mono bg-bg-base px-1 rounded">ssh-keygen -t ed25519 -C "blackglass-collector" -f blackglass_key -N ""</span>{" "}
+            on any machine. Add <span className="font-mono">blackglass_key.pub</span> to{" "}
+            <span className="font-mono">~blackglass/.ssh/authorized_keys</span> on your server,
+            then send <span className="font-mono">blackglass_key</span> (the private key) to{" "}
+            <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20private%20key%20for%20BLACKGLASS" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a>{" "}
+            to be added to your deployment.
+          </p>
+          <p>
+            <span className="font-medium text-fg-primary">Need help?</span>{" "}
+            Email{" "}
+            <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20BLACKGLASS" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a>{" "}
+            with your server&apos;s IP — we&apos;ll handle the key pair for you.
+          </p>
+        </div>
       </div>
 
       {addingHost && (
