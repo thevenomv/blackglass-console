@@ -33,7 +33,7 @@ export function CaptureBaselineButton({
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: "{}",
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(38_000),
       });
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;

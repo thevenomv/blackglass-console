@@ -74,7 +74,9 @@ export async function POST(request: Request) {
   }
 
   // Hard cap: respond before any upstream proxy (e.g. Cloudflare) kills the connection.
-  const ROUTE_TIMEOUT_MS = 55_000;
+  // 30s keeps total response time (auth overhead ~2-5s + collection ~25s) well under CF's
+  // minimum plan timeout of 60s.  Previously 55s was too close to CF's threshold.
+  const ROUTE_TIMEOUT_MS = 30_000;
   const outcomeRaw = await Promise.race([
     captureBaselinesFromFleet(),
     new Promise<{ kind: "timeout" }>((resolve) =>

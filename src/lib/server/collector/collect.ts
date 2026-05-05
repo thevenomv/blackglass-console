@@ -24,10 +24,12 @@ function scanContext(opts?: CollectScanOptions): ScanContext {
   };
 }
 
+// Per-host collection budget: TCP probe (4s) + SSH handshake (10s) + exec commands (8s) = 22s worst-case.
+// Default of 25s gives 3s headroom. Can be overridden via COLLECTION_TIMEOUT_MS env var.
 const COLLECTION_TIMEOUT_MS = (() => {
-  const n = parseInt(process.env.COLLECTION_TIMEOUT_MS ?? "20000", 10);
+  const n = parseInt(process.env.COLLECTION_TIMEOUT_MS ?? "25000", 10);
   // Clamp to [5 s, 120 s] to prevent hangs or false quick timeouts.
-  return Number.isFinite(n) && n > 0 ? Math.max(5_000, Math.min(120_000, n)) : 20_000;
+  return Number.isFinite(n) && n > 0 ? Math.max(5_000, Math.min(120_000, n)) : 25_000;
 })();
 
 async function collectAllSnapshotsWithAuth(

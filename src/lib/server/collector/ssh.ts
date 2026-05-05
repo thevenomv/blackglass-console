@@ -45,7 +45,7 @@ export function buildSshConfig(
     port: Number.isFinite(port) ? port : DEFAULT_SSH_PORT,
     username: user,
     ...sshAuthFragment(auth),
-    readyTimeout: 15_000,
+    readyTimeout: 10_000,
     tryKeyboard: false,
   };
 }
@@ -68,7 +68,7 @@ export function allSshConfigs(
   return cfgs;
 }
 
-const EXEC_TIMEOUT_MS = 12_000;
+const EXEC_TIMEOUT_MS = 8_000;
 
 /** Run a single remote command and resolve with its stdout. Rejects on error or after EXEC_TIMEOUT_MS. */
 function exec(conn: Client, command: string): Promise<string> {
@@ -99,14 +99,28 @@ function exec(conn: Client, command: string): Promise<string> {
   });
 }
 
-/** Probe TCP connectivity before SSH to give clearer error messages. */
-function probeTcp(host: string, port: number, timeoutMs = 5000): Promise<void> {
+/** Probe TCP connectivity before SSH to give clearer error messages.
+ *  `signal` lets the caller abort mid-connect (e.g. when the collection AbortController fires). */
+function probeTcp(host: string, port: number, timeoutMs = 4_000, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new Error("TCP probe aborted")); return; }
+
     const socket = net.createConnection({ host, port });
+    let settled = false;
+    const settle = (fn: () => void) => { if (settled) return; settled = true; fn(); };
+
+    // Hard deadline — fires whether the socket emits timeout or not.
+    const timer = setTimeout(() => {
+      settle(() => { socket.destroy(); reject(new Error(`TCP connect to ${host}:${port} timed out`)); });
+    }, timeoutMs);
+
+    const onAbort = () => settle(() => { clearTimeout(timer); socket.destroy(); reject(new Error("TCP probe aborted")); });
+    signal?.addEventListener("abort", onAbort, { once: true });
+
     socket.setTimeout(timeoutMs);
-    socket.on("connect", () => { socket.destroy(); resolve(); });
-    socket.on("timeout", () => { socket.destroy(); reject(new Error(`TCP connect to ${host}:${port} timed out`)); });
-    socket.on("error", (e) => reject(new Error(`TCP connect to ${host}:${port} failed: ${e.message}`)));
+    socket.on("connect", () => settle(() => { clearTimeout(timer); signal?.removeEventListener("abort", onAbort); socket.destroy(); resolve(); }));
+    socket.on("timeout", () => settle(() => { clearTimeout(timer); signal?.removeEventListener("abort", onAbort); socket.destroy(); reject(new Error(`TCP connect to ${host}:${port} timed out`)); }));
+    socket.on("error", (e) => settle(() => { clearTimeout(timer); signal?.removeEventListener("abort", onAbort); reject(new Error(`TCP connect to ${host}:${port} failed: ${e.message}`)); }));
   });
 }
 
@@ -120,7 +134,8 @@ export async function runCollection(
   if (signal?.aborted) throw new Error("Collection aborted before TCP probe");
 
   // First verify TCP connectivity to give a clear error if networking is blocked.
-  await probeTcp(cfg.host as string, (cfg.port as number) ?? 22);
+  // Pass the AbortSignal so a collection-level abort cancels the probe immediately.
+  await probeTcp(cfg.host as string, (cfg.port as number) ?? 22, 4_000, signal);
 
   if (signal?.aborted) throw new Error("Collection aborted after TCP probe");
 
