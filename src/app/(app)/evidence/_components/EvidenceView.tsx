@@ -1,18 +1,16 @@
-"use client";
+﻿"use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 
-interface EvidenceBundle {
+export interface BundleListItem {
   id: string;
   title: string;
   scope: string;
-  createdAt: string;
   sha256: string;
+  generatedBy: string | null;
+  createdAt: string;
 }
-
-const BUNDLES: EvidenceBundle[] = [];
 
 function CopySha256({ sha256 }: { sha256: string }) {
   const { toast } = useToast();
@@ -57,19 +55,40 @@ function CopySha256({ sha256 }: { sha256: string }) {
   );
 }
 
-export function EvidenceView() {
+export function EvidenceView({ refreshSignal }: { refreshSignal?: number }) {
+  const [bundles, setBundles] = useState<BundleListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch("/api/v1/evidence/bundles")
+      .then((r) => r.json())
+      .then((data: { bundles?: BundleListItem[] }) => {
+        if (!cancelled) setBundles(data.bundles ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Unable to load bundles.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [refreshSignal]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return BUNDLES;
-    return BUNDLES.filter(
+    if (!q) return bundles;
+    return bundles.filter(
       (b) =>
         b.title.toLowerCase().includes(q) ||
         b.scope.toLowerCase().includes(q) ||
         b.sha256.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [query, bundles]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -97,7 +116,7 @@ export function EvidenceView() {
         </div>
         {query ? (
           <span className="text-xs text-fg-faint">
-            {filtered.length} of {BUNDLES.length}
+            {filtered.length} of {bundles.length}
           </span>
         ) : null}
       </div>
@@ -114,12 +133,24 @@ export function EvidenceView() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle bg-bg-panel">
-            {filtered.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-fg-faint">
+                  Loading…
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-fg-faint">
+                  {error}
+                </td>
+              </tr>
+            ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-fg-faint">
                   {query.trim()
                     ? <>No bundles match &ldquo;{query}&rdquo;</>
-                    : "No evidence bundles yet — export from the modal above when available."}
+                    : "No evidence bundles yet — generate one from the button above."}
                 </td>
               </tr>
             ) : (
@@ -129,31 +160,20 @@ export function EvidenceView() {
                   className={`hover:bg-bg-elevated ${i % 2 === 1 ? "bg-bg-elevated/35" : ""}`}
                 >
                   <td className="px-4 py-3 text-fg-primary">{b.title}</td>
-                  <td className="px-4 py-3 text-fg-muted">{b.scope}</td>
-                  <td className="px-4 py-3 text-fg-muted">{b.createdAt}</td>
+                  <td className="px-4 py-3 text-fg-muted">{b.scope === "all" ? "All hosts" : b.scope}</td>
+                  <td className="px-4 py-3 text-fg-muted">{new Date(b.createdAt).toLocaleString()}</td>
                   <td className="px-4 py-3">
-                    <span className="font-mono text-xs text-fg-faint">{b.sha256}…</span>
+                    <span className="font-mono text-xs text-fg-faint">{b.sha256.slice(0, 16)}…</span>
                     <CopySha256 sha256={b.sha256} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-3">
-                      <Link
-                        href={`/api/v1/evidence/bundles/${b.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-semibold text-accent-blue hover:underline"
-                      >
-                        Meta
-                      </Link>
-                      <Link
-                        href={`/api/v1/evidence/bundles/${b.id}/file`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-semibold text-accent-blue hover:underline"
-                      >
-                        Artifact
-                      </Link>
-                    </div>
+                    <a
+                      href={`/api/v1/evidence/bundles/${b.id}/file`}
+                      download
+                      className="text-xs font-semibold text-accent-blue hover:underline"
+                    >
+                      Download
+                    </a>
                   </td>
                 </tr>
               ))

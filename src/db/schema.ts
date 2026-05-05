@@ -132,7 +132,22 @@ export const saasCollectorHosts = pgTable(
   }),
 );
 
+/** Per-tenant evidence bundles — tamper-evident audit packages for compliance. */
+export const saasEvidenceBundles = pgTable("saas_evidence_bundles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => saasTenants.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  scope: text("scope").notNull().default("all"), // "all" | hostId
+  sha256: text("sha256").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  generatedBy: text("generated_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type SaasTenant = typeof saasTenants.$inferSelect;
 export type SaasSubscription = typeof saasSubscriptions.$inferSelect;
 export type SaasTenantMembership = typeof saasTenantMemberships.$inferSelect;
 export type SaasCollectorHost = typeof saasCollectorHosts.$inferSelect;
+export type SaasEvidenceBundle = typeof saasEvidenceBundles.$inferSelect;

@@ -59,8 +59,14 @@ jobs:
         run: sleep 15
 
       # --- Migration ------------------------------------------------------------
-      - name: Apply migrations
+      - name: Apply migration 0001 (collector hosts)
         run: node scripts/_apply-migration-0001.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_NO_WARNINGS: "1"
+
+      - name: Apply migration 0002 (evidence bundles)
+        run: node scripts/_apply-migration-0002.mjs
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NODE_NO_WARNINGS: "1"
