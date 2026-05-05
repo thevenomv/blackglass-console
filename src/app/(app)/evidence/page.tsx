@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+﻿export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { EvidenceBody } from "./_components/EvidenceBody";
@@ -27,25 +27,6 @@ export default function EvidencePage() {
     <AppShell>
       <Suspense fallback={<EvidenceFallback />}>
         <EvidencePageContent />
-      </Suspense>
-    </AppShell>
-  );
-}
-
-function EvidenceFallback() {
-  return (
-    <div className="space-y-4 px-6 py-6">
-      <Skeleton className="h-10 w-72" />
-      <Skeleton className="h-56 w-full" />
-    </div>
-  );
-}
-
-export default function EvidencePage() {
-  return (
-    <AppShell>
-      <Suspense fallback={<EvidenceFallback />}>
-        <EvidenceBody />
       </Suspense>
     </AppShell>
   );
