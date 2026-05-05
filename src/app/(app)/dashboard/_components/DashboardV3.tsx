@@ -176,8 +176,7 @@ export function DashboardV3({
           <p className="font-medium text-fg-primary">Baselines are in-memory only</p>
           <p className="mt-1">
             Set <span className="font-mono text-fg-primary">BASELINE_STORE_PATH</span> on a mounted
-            volume so baselines survive process restarts (see operator guide / DO App Platform
-            spec).
+            volume so baselines survive process restarts (see operator guide).
           </p>
         </div>
       ) : null}

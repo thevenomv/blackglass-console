@@ -7,7 +7,6 @@ import { TrialSignupLink } from "@/components/demo/DemoGateButton";
 
 const LINKS = [
   { href: "/demo", label: "Overview" },
-  { href: "/demo/showcase", label: "Showcase" },
   { href: "/demo/hosts", label: "Hosts" },
   { href: "/demo/drift", label: "Findings" },
   { href: "/demo/timeline", label: "Drift timeline" },

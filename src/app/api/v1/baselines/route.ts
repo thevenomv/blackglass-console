@@ -73,7 +73,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const outcome = await captureBaselinesFromFleet();
+  // Hard cap: respond before any upstream proxy (e.g. Cloudflare) kills the connection.
+  const ROUTE_TIMEOUT_MS = 55_000;
+  const outcomeRaw = await Promise.race([
+    captureBaselinesFromFleet(),
+    new Promise<{ kind: "timeout" }>((resolve) =>
+      setTimeout(() => resolve({ kind: "timeout" }), ROUTE_TIMEOUT_MS),
+    ),
+  ]);
+  if (outcomeRaw.kind === "timeout") {
+    return jsonError(504, "capture_timeout", "Baseline capture did not complete in time. Check that collector hosts are reachable via SSH and retry.", requestId);
+  }
+  const outcome = outcomeRaw;
   switch (outcome.kind) {
     case "collection_failed":
       if (saasCtx) {

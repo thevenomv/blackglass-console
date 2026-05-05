@@ -30,7 +30,6 @@ export function FetchFailed({
         <ul className="mt-4 max-w-xl list-disc space-y-1 pl-5 text-sm text-fg-muted">
           <li>Use the <span className="font-mono">PLAYWRIGHT_LIVE=1</span> profile for collector-backed SSR checks.</li>
           <li>Only set NEXT_PUBLIC_API_URL if calling an external API; omit it for same-origin (default).</li>
-          <li>Check DigitalOcean build logs if this appeared right after deploy.</li>
         </ul>
       )}
     </div>

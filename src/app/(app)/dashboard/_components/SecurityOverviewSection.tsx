@@ -263,8 +263,8 @@ export function SecurityOverviewSection() {
             </DomainCard>
 
             <DomainCard icon={icons.shield} title="Platform hardening">
-              Production runs on DigitalOcean App Platform with network segmentation and SSH-key
-              management access. All secrets are managed via Doppler — none are committed to source
+              The service runs on hardened cloud infrastructure with network segmentation and SSH-key
+              management access. All secrets are managed via a secrets manager — none are committed to source
               control. Dependencies are pinned and reviewed on a regular vulnerability cadence.
               Tenant data is scoped by workspace at the application layer.
             </DomainCard>

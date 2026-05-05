@@ -35,9 +35,9 @@ export function OperatorHealthReadout() {
           <dt className="text-fg-faint">Baseline persistence</dt>
           <dd className="text-fg-primary">
             {b.adapter === "spaces" ? (
-              "DO Spaces — persistent"
+              "Object storage — persistent"
             ) : !b.configured ? (
-              "In-memory only (set DO_SPACES_KEY… for Spaces, or BASELINE_STORE_PATH for local disk)"
+              "In-memory only (set SPACES_KEY… for object storage, or BASELINE_STORE_PATH for local disk)"
             ) : b.writable ? (
               <>
                 Filesystem — <span className="font-mono text-sm">{b.path}</span>

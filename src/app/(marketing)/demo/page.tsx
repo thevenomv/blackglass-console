@@ -29,12 +29,6 @@ export default function DemoOverviewPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
-            href="/demo/showcase"
-            className="rounded-card border border-accent-blue/40 bg-accent-blue/10 px-3 py-2 text-sm font-medium text-accent-blue hover:bg-accent-blue/20"
-          >
-            Live showcase scripts
-          </Link>
           <DemoGateButton actionLabel="Run fleet scan">Run scan</DemoGateButton>
           <DemoGateButton actionLabel="Capture baseline">Capture baseline</DemoGateButton>
           <TrialSignupLink className="rounded-card border border-accent-blue/50 px-3 py-2 text-sm font-medium text-accent-blue hover:bg-accent-blue/10">

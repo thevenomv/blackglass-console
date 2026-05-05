@@ -37,7 +37,7 @@ const FEATURES = [
   {
     label: "Persistent state",
     detail:
-      "Baselines and drift history stored to DigitalOcean Spaces — survive process restarts and redeployments.",
+      "Baselines and drift history stored to persistent object storage — survive process restarts and redeployments.",
   },
 ] as const;
 
@@ -79,8 +79,8 @@ export default function WelcomePage() {
       cta: { href: "/settings", text: "View runtime health" },
       detail:
         baseline.configured && baseline.writable !== false
-          ? "DO Spaces adapter active — baselines survive restarts."
-          : "Set DO_SPACES_* env vars or BASELINE_STORE_PATH for persistence.",
+          ? "Object storage adapter active — baselines survive restarts."
+          : "Set SPACES_* env vars or BASELINE_STORE_PATH for persistence.",
     },
     {
       label: "First baseline captured",
