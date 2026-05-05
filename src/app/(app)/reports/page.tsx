@@ -7,15 +7,24 @@ import { reports as mockReports } from "@/data/mock/reports";
 import { apiConfig } from "@/lib/api/config";
 import { mockLatency } from "@/lib/mockLatency";
 import { collectorConfigured } from "@/lib/server/collector";
+import { listReports } from "@/lib/server/report-store";
 import type { ReportRecord } from "@/data/mock/types";
 import { Suspense } from "react";
 
 async function ReportsBody() {
-  let reports: ReportRecord[] = [];
   if (apiConfig.useMock && !collectorConfigured()) {
     await mockLatency(220);
-    reports = mockReports;
+    return <ReportsView reports={mockReports} />;
   }
+  const items = await listReports();
+  const reports: ReportRecord[] = items.map((r) => ({
+    id: r.id,
+    title: r.title,
+    scope: r.scope,
+    generatedAt: r.generatedAt,
+    status: r.status,
+    format: r.format,
+  }));
   return <ReportsView reports={reports} />;
 }
 

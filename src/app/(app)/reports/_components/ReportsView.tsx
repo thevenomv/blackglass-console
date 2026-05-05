@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReportRecord } from "@/data/mock/types";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -33,7 +33,7 @@ function reportAgeWarning(generatedAt: string): boolean {
   }
 }
 
-function NewReportModal({ onClose }: { onClose: () => void }) {
+function NewReportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { toast } = useToast();
   const trapRef = useFocusTrap(true, onClose);
   const [scope, setScope] = useState<"fleet" | "tags" | "host">("fleet");
@@ -43,12 +43,14 @@ function NewReportModal({ onClose }: { onClose: () => void }) {
   const submit = async () => {
     setGenerating(true);
     try {
-      await fetch("/api/v1/reports", {
+      const res = await fetch("/api/v1/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scope, format }),
       });
+      if (!res.ok) throw new Error(await res.text());
       toast("Report generation queued — check back shortly.", "success");
+      onSuccess();
       onClose();
     } catch {
       toast("Failed to queue report — try again.", "danger");
@@ -128,11 +130,21 @@ function NewReportModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function ReportsView({ reports }: { reports: ReportRecord[] }) {
+export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
   const { toast } = useToast();
+  const router = useRouter();
+  const [reports, setReports] = useState<ReportRecord[]>(initial);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [newReportOpen, setNewReportOpen] = useState(false);
   const [retrying, setRetrying] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    fetch("/api/v1/reports")
+      .then((r) => r.json())
+      .then((data: { items: ReportRecord[] }) => setReports(data.items ?? []))
+      .catch(() => {/* silently ignore — use stale data */});
+    router.refresh();
+  }, [router]);
 
   const filtered = useMemo(() => {
     if (filter === "all") return reports;
@@ -235,7 +247,10 @@ export function ReportsView({ reports }: { reports: ReportRecord[] }) {
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ reportId: r.id }),
                           })
-                            .then(() => toast(`Report "${r.title}" queued for regeneration.`, "success"))
+                            .then(() => {
+                              toast(`Report "${r.title}" queued for regeneration.`, "success");
+                              refresh();
+                            })
                             .catch(() => toast("Retry failed — try again.", "danger"))
                             .finally(() => setRetrying(null));
                         }}
@@ -251,15 +266,7 @@ export function ReportsView({ reports }: { reports: ReportRecord[] }) {
         </div>
       )}
 
-      <p className="text-xs text-fg-faint">
-        Preview narratives reference{" "}
-        <Link href="/dashboard" className="text-accent-blue hover:underline">
-          fleet posture
-        </Link>{" "}
-        — swap mock rows for <span className="font-mono">GET /reports</span> when wiring APIs.
-      </p>
-
-      {newReportOpen ? <NewReportModal onClose={() => setNewReportOpen(false)} /> : null}
+      {newReportOpen ? <NewReportModal onClose={() => setNewReportOpen(false)} onSuccess={refresh} /> : null}
     </div>
   );
 }
