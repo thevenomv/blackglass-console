@@ -42,7 +42,25 @@ export function CollectorHostsSection() {
     }
   }, []);
 
-  useEffect(() => { void reload(); }, [reload]);
+  const reloadRef = useRef(reload);
+  useEffect(() => { reloadRef.current = reload; });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/v1/collector/hosts");
+        if (!res.ok) throw new Error(String(res.status));
+        const data = (await res.json()) as { hosts: CollectorHost[] };
+        if (!cancelled) setHosts(data.hosts ?? []);
+      } catch {
+        if (!cancelled) toastRef.current("Could not load collector hosts.", "danger");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
