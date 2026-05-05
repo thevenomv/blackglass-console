@@ -131,6 +131,6 @@ export default async function middleware(request: NextRequest, event: NextFetchE
 export const config = {
   matcher: [
     // Exclude static assets and Next internals; include `/api` so correlation ids propagate.
-    "/((?!monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|webmanifest|sh|txt|xml|ico|woff2?|ttf|eot)$).*)",
   ],
 };
