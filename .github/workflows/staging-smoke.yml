@@ -21,9 +21,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      secrets.STAGING_URL != ''
+    # Always run on workflow_dispatch. For scheduled runs, the "Require STAGING_URL" step
+    # exits 0 with a notice when the secret is absent (secrets cannot be tested in job-level if).
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
