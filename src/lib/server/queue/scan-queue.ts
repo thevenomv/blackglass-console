@@ -6,8 +6,8 @@
  *
  * Worker entry: src/worker/scan-worker.ts
  *
- * Queue name: "blackglass:scans"
- * Job data  : ScanJobPayload
+ * Queue names are exported from QUEUE_NAMES so that the worker, routes, and
+ * observability code share a single source of truth without string literals.
  *
  * Next steps (Stage 2):
  *  - Set REDIS_QUEUE_URL to your managed Redis URL.
@@ -17,7 +17,18 @@
 
 import type { CollectScanOptions } from "@/lib/server/collector/types";
 
-export const QUEUE_NAME = "blackglass-scans" as const;
+/** Canonical queue names. Import from here — never hard-code strings. */
+export const QUEUE_NAMES = {
+  /** SSH collection + drift computation (heavy, CPU/network intensive). */
+  SCANS: "blackglass-scans",
+  /** PDF/Markdown report generation (lighter, Spaces I/O bound). */
+  REPORTS: "blackglass-reports",
+  /** Evidence bundle assembly (lighter, Spaces I/O bound). */
+  EVIDENCE: "blackglass-evidence",
+} as const;
+
+/** @deprecated Use QUEUE_NAMES.SCANS — kept for temporary backwards compat */
+export const QUEUE_NAME = QUEUE_NAMES.SCANS;
 
 export type ScanJobPayload = {
   jobId: string;

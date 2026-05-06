@@ -76,9 +76,11 @@ export function allSshConfigs(
 }
 
 const EXEC_TIMEOUT_MS = 8_000;
+/** Timeout for the single bundled collection script (all checks sequential in one channel). */
+const BUNDLE_EXEC_TIMEOUT_MS = 60_000;
 
-/** Run a single remote command and resolve with its stdout. Rejects on error or after EXEC_TIMEOUT_MS. */
-function exec(conn: Client, command: string): Promise<string> {
+/** Run a single remote command and resolve with its stdout. Rejects on error or after timeoutMs. */
+function exec(conn: Client, command: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> {
   return new Promise((resolve, reject) => {
     conn.exec(command, (err, stream) => {
       if (err) {
@@ -96,14 +98,85 @@ function exec(conn: Client, command: string): Promise<string> {
       const timer = setTimeout(() => {
         settle(() => {
           stream.close();
-          reject(new Error(`exec timed out (${EXEC_TIMEOUT_MS / 1000}s): ${command.slice(0, 60)}`));
+          reject(new Error(`exec timed out (${timeoutMs / 1000}s): ${command.slice(0, 60)}`));
         });
-      }, EXEC_TIMEOUT_MS);
+      }, timeoutMs);
       stream.on("close", () => settle(() => resolve(out)));
       stream.stdout.on("data", (d: Buffer) => { out += d.toString(); });
       stream.stderr.on("data", () => {});
     });
   });
+}
+
+/**
+ * Section separator prefix embedded before each collection check.
+ * Chosen to be extremely unlikely to appear in real command output.
+ */
+const BUNDLE_SEP = "=BGS:" as const;
+
+/**
+ * Single bundled shell script that runs all 14 collection checks in one SSH channel.
+ *
+ * Benefits vs 14 parallel exec() calls:
+ *  - Uses 1 SSH channel instead of 14, staying well under sshd MaxSessions (default: 10).
+ *  - ~90% reduction in SSH multiplexing overhead on large fleets.
+ *  - `timeout` guards on slow commands (systemctl, find) prevent one stalled check
+ *    from consuming the entire COLLECTION_TIMEOUT_MS budget.
+ *
+ * Output format: each section is preceded by a `=BGS:<key>` line; parseBundleOutput()
+ * splits it into named strings that are fed directly into the existing parser functions.
+ */
+const BUNDLE_CMD = `
+echo '=BGS:ss'
+ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null
+echo '=BGS:passwd'
+awk -F: '$3>=1000 && $3<65534 {print $1 ":" $3}' /etc/passwd 2>/dev/null
+echo '=BGS:sudo'
+getent group sudo 2>/dev/null || getent group wheel 2>/dev/null
+echo '=BGS:sudofiles'
+sudo ls /etc/sudoers.d/ 2>/dev/null
+echo '=BGS:cron'
+ls /etc/cron.d/ 2>/dev/null
+echo '=BGS:svc'
+timeout 10 systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null
+echo '=BGS:sshd'
+sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication|permitemptypasswords|x11forwarding|allowtcpforwarding|allowagentforwarding|maxauthtries|port )'
+echo '=BGS:ufw'
+sudo ufw status verbose 2>/dev/null
+echo '=BGS:authkeys'
+awk -F: '$7~/bash|sh$/{print $1 ":" $6}' /etc/passwd | while IFS=: read u h; do f="$h/.ssh/authorized_keys"; [ -f "$f" ] && awk -v u="$u" '/^[^#]/{print u ":" $0}' "$f"; done 2>/dev/null
+echo '=BGS:filehashes'
+md5sum /etc/passwd /etc/shadow /etc/sudoers /etc/ssh/sshd_config /etc/hosts 2>/dev/null
+echo '=BGS:hosts'
+cat /etc/hosts 2>/dev/null
+echo '=BGS:lsmod'
+lsmod 2>/dev/null | awk 'NR>1{print $1}' | sort
+echo '=BGS:suid'
+timeout 20 find /usr /bin /sbin /tmp /var/tmp -perm /6000 -type f 2>/dev/null | sort
+echo '=BGS:usercron'
+ls /var/spool/cron/crontabs/ 2>/dev/null
+`.trim();
+
+/**
+ * Parse the concatenated output of BUNDLE_CMD into a map of section-key → content.
+ * Each section starts with a `=BGS:<key>` marker line on its own line.
+ */
+function parseBundleOutput(raw: string): Record<string, string> {
+  const sections: Record<string, string> = {};
+  const lines = raw.split("\n");
+  let key: string | null = null;
+  const buf: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith(BUNDLE_SEP)) {
+      if (key !== null) sections[key] = buf.join("\n").trimEnd();
+      key = line.slice(BUNDLE_SEP.length).trimEnd();
+      buf.length = 0;
+    } else if (key !== null) {
+      buf.push(line);
+    }
+  }
+  if (key !== null) sections[key] = buf.join("\n").trimEnd();
+  return sections;
 }
 
 /** Probe TCP connectivity before SSH to give clearer error messages.
@@ -186,43 +259,11 @@ export async function runCollection(
 
     conn.on("ready", async () => {
       try {
-        const [
-          ssOut,
-          passwdOut,
-          sudoOut,
-          sudoFilesOut,
-          cronOut,
-          svcOut,
-          sshdOut,
-          ufwOut,
-          authKeysOut,
-          fileHashesOut,
-          hostsOut,
-          lsmodOut,
-          suidOut,
-          userCronOut,
-        ] = await Promise.all([
-          exec(conn, "ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null").catch(() => ""),
-          exec(conn, "awk -F: '$3>=1000 && $3<65534 {print $1 \":\" $3}' /etc/passwd 2>/dev/null").catch(() => ""),
-          exec(conn, "getent group sudo 2>/dev/null || getent group wheel 2>/dev/null").catch(() => ""),
-          exec(conn, "sudo ls /etc/sudoers.d/ 2>/dev/null").catch(() => ""),
-          exec(conn, "ls /etc/cron.d/ 2>/dev/null").catch(() => ""),
-          exec(conn, "systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null").catch(() => ""),
-          exec(conn, "sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication|permitemptypasswords|x11forwarding|allowtcpforwarding|allowagentforwarding|maxauthtries|port )'").catch(() => ""),
-          exec(conn, "sudo ufw status verbose 2>/dev/null").catch(() => ""),
-          // Authorized keys for all login-shell users (including root)
-          exec(conn, "awk -F: '$7~/bash|sh$/{print $1 \":\" $6}' /etc/passwd | while IFS=: read u h; do f=\"$h/.ssh/authorized_keys\"; [ -f \"$f\" ] && awk -v u=\"$u\" '/^[^#]/{print u \":\" $0}' \"$f\"; done 2>/dev/null").catch(() => ""),
-          // MD5 hashes of critical files to detect tampering
-          exec(conn, "md5sum /etc/passwd /etc/shadow /etc/sudoers /etc/ssh/sshd_config /etc/hosts 2>/dev/null").catch(() => ""),
-          // /etc/hosts entries (non-comment, non-blank)
-          exec(conn, "cat /etc/hosts 2>/dev/null").catch(() => ""),
-          // Loaded kernel modules (first column only)
-          exec(conn, "lsmod 2>/dev/null | awk 'NR>1{print $1}' | sort").catch(() => ""),
-          // SUID/SGID binaries in common locations
-          exec(conn, "find /usr /bin /sbin /tmp /var/tmp -perm /6000 -type f 2>/dev/null | sort").catch(() => ""),
-          // Users with crontabs in /var/spool/cron/crontabs/
-          exec(conn, "ls /var/spool/cron/crontabs/ 2>/dev/null").catch(() => ""),
-        ]);
+        // All 14 checks run sequentially in one SSH channel via the bundled script.
+        // This avoids the ssh2 MaxSessions limit (default: 10) that the original
+        // 14-parallel-channel approach would breach on stock sshd configurations.
+        const combined = await exec(conn, BUNDLE_CMD, BUNDLE_EXEC_TIMEOUT_MS);
+        const s = parseBundleOutput(combined);
 
         settle(() => {
           cleanup();
@@ -231,20 +272,20 @@ export async function runCollection(
             hostId: cfg.hostId,
             hostname: cfg.displayName,
             collectedAt: new Date().toISOString(),
-            listeners: parseListeners(ssOut),
-            users: parseUsers(passwdOut),
-            sudoers: parseSudoers(sudoOut),
-            sudoersFiles: parseSudoersFiles(sudoFilesOut),
-            cronEntries: parseCron(cronOut),
-            userCrontabs: parseUserCrontabs(userCronOut),
-            services: parseServices(svcOut),
-            ssh: parseSshConfig(sshdOut),
-            firewall: parseFirewall(ufwOut),
-            authorizedKeys: parseAuthorizedKeys(authKeysOut),
-            fileHashes: parseFileHashes(fileHashesOut),
-            hostsEntries: parseHostsEntries(hostsOut),
-            kernelModules: parseKernelModules(lsmodOut),
-            suidBinaries: parseSuidBinaries(suidOut),
+            listeners: parseListeners(s["ss"] ?? ""),
+            users: parseUsers(s["passwd"] ?? ""),
+            sudoers: parseSudoers(s["sudo"] ?? ""),
+            sudoersFiles: parseSudoersFiles(s["sudofiles"] ?? ""),
+            cronEntries: parseCron(s["cron"] ?? ""),
+            userCrontabs: parseUserCrontabs(s["usercron"] ?? ""),
+            services: parseServices(s["svc"] ?? ""),
+            ssh: parseSshConfig(s["sshd"] ?? ""),
+            firewall: parseFirewall(s["ufw"] ?? ""),
+            authorizedKeys: parseAuthorizedKeys(s["authkeys"] ?? ""),
+            fileHashes: parseFileHashes(s["filehashes"] ?? ""),
+            hostsEntries: parseHostsEntries(s["hosts"] ?? ""),
+            kernelModules: parseKernelModules(s["lsmod"] ?? ""),
+            suidBinaries: parseSuidBinaries(s["suid"] ?? ""),
           });
         });
       } catch (e) {

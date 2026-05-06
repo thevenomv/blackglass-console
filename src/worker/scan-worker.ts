@@ -31,9 +31,9 @@
  * the job handler and clear sensitive references before returning.
  */
 
-import { Worker, Queue } from "bullmq";
+import { Worker, Queue, QueueEvents } from "bullmq";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
-import { QUEUE_NAME, type ScanJobPayload } from "@/lib/server/queue/scan-queue";
+import { QUEUE_NAMES, type ScanJobPayload } from "@/lib/server/queue/scan-queue";
 import { logStructured } from "@/lib/server/log";
 
 const redisUrl = process.env.REDIS_QUEUE_URL?.trim();
@@ -44,14 +44,14 @@ if (!redisUrl) {
 
 const concurrency = parseInt(process.env.WORKER_CONCURRENCY ?? "4", 10);
 
-console.info(`[scan-worker] Starting — queue=${QUEUE_NAME} concurrency=${concurrency}`);
+console.info(`[scan-worker] Starting — queue=${QUEUE_NAMES.SCANS} concurrency=${concurrency}`);
 
-const metricsQueue = new Queue<ScanJobPayload>(QUEUE_NAME, {
+const metricsQueue = new Queue<ScanJobPayload>(QUEUE_NAMES.SCANS, {
   connection: { url: redisUrl },
 });
 
 const worker = new Worker<ScanJobPayload>(
-  QUEUE_NAME,
+  QUEUE_NAMES.SCANS,
   async (job) => {
     const { jobId, collectOpts, saasTenantId, requestId } = job.data;
     console.info(
@@ -110,11 +110,48 @@ worker.on("stalled", (jobId) => {
   logStructured("warn", "scan_job_stalled", { jobId });
 });
 
-// Graceful shutdown — drain active jobs before exit
+// ---------------------------------------------------------------------------
+// QueueEvents — event-driven queue-level observability.
+// Complements the worker-level handlers above: covers events from other
+// workers/processes (e.g. web tier enqueue, Redis-side delayed/failed).
+// ---------------------------------------------------------------------------
+const queueEvents = new QueueEvents(QUEUE_NAMES.SCANS, {
+  connection: { url: redisUrl },
+});
+
+queueEvents.on("waiting", ({ jobId }) => {
+  logStructured("info", "scan_queue_waiting", { jobId });
+});
+
+queueEvents.on("active", ({ jobId, prev }) => {
+  logStructured("info", "scan_queue_active", { jobId, prev });
+});
+
+queueEvents.on("failed", ({ jobId, failedReason }) => {
+  logStructured("warn", "scan_queue_event_failed", { jobId, failedReason });
+});
+
+queueEvents.on("error", (err) => {
+  logStructured("error", "scan_queue_events_error", {
+    error: err instanceof Error ? err.message : String(err),
+  });
+});
+
+// Graceful shutdown — drain active jobs before exit.
+// DO App Platform sends SIGTERM and waits up to 30 s before SIGKILL.
+// worker.close() stops new jobs and waits for in-flight jobs to finish.
+// The 25 s forced-exit guard ensures we always exit within DO's window.
 async function shutdown(signal: string) {
-  console.info(`[scan-worker] ${signal}: closing worker...`);
+  console.info(`[scan-worker] ${signal}: closing worker (forced exit in 25 s if needed)...`);
+  const forceExit = setTimeout(() => {
+    console.warn("[scan-worker] Forced exit — worker did not drain in time");
+    process.exit(1);
+  }, 25_000);
+  forceExit.unref(); // don't prevent clean exit if worker closes quickly
   await worker.close();
+  await queueEvents.close();
   await metricsQueue.close();
+  clearTimeout(forceExit);
   console.info("[scan-worker] Worker closed — exiting");
   process.exit(0);
 }
