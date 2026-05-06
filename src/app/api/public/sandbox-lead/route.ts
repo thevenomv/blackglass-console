@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Notify the sales inbox — fire-and-forget; never block the response on send failure.
-  const salesInbox = process.env.SALES_NOTIFICATION_EMAIL ?? "hello@blackglasssec.com";
+  const salesInbox = process.env.SALES_NOTIFICATION_EMAIL ?? "jamie@obsidiandynamics.co.uk";
   sendEmail({
     to: salesInbox,
     subject: `Demo lead: ${email}`,
