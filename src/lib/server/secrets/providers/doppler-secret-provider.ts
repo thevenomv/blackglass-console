@@ -2,6 +2,7 @@ import { loadDopplerSecretsJsonViaCli } from "../doppler-cli-download";
 import { SecretFetchError } from "../errors";
 import { createPrivateKeyScanCredential } from "../credential-factory";
 import { normalizePrivateKeyPem } from "../pem";
+import { maybeDecryptPem } from "../envelope";
 import type { ScanContext, SecretProvider, ScanCredential } from "../types";
 
 const DOPPLER_DOWNLOAD = "https://api.doppler.com/v3/configs/config/secrets/download";
@@ -83,8 +84,8 @@ export class DopplerSecretProvider implements SecretProvider {
       : await loadDopplerSecretsJsonViaCli();
     const raw = parseDopplerSecretsDownload(body, name);
 
-    const normalized = normalizePrivateKeyPem(raw);
-    const material = Buffer.from(normalized, "utf8");
-    return createPrivateKeyScanCredential(material);
+    const material = await maybeDecryptPem(raw);
+    const normalized = normalizePrivateKeyPem(material.toString("utf8"));
+    return createPrivateKeyScanCredential(Buffer.from(normalized, "utf8"));
   }
 }

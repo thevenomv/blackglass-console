@@ -1,6 +1,7 @@
 import { SecretFetchError } from "../errors";
 import { createPrivateKeyScanCredential } from "../credential-factory";
 import { normalizePrivateKeyPem } from "../pem";
+import { maybeDecryptPem } from "../envelope";
 import type { ScanContext, SecretProvider, ScanCredential } from "../types";
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -153,8 +154,8 @@ export class InfisicalSecretProvider implements SecretProvider {
     const name = ctx.credentialRef?.trim() || sshSecretName();
     const path = secretPath();
     const raw = await infisicalFetchRawSecret(base, token, workspaceId, environment, name, path);
-    const normalized = normalizePrivateKeyPem(raw);
-    const material = Buffer.from(normalized, "utf8");
-    return createPrivateKeyScanCredential(material);
+    const material = await maybeDecryptPem(raw);
+    const normalized = normalizePrivateKeyPem(material.toString("utf8"));
+    return createPrivateKeyScanCredential(Buffer.from(normalized, "utf8"));
   }
 }

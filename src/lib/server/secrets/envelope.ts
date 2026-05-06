@@ -273,3 +273,37 @@ export async function decryptKey(
   dek.fill(0);
   return plaintext;
 }
+
+/**
+ * Transparently decrypt a credential value that may be either:
+ *   - A plain SSH PEM string  (begins with "-----BEGIN")
+ *   - A JSON blob matching `EncryptedKey` (`{ ciphertext, wrappedDek, kmsProvider, ... }`)
+ *
+ * This allows operators to store envelope-encrypted SSH keys in any secret
+ * manager (Doppler, Infisical, env var) without a separate code path.
+ * When KMS_PROVIDER is unset and the value is not an EncryptedKey JSON, it is
+ * returned as-is (plain PEM, backwards-compatible behaviour).
+ */
+export async function maybeDecryptPem(raw: string): Promise<Buffer> {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{")) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      // Not valid JSON — treat as plain PEM
+      return Buffer.from(trimmed, "utf8");
+    }
+    if (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      "ciphertext" in parsed &&
+      "wrappedDek" in parsed &&
+      "kmsProvider" in parsed
+    ) {
+      const encKey = parsed as EncryptedKey;
+      return decryptKey("default", encKey);
+    }
+  }
+  return Buffer.from(trimmed, "utf8");
+}
