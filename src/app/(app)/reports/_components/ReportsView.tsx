@@ -12,15 +12,18 @@ import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 
 type StatusFilter = "all" | ReportRecord["status"];
 
-function formatGenerated(iso: string) {
+function formatGenerated(iso: string | null | undefined) {
+  if (!iso) return "—";
   try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
     return new Intl.DateTimeFormat("en-GB", {
       dateStyle: "medium",
       timeStyle: "short",
       timeZone: "UTC",
-    }).format(new Date(iso));
+    }).format(d);
   } catch {
-    return iso;
+    return iso ?? "—";
   }
 }
 
@@ -230,9 +233,13 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
                   <td className="px-4 py-3">{statusBadge(r.status)}</td>
                   <td className="px-4 py-3 text-right">
                     {r.status === "ready" ? (
-                      <button type="button" className="text-xs font-semibold text-accent-blue hover:underline">
+                      <a
+                        href={`/api/v1/reports/${r.id}/file`}
+                        download
+                        className="text-xs font-semibold text-accent-blue hover:underline"
+                      >
                         Download
-                      </button>
+                      </a>
                     ) : r.status === "generating" ? (
                       <span className="text-xs text-fg-faint">Queued…</span>
                     ) : (

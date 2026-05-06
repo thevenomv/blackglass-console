@@ -45,13 +45,16 @@ const KPI_DELTAS: Record<
   },
 };
 
-function formatUtc(iso: string) {
+function formatUtc(iso: string | null | undefined) {
+  if (!iso) return "—";
   try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
     return new Intl.DateTimeFormat("en-GB", {
       dateStyle: "medium",
       timeStyle: "short",
       timeZone: "UTC",
-    }).format(new Date(iso));
+    }).format(d);
   } catch {
     return iso;
   }

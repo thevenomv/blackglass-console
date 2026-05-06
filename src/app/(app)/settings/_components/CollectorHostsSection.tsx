@@ -147,25 +147,46 @@ export function CollectorHostsSection() {
           Add each server you want BLACKGLASS to monitor via SSH. You&apos;ll need the
           server&apos;s IP address and an SSH key pair as the login credential.
         </p>
-        <div className="mt-2 space-y-2 rounded-card border border-border-subtle bg-bg-elevated p-3 text-xs text-fg-muted">
-          <p className="font-medium text-fg-primary text-sm">SSH key setup</p>
-          <p>
-            <span className="font-medium text-fg-primary">Do it yourself:</span>{" "}
-            Run{" "}
-            <span className="font-mono bg-bg-base px-1 rounded">ssh-keygen -t ed25519 -C "blackglass-collector" -f blackglass_key -N ""</span>{" "}
-            on any machine. Add <span className="font-mono">blackglass_key.pub</span> to{" "}
-            <span className="font-mono">~blackglass/.ssh/authorized_keys</span> on your server,
-            then send <span className="font-mono">blackglass_key</span> (the private key) to{" "}
-            <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20private%20key%20for%20BLACKGLASS" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a>{" "}
-            to be added to your deployment.
-          </p>
-          <p>
-            <span className="font-medium text-fg-primary">Need help?</span>{" "}
-            Email{" "}
-            <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20BLACKGLASS" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a>{" "}
-            with your server&apos;s IP — we&apos;ll handle the key pair for you.
-          </p>
-        </div>
+        <details className="mt-2 rounded-card border border-border-subtle bg-bg-elevated text-xs text-fg-muted">
+          <summary className="cursor-pointer select-none px-3 py-2.5 text-sm font-medium text-fg-primary">
+            Get started — SSH key setup
+          </summary>
+          <div className="space-y-3 border-t border-border-subtle px-3 py-3">
+            <div>
+              <p className="font-medium text-fg-primary">1. Generate a key pair</p>
+              <p className="mt-1">Run this on any machine (Linux, macOS, or WSL):</p>
+              <code className="mt-1.5 block rounded bg-bg-base px-2.5 py-2 font-mono text-[11px] leading-relaxed text-fg-primary">
+                ssh-keygen -t ed25519 -C &quot;blackglass-collector&quot; -f blackglass_key -N &quot;&quot;
+              </code>
+              <p className="mt-1.5">
+                This creates two files: <span className="font-mono">blackglass_key</span> (private) and{" "}
+                <span className="font-mono">blackglass_key.pub</span> (public).
+              </p>
+            </div>
+            <div>
+              <p className="font-medium text-fg-primary">2. Add the public key to your server</p>
+              <p className="mt-1">
+                Log in to your server and append the public key to the collector user&apos;s
+                authorised keys:
+              </p>
+              <code className="mt-1.5 block rounded bg-bg-base px-2.5 py-2 font-mono text-[11px] leading-relaxed text-fg-primary">
+                cat blackglass_key.pub | ssh root@YOUR_SERVER{" "}
+                &quot;mkdir -p ~blackglass/.ssh &amp;&amp; cat &gt;&gt; ~blackglass/.ssh/authorized_keys &amp;&amp; chmod 600 ~blackglass/.ssh/authorized_keys&quot;
+              </code>
+              <p className="mt-1.5">
+                Replace <span className="font-mono">root@YOUR_SERVER</span> with your server&apos;s address.
+              </p>
+            </div>
+            <div>
+              <p className="font-medium text-fg-primary">3. Add the private key to Settings</p>
+              <p className="mt-1">
+                Paste the contents of <span className="font-mono">blackglass_key</span> into the{" "}
+                <strong className="font-medium text-fg-primary">SSH private key</strong> field in the
+                Collector credentials section below, then add your host above.
+              </p>
+            </div>
+          </div>
+        </details>
       </div>
 
       {addingHost && (

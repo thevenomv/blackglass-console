@@ -184,11 +184,7 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
             <button type="button" onClick={() => setMethod("ssh")} className="text-accent-blue hover:underline">
               Switch to SSH setup
             </button>
-            , or email{" "}
-            <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
-              jamie@obsidiandynamics.co.uk
-            </a>{" "}
-            and we will handle it for you.
+            .
           </p>
         </div>
       )}
@@ -198,34 +194,35 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
           <div className="rounded-card border border-border-subtle bg-bg-elevated p-4 text-sm space-y-3">
             <p className="font-medium text-fg-primary">SSH pull setup</p>
             <p className="text-fg-muted">
-              BLACKGLASS SSHs into your server using a dedicated read-only account. Good for
-              environments where installing an agent is not permitted.
+              BLACKGLASS SSHs into your server using a dedicated read-only account — no agent
+              required, no inbound ports needed.
             </p>
-            <p className="text-fg-muted">
-              This requires an SSH key pair to be configured in your BLACKGLASS deployment.{" "}
-              <strong className="font-medium text-fg-primary">
-                Email{" "}
-                <a href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20BLACKGLASS" className="text-accent-blue hover:underline">
-                  jamie@obsidiandynamics.co.uk
-                </a>
-              </strong>{" "}
-              with your server&apos;s IP address — we will generate the key pair, send you the public
-              half to add to your server, and configure the private half in your deployment. Usually
-              done within one business day.
-            </p>
-            <div className="rounded bg-bg-base px-3 py-2 text-xs text-fg-faint space-y-1">
-              <p className="font-medium text-fg-muted">Self-hosted / technical setup</p>
-              <p>
-                Run{" "}
-                <span className="font-mono">ssh-keygen -t ed25519 -C "blackglass-collector" -f blackglass_key -N ""</span>.
-                Add <span className="font-mono">blackglass_key.pub</span> to your server&apos;s{" "}
-                <span className="font-mono">~blackglass/.ssh/authorized_keys</span>, then set{" "}
-                <span className="font-mono">SSH_PRIVATE_KEY</span> (contents of{" "}
-                <span className="font-mono">blackglass_key</span>) and{" "}
-                <span className="font-mono">COLLECTOR_HOST_1</span> (server IP) as environment
-                variables in your BLACKGLASS deployment.
-              </p>
-            </div>
+            <ol className="space-y-3 text-fg-muted">
+              <li>
+                <span className="font-medium text-fg-primary">1. Generate a key pair</span>
+                <p className="mt-1">Run this on any machine (Linux, macOS, or WSL):</p>
+                <code className="mt-1.5 block rounded bg-bg-base px-2.5 py-1.5 font-mono text-[11px] text-fg-primary">
+                  {`ssh-keygen -t ed25519 -C "blackglass-collector" -f blackglass_key -N ""`}
+                </code>
+              </li>
+              <li>
+                <span className="font-medium text-fg-primary">2. Authorise the key on your server</span>
+                <code className="mt-1.5 block rounded bg-bg-base px-2.5 py-1.5 font-mono text-[11px] text-fg-primary">
+                  {`cat blackglass_key.pub | ssh root@YOUR_SERVER \\
+  "mkdir -p ~blackglass/.ssh && cat >> ~blackglass/.ssh/authorized_keys && chmod 600 ~blackglass/.ssh/authorized_keys"`}
+                </code>
+              </li>
+              <li>
+                <span className="font-medium text-fg-primary">3. Configure your deployment</span>
+                <p className="mt-1">
+                  Set <span className="font-mono">SSH_PRIVATE_KEY</span> (contents of{" "}
+                  <span className="font-mono">blackglass_key</span>) and{" "}
+                  <span className="font-mono">COLLECTOR_HOST_1</span> (server IP or hostname) as
+                  environment variables in your BLACKGLASS deployment, then add the host in{" "}
+                  Settings.
+                </p>
+              </li>
+            </ol>
           </div>
           <p className="text-xs text-fg-faint">
             Prefer the agent instead?{" "}

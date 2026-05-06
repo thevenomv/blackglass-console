@@ -16,13 +16,16 @@ type Filter = "all" | "aligned" | "drift" | "needs_review";
 /** Below this count, render rows directly so SSR/hydration always shows data (virtualizer needs a mounted scroll parent). */
 const VIRTUAL_THRESHOLD = 48;
 
-function formatScan(iso: string) {
+function formatScan(iso: string | null | undefined) {
+  if (!iso) return "—";
   try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
     return new Intl.DateTimeFormat("en-GB", {
       dateStyle: "medium",
       timeStyle: "short",
       timeZone: "UTC",
-    }).format(new Date(iso));
+    }).format(d);
   } catch {
     return iso;
   }
