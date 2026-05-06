@@ -78,14 +78,17 @@ export function LandingPage() {
                   Launch live sandbox
                 </LaunchSandboxLink>
                 <Link
-                  href="/demo"
+                  href="/demo/sandbox"
                   className="rounded-lg border border-border-default bg-bg-panel px-5 py-2.5 text-sm font-medium text-fg-primary hover:bg-bg-elevated"
+                >
+                  Watch live demo
+                </Link>
+                <Link
+                  href="/demo"
+                  className="rounded-lg px-5 py-2.5 text-sm font-medium text-fg-muted hover:bg-bg-elevated hover:text-fg-primary"
                 >
                   Explore demo
                 </Link>
-                <TrialSignupLink className="rounded-lg px-5 py-2.5 text-sm font-medium text-fg-muted hover:bg-bg-elevated hover:text-fg-primary">
-                  Start free trial
-                </TrialSignupLink>
                 <Link
                   href="/book"
                   className="rounded-lg px-5 py-2.5 text-sm font-medium text-fg-muted hover:bg-bg-elevated hover:text-fg-primary"
