@@ -7,6 +7,7 @@ import type { DriftEvent } from "@/data/mock/types";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useSession } from "@/components/auth/SessionProvider";
 import { useToast } from "@/components/ui/Toast";
+import { getRemediationSnippet } from "@/lib/remediation-snippets";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
@@ -230,6 +231,23 @@ export function DriftInvestigationDrawer({
               ))}
             </ul>
           </section>
+
+          {(() => {
+            const snippet = getRemediationSnippet(event);
+            return (
+              <div className="mt-6">
+                <CollapsibleSection title={`Remediation: ${snippet.label}`} defaultOpen={false}>
+                  <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-fg-muted">
+                    {snippet.code}
+                  </pre>
+                  <p className="mt-2 text-[11px] text-fg-faint">
+                    Review before running. BLACKGLASS does not execute commands — this snippet is for your reference only.
+                    Replace <code className="font-mono">&lt;PLACEHOLDERS&gt;</code> with values from the drift detail above.
+                  </p>
+                </CollapsibleSection>
+              </div>
+            );
+          })()}
         </div>
 
         <footer className="shrink-0 border-t border-border-subtle bg-bg-elevated px-6 py-4">

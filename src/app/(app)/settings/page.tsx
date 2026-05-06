@@ -10,6 +10,7 @@ import { OperatorHealthReadout } from "./_components/OperatorHealthReadout";
 import { SettingsRotateRow } from "./_components/SettingsRotateRow";
 import { WebhookSection } from "./_components/WebhookSection";
 import { CollectorHostsSection } from "./_components/CollectorHostsSection";
+import { EgressIpSection } from "./_components/EgressIpSection";
 import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 import { Button } from "@/components/ui/Button";
 import { getLimits } from "@/lib/plan";
@@ -42,9 +43,20 @@ export default async function SettingsPage() {
 
         <CollectorHostsSection />
 
+        <EgressIpSection egressIps={process.env.COLLECTOR_EGRESS_IPS ?? ""} />
+
         <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">
           <h2 className="text-sm font-semibold text-fg-primary">Push ingest API key</h2>
           <SettingsRotateRow />
+          <div className="flex items-center gap-3 pt-1">
+            <a
+              href="/api/v1/ingest/agent"
+              download="blackglass-agent.sh"
+              className="inline-flex h-8 items-center gap-1.5 rounded-card border border-border-default bg-bg-panel px-3 text-xs font-medium text-fg-primary transition-colors hover:bg-bg-elevated"
+            >
+              Download push agent (blackglass-agent.sh)
+            </a>
+          </div>
         </section>
 
         <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">

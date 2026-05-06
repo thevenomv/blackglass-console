@@ -19,6 +19,7 @@ import { requireRole } from "@/lib/server/http/auth-guard";
 import { requireSaasOperationalMutation } from "@/lib/server/http/saas-access";
 import { canGenerateReportsForTenant } from "@/lib/saas/operations";
 import { checkWebhooksTestRate, clientIp } from "@/lib/server/rate-limit";
+import { sendTestWebhook } from "@/lib/server/outbound-webhook";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
@@ -47,14 +48,6 @@ function isPrivateHost(hostname: string): boolean {
   if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
   return false;
 }
-
-const TEST_PAYLOAD = {
-  event: "blackglass.webhook_test",
-  sentAt: new Date().toISOString(),
-  data: {
-    message: "This is a test event from BLACKGLASS. If you see this, your endpoint is reachable.",
-  },
-};
 
 export async function POST(request: Request) {
   if (!(await checkWebhooksTestRate(clientIp(request)))) {
@@ -89,19 +82,13 @@ export async function POST(request: Request) {
     return jsonError(400, "ssrf_blocked", "URL must not target a private or loopback address.");
   }
 
-  let status: number;
+  let status = 200;
   let ok: boolean;
   const startMs = Date.now();
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": "Blackglass-Webhook/1.0" },
-      body: JSON.stringify({ ...TEST_PAYLOAD, sentAt: new Date().toISOString() }),
-      signal: AbortSignal.timeout(8_000),
-    });
-    status = res.status;
-    ok = res.ok;
-    console.info(`[webhooks/test] Delivered to ${hostname} in ${Date.now() - startMs}ms — HTTP ${status}`);
+    await sendTestWebhook(url);
+    ok = true;
+    console.info(`[webhooks/test] Delivered to ${hostname} in ${Date.now() - startMs}ms`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[webhooks/test] Delivery failed to ${hostname} after ${Date.now() - startMs}ms: ${message}`);

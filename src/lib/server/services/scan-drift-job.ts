@@ -8,6 +8,7 @@ import { computeDrift, storeDriftEvents } from "@/lib/server/drift-engine";
 import { recordDriftScanDayStamp } from "@/lib/server/drift-history";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
 import { markScanDone, resolveScan } from "@/lib/server/scan-jobs";
+import { dispatchDriftWebhook } from "@/lib/server/outbound-webhook";
 
 // ---------------------------------------------------------------------------
 // Slack alerting — fire-and-forget; no-op when SLACK_ALERT_WEBHOOK_URL is unset
@@ -62,6 +63,16 @@ export async function executeDriftScanJob(
       console.log(`[scan-drift-job] hostId=${current.hostId} drift=${events.length} events: ${events.map(e => e.title).join(", ") || "(none)"}`);
       storeDriftEvents(current.hostId, events);
       totalDrift += events.length;
+
+      // Fire outbound webhooks for qualifying findings (non-blocking).
+      if (events.length > 0) {
+        void dispatchDriftWebhook({
+          scanId: jobId,
+          hostId: current.hostId,
+          hostname: current.hostname,
+          events,
+        });
+      }
 
       appendAudit({
         action: AUDIT_ACTIONS.SCAN_COMPLETED,
