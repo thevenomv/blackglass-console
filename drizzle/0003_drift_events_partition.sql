@@ -89,8 +89,15 @@ ALTER TABLE drift_events ENABLE ROW LEVEL SECURITY;
 -- Application role may only see rows for the current tenant.
 -- Set app.current_tenant before every query:
 --   SET LOCAL app.current_tenant = '<tenant_uuid>';
-CREATE POLICY drift_events_tenant_isolation ON drift_events
-  USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'drift_events' AND policyname = 'drift_events_tenant_isolation'
+  ) THEN
+    CREATE POLICY drift_events_tenant_isolation ON drift_events
+      USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- Helper: create the next calendar-month partition
