@@ -35,7 +35,6 @@ const clerkPublic = createRouteMatcher([
   "/dpa(.*)",
   "/pricing(.*)",
   "/pricing/success(.*)",
-  "/changelog(.*)",
   "/demo(.*)",
   "/login(.*)",
   "/use-cases(.*)",
@@ -71,7 +70,6 @@ async function legacyMiddleware(request: NextRequest, requestId: string) {
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/dpa") ||
     pathname.startsWith("/pricing") ||
-    pathname.startsWith("/changelog") ||
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
     pathname.startsWith("/login") ||

@@ -30,7 +30,6 @@ export function PublicFooter() {
               <li><Link href="/pricing" className="hover:text-fg-primary">Pricing</Link></li>
               <li><Link href="/demo" className="hover:text-fg-primary">Demo</Link></li>
               <li><Link href="/book" className="hover:text-fg-primary">Book walkthrough</Link></li>
-              <li><Link href="/changelog" className="hover:text-fg-primary">Changelog</Link></li>
               <li><Link href="/security" className="hover:text-fg-primary">Security</Link></li>
               <li><Link href="/dashboard" className="hover:text-fg-primary">Console</Link></li>
             </ul>
