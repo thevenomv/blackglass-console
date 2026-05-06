@@ -7,7 +7,7 @@
  *   sandbox:cleanup    — called when TTL expires; calls destroySandbox()
  */
 
-import { QUEUE_NAMES } from "./scan-queue";
+import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
 
 export type SandboxJobProvision = {
   type: "sandbox:provision";
@@ -55,10 +55,8 @@ export async function getSandboxQueue(): Promise<
     g[SANDBOX_QUEUE_KEY] = new Queue<SandboxJobPayload>(QUEUE_NAMES.SANDBOX, {
       connection: { url: redisUrl },
       defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: "exponential", delay: 5_000 },
-        removeOnComplete: { count: 100 },
-        removeOnFail: { count: 50 },
+        ...RETRY_POLICIES.sandboxProvision,
+        ...RETENTION.sandbox,
       },
     });
   }

@@ -16,18 +16,10 @@
  */
 
 import type { CollectScanOptions } from "@/lib/server/collector/types";
+import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
 
-/** Canonical queue names. Import from here — never hard-code strings. */
-export const QUEUE_NAMES = {
-  /** SSH collection + drift computation (heavy, CPU/network intensive). */
-  SCANS: "blackglass-scans",
-  /** PDF/Markdown report generation (lighter, Spaces I/O bound). */
-  REPORTS: "blackglass-reports",
-  /** Evidence bundle assembly (lighter, Spaces I/O bound). */
-  EVIDENCE: "blackglass-evidence",
-  /** Sandbox lifecycle jobs: provision, activate, seed-drift, cleanup. */
-  SANDBOX: "blackglass-sandbox",
-} as const;
+/** Re-export from config.ts so existing imports keep working. */
+export { QUEUE_NAMES };
 
 /** @deprecated Use QUEUE_NAMES.SCANS — kept for temporary backwards compat */
 export const QUEUE_NAME = QUEUE_NAMES.SCANS;
@@ -63,10 +55,8 @@ export async function getScanQueue(): Promise<import("bullmq").Queue<ScanJobPayl
     g[QUEUE_KEY] = new Queue<ScanJobPayload>(QUEUE_NAME, {
       connection: { url: redisUrl },
       defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: "exponential", delay: 2_000 },
-        removeOnComplete: { count: 200 },
-        removeOnFail: { count: 100 },
+        ...RETRY_POLICIES.scan,
+        ...RETENTION.scans,
       },
     });
   }

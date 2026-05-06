@@ -34,6 +34,7 @@
 import { Worker, Queue, QueueEvents } from "bullmq";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
 import { QUEUE_NAMES, type ScanJobPayload } from "@/lib/server/queue/scan-queue";
+import { resolveWorkerConcurrency } from "@/lib/server/queue/config";
 import { logStructured } from "@/lib/server/log";
 
 const redisUrl = process.env.REDIS_QUEUE_URL?.trim();
@@ -42,8 +43,7 @@ if (!redisUrl) {
   process.exit(1);
 }
 
-const concurrency = parseInt(process.env.WORKER_CONCURRENCY ?? "4", 10);
-
+const concurrency = resolveWorkerConcurrency();
 console.info(`[scan-worker] Starting — queue=${QUEUE_NAMES.SCANS} concurrency=${concurrency}`);
 
 const metricsQueue = new Queue<ScanJobPayload>(QUEUE_NAMES.SCANS, {

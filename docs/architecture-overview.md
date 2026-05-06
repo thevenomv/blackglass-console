@@ -1,0 +1,158 @@
+# BLACKGLASS Architecture Overview
+
+> **Audience**: Engineers onboarding to this codebase.  
+> **Goal**: Define the layers, their responsibilities, the rules between them, and the key invariants that must never be broken.
+
+---
+
+## 1. Layer Map
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Presentation                                                            │
+│  src/app/(marketing)/**   — public/marketing pages                      │
+│  src/app/(app)/**         — authenticated dashboard                      │
+│  src/components/**        — React components                             │
+├──────────────────────────────────────────────────────────────────────────┤
+│  Transport                                                               │
+│  src/app/api/**           — Next.js Route Handlers (HTTP API surface)    │
+│  src/lib/server/http/**   — HTTP helpers (json-error, saas-access, etc.) │
+├──────────────────────────────────────────────────────────────────────────┤
+│  Application Services                                                    │
+│  src/lib/server/services/**     — scan orchestration, evidence assembly, │
+│                                   sandbox provisioner, baseline capture  │
+│  src/lib/server/collector/**    — SSH fan-out + parser pipeline           │
+│  src/lib/server/drift-engine.ts — drift computation                      │
+│  src/lib/server/inventory.ts    — host inventory                         │
+│  src/lib/server/outbound-webhook.ts — event delivery to external SIEMs  │
+├──────────────────────────────────────────────────────────────────────────┤
+│  Async / Worker                                                          │
+│  src/lib/server/queue/**  — BullMQ queue singletons + config             │
+│  src/worker/scan-worker.ts    — SSH+drift consumer (isolated process)    │
+│  src/worker/sandbox-worker.ts — sandbox lifecycle consumer               │
+├──────────────────────────────────────────────────────────────────────────┤
+│  Persistence & Infrastructure                                            │
+│  src/db/**                — Drizzle ORM, schema, RLS helpers             │
+│  src/lib/server/store/**  — baseline + drift-history repositories        │
+│  src/lib/server/secrets/** — pluggable credential providers              │
+│  External: Postgres, DigitalOcean Spaces, Redis/Valkey, DO API           │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Rules Between Layers
+
+| From → To | Allowed? | Notes |
+|-----------|----------|-------|
+| Component → API Route | ✅ | via `fetch()` |
+| Component → DB / Store / Secrets | ❌ | Never directly — always via an API route |
+| API Route → Service | ✅ | Primary call pattern |
+| API Route → DB | ✅ | Acceptable for thin CRUD routes; prefer services for complex logic |
+| API Route → Queue | ✅ | For async job dispatch (scan, sandbox lifecycle) |
+| Service → DB | ✅ | Must use `withTenantRls()` for tenant-scoped data |
+| Service → Store | ✅ | Baseline + drift-history repositories |
+| Service → Secrets | ✅ | For SSH credential retrieval |
+| Service → Queue | ✅ | For chaining async steps (e.g. provision → seed → cleanup) |
+| Worker → Service | ✅ | Workers call the same services the web tier uses |
+| Worker → DB | ✅ | Must use `withBypassRls()` only where explicitly documented |
+| Worker → HTTP API | ❌ | Workers are internal; they never call the web tier's HTTP API |
+
+---
+
+## 3. Key Invariants
+
+### Multi-tenancy & RLS
+
+- **All** tenant-scoped DB reads/writes go through `withTenantRls(tenantId, fn)`.
+- `withBypassRls()` is reserved for:
+  - **Worker processes** that handle jobs across tenants and cannot set a session-level RLS variable.
+  - **Admin/break-glass scripts** (`scripts/blackglassctl.mjs`).
+  - **Webhook handlers** (Stripe, Clerk) that act before a tenant context is established.
+- Every new table that holds tenant data **must** have:
+  1. A `tenant_id` foreign key to `saas_tenants.id`.
+  2. A `SELECT` and `INSERT/UPDATE/DELETE` RLS policy gating on `current_setting('app.tenant_id')`.
+- Application code never connects with a Postgres superuser or owner role — only the `app_user` role.
+
+### SSH / Collector
+
+- All SSH collection runs **off the web process** in `scan-worker.ts`.
+- The collector uses a single multiplexed SSH channel per host (`BUNDLE_CMD`) — never 14 parallel `exec()` calls — keeping sessions well under sshd `MaxSessions=10`.
+- SSH concurrency across the fleet is capped at `COLLECTOR_MAX_PARALLEL_SSH` (default 8, hard max 16) per worker job.
+- Worker-level scan concurrency is capped dynamically by RAM: `floor((total_ram_MB − 256) / 60)`, bounded by `WORKER_CONCURRENCY` env override and a hard cap of 32.
+
+### Async / Queue
+
+- Queue names, retry policies, and retention counts are defined **only** in `src/lib/server/queue/config.ts`.
+- All long-running or externally-dependent work (SSH, DO API, Spaces I/O) goes through a BullMQ queue — never executed synchronously on the web process.
+- Workers handle `SIGTERM`/`SIGINT` gracefully: they stop accepting new jobs and drain in-flight work before exiting. A 25 s forced-exit guard ensures DO App Platform SIGKILL windows are respected.
+- Job retry/backoff policies per type:
+  - `scan`: 3 attempts, exponential 2 s backoff.
+  - `sandboxProvision`: 5 attempts, exponential 5 s backoff.
+  - `sandboxSeed`: 3 attempts, exponential 10 s backoff.
+  - `sandboxCleanup`: 10 attempts, exponential 30 s backoff (orphaned Droplets are expensive).
+
+### Secrets / Credentials
+
+- SSH private keys and long-lived credentials **must** flow through the secrets provider (`SECRET_PROVIDER=env|doppler|infisical|db`).
+- Keys stored via the `db` provider are envelope-encrypted at rest (per-tenant DEK + external KMS — see `src/lib/server/secrets/envelope.ts`).
+- Non-customer secrets (Stripe public key, `NEXT_PUBLIC_*`) may live in plain env vars. SSH keys, API tokens, and database credentials must not.
+
+### Public / Demo surface
+
+- `/demo/*` routes and `src/app/api/public/**` expose **only** the showcase sandbox tenant's data.
+- No real customer org data is ever accessible via public routes.
+- All public API endpoints are rate-limited by IP (sliding window, Redis-backed when available).
+
+### Outbound Webhooks
+
+- All event deliveries to external SIEM/webhook endpoints go through `outbound-webhook.ts`.
+- Direct `fetch()` calls to arbitrary customer-controlled URLs from route handlers are prohibited.
+
+---
+
+## 4. Plan-Enforced Limits
+
+Limits are defined in `src/lib/saas/plans.ts` and enforced in two places:
+
+| Limit | Hard enforcement | Soft prompt |
+|-------|-----------------|-------------|
+| Hosts per plan | `src/lib/server/services/scan-drift-job.ts` (pre-scan check) | `SaasTrialBanner`, `UpgradePrompt` |
+| Evidence bundles | `src/lib/server/evidence-bundle-quota.ts` | `UpgradePrompt` |
+| Retention window | Query filter in `drift-history-pg.ts` | Plan page |
+| Seats | `src/lib/saas/seats.ts` | Invite flow |
+
+---
+
+## 5. Storage Backend Matrix
+
+| Environment | Baseline | Drift history | Evidence |
+|-------------|----------|---------------|----------|
+| Local dev   | FS / Memory | FS / Memory | FS / none |
+| Staging     | Postgres + Spaces | Postgres + Spaces | Spaces |
+| Production  | Postgres + Spaces | Postgres + Spaces | Spaces |
+
+Backends are selected automatically by `src/lib/server/store/index.ts` based on which env vars are present. `STORAGE_BACKEND` can be used to force a specific adapter.
+
+---
+
+## 6. Queue Observability
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/health` | Uptime check (public → shallow; authenticated → full config) |
+| `GET /api/health?probe=secrets` | Secrets backend reachability |
+| `GET /api/health?probe=redis` | Rate-limit / queue Redis reachability |
+| `GET /api/health?probe=spaces` | DigitalOcean Spaces reachability |
+| `GET /api/admin/queues` | BullMQ queue health: waiting/active/delayed/failed counts |
+| `GET /api/admin/rate-limits` | Per-key rate-limit hit counts |
+
+---
+
+## 7. Adding a New Feature — Checklist
+
+1. **New DB table**: add `tenant_id`, RLS policy, Drizzle migration, update `docs/postgres-rls-sketch.md`.
+2. **New API route**: use `requireSaasOrLegacyPermission()` for authenticated routes; use `checkDemoCtaRate()` or equivalent for public routes.
+3. **New long-running task**: add a job type to the appropriate queue, define retry policy in `queue/config.ts`, handle in the relevant worker.
+4. **New secret/credential type**: route through `secrets/factory.ts`; never store plain-text in DB.
+5. **New public-facing route**: add IP rate limiting; ensure no tenant data leaks.

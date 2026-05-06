@@ -204,6 +204,130 @@ async function main() {
     process.exit(0);
   }
 
+  if (cmd === "queues") {
+    const res = await fetch(`${base}/api/admin/queues`, {
+      headers: { Accept: "application/json" },
+    });
+    const j = await res.json();
+    console.log(JSON.stringify({ ok: res.ok, status: res.status, body: j }, null, 2));
+    process.exit(res.ok ? 0 : 1);
+  }
+
+  // -------------------------------------------------------------------------
+  // sandbox:status — show current DB state of a sandbox row
+  //
+  //   DATABASE_URL=... node scripts/blackglassctl.mjs sandbox:status \
+  //     --sandbox-id=<uuid>
+  // -------------------------------------------------------------------------
+  if (cmd === "sandbox:status") {
+    const sandboxId = arg("--sandbox-id");
+    if (!sandboxId) {
+      console.error("sandbox:status requires --sandbox-id=<uuid>");
+      process.exit(2);
+    }
+    const dbUrl = process.env.DATABASE_URL?.trim();
+    if (!dbUrl) {
+      console.error("DATABASE_URL is required for sandbox:status");
+      process.exit(2);
+    }
+    const pg = await import("pg");
+    const client = new pg.default.Client({ connectionString: dbUrl });
+    await client.connect();
+    try {
+      await client.query("SELECT set_config('app.bypass_rls', '1', true)");
+      const r = await client.query("SELECT * FROM saas_sandboxes WHERE id = $1 LIMIT 1", [sandboxId]);
+      if (!r.rows[0]) {
+        console.log(`No sandbox found for id=${sandboxId}`);
+        process.exit(1);
+      }
+      console.log(JSON.stringify(r.rows[0], null, 2));
+    } finally {
+      await client.end();
+    }
+    process.exit(0);
+  }
+
+  // -------------------------------------------------------------------------
+  // sandbox:provision — manually enqueue a provision job for a sandbox
+  //
+  //   node scripts/blackglassctl.mjs sandbox:provision --base=... \
+  //     --tenant-id=<uuid>
+  // -------------------------------------------------------------------------
+  if (cmd === "sandbox:provision") {
+    const tenantId = arg("--tenant-id");
+    if (!tenantId) {
+      console.error("sandbox:provision requires --tenant-id=<uuid>");
+      process.exit(2);
+    }
+    const res = await fetch(`${base}/api/v1/sandbox`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ tenantId }),
+    });
+    const text = await res.text();
+    console.log(res.status, text);
+    process.exit(res.ok ? 0 : 1);
+  }
+
+  // -------------------------------------------------------------------------
+  // sandbox:cleanup — directly destroy a sandbox Droplet via the DB
+  //
+  //   DATABASE_URL=... DO_API_TOKEN=... node scripts/blackglassctl.mjs sandbox:cleanup \
+  //     --sandbox-id=<uuid>
+  // -------------------------------------------------------------------------
+  if (cmd === "sandbox:cleanup") {
+    const sandboxId = arg("--sandbox-id");
+    if (!sandboxId) {
+      console.error("sandbox:cleanup requires --sandbox-id=<uuid>");
+      process.exit(2);
+    }
+    const dbUrl = process.env.DATABASE_URL?.trim();
+    const doToken = process.env.DO_API_TOKEN?.trim();
+    if (!dbUrl || !doToken) {
+      console.error("DATABASE_URL and DO_API_TOKEN are required for sandbox:cleanup");
+      process.exit(2);
+    }
+    const pg = await import("pg");
+    const client = new pg.default.Client({ connectionString: dbUrl });
+    await client.connect();
+    try {
+      await client.query("SELECT set_config('app.bypass_rls', '1', true)");
+      const r = await client.query("SELECT droplet_id, status FROM saas_sandboxes WHERE id = $1 LIMIT 1", [sandboxId]);
+      if (!r.rows[0]) {
+        console.error(`No sandbox found for id=${sandboxId}`);
+        process.exit(1);
+      }
+      const { droplet_id: dropletId, status } = r.rows[0];
+      console.log(`Sandbox ${sandboxId} — status=${status} droplet_id=${dropletId}`);
+      if (!dropletId) {
+        console.log("No droplet_id — marking destroyed in DB.");
+        await client.query(
+          "UPDATE saas_sandboxes SET status='destroyed', updated_at=NOW() WHERE id=$1",
+          [sandboxId],
+        );
+        await client.end();
+        process.exit(0);
+      }
+      // Destroy via DO API
+      const delRes = await fetch(`https://api.digitalocean.com/v2/droplets/${dropletId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${doToken}` },
+      });
+      if (!delRes.ok && delRes.status !== 404) {
+        console.error(`DO API DELETE returned ${delRes.status}: ${await delRes.text()}`);
+        process.exit(1);
+      }
+      await client.query(
+        "UPDATE saas_sandboxes SET status='destroyed', droplet_id=NULL, updated_at=NOW() WHERE id=$1",
+        [sandboxId],
+      );
+      console.log(`Sandbox ${sandboxId} destroyed.`);
+    } finally {
+      await client.end();
+    }
+    process.exit(0);
+  }
+
   printUsage();
   process.exit(cmd ? 2 : 0);
 }
@@ -219,6 +343,12 @@ Core:
 HTTP (requires a running app):
   node scripts/blackglassctl.mjs health [--base=http://127.0.0.1:3000]
   node scripts/blackglassctl.mjs scans:enqueue [--base=...] [--body={"host_ids":[]}]
+  node scripts/blackglassctl.mjs queues [--base=...]
+
+Sandbox lifecycle (HTTP + app, operator-auth required):
+  node scripts/blackglassctl.mjs sandbox:provision --tenant-id=<uuid> [--base=...]
+  node scripts/blackglassctl.mjs sandbox:status   --sandbox-id=<uuid>  (DATABASE_URL required)
+  node scripts/blackglassctl.mjs sandbox:cleanup  --sandbox-id=<uuid>  (DATABASE_URL + DO_API_TOKEN required)
 
 Break-glass DB (DATABASE_URL required; use direct port, not pgBouncer):
   node scripts/blackglassctl.mjs provision-tenant --clerk-org=<id> [--name=<name>]

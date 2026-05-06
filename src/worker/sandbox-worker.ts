@@ -18,7 +18,7 @@
  */
 
 import { Worker } from "bullmq";
-import { QUEUE_NAMES } from "@/lib/server/queue/scan-queue";
+import { QUEUE_NAMES, DEFAULT_CONCURRENCY } from "@/lib/server/queue/config";
 import {
   activateSandbox,
   destroySandbox,
@@ -42,7 +42,16 @@ if (!redisUrl) {
   process.exit(1);
 }
 
-console.info(`[sandbox-worker] Starting — queue=${QUEUE_NAMES.SANDBOX}`);
+const sandboxConcurrency = (() => {
+  const v = process.env.SANDBOX_WORKER_CONCURRENCY?.trim();
+  if (v) {
+    const n = parseInt(v, 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return DEFAULT_CONCURRENCY.SANDBOX;
+})();
+
+console.info(`[sandbox-worker] Starting — queue=${QUEUE_NAMES.SANDBOX} concurrency=${sandboxConcurrency}`);
 
 // ---------------------------------------------------------------------------
 // SSH helper — run a command on the sandbox Droplet
@@ -250,7 +259,7 @@ const worker = new Worker<SandboxJobPayload>(
   },
   {
     connection: { url: redisUrl },
-    concurrency: 2,
+    concurrency: sandboxConcurrency,
   },
 );
 
@@ -261,7 +270,20 @@ worker.on("failed", (job, err) =>
   console.error(`[sandbox-worker] Job ${job?.id} (${job?.data?.type}) failed`, err),
 );
 
-process.on("SIGTERM", async () => {
+// Graceful shutdown — drain in-flight jobs before exit.
+// DO App Platform sends SIGTERM and waits up to 30 s before SIGKILL.
+async function shutdown(signal: string) {
+  console.info(`[sandbox-worker] ${signal}: closing worker (forced exit in 25 s if needed)...`);
+  const forceExit = setTimeout(() => {
+    console.warn("[sandbox-worker] Forced exit — worker did not drain in time");
+    process.exit(1);
+  }, 25_000);
+  forceExit.unref();
   await worker.close();
+  clearTimeout(forceExit);
+  console.info("[sandbox-worker] Worker closed — exiting");
   process.exit(0);
-});
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
