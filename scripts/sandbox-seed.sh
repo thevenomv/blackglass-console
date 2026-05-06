@@ -35,6 +35,7 @@ case "$PHASE" in
     rm -f /etc/sudoers.d/sandbox-backdoor 2>/dev/null || true
     userdel -r attacker-ssh 2>/dev/null || true
     sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config 2>/dev/null || true
+    systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
     rm -f /etc/cron.d/sandbox-beacon 2>/dev/null || true
     find /usr/local/bin -name 'sandbox-*' -delete 2>/dev/null || true
     chmod 644 /etc/passwd 2>/dev/null || true
@@ -70,7 +71,8 @@ case "$PHASE" in
   5)
     log "Scene 5 — sshd PermitRootLogin yes"
     sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-    log "sshd_config: PermitRootLogin set to yes"
+    systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+    log "sshd_config: PermitRootLogin set to yes (reloaded)"
     ;;
 
   6)

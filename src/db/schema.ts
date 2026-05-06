@@ -238,6 +238,8 @@ export const saasSandboxes = pgTable(
     /** ISO timestamp of the last drift seeding run. */
     driftSeededAt: timestamp("drift_seeded_at", { withTimezone: true }),
     errorMessage: text("error_message"),
+    /** DO Cloud Firewall ID — set once the firewall is created; used for cleanup. */
+    firewallId: text("firewall_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

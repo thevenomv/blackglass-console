@@ -110,6 +110,19 @@ async function getSandboxPrivateKey(credentialId: string): Promise<Buffer> {
 // ---------------------------------------------------------------------------
 
 async function handleProvision(sandboxId: string, tenantId: string): Promise<void> {
+  // Idempotency guard: skip if the Droplet was already activated (BullMQ retry case)
+  const [existing] = await withBypassRls((db) =>
+    db.select().from(saasSandboxes).where(eq(saasSandboxes.id, sandboxId)),
+  );
+  if (!existing) {
+    console.info(`[sandbox-worker] Sandbox ${sandboxId} not found — skipping provision`);
+    return;
+  }
+  if (existing.dropletIp && existing.status !== "error") {
+    console.info(`[sandbox-worker] Sandbox ${sandboxId} already activated — skipping provision`);
+    return;
+  }
+
   console.info(`[sandbox-worker] Activating sandbox ${sandboxId}`);
   const { ip, hostId } = await activateSandbox(sandboxId, tenantId);
   console.info(`[sandbox-worker] Sandbox ${sandboxId} active — ip=${ip} hostId=${hostId}`);
@@ -118,8 +131,8 @@ async function handleProvision(sandboxId: string, tenantId: string): Promise<voi
   await enqueueSandboxSeedDrift(sandboxId, tenantId, 0, 3 * 60_000);
   // Scene 1 after 8 min
   await enqueueSandboxSeedDrift(sandboxId, tenantId, 1, 8 * 60_000);
-  // Scenes 2–4 every 10 min
-  for (let phase = 2; phase <= 4; phase++) {
+  // Scenes 2–8 every 10 min (phase N at T + (8 + N*10) min)
+  for (let phase = 2; phase <= 8; phase++) {
     await enqueueSandboxSeedDrift(sandboxId, tenantId, phase, (8 + phase * 10) * 60_000);
   }
 
@@ -156,19 +169,23 @@ async function handleSeedDrift(
       .where(eq(saasSandboxes.id, sandboxId)),
   );
 
+  // Validate phase to prevent command injection from a tampered job payload
+  const safePha = Math.min(8, Math.max(0, Math.trunc(Number(phase))));
+  if (!Number.isFinite(safePha)) throw new Error(`Invalid seed phase: ${phase}`);
+
   try {
     const privateKey = await getSandboxPrivateKey(sandbox.credentialId);
     await runOverSsh(
       sandbox.dropletIp,
       privateKey,
-      `sudo bash /root/sandbox/seed.sh ${phase}`,
+      `sudo bash /root/sandbox/seed.sh ${safePha}`,
     );
     await withBypassRls((db) =>
       db
         .update(saasSandboxes)
         .set({
           status: "ready",
-          seedPhase: phase,
+          seedPhase: safePha,
           driftSeededAt: new Date(),
           updatedAt: new Date(),
         })

