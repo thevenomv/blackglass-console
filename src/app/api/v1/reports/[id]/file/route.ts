@@ -41,7 +41,7 @@ export async function GET(
     return new NextResponse("Report content not found", { status: 404 });
   }
 
-  const ext = meta.format === "pdf" ? "json" : "md";
+  const ext = meta.format === "pdf" ? "pdf" : "md";
   const safeName = meta.title
     .replace(/[^a-z0-9]+/gi, "-")
     .replace(/^-+|-+$/g, "")
@@ -50,7 +50,7 @@ export async function GET(
   const filename = `${safeName}-${id.slice(0, 8)}.${ext}`;
 
   const contentType =
-    meta.format === "pdf" ? "application/json" : "text/markdown; charset=utf-8";
+    meta.format === "pdf" ? "application/pdf" : "text/markdown; charset=utf-8";
 
   return new NextResponse(content, {
     status: 200,

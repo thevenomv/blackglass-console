@@ -1,7 +1,34 @@
 import Link from "next/link";
 import { TrialSignupLink, LaunchSandboxLink } from "@/components/demo/DemoGateButton";
 
-function MockConsolePreview() {
+async function MockConsolePreview() {
+  // Attempt to surface the latest live event from the showcase VM.
+  // Falls back silently to static content on any error or when offline.
+  let liveTitle: string | null = null;
+  let liveSeverity: "high" | "critical" | null = null;
+  try {
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+    const res = await fetch(`${base}/api/public/sandbox-showcase`, {
+      next: { revalidate: 30 },
+    });
+    if (res.ok) {
+      const payload = await res.json();
+      if (
+        payload.status === "online" &&
+        Array.isArray(payload.recentEvents) &&
+        payload.recentEvents.length > 0
+      ) {
+        const top = payload.recentEvents[0];
+        liveTitle = typeof top.title === "string" ? top.title : null;
+        liveSeverity =
+          top.severity === "critical" || top.severity === "high" ? top.severity : "high";
+      }
+    }
+  } catch {
+    // silent fallback
+  }
+
   return (
     <div className="relative overflow-hidden rounded-lg border border-border-default bg-bg-panel shadow-elevated" role="img" aria-label="BLACKGLASS console preview showing drift events and SSH posture">
       {/* Title bar */}
@@ -10,16 +37,34 @@ function MockConsolePreview() {
         <span className="h-2 w-2 rounded-full bg-amber-500/70" aria-hidden="true" />
         <span className="h-2 w-2 rounded-full bg-emerald-500/70" aria-hidden="true" />
         <span className="ml-3 font-mono text-[10px] text-fg-faint">blackglass / fleet</span>
+        {liveTitle && (
+          <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-[8px] font-semibold uppercase tracking-wider text-emerald-400">
+            live
+          </span>
+        )}
       </div>
       {/* Drift queue row */}
       <div className="border-b border-border-subtle px-3 py-2">
         <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-fg-faint">Drift events — last scan</p>
         <div className="mt-2 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />
-            <span className="font-mono text-[10px] text-fg-primary">sshd / PermitRootLogin</span>
-            <span className="ml-auto font-mono text-[9px] text-red-400">HIGH</span>
-          </div>
+          {liveTitle ? (
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${liveSeverity === "critical" ? "bg-red-500" : "bg-orange-400"}`}
+                aria-hidden="true"
+              />
+              <span className="font-mono text-[10px] text-fg-primary truncate">{liveTitle}</span>
+              <span className={`ml-auto font-mono text-[9px] ${liveSeverity === "critical" ? "text-red-400" : "text-orange-400"}`}>
+                {liveSeverity?.toUpperCase()}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />
+              <span className="font-mono text-[10px] text-fg-primary">sshd / PermitRootLogin</span>
+              <span className="ml-auto font-mono text-[9px] text-red-400">HIGH</span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden="true" />
             <span className="font-mono text-[10px] text-fg-primary">sysctl / net.ipv4.tcp_syncookies</span>

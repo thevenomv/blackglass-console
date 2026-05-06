@@ -22,10 +22,12 @@ import { QUEUE_NAMES } from "@/lib/server/queue/scan-queue";
 import {
   activateSandbox,
   destroySandbox,
+  provisionSandbox,
 } from "@/lib/server/services/sandbox-provisioner";
 import {
   enqueueSandboxSeedDrift,
   enqueueSandboxCleanup,
+  enqueueSandboxProvision,
   type SandboxJobPayload,
 } from "@/lib/server/queue/sandbox-queue";
 import { withBypassRls, schema } from "@/db";
@@ -203,10 +205,23 @@ async function handleSeedDrift(
   }
 }
 
-async function handleCleanup(sandboxId: string): Promise<void> {
+async function handleCleanup(sandboxId: string, tenantId: string): Promise<void> {
   console.info(`[sandbox-worker] Destroying sandbox ${sandboxId}`);
   await destroySandbox(sandboxId);
   console.info(`[sandbox-worker] Sandbox ${sandboxId} destroyed`);
+
+  // Auto-reprovision the shared showcase sandbox so the public demo stays live.
+  const showcaseTenantId = process.env.SANDBOX_SHOWCASE_TENANT_ID?.trim();
+  if (showcaseTenantId && tenantId === showcaseTenantId) {
+    console.info(`[sandbox-worker] Reprovisioning showcase sandbox for tenant ${tenantId}`);
+    try {
+      const newSandboxId = await provisionSandbox(tenantId);
+      await enqueueSandboxProvision(newSandboxId, tenantId);
+      console.info(`[sandbox-worker] Showcase sandbox ${newSandboxId} queued for provisioning`);
+    } catch (err) {
+      console.error(`[sandbox-worker] Failed to reprovision showcase sandbox: ${err}`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -225,7 +240,7 @@ const worker = new Worker<SandboxJobPayload>(
         await handleSeedDrift(job.data.sandboxId, job.data.tenantId, job.data.phase);
         break;
       case "sandbox:cleanup":
-        await handleCleanup(job.data.sandboxId);
+        await handleCleanup(job.data.sandboxId, job.data.tenantId);
         break;
       default: {
         const _exhaustive: never = job.data;
