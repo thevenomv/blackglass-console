@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       // Lazy import to avoid pulling SSH deps into every request
       const { collectSnapshot } = await import("@/lib/server/collector");
       const { saveBaseline } = await import("@/lib/server/baseline-store");
-      const snap = await collectSnapshot({ hostId, reason: "baseline" });
+      const snap = await collectSnapshot({ hostIds: [hostId], reason: "baseline" });
       await saveBaseline(snap);
       hostsCaptured.push(hostId);
     } catch (err) {
