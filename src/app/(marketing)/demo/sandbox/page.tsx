@@ -9,7 +9,7 @@
  * Data comes from GET /api/public/sandbox-showcase and refreshes every 10 s.
  */
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { TrialSignupLink } from "@/components/demo/DemoGateButton";
@@ -84,6 +84,14 @@ function etaFromNow(iso: string | null): string | null {
 }
 
 export default function SandboxShowcasePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-fg-faint">Loading…</div>}>
+      <SandboxShowcaseInner />
+    </Suspense>
+  );
+}
+
+function SandboxShowcaseInner() {
   const [data, setData] = useState<ShowcaseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedPhase, setExpandedPhase] = useState<number | null>(null);
