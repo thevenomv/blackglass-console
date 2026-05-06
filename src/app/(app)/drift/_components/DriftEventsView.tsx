@@ -250,27 +250,6 @@ export function DriftEventsView({
     }
   }, [selectedIds, toast]);
 
-  const handleBulkAcceptRisk = useCallback(async () => {
-    if (selectedIds.size === 0) return;
-    setBulkActing(true);
-    try {
-      await fetch("/api/v1/audit/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "bulk_accept_risk",
-          detail: `Risk accepted for ${selectedIds.size} finding(s): ${[...selectedIds].join(", ")}`,
-        }),
-      });
-      toast(`Risk accepted for ${selectedIds.size} finding${selectedIds.size === 1 ? "" : "s"}.`, "warning");
-      setSelectedIds(new Set());
-    } catch {
-      toast("Bulk action failed — try again.", "danger");
-    } finally {
-      setBulkActing(false);
-    }
-  }, [selectedIds, toast]);
-
   const handleAcceptAsBaseline = useCallback(async () => {
     if (selectedIds.size === 0) return;
     setBulkActing(true);
