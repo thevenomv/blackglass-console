@@ -70,3 +70,42 @@ export async function allowRedisSlidingWindow(
     return null;
   }
 }
+
+/** Stats entry for a single rate-limit key — active hit count within its window. */
+export type RateLimitKeyStat = {
+  key: string;
+  activeHits: number;
+};
+
+/**
+ * Scan Redis for all active rate-limit sorted-set keys and return their current
+ * hit counts (number of members still inside the sliding window).
+ *
+ * Returns `null` when Redis is not configured.
+ */
+export async function getRateLimitStats(): Promise<RateLimitKeyStat[] | null> {
+  const r = singleton();
+  if (!r) return null;
+
+  const stats: RateLimitKeyStat[] = [];
+  let cursor = "0";
+
+  try {
+    do {
+      const [nextCursor, keys] = await r.scan(cursor, "MATCH", "*:*", "COUNT", "200");
+      cursor = nextCursor;
+      for (const key of keys) {
+        try {
+          const count = await r.zcard(key);
+          if (count > 0) stats.push({ key, activeHits: count });
+        } catch {
+          // Skip keys that error (may be a different type or expired mid-scan)
+        }
+      }
+    } while (cursor !== "0");
+  } catch {
+    return null;
+  }
+
+  return stats.sort((a, b) => b.activeHits - a.activeHits);
+}

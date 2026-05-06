@@ -36,9 +36,11 @@ export type BaselineCaptureOutcome =
   | { kind: "ok"; payload: BaselineCaptureSuccess }
   | { kind: "exception"; message: string };
 
-export async function captureBaselinesFromFleet(): Promise<BaselineCaptureOutcome> {
+export async function captureBaselinesFromFleet(
+  opts?: { tenantId?: string },
+): Promise<BaselineCaptureOutcome> {
   try {
-    const results = await collectAllSnapshots({ reason: "baseline" });
+    const results = await collectAllSnapshots({ reason: "baseline", tenantId: opts?.tenantId });
     const failures = results.filter((r) => r.error);
     const successes = results.filter((r) => r.snapshot);
 

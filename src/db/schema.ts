@@ -124,6 +124,8 @@ export const saasCollectorHosts = pgTable(
     sshUser: text("ssh_user").notNull().default("blackglass"),
     sshPort: integer("ssh_port").notNull().default(22),
     enabled: boolean("enabled").notNull().default(true),
+    /** FK to tenant_credentials — when set, this host uses that key instead of the global env credential. */
+    credentialId: uuid("credential_id").references(() => tenantCredentials.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

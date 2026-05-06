@@ -19,8 +19,10 @@ function scanContext(opts?: CollectScanOptions): ScanContext {
     scanId: opts?.scanId ?? randomUUID(),
     reason: opts?.reason ?? "drift_scan",
     hostCount: collectorHostSlotCount(),
-    credentialRef: process.env.BLACKGLASS_SSH_SECRET_NAME,
+    // opts.credentialRef overrides env — allows per-tenant credential labels in DB provider.
+    credentialRef: opts?.credentialRef ?? process.env.BLACKGLASS_SSH_SECRET_NAME,
     filterHostIds: opts?.hostIds?.length ? opts.hostIds : undefined,
+    tenantId: opts?.tenantId,
   };
 }
 

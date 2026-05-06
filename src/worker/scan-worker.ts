@@ -54,6 +54,11 @@ const worker = new Worker<ScanJobPayload>(
   QUEUE_NAMES.SCANS,
   async (job) => {
     const { jobId, collectOpts, saasTenantId, requestId } = job.data;
+    // Propagate tenant ID into collectOpts so per-tenant credential lookup works
+    // when SECRET_PROVIDER=db.  saasTenantId is set by the web tier's scan route.
+    const enrichedOpts = saasTenantId
+      ? { ...collectOpts, tenantId: saasTenantId }
+      : collectOpts;
     console.info(
       `[scan-worker] Processing job ${job.id} — scanId=${jobId} attempt=${job.attemptsMade + 1}` +
         (requestId ? ` requestId=${requestId}` : "") +
@@ -68,7 +73,7 @@ const worker = new Worker<ScanJobPayload>(
         attempt: job.attemptsMade + 1,
       });
     }
-    await executeDriftScanJob(jobId, collectOpts);
+    await executeDriftScanJob(jobId, enrichedOpts);
   },
   {
     connection: { url: redisUrl },

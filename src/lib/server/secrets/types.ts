@@ -4,10 +4,13 @@ export type ScanContext = {
   scanId: string;
   reason: ScanReason;
   hostCount: number;
-  /** Logical name in the secret manager (Doppler key, Infisical secret name, Vault role path). */
+  /** Logical name in the secret manager (Doppler key, Infisical secret name, Vault role path).
+   *  When SECRET_PROVIDER=db this is the credential `label` (or UUID) inside `tenant_credentials`. */
   credentialRef?: string;
   /** When set, only these collector `hostId` values are contacted (e.g. from `POST /scans`). */
   filterHostIds?: string[];
+  /** Tenant UUID — required when SECRET_PROVIDER=db so the DB provider can enforce RLS. */
+  tenantId?: string;
 };
 
 export type ScanCredential =

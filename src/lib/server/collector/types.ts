@@ -5,6 +5,10 @@ export type CollectScanOptions = {
   reason?: ScanContext["reason"];
   /** Only these `hostId` values (e.g. `host-127-0-0-1`) are collected. */
   hostIds?: string[];
+  /** Tenant UUID — required when SECRET_PROVIDER=db; forwarded to ScanContext for per-tenant credential lookup. */
+  tenantId?: string;
+  /** Credential label or UUID override — forwarded to ScanContext.credentialRef. */
+  credentialRef?: string;
 };
 
 export type ListeningPort = {

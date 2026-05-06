@@ -2,10 +2,10 @@
 
 **Audience:** Internal — engineering and operators only. This file is **not** linked from the public site or console UI; it lives under `docs/` in the repo.
 
-**Last reviewed:** 2026-05-03  
+**Last reviewed:** 2026-05-06  
 Update this file when you merge major UI, auth, or E2E work so prioritisation stays honest.
 
-## Recently landed (feature branch / main soon)
+## Recently landed (on main, deployed)
 
 - **Clerk + theme** — `ClerkThemedProvider` follows light/dark tokens; root layout order keeps `ThemeProvider` outside Clerk.
 - **Stable default E2E** — Playwright dev server clears Clerk keys unless `PLAYWRIGHT_CLERK=1`; smoke uses a cross-platform palette shortcut.
@@ -16,26 +16,31 @@ Update this file when you merge major UI, auth, or E2E work so prioritisation st
 - **Mock correctness** — `loadHostDetail` in mock mode without collector; evidence catalog + Evidence UI seeds aligned with API.
 - **Spec hygiene** — deduped `openapi/blackglass.yaml` `/reports`; `npm run openapi:types` → `src/types/openapi.d.ts`.
 - **Observability** — `ui.theme` Sentry tag on theme change (client).
+- **SSR silence** — `Providers.tsx` uses `dynamic(ssr:false)` for overlays; `RunScanButton` has mounted guard.
+- **WCAG AA color-contrast** — Dark `--text-faint` lifted to `#8494a3`; axe `disableRules` exception removed.
+- **Envelope encryption** — `KMS_PROVIDER=local` + `KMS_LOCAL_SECRET` in Doppler; `SSH_PRIVATE_KEY` stored as AES-256-GCM JSON blob.
+- **CI drift check** — OpenAPI types codegen drift check step in `ci.yml` (`git diff --exit-code src/types/openapi.d.ts`).
+- **Security headers** — `Cross-Origin-Opener-Policy: same-origin-allow-popups` + `Cross-Origin-Resource-Policy: same-origin` added to `next.config.ts`.
+- **Lighthouse extended** — matrix now includes `/security` and `/changelog`.
+- **`tenant_credentials` table** — Per-tenant SSH key store (envelope-encrypted, RLS-enforced, applied to live DB).
+- **`saasCollectorHosts.credentialId`** — FK to `tenant_credentials`; migration 0005 applied.
+- **DB secret provider** — `SECRET_PROVIDER=db` now supported; `DbSecretProvider` resolves SSH keys from DB with per-tenant RLS.
+- **tenantId threading** — `CollectScanOptions.tenantId` propagated through `scanContext()`, baseline-capture service, scan/baseline API routes, and BullMQ scan worker.
+- **Staging smoke CI trigger** — `workflow_run` on CI success for `main`; `VERIFY_SECRETS_PROBE=1` enabled.
+- **Rate-limit observability** — `GET /api/admin/rate-limits` returns Redis sorted-set hit counts (or memory-backend notice); `getRateLimitStats()` in `rate-limit-redis.ts`.
 
 ## P0 — do next
 
-1. **Merge + deploy** — Land the feature branch on the branch your production tracks (`main` / `staging`), then confirm the live revision in your host (DO, Vercel, etc.).
-2. **Silence RunScanButton SSR noise** — Logs still show `useScanJobs` during SSR in some cases; tighten client boundary or lazy mount so server render never touches scan context.
-3. **Enable color-contrast in axe** — Tests currently disable `color-contrast`; fix token violations (or document scoped exceptions), then re-enable the rule.
+1. **Stripe live cutover** — See `docs/stripe-live-cutover.md`. Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` in Doppler production config; register webhook in Stripe Dashboard. Smoke checkout on live mode before opening to paying customers.
+2. **`SECRET_PROVIDER=db` rollout** — Once tenants have rows in `tenant_credentials`, flip `SECRET_PROVIDER=db` in Doppler and add a "default" credential row per tenant. Document the operator onboarding runbook.
+3. **Tenant-scoped DB reads audit** — Verify all SaaS API routes that read DB data call `withTenantRls`; audit events, evidence bundles, and collector hosts are the primary surfaces.
 
 ## P1 — strong ROI
 
-4. **CI: validate OpenAPI codegen** — Add a step after `openapi:types` that fails if `src/types/openapi.d.ts` drifts (`git diff --exit-code` or dedicated check).
-5. **Lighthouse workflow** — Extend `.github/workflows/lighthouse.yml` URLs to `/security`, `/changelog`, and one app shell route behind mock.
-6. **CSP & security headers** — Document intended policy in `docs/` and align `next.config` / edge headers with Clerk, Stripe, and Sentry.
-7. **Rate-limit dashboards** — Expose counters or logs for throttled routes in your observability stack (ties to existing `rate_limit_exceeded` events).
-
-## P2 — platform depth
-
-8. **Storybook or Ladle** for shell primitives (Badge, Card, table patterns) — pay off as marketing + app share tokens.
-9. **Print/PDF/email** — Follow `docs/exports-and-comms.md`; wire real renderers and light-theme snapshots in CI.
-10. **i18n** — If EU public sector matters, plan `next-intl` or equivalent; notes in `docs/internationalization.md`.
-11. **Synthetic checks** — Schedule staging probes for `/api/health?probe=secrets` and critical SSR paths (see `docs/release-checklist.md`).
+4. **Rate-limit dashboards** — Wire `GET /api/admin/rate-limits` into the Settings → Runtime health UI panel so operators can see throttle activity without querying logs.
+5. **Storybook or Ladle** for shell primitives (Badge, Card, table patterns).
+6. **Print/PDF/email** — Follow `docs/exports-and-comms.md`; wire real renderers and light-theme snapshots in CI.
+7. **i18n** — If EU public sector matters, plan `next-intl` or equivalent; notes in `docs/internationalization.md`.
 
 ## Hygiene to keep
 

@@ -72,8 +72,17 @@ export async function POST(request: Request) {
   const job = enqueueScan(host_ids.length ? host_ids : ["fleet"]);
   const collectOpts =
     host_ids.length > 0
-      ? { scanId: job.id, reason: "drift_scan" as const, hostIds: host_ids }
-      : { scanId: job.id, reason: "drift_scan" as const };
+      ? {
+          scanId: job.id,
+          reason: "drift_scan" as const,
+          hostIds: host_ids,
+          ...(access.mode === "saas" ? { tenantId: access.ctx.tenant.id } : {}),
+        }
+      : {
+          scanId: job.id,
+          reason: "drift_scan" as const,
+          ...(access.mode === "saas" ? { tenantId: access.ctx.tenant.id } : {}),
+        };
 
   if (access.mode === "saas") {
     void applySaasSentryContext({

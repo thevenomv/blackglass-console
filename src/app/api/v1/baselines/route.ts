@@ -78,7 +78,7 @@ export async function POST(request: Request) {
   // minimum plan timeout of 60s.  Previously 55s was too close to CF's threshold.
   const ROUTE_TIMEOUT_MS = 30_000;
   const outcomeRaw = await Promise.race([
-    captureBaselinesFromFleet(),
+    captureBaselinesFromFleet({ tenantId: saasCtx?.tenant.id }),
     new Promise<{ kind: "timeout" }>((resolve) =>
       setTimeout(() => resolve({ kind: "timeout" }), ROUTE_TIMEOUT_MS),
     ),

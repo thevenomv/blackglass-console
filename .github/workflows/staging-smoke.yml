@@ -65,4 +65,7 @@ jobs:
         if: steps.tgt.outputs.url != ''
         env:
           STAGING_URL: ${{ steps.tgt.outputs.url }}
+          # Enable the /api/health?probe=secrets synthetic check on every run.
+          # The verify-staging script respects this flag and counts it as a check.
+          VERIFY_SECRETS_PROBE: "1"
         run: node scripts/verify-staging.mjs

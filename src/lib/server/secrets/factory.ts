@@ -4,6 +4,7 @@ import { EnvSecretProvider } from "./providers/env-secret-provider";
 import { DopplerSecretProvider } from "./providers/doppler-secret-provider";
 import { InfisicalSecretProvider } from "./providers/infisical-secret-provider";
 import { VaultSecretProvider } from "./providers/vault-secret-provider";
+import { DbSecretProvider } from "./providers/db-secret-provider";
 
 /** Active `SECRET_PROVIDER` label (`env` when unset). */
 export function activeSecretProviderMode(): string {
@@ -21,9 +22,11 @@ export function createSecretProviderFromEnv(): SecretProvider {
       return new InfisicalSecretProvider();
     case "vault":
       return new VaultSecretProvider();
+    case "db":
+      return new DbSecretProvider();
     default:
       throw new SecretFetchError(
-        `Unknown SECRET_PROVIDER "${process.env.SECRET_PROVIDER}". Use env, doppler, infisical, or vault.`,
+        `Unknown SECRET_PROVIDER "${process.env.SECRET_PROVIDER}". Use env, doppler, infisical, vault, or db.`,
       );
   }
 }
@@ -53,6 +56,9 @@ export function credentialSourceConfigured(): boolean {
             (process.env.VAULT_TOKEN?.trim() ||
               (process.env.VAULT_ROLE_ID?.trim() && process.env.VAULT_SECRET_ID?.trim())),
         );
+      case "db":
+        // DB provider requires DATABASE_URL; tenantId is validated at fetch time.
+        return Boolean(process.env.DATABASE_URL?.trim());
       default:
         return false;
     }
@@ -60,3 +66,5 @@ export function credentialSourceConfigured(): boolean {
     return false;
   }
 }
+
+
