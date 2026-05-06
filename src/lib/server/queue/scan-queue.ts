@@ -25,6 +25,8 @@ export const QUEUE_NAMES = {
   REPORTS: "blackglass-reports",
   /** Evidence bundle assembly (lighter, Spaces I/O bound). */
   EVIDENCE: "blackglass-evidence",
+  /** Sandbox lifecycle jobs: provision, activate, seed-drift, cleanup. */
+  SANDBOX: "blackglass-sandbox",
 } as const;
 
 /** @deprecated Use QUEUE_NAMES.SCANS — kept for temporary backwards compat */

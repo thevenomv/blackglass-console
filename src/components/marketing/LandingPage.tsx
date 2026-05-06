@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TrialSignupLink } from "@/components/demo/DemoGateButton";
+import { TrialSignupLink, LaunchSandboxLink } from "@/components/demo/DemoGateButton";
 
 function MockConsolePreview() {
   return (
@@ -74,13 +74,16 @@ export function LandingPage() {
                 gives ops and security teams a clear workflow to harden their fleet.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
+                <LaunchSandboxLink className="rounded-lg bg-accent-blue px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-blue-hover">
+                  Launch live sandbox
+                </LaunchSandboxLink>
                 <Link
                   href="/demo"
-                  className="rounded-lg bg-accent-blue px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-blue-hover"
+                  className="rounded-lg border border-border-default bg-bg-panel px-5 py-2.5 text-sm font-medium text-fg-primary hover:bg-bg-elevated"
                 >
                   Explore demo
                 </Link>
-                <TrialSignupLink className="rounded-lg border border-border-default bg-bg-panel px-5 py-2.5 text-sm font-medium text-fg-primary hover:bg-bg-elevated">
+                <TrialSignupLink className="rounded-lg px-5 py-2.5 text-sm font-medium text-fg-muted hover:bg-bg-elevated hover:text-fg-primary">
                   Start free trial
                 </TrialSignupLink>
                 <Link
@@ -91,9 +94,9 @@ export function LandingPage() {
                 </Link>
               </div>
               <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs text-fg-faint">
+                <span>Real VM — you never touch SSH keys</span>
+                <span>Drift seeded automatically</span>
                 <span>No credit card for trial</span>
-                <span>Unlimited viewers on paid plans</span>
-                <span>Built for ops &amp; security teams</span>
               </div>
             </div>
             <MockConsolePreview />

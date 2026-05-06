@@ -38,3 +38,25 @@ export function TrialSignupLink({
     </Link>
   );
 }
+
+/**
+ * "Launch Sandbox" CTA — takes the user to sign-up with a `?sandbox=1` query
+ * parameter so the dashboard can auto-trigger sandbox provisioning on first load.
+ */
+export function LaunchSandboxLink({
+  className,
+  children,
+}: {
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const clerkOn =
+    typeof process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY === "string" &&
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.length > 0;
+  const href = clerkOn ? "/sign-up?sandbox=1" : "/login?sandbox=1";
+  return (
+    <Link href={href} className={className}>
+      {children ?? "Launch live sandbox"}
+    </Link>
+  );
+}

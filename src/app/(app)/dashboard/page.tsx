@@ -11,6 +11,7 @@ import { deriveDriftCardsFromEvents, pickSpotlightHost } from "@/lib/server/dash
 import { resolveDriftEventsForDashboardAsync } from "@/lib/server/drift-resolve";
 import type { HostRecord } from "@/data/mock/types";
 import { loadHosts } from "@/lib/server/inventory";
+import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,9 @@ async function DashboardDeferred() {
 export default function DashboardPage() {
   return (
     <AppShell>
+      <Suspense fallback={null}>
+        <SandboxBanner />
+      </Suspense>
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardDeferred />
       </Suspense>
