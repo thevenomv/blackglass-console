@@ -249,3 +249,58 @@ export const saasSandboxes = pgTable(
 );
 
 export type SaasSandbox = typeof saasSandboxes.$inferSelect;
+
+// ── API Keys ──────────────────────────────────────────────────────────────────
+
+/**
+ * Long-lived API keys for programmatic / CI-CD access.
+ * Only the SHA-256 hash of the raw key is stored here — the raw key is shown
+ * once at creation time and never persisted.
+ *
+ * Key format: bg_live_<48 hex chars>
+ * Auth: Authorization: Bearer <raw key>
+ */
+export const saasApiKeys = pgTable("saas_api_keys", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => saasTenants.id, { onDelete: "cascade" }),
+  /** SHA-256 hex of the raw key — never the raw key itself. */
+  keyHash: text("key_hash").notNull().unique(),
+  label: text("label").notNull(),
+  /** Allowed scopes, e.g. ["scans.run", "drift.read"]. */
+  scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
+  createdBy: text("created_by"),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type SaasApiKey = typeof saasApiKeys.$inferSelect;
+
+// ── Host Policies ─────────────────────────────────────────────────────────────
+
+/**
+ * "Must stay true" invariant rules per tenant.
+ * Each rule asserts that a specific key-path in the HostSnapshot must equal
+ * an expected value.  Violations surface as policy_violation drift events.
+ *
+ * conditionKey: dot-delimited path into HostSnapshot (e.g. "sshConfig.permitRootLogin")
+ * conditionValue: expected string value (e.g. "no")
+ */
+export const saasHostPolicies = pgTable("saas_host_policies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => saasTenants.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  conditionKey: text("condition_key").notNull(),
+  conditionValue: text("condition_value").notNull(),
+  severity: text("severity").notNull().default("high"),
+  enabled: boolean("enabled").notNull().default(true),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type SaasHostPolicy = typeof saasHostPolicies.$inferSelect;

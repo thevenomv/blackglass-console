@@ -11,6 +11,7 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { ProgressRow } from "@/components/ui/ProgressBar";
 import { SecurityOverviewSection } from "./SecurityOverviewSection";
 import { ValueRecapBanner, type ValueRecap } from "@/components/dashboard/ValueRecapBanner";
+import { DriftTrendChart } from "@/components/dashboard/DriftTrendChart";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -246,6 +247,10 @@ export function DashboardV3({
       )}
 
       <ValueRecapBanner recap={valueRecap} />
+
+      <Card title="Drift trend — last 7 days">
+        <DriftTrendChart />
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard

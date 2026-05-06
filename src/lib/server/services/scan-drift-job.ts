@@ -9,6 +9,9 @@ import { recordDriftScanDayStamp } from "@/lib/server/drift-history";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
 import { markScanDone, resolveScan } from "@/lib/server/scan-jobs";
 import { dispatchDriftWebhook } from "@/lib/server/outbound-webhook";
+import { sendEmail } from "@/lib/email/send";
+import { driftAlertHtml, driftAlertText } from "@/lib/email/templates/drift-alert";
+import type { DriftEvent } from "@/data/mock/types";
 
 // ---------------------------------------------------------------------------
 // Slack alerting — fire-and-forget; no-op when SLACK_ALERT_WEBHOOK_URL is unset
@@ -26,6 +29,31 @@ async function alertSlack(text: string): Promise<void> {
   } catch (alertErr) {
     // Never let alerting failure mask the original error
     console.error("[scan-drift-job] Slack alert failed:", alertErr);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Email alerting — fire-and-forget; no-op when ALERT_EMAIL_TO is unset
+// ---------------------------------------------------------------------------
+
+async function alertDriftEmail(
+  jobId: string,
+  hostname: string,
+  highEvents: DriftEvent[],
+): Promise<void> {
+  const to = process.env.ALERT_EMAIL_TO?.trim();
+  if (!to || highEvents.length === 0) return;
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "https://app.blackglasssec.com";
+  try {
+    await sendEmail({
+      to,
+      subject: `[BLACKGLASS] ${highEvents.length} high-severity drift finding${highEvents.length === 1 ? "" : "s"} on ${hostname}`,
+      html: driftAlertHtml({ hostname, jobId, appUrl, findings: highEvents }),
+      text: driftAlertText({ hostname, jobId, appUrl, findings: highEvents }),
+    });
+  } catch (emailErr) {
+    console.error("[scan-drift-job] Email alert failed:", emailErr);
   }
 }
 
@@ -64,6 +92,12 @@ export async function executeDriftScanJob(
       storeDriftEvents(current.hostId, events);
       totalDrift += events.length;
 
+      // Email alert for high-severity findings (non-blocking).
+      const highEvents = events.filter((e) => e.severity === "high");
+      if (highEvents.length > 0) {
+        void alertDriftEmail(jobId, current.hostname, highEvents);
+      }
+
       // Fire outbound webhooks for qualifying findings (non-blocking).
       if (events.length > 0) {
         void dispatchDriftWebhook({
@@ -92,6 +126,26 @@ export async function executeDriftScanJob(
     } else {
       await recordDriftScanDayStamp(totalDrift);
       resolveScan(jobId, "succeeded", failures.length ? failures.join("; ") : undefined, totalDrift);
+
+      // Auto-generate evidence bundle for tenants in SaaS mode (fire-and-forget).
+      if (collectOpts.tenantId && process.env.DATABASE_URL?.trim()) {
+        void (async () => {
+          try {
+            const { generateEvidenceBundle } = await import(
+              "@/lib/server/services/evidence-service"
+            );
+            await generateEvidenceBundle({
+              tenantId: collectOpts.tenantId!,
+              generatedBy: "auto-scan",
+              title: `Auto-scan ${new Date().toISOString().slice(0, 10)} (${jobId.slice(0, 8)})`,
+              scope: "all",
+              notes: `Automatically generated after scan job ${jobId}. Drift events: ${totalDrift}.`,
+            });
+          } catch (bundleErr) {
+            console.error("[scan-drift-job] Auto evidence bundle failed:", bundleErr);
+          }
+        })();
+      }
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

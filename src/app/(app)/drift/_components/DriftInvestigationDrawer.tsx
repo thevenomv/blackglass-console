@@ -9,6 +9,7 @@ import { useSession } from "@/components/auth/SessionProvider";
 import { useToast } from "@/components/ui/Toast";
 import { getRemediationSnippet } from "@/lib/remediation-snippets";
 import { scoreEvent } from "@/lib/server/risk-score";
+import { getCisControls } from "@/lib/cis-controls";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -78,6 +79,8 @@ export function DriftInvestigationDrawer({
   }, [router, backHref]);
 
   const trapRef = useFocusTrap(true, close);
+
+  const cisControls = useMemo(() => getCisControls(event.category), [event.category]);
   const canMutate = !loading && allowed("driftMutation");
   const prov = event.provenance;
   const risk = useMemo(() => scoreEvent(event), [event]);
@@ -221,6 +224,22 @@ export function DriftInvestigationDrawer({
             <h3 className="text-sm font-medium text-fg-primary">Why this matters</h3>
             <p className="text-sm leading-relaxed text-fg-muted">{event.rationale}</p>
           </section>
+
+          {cisControls.length > 0 && (
+            <section className="mt-4 rounded-card border border-border-subtle bg-bg-panel px-4 py-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">CIS Benchmark controls</p>
+              <ul className="space-y-1">
+                {cisControls.map((c) => (
+                  <li key={c.controlId} className="flex items-start gap-2 text-xs">
+                    <span className="shrink-0 rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-accent-blue">
+                      {c.benchmark} {c.controlId}
+                    </span>
+                    <span className="text-fg-muted">{c.title}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="mt-6 space-y-3">
             <h3 className="text-sm font-medium text-fg-primary">Provenance</h3>

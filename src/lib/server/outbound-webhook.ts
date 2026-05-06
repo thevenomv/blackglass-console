@@ -93,15 +93,119 @@ function sign(body: string, secret: string): string {
 // Core dispatch
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Platform detection & native formatters
+// ---------------------------------------------------------------------------
+
+type Platform = "slack" | "pagerduty" | "generic";
+
+function detectPlatform(url: string): Platform {
+  if (/hooks\.slack\.com|slack\.com\/workflows/i.test(url)) return "slack";
+  if (/events\.pagerduty\.com|pagerduty\.com\/v2/i.test(url)) return "pagerduty";
+  return "generic";
+}
+
+function severityEmoji(s: string): string {
+  if (s === "high") return "🔴";
+  if (s === "medium") return "🟡";
+  return "🟢";
+}
+
+/** Build a Slack Block Kit payload for drift findings. */
+function buildSlackPayload(payload: WebhookPayload): string {
+  const count = payload.findings.length;
+  const highCount = payload.findings.filter((f) => f.severity === "high").length;
+  const blocks = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: `${highCount > 0 ? "🔴" : "🟡"} BLACKGLASS: ${count} drift finding${count === 1 ? "" : "s"} on ${payload.hostname}`,
+        emoji: true,
+      },
+    },
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*Host*\n${payload.hostname}` },
+        { type: "mrkdwn", text: `*Scan ID*\n\`${payload.scanId.slice(0, 8)}\`` },
+        { type: "mrkdwn", text: `*Detected*\n${payload.timestamp.slice(0, 16).replace("T", " ")} UTC` },
+        { type: "mrkdwn", text: `*High severity*\n${highCount} / ${count}` },
+      ],
+    },
+    { type: "divider" },
+    ...payload.findings.slice(0, 10).map((f) => ({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `${severityEmoji(f.severity)} *${f.title}*\n_${f.category}_ — ${f.rationale ?? ""}`,
+      },
+    })),
+    ...(payload.findings.length > 10
+      ? [{ type: "section", text: { type: "mrkdwn", text: `_…and ${payload.findings.length - 10} more findings._` } }]
+      : []),
+  ];
+  return JSON.stringify({ blocks });
+}
+
+/** Build a PagerDuty Events v2 payload. */
+function buildPagerDutyPayload(payload: WebhookPayload): string {
+  const highCount = payload.findings.filter((f) => f.severity === "high").length;
+  const severity = highCount > 0 ? "critical" : payload.findings.some((f) => f.severity === "medium") ? "warning" : "info";
+  const summary = `BLACKGLASS: ${payload.findings.length} drift finding(s) on ${payload.hostname}`;
+
+  return JSON.stringify({
+    routing_key: process.env.PD_ROUTING_KEY ?? "",
+    event_action: "trigger",
+    dedup_key: `blackglass-${payload.scanId}`,
+    payload: {
+      summary,
+      severity,
+      source: payload.hostname,
+      timestamp: payload.timestamp,
+      component: "drift-scanner",
+      group: payload.hostId,
+      custom_details: {
+        scan_id: payload.scanId,
+        findings_count: payload.findings.length,
+        high_severity_count: highCount,
+        findings: payload.findings.slice(0, 20).map((f) => ({
+          title: f.title,
+          category: f.category,
+          severity: f.severity,
+        })),
+      },
+    },
+    links: [
+      {
+        href: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.blackglasssec.com"}/drift`,
+        text: "Review in BLACKGLASS console",
+      },
+    ],
+  });
+}
+
 async function dispatchOne(url: string, payload: WebhookPayload): Promise<void> {
-  const body = JSON.stringify(payload);
+  const platform = detectPlatform(url);
   const secret = signingSecret();
+
+  let body: string;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "User-Agent": "BLACKGLASS-Webhook/1.0",
   };
-  if (secret) {
-    headers["X-Blackglass-Signature"] = `sha256=${sign(body, secret)}`;
+
+  if (platform === "slack") {
+    body = buildSlackPayload(payload);
+    // Slack incoming webhooks don't use HMAC — skip signature header
+  } else if (platform === "pagerduty") {
+    body = buildPagerDutyPayload(payload);
+    // PagerDuty uses routing_key inside the body, not HMAC header
+  } else {
+    body = JSON.stringify(payload);
+    if (secret) {
+      headers["X-Blackglass-Signature"] = `sha256=${sign(body, secret)}`;
+    }
   }
 
   const res = await fetch(url, {
