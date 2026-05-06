@@ -24,7 +24,7 @@ function withRequestId(request: NextRequest, requestId: string): NextResponse {
 
 const clerkPublic = createRouteMatcher([
   "/",
-  "/product(.*)",
+  "/product(.*)",  
   "/.well-known(.*)",
   "/security(.*)",
   "/book(.*)",
