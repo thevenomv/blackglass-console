@@ -34,7 +34,7 @@ jobs:
       secrets.STAGING_URL != ''
     strategy:
       matrix:
-        path: ["/", "/product"]
+        path: ["/", "/product", "/security", "/changelog"]
     steps:
       - uses: actions/checkout@v6
 

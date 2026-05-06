@@ -14,6 +14,14 @@ on:
         required: false
         default: ""
 
+  # Auto-trigger after CI passes on main so every successful merge is smoke-checked.
+  # The verify-staging script retries 3× with 2-minute back-off to allow DO App Platform
+  # to complete its deployment before the checks run.
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+
   schedule:
     # Weekly Monday 14:00 UTC — job omitted entirely when **`STAGING_URL`** secret absent.
     - cron: "0 14 * * 1"
@@ -21,13 +29,20 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # Always run on workflow_dispatch. For scheduled runs, the "Require STAGING_URL" step
-    # exits 0 with a notice when the secret is absent (secrets cannot be tested in job-level if).
+    # For workflow_run events only run when CI succeeded (not on failure/cancellation).
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
+
+      # Wait for DO App Platform to finish deploying after a CI-triggered run.
+      - name: Wait for deployment to propagate
+        if: github.event_name == 'workflow_run'
+        run: sleep 300
 
       - name: Resolve staging origin
         id: tgt

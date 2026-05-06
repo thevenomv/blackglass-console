@@ -49,9 +49,13 @@ const securityHeaders = [
   // Disable legacy XSS filter (CSP is authoritative; the filter creates its own vulnerabilities)
   { key: "X-XSS-Protection", value: "0" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" },
   // HSTS — 1 year, include subdomains. Cloudflare passes this through to the client over TLS.
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+  // COOP: allow-popups so Clerk OAuth pop-ups can communicate with the opener.
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  // CORP: prevent cross-origin sites from embedding our resources.
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
   { key: "Content-Security-Policy", value: csp },
   ...(process.env.CSP_REPORT_ONLY === "true"
     ? [{ key: "Content-Security-Policy-Report-Only", value: csp }]

@@ -49,6 +49,9 @@ jobs:
       - name: Zod schemas export matches committed file
         run: npm run schemas:export && git diff --exit-code openapi/zod-schemas.json
 
+      - name: OpenAPI types codegen drift check
+        run: npm run openapi:types && git diff --exit-code src/types/openapi.d.ts
+
       - name: Unit tests
         run: npm run test:unit
 

@@ -11,9 +11,7 @@ test.describe("@a11y console pages", () => {
   for (const path of paths) {
     test(`no serious a11y violations: ${path}`, async ({ page }) => {
       await page.goto(path);
-      const results = await new AxeBuilder({ page })
-        .disableRules(["color-contrast"]) /* theme tokens are tuned separately */
-        .analyze();
+      const results = await new AxeBuilder({ page }).analyze();
       const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
       expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
     });

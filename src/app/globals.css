@@ -18,7 +18,8 @@
   --text-primary: #f2f5f8;
   --text-muted: #9aa5b1;
   --text-secondary: #9aa5b1;
-  --text-faint: #6b7785;
+  /* #8494a3 yields ≥4.5:1 contrast on all dark panel backgrounds (WCAG AA) */
+  --text-faint: #8494a3;
 
   /* Primary blue */
   --accent-blue: #3b82f6;
