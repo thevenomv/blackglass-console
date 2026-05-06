@@ -250,6 +250,55 @@ export function DriftEventsView({
     }
   }, [selectedIds, toast]);
 
+  const handleBulkAcceptRisk = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setBulkActing(true);
+    try {
+      await fetch("/api/v1/audit/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "bulk_accept_risk",
+          detail: `Risk accepted for ${selectedIds.size} finding(s): ${[...selectedIds].join(", ")}`,
+        }),
+      });
+      toast(`Risk accepted for ${selectedIds.size} finding${selectedIds.size === 1 ? "" : "s"}.`, "warning");
+      setSelectedIds(new Set());
+    } catch {
+      toast("Bulk action failed — try again.", "danger");
+    } finally {
+      setBulkActing(false);
+    }
+  }, [selectedIds, toast]);
+
+  const handleAcceptAsBaseline = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setBulkActing(true);
+    try {
+      const res = await fetch("/api/v1/drift/accept-baseline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventIds: [...selectedIds] }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(err.message ?? `Server error ${res.status}`);
+      }
+      const data = await res.json() as { accepted?: number };
+      toast(
+        `${data.accepted ?? selectedIds.size} finding${selectedIds.size === 1 ? "" : "s"} accepted as new baseline.`,
+        "success",
+      );
+      setSelectedIds(new Set());
+      router.refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast(`Accept as baseline failed: ${msg}`, "danger");
+    } finally {
+      setBulkActing(false);
+    }
+  }, [selectedIds, toast, router]);
+
   const useVirtual = filtered.length > VIRTUAL_THRESHOLD;
 
   const rowVirtualizer = useVirtualizer({
@@ -411,6 +460,15 @@ export function DriftEventsView({
                 onClick={() => void handleBulkAcceptRisk()}
               >
                 Accept risk
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={bulkActing}
+                onClick={() => void handleAcceptAsBaseline()}
+                title="Remove these findings by capturing the current host state as the new baseline"
+              >
+                Accept as new baseline
               </Button>
               <button
                 type="button"

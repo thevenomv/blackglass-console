@@ -8,9 +8,10 @@ import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useSession } from "@/components/auth/SessionProvider";
 import { useToast } from "@/components/ui/Toast";
 import { getRemediationSnippet } from "@/lib/remediation-snippets";
+import { scoreEvent } from "@/lib/server/risk-score";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 function formatDetected(iso: string) {
   try {
@@ -79,6 +80,7 @@ export function DriftInvestigationDrawer({
   const trapRef = useFocusTrap(true, close);
   const canMutate = !loading && allowed("driftMutation");
   const prov = event.provenance;
+  const risk = useMemo(() => scoreEvent(event), [event]);
 
   async function mutate(action: MutatingAction, body: Record<string, string>) {
     if (!action) return;
@@ -172,6 +174,49 @@ export function DriftInvestigationDrawer({
         </header>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
+          {/* Risk score KPI */}
+          <section className="mb-5 flex flex-wrap items-center gap-3 rounded-card border border-border-subtle bg-bg-panel px-4 py-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint">Risk score</span>
+              <span
+                className={`text-2xl font-bold tabular-nums ${
+                  risk.priority === "critical"
+                    ? "text-danger"
+                    : risk.priority === "high"
+                      ? "text-warning"
+                      : risk.priority === "medium"
+                        ? "text-accent-blue"
+                        : "text-fg-muted"
+                }`}
+              >
+                {risk.score.toFixed(1)}
+                <span className="ml-1 text-sm font-medium text-fg-faint">/ 10</span>
+              </span>
+            </div>
+            <div className="mx-2 hidden h-8 w-px bg-border-subtle sm:block" />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint">Priority</span>
+              <Badge
+                tone={
+                  risk.priority === "critical"
+                    ? "danger"
+                    : risk.priority === "high"
+                      ? "warning"
+                      : risk.priority === "medium"
+                        ? "accent"
+                        : "neutral"
+                }
+              >
+                {risk.priority.charAt(0).toUpperCase() + risk.priority.slice(1)}
+              </Badge>
+            </div>
+            <div className="mx-2 hidden h-8 w-px bg-border-subtle sm:block" />
+            <div className="min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint">Recommended action</span>
+              <p className="mt-0.5 text-sm leading-snug text-fg-muted">{risk.recommendation}</p>
+            </div>
+          </section>
+
           <section className="space-y-2">
             <h3 className="text-sm font-medium text-fg-primary">Why this matters</h3>
             <p className="text-sm leading-relaxed text-fg-muted">{event.rationale}</p>

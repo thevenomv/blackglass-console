@@ -31,7 +31,7 @@ export default function DemoOverviewPage() {
         <div className="flex flex-wrap gap-2">
           <DemoGateButton actionLabel="Run fleet scan">Run scan</DemoGateButton>
           <DemoGateButton actionLabel="Capture baseline">Capture baseline</DemoGateButton>
-          <TrialSignupLink className="rounded-card border border-accent-blue/50 px-3 py-2 text-sm font-medium text-accent-blue hover:bg-accent-blue/10">
+          <TrialSignupLink className="rounded-card bg-accent-blue px-4 py-2 text-sm font-semibold text-white hover:bg-accent-blue-hover">
             Start free trial
           </TrialSignupLink>
         </div>

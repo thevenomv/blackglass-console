@@ -25,6 +25,8 @@ import { eq, and, ne, desc } from "drizzle-orm";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
+import { provisionSandbox } from "@/lib/server/services/sandbox-provisioner";
+import { enqueueSandboxProvision } from "@/lib/server/queue/sandbox-queue";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -182,8 +184,18 @@ export async function GET(request: NextRequest) {
   );
 
   if (!sandbox) {
+    // No active sandbox for the showcase tenant — auto-provision one so the
+    // demo page is self-healing without operator intervention.
+    // Fire-and-forget: create the DB row + enqueue the worker job.
+    try {
+      const newId = await provisionSandbox(tenantId);
+      await enqueueSandboxProvision(newId, tenantId);
+    } catch (err) {
+      // Log but don't fail the request — we can still return "provisioning"
+      console.error("[showcase] auto-provision failed", err);
+    }
     return NextResponse.json(
-      { status: "unavailable", sandbox: null, recentEvents: [] },
+      { status: "provisioning", sandbox: null, recentEvents: [] },
       { headers: { "x-request-id": requestId, "Cache-Control": "no-store" } },
     );
   }

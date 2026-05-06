@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { ProgressRow } from "@/components/ui/ProgressBar";
 import { SecurityOverviewSection } from "./SecurityOverviewSection";
+import { ValueRecapBanner, type ValueRecap } from "@/components/dashboard/ValueRecapBanner";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -84,6 +85,7 @@ export function DashboardV3({
   spotlightHost,
   ctaHostId,
   baselinePersistence,
+  valueRecap,
 }: {
   fleet: FleetSnapshot;
   showDemoKpiDeltas: boolean;
@@ -92,6 +94,7 @@ export function DashboardV3({
   spotlightHost: HostRecord | null;
   ctaHostId: string | null;
   baselinePersistence: { configured: boolean; path?: string; writable: boolean | null };
+  valueRecap: ValueRecap;
 }) {
   const liveMode = !showDemoKpiDeltas;
   const attention = fleet.highRiskDrift > 0;
@@ -241,6 +244,8 @@ export function DashboardV3({
           No high-risk drift in the latest sweep — continue monitoring notable hosts below.
         </div>
       )}
+
+      <ValueRecapBanner recap={valueRecap} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard

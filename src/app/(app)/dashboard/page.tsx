@@ -9,9 +9,11 @@ import { baselineStoreHealth } from "@/lib/server/baseline-store";
 import { collectorConfigured } from "@/lib/server/collector";
 import { deriveDriftCardsFromEvents, pickSpotlightHost } from "@/lib/server/dashboard-context";
 import { resolveDriftEventsForDashboardAsync } from "@/lib/server/drift-resolve";
+import { fleetRiskScore, riskPriorityFromScore } from "@/lib/server/risk-score";
 import type { HostRecord } from "@/data/mock/types";
 import { loadHosts } from "@/lib/server/inventory";
 import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
+import type { ValueRecap } from "@/components/dashboard/ValueRecapBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,7 @@ async function DashboardDeferred() {
   let ctaHostId: string | null;
   let baselinePersistence: ReturnType<typeof baselineStoreHealth>;
   let collectorOn: boolean;
+  let valueRecap: ValueRecap;
 
   try {
     const page = await fetchFleetPageData();
@@ -32,6 +35,25 @@ async function DashboardDeferred() {
     collectorOn = collectorConfigured();
     baselinePersistence = baselineStoreHealth();
     const driftEvents = await resolveDriftEventsForDashboardAsync();
+
+    // Compute value-recap metrics from current drift events
+    const openFindings = driftEvents.filter(
+      (e) => e.lifecycle === "new" || e.lifecycle === "triaged",
+    ).length;
+    const highSevFindings = driftEvents.filter(
+      (e) => (e.lifecycle === "new" || e.lifecycle === "triaged") && e.severity === "high",
+    ).length;
+    const remediatedFindings = driftEvents.filter(
+      (e) => e.lifecycle === "remediated" || e.lifecycle === "verified",
+    ).length;
+    const riskScore = fleetRiskScore(driftEvents);
+    valueRecap = {
+      openFindings,
+      highSevFindings,
+      remediatedFindings,
+      fleetRiskScore: riskScore,
+      fleetRiskPriority: riskPriorityFromScore(riskScore),
+    };
 
     let sh = (collectorOn ? pickSpotlightHost(await loadHosts()) : null) ?? null;
     if (liveMode && !sh) {
@@ -64,6 +86,7 @@ async function DashboardDeferred() {
       spotlightHost={spotlightHost}
       ctaHostId={ctaHostId}
       baselinePersistence={baselinePersistence}
+      valueRecap={valueRecap}
     />
   );
 }

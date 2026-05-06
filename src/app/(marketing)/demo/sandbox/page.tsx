@@ -193,7 +193,7 @@ function SandboxShowcaseInner() {
           >
             Full-screen view →
           </Link>
-          <TrialSignupLink className="rounded-card border border-border-default px-3 py-2 text-sm font-medium text-fg-muted hover:bg-bg-elevated">
+          <TrialSignupLink className="rounded-card bg-accent-blue px-4 py-2 text-sm font-semibold text-white hover:bg-accent-blue-hover">
             Start free trial
           </TrialSignupLink>
         </div>

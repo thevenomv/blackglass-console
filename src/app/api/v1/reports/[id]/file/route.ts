@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { getReportContent, listReports } from "@/lib/server/report-store";
+import { generateReportPdf } from "@/lib/server/report-pdf";
 
 export const dynamic = "force-dynamic";
 
@@ -49,13 +50,24 @@ export async function GET(
     .slice(0, 60);
   const filename = `${safeName}-${id.slice(0, 8)}.${ext}`;
 
-  const contentType =
-    meta.format === "pdf" ? "application/pdf" : "text/markdown; charset=utf-8";
+  if (meta.format === "pdf") {
+    // The stored content is always JSON — generate real PDF bytes on demand.
+    const pdfBytes = await generateReportPdf(content);
+    return new NextResponse(pdfBytes, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  }
 
   return new NextResponse(content, {
     status: 200,
     headers: {
-      "Content-Type": contentType,
+      "Content-Type": "text/markdown; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",

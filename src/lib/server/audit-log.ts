@@ -31,6 +31,9 @@ export const AUDIT_ACTIONS = {
   SCAN_COMPLETED: "scan.completed",
   SCAN_FAILED: "scan.failed",
 
+  // Baseline lifecycle (extended)
+  BASELINE_ACCEPTED: "baseline.accepted",
+
   // Drift
   DRIFT_VIEWED: "drift.viewed",
 
