@@ -84,30 +84,44 @@ export function getDriftEvents(hostId?: string): DriftEvent[] {
 }
 
 /**
- * Async variant — falls back to Postgres when DATABASE_URL is set and the
- * in-memory store is empty (e.g. after a pod restart).  Hydrates memory as a
- * side-effect so subsequent synchronous getDriftEvents() calls also work.
+ * Async variant — always re-reads from Postgres when DATABASE_URL is set, or
+ * from the file store when DRIFT_EVENTS_PATH is set. This is necessary because
+ * the BullMQ scan worker runs in a **separate OS process** and writes drift
+ * events directly to Postgres / the file; it cannot update this process's
+ * in-memory store. The `isEmpty` guard that was here before caused staleness:
+ * once the in-memory store had been hydrated once, new worker-written events
+ * were never picked up until the process restarted.
  */
 export async function getDriftEventsAsync(hostId?: string): Promise<DriftEvent[]> {
   const store = eventStore();
-  const isEmpty = store.size === 0;
 
-  if (isEmpty && process.env.DATABASE_URL?.trim()) {
+  if (process.env.DATABASE_URL?.trim()) {
+    // Always refresh from Postgres so cross-process writes are visible.
     try {
       const { PostgresDriftEventsRepository: repo } = await import("./store/driftevents-pg");
       const all = await repo.getAll();
-      // Group by hostId and hydrate the in-memory store
       const byHost = new Map<string, DriftEvent[]>();
       for (const evt of all) {
         const list = byHost.get(evt.hostId) ?? [];
         list.push(evt);
         byHost.set(evt.hostId, list);
       }
-      for (const [hid, evts] of byHost) {
-        store.set(hid, evts);
-      }
+      // Replace the in-memory store wholesale so synchronous getDriftEvents()
+      // callers in this request also see the fresh data.
+      store.clear();
+      for (const [hid, evts] of byHost) store.set(hid, evts);
     } catch (err) {
       console.error("[drift-engine] Postgres hydration failed:", err);
+      // Fall through and return whatever is in memory.
+    }
+  } else {
+    // No Postgres — re-read from file on every async call so worker-written
+    // events (persisted via DRIFT_EVENTS_PATH) are picked up by this process.
+    const fp = storePath();
+    if (fp) {
+      const fromFile = loadFromFile(fp);
+      store.clear();
+      for (const [hid, evts] of fromFile) store.set(hid, evts);
     }
   }
 
