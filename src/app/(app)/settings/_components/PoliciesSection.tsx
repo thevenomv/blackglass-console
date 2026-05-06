@@ -12,21 +12,21 @@ import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { useEffect, useState } from "react";
 
+const DRIFT_CATEGORIES = [
+  "ssh", "network_exposure", "firewall", "packages",
+  "integrity", "identity", "privilege_escalation", "persistence",
+] as const;
+
 interface PolicyRule {
   id: string;
   name: string;
-  category: string;
+  category: typeof DRIFT_CATEGORIES[number];
   conditionKey: string;
   conditionValue: string;
   severity: "high" | "medium" | "low";
   enabled: boolean;
   createdAt: string;
 }
-
-const DRIFT_CATEGORIES = [
-  "ssh", "network_exposure", "firewall", "packages",
-  "integrity", "identity", "privilege_escalation", "persistence",
-] as const;
 
 const SEVERITY_TONE = {
   high: "danger",
