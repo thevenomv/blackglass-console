@@ -355,6 +355,25 @@ function generateSandboxKeypair(): SandboxKeypair {
  * BullMQ `sandbox:provision` job manage the full lifecycle.
  */
 export async function provisionSandbox(tenantId: string): Promise<string> {
+  // Strategic kill-switch (2026-05-07).
+  //
+  // The /demo/sandbox auto-provisioning path was costing ~$6/mo + a permanent
+  // Droplet quota slot + significant ongoing ops complexity (cloud-init, ssh
+  // handshake debugging, BullMQ plumbing, DO App-Platform → Droplet network
+  // paths we can't fix), in exchange for a passive "live" widget on the
+  // marketing site that converts essentially nobody.  The same Droplet slot
+  // is now used for the long-lived sales-demo VM (`blackglass-lab-01`) which
+  // is where actual deals are closed.
+  //
+  // The full sandbox capability is preserved here for future enterprise
+  // self-evaluation flows — flip the env var off (or unset it) to re-enable.
+  // See docs/runbooks/operations.md §5 for the rationale.
+  if (process.env.SHOWCASE_AUTO_PROVISION_DISABLED === "true") {
+    throw new Error(
+      "showcase auto-provisioning is disabled (SHOWCASE_AUTO_PROVISION_DISABLED=true)",
+    );
+  }
+
   const region = process.env.SANDBOX_REGION?.trim() || "lon1";
 
   // 1. Check no active sandbox exists

@@ -228,6 +228,16 @@ export async function GET(request: NextRequest) {
   );
 
   if (!sandbox) {
+    // When the auto-provisioning kill-switch is on, just report the showcase
+    // as retired — the page now ships a static walkthrough so this branch is
+    // mostly visited by stale clients still polling the old URL.
+    if (process.env.SHOWCASE_AUTO_PROVISION_DISABLED === "true") {
+      return NextResponse.json(
+        { status: "retired", sandbox: null, recentEvents: [] },
+        { headers: { "x-request-id": requestId, "Cache-Control": "no-store" } },
+      );
+    }
+
     // No active sandbox for the showcase tenant — auto-provision one so the
     // demo page is self-healing without operator intervention.
     //
