@@ -186,10 +186,14 @@ async function handleSeedDrift(
 
   try {
     const privateKey = await getSandboxPrivateKey(sandbox.credentialId);
+    // Exact path match required by `/etc/sudoers.d/blackglass-scan` — that
+    // file allows blackglass to run only `/root/sandbox/seed.sh` as root.
+    // If you change the path here, update the sudoers entry in
+    // sandbox-provisioner.ts:buildCloudInit() to match.
     await runOverSsh(
       sandbox.dropletIp,
       privateKey,
-      `sudo bash /root/sandbox/seed.sh ${safePha}`,
+      `sudo /root/sandbox/seed.sh ${safePha}`,
     );
     await withBypassRls((db) =>
       db

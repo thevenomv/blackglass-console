@@ -97,8 +97,9 @@ log() { echo "[sandbox-seed] phase=\${PHASE} $*"; }
 case "\$PHASE" in
   0)
     log "Clean baseline — verifying setup"
-    # Ensure the blackglass scan user exists and nothing extra is present
-    id blackglass &>/dev/null || useradd -r -s /usr/sbin/nologin blackglass
+    # Ensure the blackglass scan user exists (cloud-init normally created it
+    # with /bin/bash; this is a defensive fallback if someone deleted it).
+    id blackglass &>/dev/null || useradd -m -s /bin/bash blackglass
     # Clean up any previous drift so baseline is clean
     pkill -f 'ncat -lkp 4444' 2>/dev/null || true
     rm -f /etc/sudoers.d/sandbox-backdoor 2>/dev/null || true
@@ -188,16 +189,28 @@ function buildCloudInit(pubKeyOpenSsh: string): string {
   return `#!/bin/bash
 set -euo pipefail
 
-# Create scan user
-useradd -r -m -s /usr/sbin/nologin blackglass
+# ---------------------------------------------------------------------------
+# Create the SSH-facing user the sandbox-worker connects as.
+# Why /bin/bash and not /usr/sbin/nologin?
+#   sshd's "exec" channel runs commands via the user's login shell. With a
+#   nologin shell, even non-interactive ssh commands exit immediately with
+#   "This account is currently not available." — the worker would then never
+#   be able to invoke /root/sandbox/seed.sh.
+# Security stance:
+#   blackglass has a normal shell but the sudoers entry below allows it to
+#   run EXACTLY ONE thing as root: /root/sandbox/seed.sh.
+# ---------------------------------------------------------------------------
+useradd -m -s /bin/bash blackglass
 mkdir -p /home/blackglass/.ssh
 echo '${pubKeyOpenSsh}' >> /home/blackglass/.ssh/authorized_keys
 chown -R blackglass:blackglass /home/blackglass/.ssh
 chmod 700 /home/blackglass/.ssh
 chmod 600 /home/blackglass/.ssh/authorized_keys
 
-# Allow blackglass to run id/ss/find/cat without password (read-only audit)
-echo 'blackglass ALL=(ALL) NOPASSWD: /usr/bin/id, /usr/bin/ss, /usr/bin/find, /usr/bin/cat, /usr/bin/getent, /usr/sbin/sshd' \
+# Sudoers: blackglass may run the seed script as root, nothing else.
+# (Previous broader allowlist of id/ss/find/cat/getent/sshd was for an old
+# scan-flow design that the current worker never invokes — dropped.)
+echo 'blackglass ALL=(ALL) NOPASSWD: /root/sandbox/seed.sh' \
   > /etc/sudoers.d/blackglass-scan
 chmod 440 /etc/sudoers.d/blackglass-scan
 
@@ -205,28 +218,44 @@ chmod 440 /etc/sudoers.d/blackglass-scan
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ncat nginx rsyslog ufw
 
-# UFW: SSH only inbound; lock outbound after package install
+# ---------------------------------------------------------------------------
+# UFW: only inbound SSH (22). We MUST keep DNS (53/udp+tcp) outbound open
+# even after the lockdown, otherwise sshd's reverse-DNS lookup on every
+# incoming connection blocks for ~30s waiting for SERVFAIL — the BullMQ
+# worker reports that as "Timed out while waiting for handshake".
+# ---------------------------------------------------------------------------
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow 22/tcp
 ufw --force enable
-# Lock down outbound now that packages are installed (cloud-init complete)
-# UFW tracks ESTABLISHED connections so existing SSH sessions are unaffected.
+# Tighten outbound; ESTABLISHED/RELATED still flow so live SSH stays up.
 ufw default deny outgoing
 ufw allow out on lo
+ufw allow out 53/udp comment 'DNS — required for sshd reverse lookup'
+ufw allow out 53/tcp comment 'DNS over TCP fallback'
 ufw reload || true
 
-# Disable root password auth (key-only, and only blackglass key)
+# ---------------------------------------------------------------------------
+# sshd: belt-and-braces — disable reverse DNS in sshd config so handshake
+# completes quickly even if outbound DNS is unreachable. Plus key-only auth,
+# no root login.
+# ---------------------------------------------------------------------------
 sed -i 's/^#\\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
 sed -i 's/^#\\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sed -i 's/^#\\?UseDNS.*/UseDNS no/' /etc/ssh/sshd_config
+grep -q '^UseDNS ' /etc/ssh/sshd_config || echo 'UseDNS no' >> /etc/ssh/sshd_config
 systemctl reload ssh || true
 
-# Upload seed script
+# ---------------------------------------------------------------------------
+# Seed script — owned by root, exec bit set, sudoers above lets blackglass
+# invoke it. Worker calls: \`sudo /root/sandbox/seed.sh <phase>\`.
+# ---------------------------------------------------------------------------
 mkdir -p /root/sandbox
 cat > /root/sandbox/seed.sh << 'SEEDEOF'
 ${SANDBOX_SEED_SH}
 SEEDEOF
-chmod +x /root/sandbox/seed.sh
+chown root:root /root/sandbox/seed.sh
+chmod 755 /root/sandbox/seed.sh
 
 echo "[blackglass-sandbox] cloud-init done"
 `;
