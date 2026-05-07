@@ -4,11 +4,11 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Linux Configuration Drift Detection | BLACKGLASS",
   description:
-    "Detect unauthorized changes to Linux server configuration in real time. Blackglass captures approved baselines and surfaces drift across sshd, sysctl, listeners, and more.",
+    "Detect unauthorised changes to Linux server configuration on every scan. Blackglass captures approved baselines and surfaces drift across sshd, listeners, identity, sudo, persistence, packages, kernel modules, and file integrity.",
   openGraph: {
     title: "Linux Configuration Drift Detection | BLACKGLASS",
     description:
-      "Detect unauthorized changes to Linux server configuration in real time. Blackglass captures approved baselines and surfaces drift across sshd, sysctl, listeners, and more.",
+      "Detect unauthorised changes to Linux server configuration on every scan. Drift across sshd, listeners, identity, persistence, packages, kernel modules, and file integrity — with severity, evidence, and audit trail.",
     type: "website",
     siteName: "BLACKGLASS",
   },
@@ -66,7 +66,8 @@ export default function LinuxDriftDetectionPage() {
           <li>
             <strong className="text-fg-primary">Baseline snapshot.</strong> After a hardening pass or
             change freeze, you capture an approved baseline in Blackglass — recording the current
-            state of SSH configuration, kernel parameters, open listeners, and service states.
+            state of sshd configuration, listeners, identity (users / sudo), persistence (cron,
+            systemd, authorized_keys), packages, loaded kernel modules, and file integrity hashes.
           </li>
           <li>
             <strong className="text-fg-primary">Scheduled or on-demand scans.</strong> Blackglass
@@ -90,21 +91,38 @@ export default function LinuxDriftDetectionPage() {
         <h2 className="mt-12 text-xl font-semibold text-fg-primary">What Blackglass tracks</h2>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed">
           <li>
-            <strong className="text-fg-primary">SSH daemon configuration</strong> — every directive
-            in <code className="font-mono text-accent-blue">sshd_config</code> and active{" "}
-            <code className="font-mono text-accent-blue">Include</code> fragments.
-          </li>
-          <li>
-            <strong className="text-fg-primary">Kernel parameters</strong> — sysctl values relevant
-            to network hardening, randomisation, and exploit mitigation.
+            <strong className="text-fg-primary">SSH daemon configuration</strong> — effective{" "}
+            <code className="font-mono text-accent-blue">sshd</code> directives via{" "}
+            <code className="font-mono text-accent-blue">sshd -T</code>, including those merged
+            from <code className="font-mono text-accent-blue">Include</code> fragments.
           </li>
           <li>
             <strong className="text-fg-primary">Open listener surface</strong> — TCP/UDP ports bound
-            at time of scan, compared to baseline to surface new or removed services.
+            at time of scan (with the binding process), compared to baseline to surface new or
+            removed services.
           </li>
           <li>
-            <strong className="text-fg-primary">Service states</strong> — critical service
-            enable/disable status that should remain stable across deployments.
+            <strong className="text-fg-primary">Firewall</strong> — ufw / iptables / nftables active
+            state, default policy, and rule set.
+          </li>
+          <li>
+            <strong className="text-fg-primary">Identity and sudo</strong> — local users (with UID),
+            sudoers file, and entries under{" "}
+            <code className="font-mono text-accent-blue">/etc/sudoers.d/</code>.
+          </li>
+          <li>
+            <strong className="text-fg-primary">Persistence</strong> — systemd unit files, cron
+            entries, per-user crontabs, and SSH authorized_keys fingerprints.
+          </li>
+          <li>
+            <strong className="text-fg-primary">Packages and kernel modules</strong> — installed
+            packages (apt/dpkg or rpm) and loaded kernel modules — diffed across scans for new
+            services and rootkit signals.
+          </li>
+          <li>
+            <strong className="text-fg-primary">Integrity</strong> — SUID/SGID binary set, MD5
+            hashes of critical configuration files, and{" "}
+            <code className="font-mono text-accent-blue">/etc/hosts</code> entries.
           </li>
         </ul>
         <p className="mt-4 leading-relaxed">
@@ -131,10 +149,10 @@ export default function LinuxDriftDetectionPage() {
             <div className="flex items-start gap-3">
               <span className="shrink-0 rounded bg-amber-500/10 px-1.5 py-0.5 text-xs text-amber-400">MED</span>
               <div>
-                <p className="text-fg-primary">sysctl / net.ipv4.tcp_syncookies</p>
+                <p className="text-fg-primary">sudoers.d / new file: 90-deploy</p>
                 <p className="mt-0.5 text-xs text-fg-faint">
-                  baseline: <span className="text-emerald-400">1</span>
-                  {" → "}current: <span className="text-amber-400">0</span>
+                  baseline: <span className="text-emerald-400">absent</span>
+                  {" → "}current: <span className="text-amber-400">grants NOPASSWD ALL to deploy</span>
                 </p>
               </div>
             </div>

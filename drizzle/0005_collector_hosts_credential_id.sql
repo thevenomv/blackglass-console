@@ -4,8 +4,10 @@
 -- `tenant_credentials` instead of the global env-level SSH_PRIVATE_KEY.
 -- Used when SECRET_PROVIDER=db.  NULL means fall back to the global credential.
 --
--- Run with: doppler run -- node scripts/ops/_apply-partition-migration.mjs
--- Or:       psql $DATABASE_URL -f drizzle/0005_collector_hosts_credential_id.sql
+-- Apply via the canonical migrator:
+--   doppler run -- node scripts/ops/apply-migrations.mjs
+-- (or, for a single ad-hoc apply in a non-tracked DB):
+--   psql $DATABASE_URL -f drizzle/0005_collector_hosts_credential_id.sql
 
 ALTER TABLE saas_collector_hosts
   ADD COLUMN IF NOT EXISTS credential_id uuid

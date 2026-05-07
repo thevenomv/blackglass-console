@@ -90,7 +90,7 @@ export default function UseCasesIndexPage() {
             </li>
             <li>
               <Link href="/demo" className="text-accent-blue hover:underline">
-                Interactive demo
+                Demo workspace (illustrative data)
               </Link>
             </li>
           </ul>

@@ -1,34 +1,10 @@
 import Link from "next/link";
-import { TrialSignupLink, LaunchSandboxLink } from "@/components/demo/DemoGateButton";
+import { TrialSignupLink } from "@/components/demo/DemoGateButton";
 
-async function MockConsolePreview() {
-  // Attempt to surface the latest live event from the showcase VM.
-  // Falls back silently to static content on any error or when offline.
-  let liveTitle: string | null = null;
-  let liveSeverity: "high" | "critical" | null = null;
-  try {
-    const base =
-      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
-    const res = await fetch(`${base}/api/public/sandbox-showcase`, {
-      next: { revalidate: 30 },
-    });
-    if (res.ok) {
-      const payload = await res.json();
-      if (
-        payload.status === "online" &&
-        Array.isArray(payload.recentEvents) &&
-        payload.recentEvents.length > 0
-      ) {
-        const top = payload.recentEvents[0];
-        liveTitle = typeof top.title === "string" ? top.title : null;
-        liveSeverity =
-          top.severity === "critical" || top.severity === "high" ? top.severity : "high";
-      }
-    }
-  } catch {
-    // silent fallback
-  }
-
+function MockConsolePreview() {
+  // Static, illustrative preview of the console. The legacy "live" feed
+  // pulled from /api/public/sandbox-showcase, which was retired with the
+  // public auto-provisioning sandbox (see docs/runbooks/operations.md).
   return (
     <div className="relative overflow-hidden rounded-lg border border-border-default bg-bg-panel shadow-elevated" role="img" aria-label="BLACKGLASS console preview showing drift events and SSH posture">
       {/* Title bar */}
@@ -37,42 +13,27 @@ async function MockConsolePreview() {
         <span className="h-2 w-2 rounded-full bg-amber-500/70" aria-hidden="true" />
         <span className="h-2 w-2 rounded-full bg-emerald-500/70" aria-hidden="true" />
         <span className="ml-3 font-mono text-[10px] text-fg-faint">blackglass / fleet</span>
-        {liveTitle && (
-          <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-[8px] font-semibold uppercase tracking-wider text-emerald-400">
-            live
-          </span>
-        )}
+        <span className="ml-auto rounded-full bg-bg-elevated px-2 py-0.5 font-mono text-[8px] font-semibold uppercase tracking-wider text-fg-faint">
+          preview
+        </span>
       </div>
       {/* Drift queue row */}
       <div className="border-b border-border-subtle px-3 py-2">
         <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-fg-faint">Drift events — last scan</p>
         <div className="mt-2 space-y-1.5">
-          {liveTitle ? (
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${liveSeverity === "critical" ? "bg-red-500" : "bg-orange-400"}`}
-                aria-hidden="true"
-              />
-              <span className="font-mono text-[10px] text-fg-primary truncate">{liveTitle}</span>
-              <span className={`ml-auto font-mono text-[9px] ${liveSeverity === "critical" ? "text-red-400" : "text-orange-400"}`}>
-                {liveSeverity?.toUpperCase()}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />
-              <span className="font-mono text-[10px] text-fg-primary">sshd / PermitRootLogin</span>
-              <span className="ml-auto font-mono text-[9px] text-red-400">HIGH</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />
+            <span className="font-mono text-[10px] text-fg-primary">sshd / PermitRootLogin</span>
+            <span className="ml-auto font-mono text-[9px] text-red-400">HIGH</span>
+          </div>
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden="true" />
-            <span className="font-mono text-[10px] text-fg-primary">sysctl / net.ipv4.tcp_syncookies</span>
+            <span className="font-mono text-[10px] text-fg-primary">sudoers.d / new file 90-deploy</span>
             <span className="ml-auto font-mono text-[9px] text-amber-400">MEDIUM</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-border-subtle" aria-hidden="true" />
-            <span className="font-mono text-[10px] text-fg-muted">sshd / MACs — expected change</span>
+            <span className="font-mono text-[10px] text-fg-muted">listeners / new tcp/9100</span>
             <span className="ml-auto font-mono text-[9px] text-fg-faint">INFO</span>
           </div>
         </div>
@@ -119,32 +80,32 @@ export function LandingPage() {
                 gives ops and security teams a clear workflow to harden their fleet.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <LaunchSandboxLink className="rounded-lg bg-accent-blue px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-blue-hover">
-                  Launch live sandbox
-                </LaunchSandboxLink>
-                <Link
-                  href="/demo/sandbox"
-                  className="rounded-lg border border-border-default bg-bg-panel px-5 py-2.5 text-sm font-medium text-fg-primary hover:bg-bg-elevated"
-                >
-                  Watch live demo
-                </Link>
+                <TrialSignupLink className="rounded-lg bg-accent-blue px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-blue-hover">
+                  Start free trial
+                </TrialSignupLink>
                 <Link
                   href="/demo"
+                  className="rounded-lg border border-border-default bg-bg-panel px-5 py-2.5 text-sm font-medium text-fg-primary hover:bg-bg-elevated"
+                >
+                  Explore demo workspace
+                </Link>
+                <Link
+                  href="/demo/sandbox"
                   className="rounded-lg px-5 py-2.5 text-sm font-medium text-fg-muted hover:bg-bg-elevated hover:text-fg-primary"
                 >
-                  Explore demo
+                  Drift scenario walkthrough
                 </Link>
                 <Link
                   href="/book"
                   className="rounded-lg px-5 py-2.5 text-sm font-medium text-fg-muted hover:bg-bg-elevated hover:text-fg-primary"
                 >
-                  Book walkthrough
+                  Book a demo
                 </Link>
               </div>
               <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs text-fg-faint">
-                <span>Real VM — you never touch SSH keys</span>
-                <span>Drift seeded automatically</span>
-                <span>No credit card for trial</span>
+                <span>14-day trial · no credit card</span>
+                <span>Agentless SSH collection</span>
+                <span>Tenant-isolated by Postgres RLS</span>
               </div>
             </div>
             <MockConsolePreview />
@@ -196,7 +157,7 @@ export function LandingPage() {
                 {
                   step: "03",
                   title: "Detect drift",
-                  body: "Surface sshd, sysctl, user/listener deltas with severity — not noisy noise.",
+                  body: "Surface sshd, listener, identity/sudo, persistence, package, and integrity deltas with severity — not noisy noise.",
                 },
                 {
                   step: "04",
@@ -233,9 +194,12 @@ export function LandingPage() {
             <h2 className="text-2xl font-semibold text-fg-primary">Security &amp; trust</h2>
             <ul className="mt-6 grid gap-3 sm:grid-cols-2">
               {[
-                "Full tenant isolation — workspace data is never shared across accounts. Access roles enforced server-side.",
-                "Agentless by default — the collector reads metadata over SSH only. No env vars, keys, or secrets are stored in BLACKGLASS.",
-                "Audit trail for every state-changing action: scans, baseline changes, invites, and billing events.",
+                "Tenant isolation enforced at the database layer with PostgreSQL row-level security — not just application checks.",
+                "Clerk Enterprise auth: SAML/OIDC SSO, SCIM provisioning, MFA enforcement, revocable API keys.",
+                "Agentless SSH collection — the collector reads metadata only. SSH credentials are envelope-encrypted (Vault / AWS KMS / local KMS) and never stored in plaintext.",
+                "Immutable audit stream (saas_audit_events) with deterministic JSONL export and verifiable integrity digest.",
+                "HMAC-signed outbound webhooks with key rotation; Postgres-backed inbound idempotency.",
+                "Air-gapped mode (BLACKGLASS_AIRGAPPED) for regulated and on-premise deployments — Helm chart for self-hosted Kubernetes.",
               ].map((t) => (
                 <li
                   key={t}

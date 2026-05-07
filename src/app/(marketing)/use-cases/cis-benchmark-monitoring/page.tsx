@@ -4,11 +4,11 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "CIS Benchmark Monitoring for Linux | BLACKGLASS",
   description:
-    "Track CIS benchmark compliance posture on Linux servers over time. Blackglass captures hardening baselines and surfaces regressions from CIS-recommended SSH, sysctl, and service configurations.",
+    "Track CIS benchmark compliance posture on Linux servers over time. Blackglass captures hardening baselines and surfaces regressions across SSH, listeners, identity, persistence, packages, and integrity controls.",
   openGraph: {
     title: "CIS Benchmark Monitoring for Linux | BLACKGLASS",
     description:
-      "Track CIS benchmark compliance posture on Linux servers over time. Blackglass captures hardening baselines and surfaces regressions from CIS-recommended configurations.",
+      "Track CIS benchmark compliance posture on Linux servers over time. Blackglass captures hardening baselines and surfaces regressions from CIS-relevant configurations.",
     type: "website",
     siteName: "BLACKGLASS",
   },
@@ -27,19 +27,30 @@ const CIS_AREAS = [
     ],
   },
   {
-    section: "Network parameters (CIS 3.x sysctl)",
+    section: "Listening services and firewall (CIS 3.x)",
     checks: [
-      "net.ipv4.ip_forward = 0 (unless acting as a router)",
-      "net.ipv4.conf.all.send_redirects = 0",
-      "net.ipv4.tcp_syncookies = 1",
-      "net.ipv6.conf.all.disable_ipv6 = 1 (if IPv6 not required)",
+      "No unexpected TCP/UDP services open beyond the approved baseline",
+      "Firewall (ufw/iptables/nftables) active with expected default policy",
+      "Open ports diffed against the baseline on every scan",
     ],
   },
   {
-    section: "Listening services",
+    section: "Identity, sudo, and persistence (CIS 5.x)",
     checks: [
-      "No unexpected TCP/UDP services open beyond the approved baseline",
-      "Firewall rules present and active",
+      "Local user and UID set, additions/removals tracked",
+      "sudoers and /etc/sudoers.d/ files diffed for new privilege grants",
+      "Cron entries and user crontabs diffed for new persistence",
+      "systemd unit files in /etc/systemd/system diffed for new services",
+      "SSH authorized_keys per user (fingerprints, not key material)",
+    ],
+  },
+  {
+    section: "Packages, modules, and integrity (CIS 1.x / 6.x)",
+    checks: [
+      "Installed packages diffed across scans (apt/dpkg or rpm)",
+      "Loaded kernel modules diffed (rootkit detection signal)",
+      "SUID/SGID binary set tracked for new privilege-escalation tools",
+      "MD5 hashes of critical config files (sshd_config, hosts, etc.) diffed",
     ],
   },
 ];
@@ -159,8 +170,9 @@ export default function CISBenchmarkMonitoringPage() {
         </ul>
         <p className="mt-4 leading-relaxed text-sm">
           It is a continuous monitoring layer for the configuration dimensions that{" "}
-          <em>change most often</em> and <em>matter most</em> to SSH posture and kernel hardening —
-          with a drift detection and evidence workflow on top.
+          <em>change most often</em> and <em>matter most</em> — SSH, listeners, identity, sudo,
+          persistence, packages, and integrity — with a drift detection and evidence workflow on
+          top.
         </p>
 
         {/* Related */}

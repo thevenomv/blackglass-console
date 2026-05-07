@@ -15,11 +15,14 @@ export const metadata: Metadata = {
 };
 
 const CHECKS = [
-  { area: "SSH daemon", examples: "PermitRootLogin, PasswordAuthentication, AllowUsers, ciphers, MACs" },
-  { area: "Kernel parameters", examples: "sysctl hardening: ASLR, SYN cookies, IP forwarding, core dumps" },
-  { area: "Listener surface", examples: "Open TCP/UDP ports compared to approved baseline" },
-  { area: "Service states", examples: "Critical services enabled/disabled vs. approved state" },
-  { area: "User accounts", examples: "Privileged account set and sudo configuration" },
+  { area: "SSH daemon", examples: "PermitRootLogin, PasswordAuthentication, AllowUsers, MaxAuthTries, X11Forwarding, port" },
+  { area: "Listener surface", examples: "Open TCP/UDP ports (with bound process) compared to approved baseline" },
+  { area: "Firewall", examples: "ufw/iptables/nftables active state, default policy, rule set" },
+  { area: "Identity & sudo", examples: "Local users (UID set), sudoers file, /etc/sudoers.d/ entries" },
+  { area: "Persistence", examples: "systemd unit files, cron entries, user crontabs, authorized_keys fingerprints" },
+  { area: "Packages", examples: "Installed packages and versions (apt/dpkg, rpm)" },
+  { area: "Kernel modules", examples: "Loaded modules diffed across scans — rootkit detection signal" },
+  { area: "Integrity", examples: "SUID/SGID binary set, MD5 hashes of critical config files, /etc/hosts entries" },
 ];
 
 export default function LinuxHardeningMonitoringPage() {

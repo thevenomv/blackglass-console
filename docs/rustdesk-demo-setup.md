@@ -163,7 +163,14 @@ Then in **BLACKGLASS**: **Capture baseline** on that host.
 
 ---
 
-## Demo storyline (show this in the web app under **/demo/showcase**)
+## Demo storyline (live-walk on the sales-demo VM, console open at `/dashboard`)
+
+> Note: `/demo/showcase` previously hosted a chrome-free live polling
+> view of an ephemeral public sandbox. That sandbox was retired
+> (see `docs/runbooks/operations.md` § 4b); the URL now redirects to
+> `/demo/sandbox` (a static walkthrough). For sales calls, sign in to
+> the console and use the sales-demo VM (`blackglass-lab-01`,
+> `134.209.180.255`) directly — see § 4c of the operations runbook.
 
 | Step | What you do | What the audience sees |
 |------|----------------|-------------------------|

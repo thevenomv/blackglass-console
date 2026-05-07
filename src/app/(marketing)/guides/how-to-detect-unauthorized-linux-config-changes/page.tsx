@@ -239,8 +239,12 @@ journalctl -u ssh.service --since "7 days ago" | grep -E "reload|reopen|restart|
         <ul className="mt-4 list-disc space-y-3 pl-5 text-sm leading-relaxed">
           <li>
             <strong className="text-fg-primary">Agentless SSH collection</strong> — Blackglass
-            connects to hosts over SSH to collect configuration metadata (effective SSH directives,
-            sysctl values, open listeners, service states). No persistent agent to maintain.
+            connects to hosts over SSH using a least-privilege collector account to gather
+            configuration metadata: effective sshd directives (via{" "}
+            <code className="font-mono text-accent-blue">sshd -T</code>), open listeners,
+            identity and sudo state, persistence (systemd / cron / authorized_keys), installed
+            packages, loaded kernel modules, and file-integrity hashes. No persistent agent to
+            maintain.
           </li>
           <li>
             <strong className="text-fg-primary">Baseline pinning</strong> — after a hardening pass or

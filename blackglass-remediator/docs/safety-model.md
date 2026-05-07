@@ -27,23 +27,25 @@ tiers by `app/agent/risk_policy.py::classify_policy_tier()`. **Classification
 is application logic — not prompt instructions to the LLM.** The LLM cannot
 see, override, or argue with the tier assignment.
 
-| Tier                       | What the remediator does                                                | What the operator sees                       | Categories that always land here                                                                |
-| -------------------------- | ----------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `safe_guidance_only`       | Generate human-readable advice. **No commands surfaced.**               | A "what we'd suggest" paragraph.             | Anything that doesn't qualify for a higher tier (default fallback).                             |
-| `sandbox_verifiable`       | Generate plan, run it inside an ephemeral sandbox VM, capture results.  | "Verified in sandbox: X passed / Y failed." | `packages`, `filesystem`, `systemd`, `cron`, `firewall`, `network_exposure` at low/medium severity. |
-| `approval_required`        | Generate plan, sandbox-verify, then **wait for explicit human click**.  | An "Approve" / "Reject" UI with full audit. | `ssh`, `authorized_keys`, `privilege_escalation`, `identity` (any severity). All `high` severity events. |
-| `manual_only`              | Refuse to generate any commands at all.                                 | "Investigate manually" placeholder.          | `kernel` (always — kernel changes are too situational for an LLM to reason about safely).       |
+| Tier                       | What the remediator does                                                                                                                                                       | What the operator sees                       | Categories that always land here                                                                                                                                                                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `safe_guidance_only`       | Generate human-readable advice. **No commands surfaced.**                                                                                                                      | A "what we'd suggest" paragraph.             | Default fallback. In practice this captures `persistence` and `other` at low/medium severity (anything that does not qualify for a higher tier).                                                                                                       |
+| `sandbox_verifiable`       | Generate plan, run it inside an ephemeral sandbox VM, capture results.                                                                                                          | "Verified in sandbox: X passed / Y failed."  | `packages`, `filesystem`, `systemd`, `cron`, `firewall`, `network_exposure` at low **or** medium severity.                                                                                                                                             |
+| `approval_required`        | Generate plan, sandbox-verify (when `ENABLE_SANDBOX_VERIFICATION=true`), then **wait for explicit human click**.                                                                | An "Approve" / "Reject" UI with full audit.  | `ssh`, `authorized_keys`, `privilege_escalation`, `identity` (any severity). Plus any other category at `high` severity.                                                                                                                               |
+| `manual_only`              | Refuse to generate any commands at all.                                                                                                                                         | "Investigate manually" placeholder.          | `kernel` (always — kernel changes are too situational for an LLM to reason about safely). The manual-only check is evaluated **before** the always-approval check, so kernel never reaches the approval tier even though it appears in both sets.       |
 
-The decision tree (see `risk_policy.py:79`):
+The decision tree (see `risk_policy.py::classify_policy_tier()`):
 
 1. **Manual-only categories override everything else.** Kernel drift is
    never automated.
 2. **Always-approval categories override severity.** SSH, identity,
-   privilege escalation, and authorized_keys always require a human click,
-   even for "low" findings.
+   privilege escalation, and authorized_keys always require a human
+   click, even for "low" findings.
 3. **High severity always requires approval**, regardless of category.
-4. **Medium / low severity in sandboxable categories** can be sandbox-verified.
-5. **Anything else** falls back to guidance only.
+4. **Medium severity in sandboxable categories** is sandbox-verified.
+5. **Low severity in sandboxable categories** is also sandbox-verified
+   (the workflow then surfaces verified results to the operator).
+6. **Anything else** falls back to guidance only.
 
 ### Why blast radius is enforced in code
 

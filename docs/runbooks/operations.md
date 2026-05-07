@@ -22,13 +22,12 @@ names, retry counts, backoff, and retention.
 
 | Queue                        | What it does                                                     | Attempts | Backoff (exp.)        | Concurrency / worker | Retention (failed) |
 | ---------------------------- | ---------------------------------------------------------------- | -------- | --------------------- | -------------------- | ------------------ |
-| `blackglass-scans`           | SSH collection + drift compute                                   | 3        | 2 s base              | RAM-capped, ≤ 32     | 100 jobs           |
-| `blackglass-sandbox`         | Sandbox provision / seed-drift / cleanup                         | 5/3/10   | 5 s / 10 s / 30 s     | 2                    | 50 jobs            |
-| `blackglass-webhooks`        | Outbound webhook delivery (Slack, PagerDuty, OCSF, etc.)         | 6        | 5 s base              | 8                    | 200 jobs (DLQ)     |
-| `blackglass-exports`         | Tenant data-export bundle assembly + Spaces upload               | 3        | 30 s base             | 2                    | 50 jobs            |
-| `blackglass-evidence`        | Evidence bundle assembly                                         | 3        | 30 s base             | 2                    | 50 jobs            |
-| `blackglass-reports`         | PDF / Markdown report generation                                 | 3        | 30 s base             | 2                    | 50 jobs            |
-| `blackglass-maintenance`     | Retention sweep, idempotency pruning, repeatable crons           | 1        | n/a                   | 1                    | 20 jobs            |
+| `blackglass-scans`           | SSH collection + drift compute (`scan-worker`)                   | 3        | 2 s base              | RAM-capped, ≤ 32     | 100 jobs           |
+| `blackglass-sandbox`         | Sandbox provision / seed-drift / cleanup (`sandbox-worker`)      | 5/3/10   | 5 s / 10 s / 30 s     | 2                    | 50 jobs            |
+| `blackglass-webhooks`        | Outbound webhook delivery (`ops-worker`)                         | 6        | 5 s base              | 8                    | 200 jobs (DLQ)     |
+| `blackglass-exports`         | Tenant data-export bundle assembly + Spaces upload (`ops-worker`)| 3        | 30 s base             | 2                    | 50 jobs            |
+| `blackglass-maintenance`     | Retention sweep, idempotency pruning, repeatable crons (`ops-worker`) | 1   | n/a                   | 1                    | 20 jobs            |
+| _Reserved (no worker yet):_  | _`blackglass-reports`, `blackglass-evidence` — names defined in `queue/config.ts` for future async generation. PDF/evidence generation currently runs inline in the API handler._ | – | – | – | – |
 
 ### Healthy steady state
 
@@ -40,7 +39,7 @@ names, retry counts, backoff, and retention.
 - **Sandbox:** Provision → seed-drift → cleanup all complete within
   ~10 minutes per remediation. Stale Droplets are caught by the
   cleanup queue's high attempt count (10) — see § 2.4.
-- **Exports + Reports + Evidence:** I/O bound — typical job is 5–60 s.
+- **Exports:** I/O bound — typical job is 5–60 s.
 
 ### Degradation signals (page on-call when any of these flip)
 
@@ -327,62 +326,93 @@ drift should not be able to silently land in production again.
 
 ---
 
-## 4b. Public showcase sandbox
+## 4b. Public showcase sandbox — RETIRED
 
-The public demo at `https://blackglasssec.com/demo/sandbox` runs against a
-single shared "showcase" tenant, identified by the
-`SANDBOX_SHOWCASE_TENANT_ID` env var. The full lifecycle is documented in
-`src/lib/server/services/sandbox-provisioner.ts`; this section covers
-operations only.
+> **Status: retired on 2026-05-07.** The public auto-provisioning sandbox
+> (per-visitor ephemeral Droplets that were SSH-scanned by the platform)
+> was a high-cost, high-complexity feature for marginal commercial value.
+> It is now disabled in production via `SHOWCASE_AUTO_PROVISION_DISABLED=true`,
+> and `/demo/sandbox` is a static walkthrough page.
+>
+> The dedicated long-lived **sales-demo VM** (`blackglass-lab-01`) replaced
+> it as the primary live-host story for prospect calls — see § 4c.
+
+### What is still in the codebase
+
+The sandbox subsystem (`src/lib/server/services/sandbox-provisioner.ts`,
+`sandbox-worker.ts`, `/api/health/showcase`, `/api/admin/showcase`,
+`/api/public/sandbox-showcase`, `ShowcaseOpsTile`) remains in the tree so
+the public showcase can be re-enabled in another region or for a customer
+PoC. With `SHOWCASE_AUTO_PROVISION_DISABLED=true` the API short-circuits
+to `{status: "retired", sandbox: null, recentEvents: []}` and the
+provisioner refuses to create new Droplets.
 
 ### Health probe
 
-`GET https://blackglasssec.com/api/health/showcase`:
+`GET https://blackglasssec.com/api/health/showcase` always returns HTTP 200
+with a JSON body and `X-Showcase-Status` header. Monitor on the body
+`status` field (and the header for cheap probes), not the HTTP code:
 
-| HTTP | `status` value     | Meaning                                                                |
-| ---- | ------------------ | ---------------------------------------------------------------------- |
-| 200  | `ok`               | Sandbox is `ready` or `seeding` and within TTL. **Healthy.**           |
-| 200  | `disabled`         | `SANDBOX_SHOWCASE_TENANT_ID` is unset. Operator-chosen, not a failure. |
-| 503  | `no_sandbox`       | Showcase tenant exists but no sandbox row. Auto-provision will retry.  |
-| 503  | `provisioning`     | Sandbox row exists, sandbox.status is intermediate (no Droplet yet).   |
-| 503  | `expired`          | TTL elapsed. Sandbox-worker would normally recycle.                    |
-| 503  | `error`            | `sandbox.status='error'` — `errorMessage` field has the details.       |
-| 503  | `db_unavailable`   | DB query failed. Likely Postgres outage.                               |
+| `status` value | Meaning                                                                |
+| -------------- | ---------------------------------------------------------------------- |
+| `disabled`     | `SANDBOX_SHOWCASE_TENANT_ID` is unset OR `SHOWCASE_AUTO_PROVISION_DISABLED=true`. **Expected in production today.** |
+| `ok`           | Re-enabled and a sandbox is `ready` or `seeding` within TTL.           |
+| `no_sandbox`   | Re-enabled, tenant exists, no sandbox row — auto-provision will retry. |
+| `provisioning` | Re-enabled, sandbox row exists, no Droplet yet.                        |
+| `expired`      | Re-enabled, TTL elapsed, sandbox-worker would normally recycle.        |
+| `error`        | Re-enabled, `sandbox.status='error'` — `errorMessage` has details.     |
+| `db_unavailable`| DB query failed. Likely Postgres outage.                              |
 
-Wire any uptime monitor (DO Uptime, Pingdom, Sentry Cron) at this URL and
-alert on `http != 200 OR status != "ok"`. Responses also emit a Sentry
-breadcrumb (`category=health.showcase`) so an alert in Sentry's UI carries
-the same diagnostic context.
+### Re-enabling
 
-### Operator panel
+1. Unset (or set to `false`) `SHOWCASE_AUTO_PROVISION_DISABLED` in the DO
+   App Platform env.
+2. Confirm `SANDBOX_SHOWCASE_TENANT_ID`, `DO_API_TOKEN`,
+   `DO_SANDBOX_FIREWALL_ID`, and the showcase SSH keypair env vars are
+   still present.
+3. Force a redeploy.
+4. Confirm `GET /api/health/showcase` body status flips from `disabled`
+   to `no_sandbox` → `provisioning` → `ok`.
 
-The dashboard shows a `ShowcaseOpsTile` component (visible to anyone
-signed into the showcase tenant) that polls `/api/admin/showcase` every
-30 s. It shows the same data as the health probe plus DB-internal fields:
-droplet ID (with a deep link to the DO console), error message, host ID,
-firewall ID. **Use this first** before SSHing anywhere.
+### Recovery scripts
 
-### Common failure modes
+The historical bootstrap / inspect / reset helpers under
+`scripts/ops/_*-showcase*.mjs` were removed when the public sandbox
+was retired (see commit history). If you ever need to re-enable the
+showcase, restore them from git or rebuild equivalents:
 
-| Symptom                                       | Likely cause                                              | Fix                                                                                      |
-| --------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `status: "no_sandbox"` won't resolve          | DO API call failing in `provisionSandbox`                 | Check `web` logs for `[showcase] auto-provision failed`. Common: DO quota, missing token.|
-| `status: "error"` with `droplet limit` error  | DO account hit its Droplet quota (default 3, raise via DO support) | Delete an unused Droplet OR raise the quota.                                            |
-| `status: "expired"`                           | TTL elapsed and no sandbox-worker to recycle              | `node scripts/ops/_reset-showcase-sandbox.mjs` to mark destroyed; next page load re-provisions. |
-| `status: "provisioning"` for > 5 min          | The web Node process recycled before in-process activator finished | Same recovery as above.                                                                  |
-| Probe returns 200 but page shows `phase 0/8`  | No `REDIS_QUEUE_URL` + worker → seed-drift never enqueues | Out of scope for this runbook; see Wave 12 worker deployment plan.                       |
+- Idempotent insert of the showcase `saas_tenants` row.
+- Diagnostic dump of tenant + sandbox + audit rows.
+- Mark stuck sandbox rows as `destroyed` so the route can re-provision.
 
-### Recovery scripts (under `scripts/ops/`)
+Open the DO DB firewall to your IP first, run, then close it again.
 
-| Script                          | Purpose                                                          |
-| ------------------------------- | ---------------------------------------------------------------- |
-| `_bootstrap-showcase.mjs`       | Idempotent insert of the showcase `saas_tenants` row.            |
-| `_inspect-showcase.mjs`         | Diagnostic dump of tenant + sandbox + audit rows.                |
-| `_reset-showcase-sandbox.mjs`   | Mark all non-`destroyed`/`ready`/`seeding` sandbox rows destroyed.|
+---
 
-All three read PG\* env vars set by the operator — they do not embed
-credentials. Open the DO DB firewall to your IP first (`databases/{id}/firewall`
-PUT with the existing rule list plus your IP), run, then close it again.
+## 4c. Long-lived sales-demo VM (`blackglass-lab-01`)
+
+The primary live-host story for prospect calls is a long-lived demo VM
+provisioned and maintained out of band. It is **not** auto-managed by the
+console.
+
+| Property              | Value                                                |
+| --------------------- | ---------------------------------------------------- |
+| Hostname              | `blackglass-lab-01`                                  |
+| IP                    | `134.209.180.255`                                    |
+| Region                | `lon1`                                               |
+| OS                    | Ubuntu 22.04                                         |
+| SSH access            | `root` and `blackglass` users (collector + personal keys via cloud-init) |
+| `blackglass` shell    | `/bin/bash`                                          |
+| `blackglass` sudoers  | NOPASSWD on read-only audit commands + the seed script (`/etc/sudoers.d/blackglass-scan`) |
+| Firewall (Droplet)    | `ufw` enabled, port 22 only                          |
+| Firewall (DO Cloud)   | `blackglass-lab-fw` attached                         |
+| Provisioning script   | `scripts/create-do-droplet.ps1`                      |
+| Wired into the app via| `COLLECTOR_HOST_1` env var on App Platform → points to this IP |
+
+For demos: scan from the dashboard, walk through drift, propose a
+remediation, approve it. The remediator's sandbox-verification path runs
+against an ephemeral Droplet provisioned from the same `sandbox-provisioner`
+codepath (see § 4b — re-enable the sandbox subsystem if you need this).
 
 ---
 
@@ -407,8 +437,10 @@ When you get paged:
    - Notify affected tenants per `docs/incident-notification.md`.
 7. **Once recovered**, run `node scripts/ops/verify-partition-integrity.mjs`
    to confirm no schema-level damage.
-8. **File a post-mortem** within 5 business days. Template at
-   `docs/runbooks/post-mortem-template.md` (TODO: create if missing).
+8. **File a post-mortem** within 5 business days. Lead with: timeline,
+   contributing factors (5-whys), customer impact, fix shipped, and
+   detection/prevention going forward. Cross-link relevant audit / Sentry
+   IDs.
 
 ---
 

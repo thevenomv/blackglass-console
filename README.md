@@ -52,12 +52,12 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 - **SBOM artifact:** CI uploads `cyclonedx-sbom.json` from `npm run sbom` — diff across releases or feed into dependency review alongside Dependabot / Dependency review for transitive CVEs.
 - **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** flat preset); `next lint` is not used.
 - **SEO / discovery:** **`NEXT_PUBLIC_APP_URL`** feeds canonical/meta Open Graph (**no Twitter / social-account fields**); **`/sitemap.xml`** + **`/robots.txt`**; staging uses **`NEXT_PUBLIC_SITE_NOINDEX=true`** (see [.env.example](.env.example)).
-- **Next.js 16:** `main` ships **next@16** ([upgrade notes](docs/nextjs-16-upgrade.md)).
+- **Next.js 16:** `main` ships **next@16**.
 - **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, OpenAPI, Zod schema diff, typecheck, unit tests, production build). Under OneDrive + Windows quirks, prefer **`npm run verify:stage0:clean`** (see [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)).
 
 ## Architecture overview
 
-Multi-tenant SaaS console with Clerk for auth, Drizzle ORM + PostgreSQL for data, Stripe for billing, and DigitalOcean App Platform for hosting. See [PROJECT_FILES.md](PROJECT_FILES.md) for the full file map.
+Multi-tenant SaaS console with **Clerk Enterprise** (SAML SSO, SCIM, MFA, RBAC) for auth, **Drizzle ORM + PostgreSQL** with **row-level security** for data, **Stripe** for billing (with reconciliation worker), **BullMQ** workers (`scan-worker`, `ops-worker`, `sandbox-worker`) backed by **Redis/Valkey**, **HMAC-signed** outbound webhooks with rotation, **envelope-encrypted** secrets (KMS providers: local / Vault / AWS KMS), an immutable **`saas_audit_events`** stream with JSONL export + integrity verification, **air-gapped mode** (`BLACKGLASS_AIRGAPPED`), and **DigitalOcean App Platform** for hosting (Helm chart available for self-hosted Kubernetes). See [docs/architecture-overview.md](docs/architecture-overview.md) for the full picture.
 
 ### Key data-flow invariants
 
@@ -104,11 +104,10 @@ Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. De
 - SaaS audit retention: [docs/data-retention-saas.md](docs/data-retention-saas.md)
 - Webhook semantics & failures: [docs/webhook-processing.md](docs/webhook-processing.md)
 - Residency: [docs/data-residency.md](docs/data-residency.md)
-- i18n prep: [docs/i18n-prep.md](docs/i18n-prep.md)
-- Terraform sketch: [docs/terraform-skeleton.md](docs/terraform-skeleton.md)
-- Lighthouse CI (optional): [docs/lighthouse-ci.md](docs/lighthouse-ci.md)
-- Next.js bumps: [docs/nextjs-16-upgrade.md](docs/nextjs-16-upgrade.md) — branch **`release/next-16`** tracks preparatory merges.
+- i18n prep: [docs/internationalization.md](docs/internationalization.md)
 - Architecture spine: [docs/architecture-flow.md](docs/architecture-flow.md)
+- Architecture decisions log: [docs/architecture-decisions.md](docs/architecture-decisions.md)
+- Architecture overview (services + data flow): [docs/architecture-overview.md](docs/architecture-overview.md)
 
 ## Product front door (marketing vs console vs demo)
 
@@ -149,10 +148,6 @@ sequenceDiagram
   W->>DB: sync saas_subscriptions + webhook idempotency
   W-->>C: Audit + plan limits effective on next request
 ```
-
-## Project map
-
-Tracked layout and rationale: [PROJECT_FILES.md](PROJECT_FILES.md)
 
 ## Responsible disclosure
 

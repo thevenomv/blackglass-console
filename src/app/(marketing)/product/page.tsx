@@ -28,7 +28,7 @@ const FEATURES = [
     summary:
       "A single view of all managed hosts — scan state, drift event counts, and SSH posture score for every server in your workspace.",
     bullets: [
-      "Live host list with online/offline status and last-scan timestamp.",
+      "Host list with last-successful-scan timestamp and connectivity from the last collection.",
       "Per-host drift event count, broken down by severity (HIGH / MEDIUM / INFO).",
       "SSH posture summary: passing, warning, and failing directive checks.",
       "Risk-score ordering so the highest-risk hosts surface first.",
@@ -206,9 +206,10 @@ export default function ProductPage() {
               </li>
               <li>
                 <strong className="text-fg-primary">No secrets harvested:</strong> The collector
-                gathers configuration metadata — SSH directives, sysctl values, open listeners,
-                service states. It does not read application configuration, environment variables,
-                or private keys.
+                gathers configuration metadata — effective sshd directives, listeners, identity
+                and sudo, persistence (cron / systemd / authorized_keys fingerprints), packages,
+                loaded kernel modules, and integrity hashes. It does not read application
+                configuration, environment variables, file contents, or private keys.
               </li>
             </ul>
           </div>

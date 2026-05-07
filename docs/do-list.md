@@ -31,13 +31,13 @@ Action items after **`npm run do:apply-stage0`** or any prod deploy. Copy into a
 
 ## Droplets (collector targets)
 
-- [x] Lab Droplet provisioned: `blackglass-lab-01` at `167.172.224.47` (nyc3, droplet `568429171`).
-- [x] **`blackglass-collector-v2`** SSH key registered with DO account.
-- [x] Collector user and `sudoers` entry configured on `blackglass-lab-01`.
-- [x] `COLLECTOR_HOST_1=167.172.224.47` set in App Platform; `GET /api/v1/hosts` returns 1 item.
-- [x] SSH port `2222` confirmed; firewall `blackglass-lab-fw` port 22 restricted to `89.35.25.144/32`, port 2222 open.
+- [x] Sales-demo lab Droplet provisioned: `blackglass-lab-01` at `134.209.180.255` (lon1). Provisioned by `scripts/create-do-droplet.ps1` on 2026-05-07; replaces the previous nyc3 host that was deleted in error.
+- [x] **`blackglass-collector-v2`** SSH key registered with DO account; both `root` and `blackglass` user authorize the personal + collector keys via cloud-init.
+- [x] `blackglass` user shell = `/bin/bash`; sudoers (`/etc/sudoers.d/blackglass-scan`) NOPASSWD on read-only audit commands + the seed script.
+- [x] Droplet `ufw` enabled, port 22 only.
+- [x] DO Cloud Firewall `blackglass-lab-fw` attached for inbound IP allowlisting.
+- [x] `COLLECTOR_HOST_1=134.209.180.255` set in App Platform; `GET /api/v1/hosts` returns this host.
 - [x] Droplet tagged `blackglass` + `collector-target`.
-- [x] Unused lab Droplet (LON1, `568429171`) previously deleted.
 
 ## SSH Keys (DO account)
 

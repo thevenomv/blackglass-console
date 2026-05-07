@@ -1,74 +1,186 @@
-# BLACKGLASS — SaaS customer roadmap
+# BLACKGLASS — SaaS state and roadmap
 
-This is a **product and engineering** path from a single-tenant ops console to **SaaS**. Technical items assume DigitalOcean App Platform or equivalent; adjust for your host.
+> Version: 2.0 · Last reviewed: 2026-05-07
+> Audience: engineering, sales, customer-facing teams.
 
----
+This document describes **what the SaaS deployment ships today** and
+**what's queued next**. It replaces the previous staged "0 → 4" roadmap,
+which described long-shipped capabilities (multi-tenancy, queues,
+Postgres, SSO) as future work.
 
-## Stage 0 — Internal / design partner (today)
-
-**Goal:** One team, known hosts, manual onboarding.
-
-- Deploy with **`AUTH_REQUIRED=true`**, **`AUTH_SESSION_SECRET`** (strong random; platform secret type on DO), encrypted collector secrets (Doppler sync or env), **`NEXT_PUBLIC_USE_MOCK=false`**. On DigitalOcean App Platform you can apply auth + session secret with **`DIGITALOCEAN_ACCESS_TOKEN`** and **`python scripts/do_apply_stage0.py`** (read the script header first).
-- Mount volumes for **`BASELINE_STORE_PATH`** / **`DRIFT_HISTORY_PATH`** if you care about restart survival.
-- Run **`npm run verify:stage0`** locally (same gates as CI minus Playwright) before merge; rely on GitHub Actions on **`main`**; after each deploy to a real host, **`STAGING_URL=… npm run verify:staging`** (or your production origin).
-- **Exit:** Stable baseline → scan → drift loop on real SSH; operators trust health + Settings runtime panel.
+If you're onboarding a customer or filling in a security questionnaire,
+the answers below should match exactly what reviewers find in the code.
 
 ---
 
-## Stage 1 — Staging as a product dress rehearsal
+## Shipped (live in production today)
 
-**Goal:** Same build path as prod, dedicated URL, no customer data yet.
+### Multi-tenancy
+- Single Postgres cluster shared across all SaaS tenants.
+- Per-tenant isolation enforced at the database layer with
+  PostgreSQL **row-level security** policies on every tenant-owned table.
+- Application code sets the `app.tenant_id` GUC on every authenticated
+  request via `withTenantRls()` (`src/db/index.ts`). `BYPASSRLS` is
+  reserved for the migration role and inbound webhook handlers.
+- Schema verification: `scripts/ops/verify-partition-integrity.mjs`.
 
-- **Environment:** Staging app + staging Doppler config (or isolated Infisical/Vault project).
-- **Checklist:** Follow **`docs/staging-deployment-checklist.md`**.
-- **Automation:** In GitHub: Actions → **Staging smoke** (`workflow_dispatch`) after adding repo secret **`STAGING_URL`**. Or locally: **`npm run verify:staging`**.
-- **Data:** No production baselines; use disposable VMs for SSH targets.
-- **Exit:** Repeatable deploy; staging green on script + optional **`PLAYWRIGHT_LIVE=1`** against staging.
+### Identity, SSO, and access
+- **Clerk Enterprise** for authentication: SAML / OIDC SSO, SCIM 2.0
+  provisioning, MFA enforcement at the org level, revocable per-tenant
+  API keys.
+- RBAC roles enforced server-side: `viewer`, `guest_auditor`, `operator`,
+  `admin`. Policy lives in `src/lib/saas/permissions.ts` and is invoked
+  via `requireSaasOrLegacyPermission()`.
+- See `docs/saas-clerk-rbac.md` and `docs/clerk-ops-checklist.md`.
+
+### Workers and async work
+- **BullMQ** over Redis is the spine. Three worker components run as
+  separate App Platform processes:
+  - `scan-worker` — SSH fan-out + drift compute.
+  - `ops-worker` — outbound webhooks, exports, maintenance crons.
+  - `sandbox-worker` — sandbox provision / seed / cleanup for the
+    remediator's verification path.
+- Retry, backoff, retention, and DLQ semantics are documented per queue
+  in `docs/runbooks/operations.md`.
+
+### Billing
+- **Stripe** subscriptions with HMAC-verified webhooks.
+- Webhook idempotency via `saas_webhook_idempotency` (Postgres-backed,
+  not in-memory).
+- Reconciliation runs daily (`npm run reconcile:billing`) to catch
+  webhook gaps for both Stripe and Clerk org membership.
+- Live cutover and soak procedures: `docs/stripe-live-cutover.md`,
+  `docs/stripe-live-soak.md`.
+
+### Webhooks (outbound)
+- HMAC-SHA256 signed with per-tenant keys; rotation-aware (current and
+  previous keys are accepted during a rollover window — see
+  `ROTATION_OVERLAP_HOURS`).
+- 11 destination formats supported: Slack, PagerDuty, ServiceNow, Jira,
+  Datadog, Linear, GitHub Issues, Splunk HEC, AWS Security Hub (ASFF),
+  Microsoft Sentinel (CEF), and OCSF 2.0 Compliance Findings — plus a
+  generic signed JSON path. Routing in
+  `src/lib/server/outbound-webhook.ts`.
+
+### Audit
+- Append-only `saas_audit_events` table; per-tenant filtering enforced
+  by RLS.
+- Quick-filters in the audit log UI for Auth / Settings / Webhooks /
+  Drift.
+- Deterministic NDJSON export with verifiable integrity digest:
+  `npm run audit:verify-jsonl`.
+- Full action constants in `src/lib/server/audit-log.ts`.
+
+### Secrets and KMS
+- Pluggable `SecretProvider`: `env`, `doppler`, `infisical`, `vault`,
+  `db` (envelope-encrypted Postgres-backed credentials).
+- KMS providers for the wrapping key: `local`, `vault`
+  (HashiCorp Vault Transit), `awskms` (AWS KMS) — selected by
+  `KMS_PROVIDER`.
+- Doppler is the production secret backend for the SaaS deployment.
+
+### Persistence and storage
+- Drift events: Postgres, monthly date-range partitioned for
+  retention-window drops.
+- Baselines + drift history: Postgres + DigitalOcean Spaces (with
+  lifecycle rules).
+- Evidence bundles: DigitalOcean Spaces.
+- Backup + restore drill: documented quarterly cadence with RPO/RTO
+  in `docs/runbooks/operations.md`.
+
+### Air-gapped mode
+- `BLACKGLASS_AIRGAPPED=true` short-circuits all outbound public-SaaS
+  dispatchers (Stripe, Sentry, telemetry, customer webhooks).
+- `/api/health/airgap` exposes the flag and per-dispatcher honour state
+  for monitoring infrastructure to verify.
+
+### Self-hosted distribution
+- Helm chart at `deploy/helm/blackglass/` ships `web`, `scan-worker`,
+  and `ops-worker`. `sandbox-worker` is built as a separate artefact and
+  documented for manual deployment (see Helm README).
+- All optional integrations gated behind env vars and disabled by
+  default in air-gapped mode.
+
+### Remediator (LLM)
+- Standalone Python FastAPI sidecar (`blackglass-remediator/`).
+- Hard-coded risk-tier model in code, not in prompts: `safe_guidance_only`,
+  `sandbox_verifiable`, `approval_required`, `manual_only`.
+- Sandbox-verifiable and approval-required tiers run plans in an
+  ephemeral DigitalOcean droplet that's destroyed in `finally`.
+- Forbidden-command deny-list enforced before any plan reaches an
+  operator.
+- `requires_human_approval` is hard-coded `True` — every plan needs an
+  explicit operator click.
+- See `blackglass-remediator/docs/safety-model.md`.
+
+### Observability
+- Sentry server-side error capture with PII-stripping `beforeSend`,
+  tagged with `tenant_id`, `user_id`, `plan`, `env`.
+- Optional Sentry → PagerDuty bridge (throttled, deduplicated, gated by
+  `BLACKGLASS_AIRGAPPED`).
+- Optional OpenTelemetry trace export (OTLP), coexists with Sentry.
+
+### Schema integrity
+- Hash-tracked migrations via `scripts/ops/apply-migrations.mjs`
+  (records every applied file's sha256 in `drizzle.__drizzle_migrations`).
+- PR-time static check (`db:migrate:files`) and CI-time end-to-end
+  apply (`migrations-end-to-end` job).
+- Recovery from manually-applied state via `mode=baseline` in the
+  `db-migrate.yml` workflow.
 
 ---
 
-## Stage 2 — Private beta (first paying or pilot tenants)
+## In progress / next 1–2 quarters
 
-**Goal:** Multiple **logical** customers without full multi-tenant isolation yet — **still one deployment** or a **few** dedicated instances (BYOC-lite).
-
-- **Identity:** Enforce console auth; document session signing and rotation (`AUTH_REQUIRED`, cookie secrets).
-- **Isolation:** Prefer **separate Doppler projects or configs per tenant** and **separate App Platform apps** over sharing one `COLLECTOR_HOST_*` set — until you have true tenant ID in DB.
-- **Onboarding:** Written runbook (SSH user on target, key exchange, first baseline); consider in-app checklist.
-- **Support:** Channel (email/Slack); define **severity** and response expectations (not SLA yet).
-- **Billing:** Manual invoices or Stripe **internal** — no need for embedded billing UI on day one.
-- **Exit:** N tenants live; incidents are rare and diagnosable via **`collector.*` logs + audit tail**.
-
----
-
-## Stage 3 — Multi-tenant SaaS (single app, many orgs)
-
-**Goal:** One codebase serves many customers with **strong** data and secret boundaries.
-
-- **Data plane:** Move baselines, drift events, audit, and scan metadata off ephemeral disk into **PostgreSQL** (or equivalent). Files on volume remain an option for **export** only.
-- **Control plane:** **Tenant ID** on every row; API and UI scoped by tenant; no cross-tenant `host_id` leakage.
-- **Secrets:** Per-tenant credentials — **prefer OIDC / workload identity** to secret managers over long-lived PEMs in your DB.
-- **Workers:** Long scans and SSH fan-out in a **queue + worker** (BullMQ, Inngest, etc.) so the Next.js web tier stays responsive under load.
-- **Compliance:** SOC2-style controls — audit **export** to immutable store, retention policy, RPO/RTO documented.
+- **Per-tenant CMEK / BYOK.** Today every tenant's DEK is wrapped by the
+  same KMS-managed KEK; per-tenant key separation is on deck.
+- **`sandbox-worker` in the Helm chart.** Currently documented for
+  manual deployment; should ship as a third Deployment in `values.yaml`.
+- **WORM-grade audit retention.** Customers can stream `saas_audit_events`
+  to their own S3 + Object Lock bucket via the OCSF webhook; a managed
+  cold-archive bucket on the SaaS side would close the loop without
+  customer setup.
+- **Remediator quality harness.** Canned drift scenarios under
+  `blackglass-remediator/tests/scenarios/` to assert tier classification,
+  forbidden-command screening, and sandbox-verification idempotency
+  before every prompt or model bump (currently scaffolded; growing).
+- **Per-tenant risk policies in the remediator.** Today the tier model
+  is global; customers with stricter compliance regimes will want to
+  push categories into `manual_only` for their tenant.
+- **Static egress through a NAT gateway.** Egress IPs are exposed via
+  `/api/public/egress-ips` today; pinning them behind a Floating IP
+  removes the need to update the list as App Platform recycles workers.
 
 ---
 
-## Stage 4 — Enterprise / regulated buyers
+## Future (no committed timeline)
 
-**Goal:** Meet procurement and security questionnaires.
-
-- **SSO:** SAML/OIDC (e.g. WorkOS, Auth0 Enterprise).
-- **Audit:** Tamper-evident or SIEM streaming; **signed** audit export optional.
-- **Uptime:** Published status page; SLOs for API availability (not SSH success rate — that’s customer network).
-- **DPA / GDPR:** If EU customers — subprocessors list, data residency options.
+- **SOC 2 attestation.** The control surface is in place and documented
+  in `docs/security-compliance.md`; formal audit is in planning. Don't
+  claim SOC 2 publicly until the report exists.
+- **Approval quorum.** Two-of-N approver flow for `approval_required`
+  remediation plans on production-tagged hosts.
+- **Per-tenant model selection** for the remediator (pick model + temperature).
+- **Slack approval UI** for remediations (Block Kit buttons).
 
 ---
 
-## Recommended sequencing (engineering)
+## What this document is not
 
-1. Staging checklist + **`verify-staging.mjs`** in CI (manual trigger is fine).
-2. Persistent **volumes** or first **DB** migration for baselines + audit.
-3. **Per-tenant** deployment or tenant row + scoping (choose one model before wide SaaS).
-4. **Queue + worker** for collection when parallel SSH or duration threatens web tier SLIs.
-5. **Billing + SSO** when pipeline, not before Stage 2 stability.
+- It is **not** a sales roadmap. Sales messaging and pricing positioning
+  live on the marketing pages (`/pricing`, `/security`,
+  `/use-cases/...`).
+- It is **not** a sprint plan. The "in progress" section reflects what
+  engineering has actively committed to; the "future" section is
+  intentionally undated.
 
-For the current repo’s automated tests: they are **regression guards**, not proof of SaaS safety — combine with staging verification and pilot contracts.
+---
+
+## Related references
+
+- `docs/architecture-overview.md` — system map and invariants.
+- `docs/security-compliance.md` — control mapping for security reviewers.
+- `docs/runbooks/operations.md` — DR + queues + DLQ + showcase status.
+- `docs/saas-clerk-rbac.md` — RBAC + Clerk integration matrix.
+- `blackglass-remediator/docs/safety-model.md` — remediator safety
+  promise, in detail.

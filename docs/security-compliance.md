@@ -47,7 +47,7 @@ their question, link them straight to that section.
 | -------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
 | TLS 1.3 in transit                     | DigitalOcean App Platform terminates TLS at the edge; HTTP redirects to HTTPS          | `next.config.ts` HSTS header (`max-age=31536000; includeSubDomains`)              |
 | Envelope encryption for SSH creds      | Per-tenant DEK wrapped by KMS-managed KEK; ciphertext stored in Postgres                | `src/lib/server/secrets/envelope.ts`, `src/lib/server/secrets/`                    |
-| KMS provider abstraction               | AWS KMS today; HashiCorp Vault planned for self-hosted Helm path                      | `src/lib/server/secrets/envelope.ts` (`kmsProvider()`)                            |
+| KMS provider abstraction               | Pluggable via `KMS_PROVIDER`: `local` (default), `vault` (HashiCorp Vault Transit), `awskms` (AWS KMS) | `src/lib/server/secrets/envelope.ts` (`kmsProvider()`)                            |
 | Per-tenant rotated webhook signing     | HMAC-SHA256 with current + previous key window for graceful rotation                  | `drizzle/0013_webhook_signing_keys.sql`, `src/lib/server/services/notifications-service.ts` |
 | Drift events at rest in Postgres       | DigitalOcean Managed Postgres with provider-managed encryption                          | DigitalOcean dashboard → DB cluster → Encryption                                   |
 | Spaces (object storage) at rest        | Provider-managed encryption on the Spaces bucket                                       | DigitalOcean dashboard → Spaces → Encryption                                       |
@@ -221,14 +221,17 @@ For the most common questions:
 Transparency reduces back-and-forth in security review:
 
 - **No customer-managed encryption keys (CMEK / BYOK) yet.** Per-tenant
-  KMS is on the roadmap (review feedback Wave 10) but is not shipped.
-  Today, all DEKs are wrapped by a BLACKGLASS-managed KEK.
-- **No long-term immutable audit log export.** Audit rows live in
-  Postgres; if you need WORM-grade retention, configure an outbound
-  webhook in OCSF format to your S3 + Object Lock bucket.
-- **No DAST scanning automated in CI.** ZAP baseline rules are
-  documented (`docs/zap-baseline-rules.md`) for ad-hoc runs against
-  staging; automating this is in the backlog.
+  KMS is on the roadmap. Today, all DEKs are wrapped by the
+  configured KMS provider (`local` / Vault / AWS KMS) chosen by the
+  operator — there is no per-tenant KEK separation.
+- **WORM audit retention is opt-in.** `saas_audit_events` lives in
+  Postgres and exports as deterministic JSONL (`npm run audit:verify-jsonl`)
+  with an integrity digest, suitable for cold storage in S3 + Object
+  Lock. We do not run an Object-Lock bucket on the customer's behalf.
+- **DAST is scheduled, not gating.** A ZAP baseline workflow runs against
+  staging on demand and on a weekly cron when `STAGING_URL` is set
+  (`.github/workflows/dast-zap-baseline.yml`); failures don't block PRs
+  by default. Tune via `docs/zap-baseline-rules.md`.
 - **No SOC 2 attestation yet.** The control surface is in place;
   formal audit is in planning. Don't claim SOC 2 on the website until
   the report exists.

@@ -110,12 +110,13 @@ export default function SecurityPage() {
               <p className="text-sm font-semibold text-fg-primary">Baseline creation</p>
               <Prose>
                 A baseline is a point-in-time snapshot of a host&apos;s security-relevant
-                configuration: listening ports, local users and group memberships, sudo rules,
-                enabled systemd units, SSH daemon policy, firewall rules, installed packages, and
-                kernel parameters. Without an explicit baseline, drift is undetectable — you cannot
-                tell whether a new port or user is authorised or a sign of compromise. Baselines
-                are also compliance evidence: proof that a system was in an acceptable state at a
-                specific time.
+                configuration: listening ports, local users and group memberships, sudo policy,
+                enabled systemd units, sshd effective configuration, firewall rules where
+                collected, cron entries, installed packages, loaded kernel modules, and file
+                integrity hashes for critical paths. Without an explicit baseline, drift is
+                undetectable — you cannot tell whether a new port or user is authorised or a sign
+                of compromise. Baselines are also compliance evidence: proof that a system was in
+                an acceptable state at a specific time.
               </Prose>
             </div>
 
@@ -192,44 +193,76 @@ export default function SecurityPage() {
             <DomainCard title="Encryption and transport">
               All UI and API traffic is served over HTTPS / TLS 1.3. There are no HTTP endpoints.
               Drift results, baselines, evidence bundles, and audit logs are encrypted at rest
-              (AES-256). Encryption is always on — not an option.
+              (AES-256). SSH credentials use envelope encryption with a configurable KMS backend
+              (local key, HashiCorp Vault, or AWS KMS) — only the data key is unwrapped per scan.
+              Encryption is always on — not an option.
             </DomainCard>
 
-            <DomainCard title="Access control">
-              Three built-in roles:{" "}
-              <strong className="text-fg-primary font-medium">Viewer</strong> (read-only),{" "}
-              <strong className="text-fg-primary font-medium">Operator</strong> (scan + acknowledge), and{" "}
-              <strong className="text-fg-primary font-medium">Admin</strong> (full access). API tokens are
-              scoped to a role at issuance. Enterprise adds SSO / SAML / OIDC with MFA enforced at
-              your identity provider.
+            <DomainCard title="Access control (Clerk Enterprise)">
+              Authentication is delivered by Clerk Enterprise: SAML / OIDC SSO, SCIM provisioning,
+              MFA enforcement, and revocable API keys scoped at issuance. Built-in RBAC roles —{" "}
+              <strong className="text-fg-primary font-medium">viewer</strong>,{" "}
+              <strong className="text-fg-primary font-medium">guest auditor</strong>,{" "}
+              <strong className="text-fg-primary font-medium">operator</strong>, and{" "}
+              <strong className="text-fg-primary font-medium">admin</strong> — are enforced
+              centrally; route handlers never duplicate authorisation logic.
+            </DomainCard>
+
+            <DomainCard title="Tenant isolation (RLS)">
+              Multi-tenant data is isolated at the database layer using PostgreSQL row-level
+              security policies on every tenant-owned table. The application sets the
+              <code className="ml-1 rounded bg-bg-elevated px-1 py-0.5 text-[12px]">app.tenant_id</code>{" "}
+              GUC on every authenticated request via a wrapper that has no escape hatches in
+              business code. <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">BYPASSRLS</code>{" "}
+              is reserved for migrations and inbound webhooks only.
             </DomainCard>
 
             <DomainCard title="Data minimisation and retention">
               BLACKGLASS collects only what is needed to compute drift — not file contents, not
-              environment variables, not secrets. Retention is configurable per plan (30 days free,
-              180 days Pro, custom on Enterprise). Data is hard-deleted after the window closes —
-              not hidden, removed.
+              environment variables, not secrets. Retention is configurable per plan (14-day trial;
+              180 days on Starter / Growth / Business; custom on Enterprise). Data is hard-deleted
+              after the window closes — not hidden, removed.
             </DomainCard>
 
             <DomainCard title="Secrets and credential handling">
-              SSH credentials are never stored. They are fetched just-in-time from a pluggable
-              SecretProvider (Doppler, Infisical, Vault, or env vars for dev), held in memory only
-              for the scan connection lifetime, and never written to disk or logs. The browser never
-              sees raw credentials.
+              SSH credentials are never stored unencrypted. They are sealed via envelope encryption
+              (Vault / AWS KMS / local KMS), unsealed in memory only for the scan connection
+              lifetime, and never written to disk or logs. Other secrets are sourced from Doppler,
+              Vault, env vars, or the database secret backend — pluggable per environment. The
+              browser never sees raw credentials.
             </DomainCard>
 
-            <DomainCard title="Audit logging">
-              Every security-relevant action is recorded: authentication, scan execution, baseline
-              changes, drift acknowledgement, evidence export, and user management. Logs are
-              append-only at the application layer and kept separate from raw operational output.
-              No host configuration data is written to application logs.
+            <DomainCard title="Immutable audit trail">
+              Every security-relevant action is appended to the per-tenant{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">saas_audit_events</code>{" "}
+              stream: authentication, scan execution, baseline changes, drift acknowledgement,
+              evidence export, remediation approval, and user management. Streams export as
+              deterministic NDJSON with a verifiable integrity digest
+              (<code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">npm run audit:verify-jsonl</code>),
+              suitable for cold storage and external review.
             </DomainCard>
 
-            <DomainCard title="Platform hardening">
-              The service runs on hardened cloud infrastructure with network segmentation and
-              SSH-key management access. All secrets are managed via a secrets manager — none are
-              committed to source control. Dependencies are pinned and reviewed on a regular
-              vulnerability cadence. Tenant data is scoped by workspace at the application layer.
+            <DomainCard title="Signed outbound webhooks">
+              Webhooks are HMAC-SHA256 signed with a per-tenant secret and rotation-aware (current
+              and previous keys are accepted during rollover). Receivers can verify signatures
+              independently. Inbound webhook idempotency is enforced via a Postgres dedup table to
+              eliminate duplicate processing.
+            </DomainCard>
+
+            <DomainCard title="Air-gapped mode">
+              Setting{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">BLACKGLASS_AIRGAPPED=true</code>{" "}
+              disables outbound calls to public services (Stripe, Sentry, telemetry) and makes
+              modules fail fast rather than hang. Designed for regulated, on-premise, and
+              classified deployments — including the self-hosted Helm chart.
+            </DomainCard>
+
+            <DomainCard title="Platform hardening and CI">
+              The service runs on hardened cloud infrastructure with network segmentation. All
+              secrets are managed via a secrets manager — none are committed to source control.
+              Dependencies are pinned, scanned on every push (`npm audit`), and surfaced in a
+              CycloneDX SBOM artefact. Staging is probed by an automated ZAP DAST baseline.
+              Sentry + OpenTelemetry provide tagged error and trace observability per tenant.
             </DomainCard>
           </div>
         </section>

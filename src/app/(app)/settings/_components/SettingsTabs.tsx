@@ -21,7 +21,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -55,17 +54,25 @@ export function SettingsTabs({
     return defaultTab;
   }, [searchParams, tabs, defaultTab]);
 
-  const [active, setActive] = useState(initial);
-
-  // Keep state aligned if the user uses browser back/forward to change ?tab.
-  useEffect(() => {
-    if (initial !== active) setActive(initial);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initial]);
+  // Tab state is derived from the URL by default. We only carry a local
+  // `override` when the user explicitly clicks a tab; that click also
+  // syncs the URL back so the override matches `initial` on the next
+  // render. We track `prevInitial` as state (not a ref) so we can drop
+  // a stale override when the URL changes via browser back/forward —
+  // this is React's documented "adjusting state on prop change" pattern
+  // and avoids both `setState-in-effect` and `refs-during-render`.
+  const [override, setOverride] = useState<string | null>(null);
+  const [prevInitial, setPrevInitial] = useState(initial);
+  let active = override ?? initial;
+  if (prevInitial !== initial) {
+    setPrevInitial(initial);
+    setOverride(null);
+    active = initial;
+  }
 
   const select = useCallback(
     (id: string) => {
-      setActive(id);
+      setOverride(id);
       const url = new URL(window.location.href);
       if (id === defaultTab) url.searchParams.delete("tab");
       else url.searchParams.set("tab", id);

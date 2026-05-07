@@ -162,9 +162,10 @@ export default function SandboxWalkthroughPage() {
         </h1>
         <p className="max-w-2xl text-sm text-fg-muted sm:text-base">
           A real Linux host can drift in dozens of ways an attacker would exploit. Below are eight
-          scenarios Blackglass detects within seconds of a scan — each with the exact severity,
-          rationale, and remediation our customers see in the console. To watch the full loop
-          (baseline → drift → detect → remediate → accept) on your own systems, book a live demo.
+          scenarios Blackglass detects on the next scan — each with the exact severity, rationale,
+          and remediation our customers see in the console. To watch the full loop
+          (baseline → drift → detect → propose → human approval → verify) on your own systems,
+          book a live demo.
         </p>
         <div className="flex flex-wrap gap-3 pt-2">
           <Link
@@ -230,7 +231,9 @@ export default function SandboxWalkthroughPage() {
           <h2 className="text-base font-semibold text-fg-primary">See it run on your own host</h2>
           <p className="text-xs text-fg-muted">
             A 20-minute live walkthrough on a real Ubuntu VM. We baseline, deliberately drift the
-            box, then watch Blackglass detect every change with severity and one-click remediation.
+            box, then watch Blackglass detect every change with severity. The remediator proposes
+            a fix, runs it in an isolated sandbox to verify safety, and surfaces it for one-click
+            approval — the AI never executes commands on production hosts directly.
           </p>
         </div>
         <Link

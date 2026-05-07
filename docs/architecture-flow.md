@@ -17,15 +17,16 @@ API transport stays thin: **Zod** validates requests; domain work lives under `s
 ## 1. Baseline capture
 
 - **Operator** calls `POST /api/v1/baselines` or uses the Baselines UI.
-- **Server** runs `captureBaselinesFromFleet()` → `collectAllSnapshots()` (SSH). SSH material is fetched **just-in-time** via `SECRET_PROVIDER` (`env` / Doppler / Infisical / Vault) — see `src/lib/server/secrets/README.md`. Multi-host runs use bounded parallel SSH (`COLLECTOR_MAX_PARALLEL_SSH`); optional JSON logs: `collector.*` / `BLACKGLASS_LOG_COLLECTOR`.
-- **Persistence:** `BASELINE_STORE_PATH` optional JSON file; otherwise in-memory Map.
+- **Server** runs `captureBaselinesFromFleet()` → `collectAllSnapshots()` (SSH). SSH material is fetched **just-in-time** via `SECRET_PROVIDER` (`env` / Doppler / Infisical / Vault / `db` with envelope encryption) — see `src/lib/server/secrets/README.md`. Multi-host runs use bounded parallel SSH (`COLLECTOR_MAX_PARALLEL_SSH`); optional JSON logs: `collector.*` / `BLACKGLASS_LOG_COLLECTOR`.
+- **Persistence:** SaaS deploys persist to **Postgres + DigitalOcean Spaces** (selected automatically by `src/lib/server/store/index.ts`); legacy/dev path uses `BASELINE_STORE_PATH` (JSON file) or in-memory Map.
 - **Cache:** `revalidateIntegritySurfaces()` invalidates `/`, `/hosts`, `/drift` so SSR picks up inventory.
 
 ## 2. Scan execution
 
 - **Client** posts `POST /api/v1/scans` with optional `host_ids` (must be a subset of configured `host-*` ids when the collector is configured).
-- **Rate limit** applies per client IP.
-- **Job** is queued immediately (`202`); when the collector is configured, `executeDriftScanJob()` runs in the background: `collectAllSnapshots`, `getBaseline`, `computeDrift`, `storeDriftEvents`, `recordDriftScanDayStamp` (optional `DRIFT_HISTORY_PATH` file).
+- **Rate limit** applies per client IP (24 / 60 s — see `docs/http-rate-limit-budgets.md`).
+- **Job** is enqueued onto `blackglass-scans` (BullMQ over Redis) when `REDIS_QUEUE_URL` is set; the `scan-worker` consumer drains it. The web tier returns `202` immediately. Without Redis (Stage-0 / dev), `executeDriftScanJob()` runs in-process.
+- **Pipeline:** `collectAllSnapshots`, `getBaseline`, `computeDrift`, `storeDriftEvents` (Postgres `drift_events`, partitioned monthly), `recordDriftScanDayStamp` (Postgres in SaaS, optional `DRIFT_HISTORY_PATH` file in dev).
 - **Polling:** `GET /api/v1/scans/:id` validates the id path segment, then returns `projectScanJob` until terminal.
 
 ## 3. Drift computation
@@ -40,10 +41,10 @@ API transport stays thin: **Zod** validates requests; domain work lives under `s
 
 ## 5. Evidence & audit
 
-- **Auth (App Router):** login lives under `(auth)/login` (URL remains `/login`); settings sign-out imports `@/app/(auth)/login/actions`.
+- **Auth:** SaaS path uses **Clerk** (`/sign-in`, `/sign-up`, org context); legacy single-tenant login lives under `(auth)/login` (URL remains `/login`). Choice is automatic based on `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`.
 - **Evidence bundle** paths (`/evidence/bundles/:id` and `/file`) use the same `ResourceIdPathSchema` guard as other id routes.
 - **Evidence bundle** metadata is served from `evidence-catalog.ts`; KPI **Evidence bundles** count matches catalog size in live fleet mode.
-- **Audit** events append via `POST /api/v1/audit/events` (validated body).
+- **Audit (SaaS):** every privileged action emits a `saas_audit_events` row via `emitSaasAudit()`. Legacy `appendAudit()` path remains for non-SaaS / Stage-0 deployments.
 
 ## 6. Health & observability
 
@@ -53,11 +54,25 @@ API transport stays thin: **Zod** validates requests; domain work lives under `s
 
 ## 7. Operational persistence
 
-App Platform / Docker filesystems are **ephemeral**. For production, mount **persistent volumes** (or external DB/object storage) at:
+App Platform / Docker filesystems are **ephemeral**. The SaaS production
+path persists everything externally:
 
-- `BASELINE_STORE_PATH`
-- `DRIFT_HISTORY_PATH` (optional)
+- **Drift events:** `drift_events` (Postgres, partitioned monthly).
+- **Baselines + drift history:** Postgres + DO Spaces (selected
+  automatically when `DATABASE_URL` and `DO_SPACES_*` are set).
+- **Evidence bundles:** DO Spaces (`evidence/<tenant>/<bundle-id>.zip`),
+  with bucket versioning + lifecycle.
+- **Audit:** `saas_audit_events` (Postgres) with deterministic JSONL
+  export.
 
-## Future boundary
+For legacy / Stage-0 deployments, mount persistent volumes at
+`BASELINE_STORE_PATH` (and optionally `DRIFT_HISTORY_PATH`).
 
-If scan orchestration or SSH load grows, `src/lib/server` modules can move behind a worker service; **OpenAPI** + **Zod** keep the HTTP edge stable while the worker evolves.
+## Process boundaries
+
+The scan / drift pipeline runs in **`scan-worker`** (separate process)
+when `REDIS_QUEUE_URL` is set; the web tier never blocks on SSH or drift
+compute in production. **`ops-worker`** drains webhooks, exports, and
+maintenance crons. **`sandbox-worker`** drives the remediator's
+verification path. OpenAPI + Zod keep the HTTP edge stable while
+worker code evolves.

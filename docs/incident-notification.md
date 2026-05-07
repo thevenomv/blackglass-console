@@ -11,7 +11,9 @@
 
 ## PagerDuty / OpsGenie
 
-- Create **REST API** or **Events v2 integration** routing key stored as **`PD_ROUTING_KEY`** (Doppler-only). Optional future route: **`@sentry/node`** hook or Stripe webhook watchdog — not wired in OSS tree by default.
+- Create a **PagerDuty Events API v2** integration; store the routing key as **`PD_ROUTING_KEY`** (Doppler).
+- The **Sentry → PagerDuty bridge** is shipped: set `PD_SENTRY_BRIDGE_ENABLED=true` to page on Sentry server errors. Throttling and dedup live in `src/lib/server/sentry-pagerduty.ts`. The bridge is automatically short-circuited when `BLACKGLASS_AIRGAPPED=true`.
+- The Helm chart wires both env vars (see `deploy/helm/blackglass/README.md`).
 
 ## Runbook handshake
 

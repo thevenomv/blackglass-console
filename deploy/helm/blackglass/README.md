@@ -12,6 +12,15 @@ Self-hosted Kubernetes distribution of the BLACKGLASS console + workers.
 
 Plus: ConfigMap (non-secret env), Secret (envFrom), Service, optional Ingress, optional HPA, optional NetworkPolicy, ServiceAccount.
 
+> **`sandbox-worker` (optional, not in the chart yet).** The build
+> emits a `sandbox-worker.cjs` artefact (see `scripts/build-worker.mjs`)
+> that drains the `blackglass-sandbox` queue and is required for the
+> remediator's sandbox-verification path. Self-hosted customers who
+> want sandbox verification today need to run a third Deployment
+> manually using the same `blackglass-worker` image with command
+> `node sandbox-worker.cjs`. Adding it to the chart is on the
+> backlog — track it in your GitOps pipeline if you depend on it.
+
 ## Prerequisites
 
 - Kubernetes 1.27+

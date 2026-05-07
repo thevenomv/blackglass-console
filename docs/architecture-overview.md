@@ -26,9 +26,10 @@
 │  src/lib/server/inventory.ts    — host inventory                         │
 │  src/lib/server/outbound-webhook.ts — event delivery to external SIEMs  │
 ├──────────────────────────────────────────────────────────────────────────┤
-│  Async / Worker                                                          │
+│  Async / Workers                                                         │
 │  src/lib/server/queue/**  — BullMQ queue singletons + config             │
-│  src/worker/scan-worker.ts    — SSH+drift consumer (isolated process)    │
+│  src/worker/scan-worker.ts    — SSH + drift consumer (isolated process)  │
+│  src/worker/ops-worker.ts     — webhooks, exports, maintenance           │
 │  src/worker/sandbox-worker.ts — sandbox lifecycle consumer               │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  Persistence & Infrastructure                                            │
@@ -71,7 +72,7 @@
   - **Webhook handlers** (Stripe, Clerk) that act before a tenant context is established.
 - Every new table that holds tenant data **must** have:
   1. A `tenant_id` foreign key to `saas_tenants.id`.
-  2. A `SELECT` and `INSERT/UPDATE/DELETE` RLS policy gating on `current_setting('app.tenant_id')`.
+  2. A `SELECT` and `INSERT/UPDATE/DELETE` RLS policy gating on `current_setting('app.tenant_id')`. Some legacy policies use `app.current_tenant` — new tables should standardise on `app.tenant_id` (the GUC `withTenantRls` actually sets). See `docs/postgres-rls-sketch.md` for the full audit.
 - Application code never connects with a Postgres superuser or owner role — only the `app_user` role.
 
 ### SSH / Collector
@@ -87,10 +88,13 @@
 - All long-running or externally-dependent work (SSH, DO API, Spaces I/O) goes through a BullMQ queue — never executed synchronously on the web process.
 - Workers handle `SIGTERM`/`SIGINT` gracefully: they stop accepting new jobs and drain in-flight work before exiting. A 25 s forced-exit guard ensures DO App Platform SIGKILL windows are respected.
 - Job retry/backoff policies per type:
-  - `scan`: 3 attempts, exponential 2 s backoff.
-  - `sandboxProvision`: 5 attempts, exponential 5 s backoff.
-  - `sandboxSeed`: 3 attempts, exponential 10 s backoff.
-  - `sandboxCleanup`: 10 attempts, exponential 30 s backoff (orphaned Droplets are expensive).
+  - `scan` (scan-worker): 3 attempts, exponential 2 s backoff.
+  - `sandboxProvision` (sandbox-worker): 5 attempts, exponential 5 s backoff.
+  - `sandboxSeed` (sandbox-worker): 3 attempts, exponential 10 s backoff.
+  - `sandboxCleanup` (sandbox-worker): 10 attempts, exponential 30 s backoff (orphaned Droplets are expensive).
+  - `webhook` (ops-worker): 6 attempts, exponential 5 s backoff; failed jobs land in the queue's failed set as the operational DLQ.
+  - `export` (ops-worker): 3 attempts, exponential 30 s backoff.
+  - `maintenance` (ops-worker): single-attempt repeating jobs (cron-style).
 
 ### Secrets / Credentials
 
@@ -100,9 +104,11 @@
 
 ### Public / Demo surface
 
-- `/demo/*` routes and `src/app/api/public/**` expose **only** the showcase sandbox tenant's data.
+- `src/app/(marketing)/demo/*` is **seeded fictional data** (`src/lib/demo/`) — no real tenant data, no scan side effects.
+- `src/app/(marketing)/demo/sandbox` is a **static walkthrough** of the eight drift scenarios; the live ephemeral-Droplet showcase that previously powered this page was retired (see `docs/runbooks/operations.md` § 4b).
+- `src/app/(marketing)/demo/showcase` permanently redirects to `/demo/sandbox`.
+- `src/app/api/public/**` endpoints (egress IPs, demo evidence) are rate-limited by IP (sliding window, Redis-backed when available). When the showcase is re-enabled, `/api/public/sandbox-showcase` exposes only the showcase tenant's data; with `SHOWCASE_AUTO_PROVISION_DISABLED=true` it short-circuits to `{status: "retired"}`.
 - No real customer org data is ever accessible via public routes.
-- All public API endpoints are rate-limited by IP (sliding window, Redis-backed when available).
 
 ### Outbound Webhooks
 
@@ -126,11 +132,11 @@ Limits are defined in `src/lib/saas/plans.ts` and enforced in two places:
 
 ## 5. Storage Backend Matrix
 
-| Environment | Baseline | Drift history | Evidence |
-|-------------|----------|---------------|----------|
-| Local dev   | FS / Memory | FS / Memory | FS / none |
-| Staging     | Postgres + Spaces | Postgres + Spaces | Spaces |
-| Production  | Postgres + Spaces | Postgres + Spaces | Spaces |
+| Environment | Baseline | Drift history | Drift events | Evidence |
+|-------------|----------|---------------|--------------|----------|
+| Local dev   | FS / Memory | FS / Memory | Memory | FS / none |
+| Staging     | Postgres + Spaces | Postgres | Postgres (partitioned) | Spaces |
+| Production  | Postgres + Spaces | Postgres | Postgres (partitioned) | Spaces |
 
 Backends are selected automatically by `src/lib/server/store/index.ts` based on which env vars are present. `STORAGE_BACKEND` can be used to force a specific adapter.
 

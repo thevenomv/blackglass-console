@@ -54,20 +54,24 @@ export default function TermsPage() {
       <Section title="4. Subscriptions and billing">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong className="text-fg-primary">BLACKGLASS Local</strong> is free with no payment
-            required.
+            Every plan starts with a <strong className="text-fg-primary">14-day free trial</strong>{" "}
+            (up to 10 hosts and 2 operator seats; no credit card required). After the trial, the
+            workspace becomes read-only unless a paid plan is selected.
           </li>
           <li>
-            <strong className="text-fg-primary">BLACKGLASS Team</strong> is billed monthly or
-            annually in advance via Stripe. Prices are shown on our{" "}
+            <strong className="text-fg-primary">Starter</strong>,{" "}
+            <strong className="text-fg-primary">Growth</strong>, and{" "}
+            <strong className="text-fg-primary">Business</strong> plans are billed monthly or
+            annually in advance via Stripe. Prices and limits are shown on our{" "}
             <Link href="/pricing" className="text-accent-blue hover:underline">
               pricing page
             </Link>
             .
           </li>
           <li>
-            <strong className="text-fg-primary">BLACKGLASS Fleet</strong> is available under a
-            separate order form. Contact us for pricing.
+            <strong className="text-fg-primary">Enterprise</strong> is available under a separate
+            order form for organisations needing SSO, SCIM, custom data residency, immutable audit
+            logs, and SLAs. Contact us for pricing.
           </li>
           <li>
             Subscriptions renew automatically. You may cancel at any time via the billing portal;

@@ -20,7 +20,7 @@ Use this before a billing or go-to-market push. Automated coverage: `tests/e2e/w
 |------|--------|
 | Endpoint | `POST /api/checkout/webhook` |
 | Env | `STRIPE_WEBHOOK_SECRET` must match Stripe CLI or dashboard signing secret |
-| Invalid / replay | Missing `stripe-signature` → **400**; duplicate `event.id` (in-memory idempotency) → 200 `received` |
+| Invalid / replay | Missing `stripe-signature` → **400**; duplicate `event.id` is rejected via the Postgres `saas_webhook_idempotency` table → 200 `received` |
 | Billing dependency | `checkout.session.completed`, `subscription.*`, `invoice.*` handlers update SaaS DB when `tryGetDb()` is true |
 
 Configure webhook URL in Stripe Dashboard to `https://<your-domain>/api/checkout/webhook`.

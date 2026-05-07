@@ -77,11 +77,12 @@ The router that decides which payload format applies lives at
 Self-hosted customers may bring their own KMS provider for envelope
 encryption of SSH credentials:
 
-| Vendor                | Purpose                                          | Configuration                                                  |
-| --------------------- | ------------------------------------------------ | -------------------------------------------------------------- |
-| AWS KMS               | KEK for envelope encryption (default)            | `KMS_PROVIDER=aws`, AWS credentials in env                     |
-| HashiCorp Vault       | KEK via Vault Transit (planned)                  | `KMS_PROVIDER=vault`, `VAULT_*` env vars                       |
-| OpenTelemetry collector | Trace export (any OTLP-compatible backend)     | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`    |
+| Vendor                  | Purpose                                          | Configuration                                                  |
+| ----------------------- | ------------------------------------------------ | -------------------------------------------------------------- |
+| Local key (default)     | KEK held in `KMS_LOCAL_KEY`; suitable for single-node, dev, or air-gapped pilots | `KMS_PROVIDER=local`, `KMS_LOCAL_KEY=<base64-32B>`             |
+| HashiCorp Vault Transit | KEK via Vault Transit                            | `KMS_PROVIDER=vault`, `VAULT_ADDR`, `VAULT_TOKEN`, `VAULT_TRANSIT_KEY` |
+| AWS KMS                 | KEK via AWS KMS                                  | `KMS_PROVIDER=awskms`, `AWS_REGION`, `KMS_KEY_ID`, AWS credentials in env |
+| OpenTelemetry collector | Trace export (any OTLP-compatible backend)       | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`    |
 
 ---
 

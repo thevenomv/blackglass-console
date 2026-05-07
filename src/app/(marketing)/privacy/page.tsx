@@ -46,7 +46,7 @@ export default function PrivacyPage() {
             ],
             ["Billing data", "Billing email, Stripe customer ID, subscription status", "Processing payments and managing your subscription"],
             ["Usage data", "IP address, browser/device type, pages visited, session duration", "Security, fraud prevention, service improvement"],
-            ["Host configuration metadata", "Configuration state of Linux hosts you enrol (ports, users, packages, kernel params, etc.)", "Core service — computing drift and generating reports"],
+            ["Host configuration metadata", "Configuration state of Linux hosts you enrol (listening ports, local users and groups, sudo policy, sshd effective configuration, systemd unit files, cron entries, installed packages, file integrity hashes for critical paths)", "Core service — computing drift and generating reports"],
             ["Audit log data", "Timestamped record of operator actions within BLACKGLASS", "Security and compliance audit trail"],
             ["Support communications", "Emails and messages you send us", "Responding to support requests"],
           ]}
@@ -86,13 +86,15 @@ export default function PrivacyPage() {
         <p>We share data with the following sub-processors under appropriate data processing agreements:</p>
         <Table
           rows={[
+            ["Clerk, Inc.", "Authentication, organisation/workspace membership, SSO/SAML, SCIM provisioning, MFA enforcement", "United States (SCCs in place)"],
             ["Stripe, Inc.", "Payment processing and billing portal", "United States (SCCs in place)"],
             [
               "DigitalOcean, LLC",
-              "Cloud infrastructure — App Platform (compute), Managed Databases (PostgreSQL when used), Managed Redis/Valkey (rate limits when configured), Spaces (S3-compatible object storage for optional audit/baseline artefacts)",
-              "United States / EU regions per your deployment (SCCs / UK IDTA as applicable)",
+              "Cloud infrastructure — App Platform (compute), Managed Databases (PostgreSQL), Managed Redis/Valkey (queues + rate limits), Spaces (S3-compatible object storage for optional audit/baseline artefacts)",
+              "EU / US regions per your deployment (SCCs / UK IDTA as applicable)",
             ],
             ["Sentry (Functional Software, Inc.)", "Error monitoring and performance tracing", "United States (SCCs in place)"],
+            ["Doppler, Inc. (optional)", "Secrets configuration when enabled by the customer", "United States (SCCs in place)"],
           ]}
           headers={["Processor", "Purpose", "Location"]}
         />
@@ -106,9 +108,9 @@ export default function PrivacyPage() {
           rows={[
             ["Account data", "Duration of account plus 30 days after closure"],
             ["Billing records", "7 years (HMRC requirement)"],
-            ["Host configuration metadata", "Per plan: 30 days (Local), 180 days (Team), custom (Fleet)"],
-            ["Audit logs", "Per plan retention window; append-only during retention"],
-            ["Usage/security logs", "90 days"],
+            ["Host configuration metadata", "Per plan: 14-day trial window; 180 days on Starter / Growth / Business; custom on Enterprise"],
+            ["Audit logs (saas_audit_events)", "Per plan retention window; append-only during retention; exportable as deterministic JSONL with integrity verification"],
+            ["Usage / security logs", "90 days"],
           ]}
           headers={["Data type", "Retention period"]}
         />
@@ -148,9 +150,19 @@ export default function PrivacyPage() {
       <Section title="9. Security">
         <p>
           All data in transit is protected by TLS 1.3. Data at rest is encrypted with AES-256.
-          Access to production systems is restricted to authorised personnel. We conduct regular
-          dependency vulnerability reviews. For details, see the Security Overview section in the
-          BLACKGLASS console dashboard.
+          SSH credentials used to scan your hosts are envelope-encrypted at rest (KMS providers:
+          local key, HashiCorp Vault, or AWS KMS) and only decrypted in memory for the duration of
+          a scan. Tenant data is isolated at the database layer using PostgreSQL row-level
+          security; the application sets the tenant GUC on every authenticated request. Outbound
+          webhooks are HMAC-SHA256 signed and rotation-aware. We conduct regular dependency
+          vulnerability reviews and run an automated DAST baseline against staging.
+        </p>
+        <p className="mt-2">
+          Full details: see our{" "}
+          <Link href="/security" className="text-accent-blue hover:underline">
+            Security overview
+          </Link>
+          .
         </p>
       </Section>
 

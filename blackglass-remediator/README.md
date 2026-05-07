@@ -51,17 +51,29 @@ Policy tiers are **hard-coded in application code** (`app/agent/risk_policy.py`)
 | Tier | Behaviour |
 |---|---|
 | `safe_guidance_only` | Guidance text only — zero executable commands generated |
-| `sandbox_verifiable` | Commands generated + verified in ephemeral DO sandbox before surfacing |
-| `approval_required` | Commands generated, **no** sandbox verification, direct to approval queue |
+| `sandbox_verifiable` | Commands generated + verified in an ephemeral DO sandbox before surfacing |
+| `approval_required` | Commands generated, sandbox-verified (when `ENABLE_SANDBOX_VERIFICATION=true`), then **held for explicit human click** before they ever leave the queue |
 | `manual_only` | No commands — human must handle manually (e.g. kernel issues) |
+
+> Note on sandbox verification for `approval_required`: the workflow
+> (`app/agent/remediation_workflow.py`) runs sandbox verification for both
+> `sandbox_verifiable` and `approval_required` tiers when
+> `ENABLE_SANDBOX_VERIFICATION=true`. The default in `config.py` is
+> `False` for local dev (no DO API token needed); production sets it to
+> `True`. See [`docs/safety-model.md`](docs/safety-model.md) § 3.
 
 | Category | Severity | Tier |
 |---|---|---|
 | `kernel` | any | `manual_only` |
 | `ssh`, `authorized_keys`, `identity`, `privilege_escalation` | any | `approval_required` |
-| any | `high` | `approval_required` |
-| `packages`, `firewall`, `systemd`, `cron`, `filesystem`, `network_exposure` | medium/low | `sandbox_verifiable` |
-| `other` | low | `safe_guidance_only` |
+| any other category | `high` | `approval_required` |
+| `packages`, `firewall`, `systemd`, `cron`, `filesystem`, `network_exposure` | low / medium | `sandbox_verifiable` |
+| `persistence`, `other` | low / medium | `safe_guidance_only` (fallback) |
+
+The decision tree is evaluated top-to-bottom in
+`app/agent/risk_policy.py::classify_policy_tier()`; the first matching
+rule wins, so more restrictive tiers take precedence. The
+authoritative source is the code, not this table.
 
 ---
 

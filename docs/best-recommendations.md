@@ -2,7 +2,7 @@
 
 **Audience:** Internal — engineering and operators only. This file is **not** linked from the public site or console UI; it lives under `docs/` in the repo.
 
-**Last reviewed:** 2026-05-06  
+**Last reviewed:** 2026-05-07
 Update this file when you merge major UI, auth, or E2E work so prioritisation stays honest.
 
 ## Recently landed (on main, deployed)
@@ -29,18 +29,54 @@ Update this file when you merge major UI, auth, or E2E work so prioritisation st
 - **Staging smoke CI trigger** — `workflow_run` on CI success for `main`; `VERIFY_SECRETS_PROBE=1` enabled.
 - **Rate-limit observability** — `GET /api/admin/rate-limits` returns Redis sorted-set hit counts (or memory-backend notice); `getRateLimitStats()` in `rate-limit-redis.ts`.
 
+## Recently retired (May 2026)
+
+- **Public auto-provisioning showcase sandbox** — high operational
+  cost, low conversion value. Replaced by a static walkthrough at
+  `/demo/sandbox`, a 1-redirect at `/demo/showcase`, and the
+  long-lived sales-demo VM `blackglass-lab-01`. See
+  `docs/runbooks/operations.md` § 4b–4c.
+
 ## P0 — do next
 
-1. **Stripe live cutover** — See `docs/stripe-live-cutover.md`. Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` in Doppler production config; register webhook in Stripe Dashboard. Smoke checkout on live mode before opening to paying customers.
-2. **`SECRET_PROVIDER=db` rollout** — Once tenants have rows in `tenant_credentials`, flip `SECRET_PROVIDER=db` in Doppler and add a "default" credential row per tenant. Document the operator onboarding runbook.
-3. **Tenant-scoped DB reads audit** — Verify all SaaS API routes that read DB data call `withTenantRls`; audit events, evidence bundles, and collector hosts are the primary surfaces.
+1. **Stripe live cutover** — `docs/stripe-live-cutover.md`. Set
+   `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+   `STRIPE_PRO_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` in
+   Doppler production; register the webhook in the Stripe dashboard;
+   smoke a live-mode checkout before opening to paying customers.
+2. **Per-tenant KMS / BYOK** — today all DEKs share a single
+   KMS-managed KEK. Per-tenant key separation is the next clear-ask
+   from enterprise prospects (see `docs/security-compliance.md` § 11).
+3. **Helm chart parity for `sandbox-worker`** — currently shipped as a
+   separate artefact. Self-hosted customers who want remediator
+   sandbox verification need a manual Deployment.
 
 ## P1 — strong ROI
 
-4. **Rate-limit dashboards** — Wire `GET /api/admin/rate-limits` into the Settings → Runtime health UI panel so operators can see throttle activity without querying logs.
-5. **Storybook or Ladle** for shell primitives (Badge, Card, table patterns).
-6. **Print/PDF/email** — Follow `docs/exports-and-comms.md`; wire real renderers and light-theme snapshots in CI.
-7. **i18n** — If EU public sector matters, plan `next-intl` or equivalent; notes in `docs/internationalization.md`.
+4. **Drift trend chart annotations** — overlay deployment / approval
+   markers on the dashboard chart so trend → cause is visible without
+   pivoting to the audit page.
+5. **Rate-limit dashboards** — `GET /api/admin/rate-limits` is shipped
+   but not surfaced in Settings → Runtime health UI. Wire it.
+6. **Storybook or Ladle** for shell primitives (Badge, Card, table
+   patterns) — speed up UI iteration and catches token regressions.
+7. **i18n** — if EU public sector matters, plan `next-intl` or
+   equivalent; notes in `docs/internationalization.md`.
+
+## Done (do not re-add to P0)
+
+- Envelope encryption + KMS provider abstraction
+  (`local` / `vault` / `awskms`).
+- HMAC-signed outbound webhooks with rotation window.
+- Postgres RLS + `withTenantRls` wrapper everywhere SaaS reads/writes.
+- BullMQ queues with dedicated `scan-worker`, `ops-worker`,
+  `sandbox-worker`.
+- Hash-tracked migrations + PR-time + CI-time integrity check.
+- Sentry → PagerDuty bridge (gated by `BLACKGLASS_AIRGAPPED`).
+- DAST scheduled on staging (weekly + on-demand).
+- PDF report generation + structured-error retry endpoint.
+- Settings page tabbed nav (6 categories, 19 sections).
+- Dashboard "Invalid Date" + tiny-chart fixes.
 
 ## Hygiene to keep
 

@@ -1,22 +1,19 @@
 import type { Metadata } from "next";
 
+// Retained only so legacy inbound links keep functioning. The page itself
+// permanentRedirects to /demo/sandbox; this metadata never renders in the
+// happy path but stays accurate in case the redirect is ever bypassed
+// (e.g. by a crawler that ignores 308s).
 export const metadata: Metadata = {
-  title: "BLACKGLASS — live Linux drift showcase",
+  title: "Walkthrough — Blackglass drift scenarios",
   description:
-    "Live full-screen view of BLACKGLASS detecting configuration drift on a real Ubuntu VM. For sales decks, outreach, and blog embeds.",
-  openGraph: {
-    title: "BLACKGLASS — live Linux drift showcase",
-    description:
-      "Live full-screen view of BLACKGLASS detecting configuration drift on a real Ubuntu VM.",
-    url: "https://blackglasssec.com/demo/showcase",
-    siteName: "BLACKGLASS",
-    type: "website",
+    "Eight real drift scenarios on a Linux host with severity, rationale, and remediation. The live ephemeral sandbox at this URL has been retired in favour of a static walkthrough.",
+  alternates: {
+    canonical: "/demo/sandbox",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "BLACKGLASS — live Linux drift showcase",
-    description:
-      "Full-screen live drift detection on a real Ubuntu VM. No sign-up required.",
+  robots: {
+    index: false,
+    follow: true,
   },
 };
 

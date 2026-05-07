@@ -8,9 +8,10 @@ Record of key architectural choices, their rationale, and invariants that must b
 
 | | Detail |
 |---|---|
-| **Decision** | Next.js `web` component and BullMQ `worker` component run as separate App Platform processes. |
-| **Rationale** | SSH handshakes and cryptographic operations are CPU-bound. Running them in the web tier would starve the V8 event loop and cause API + dashboard latency. The worker tier can be scaled independently (more replicas / more CPU) without touching the web tier. |
-| **Queues** | `blackglass-scans` — SSH collection + drift computation (heavy). `blackglass-reports` and `blackglass-evidence` reserved for lighter I/O-bound generation jobs. |
+| **Decision** | Next.js `web` component and three BullMQ workers (`scan-worker`, `ops-worker`, `sandbox-worker`) run as separate App Platform processes. |
+| **Rationale** | SSH handshakes and cryptographic operations are CPU-bound. Running them in the web tier would starve the V8 event loop and cause API + dashboard latency. Workers can be scaled independently (more replicas / more CPU) without touching the web tier. |
+| **Queues (active)** | `blackglass-scans` (scan-worker), `blackglass-sandbox` (sandbox-worker), `blackglass-webhooks`, `blackglass-exports`, `blackglass-maintenance` (ops-worker). |
+| **Queues (reserved, no worker yet)** | `blackglass-reports`, `blackglass-evidence` — names defined in `queue/config.ts` for future async generation. PDF / evidence generation currently runs inline in the API handler. |
 | **Invariant** | Every scan job **must** be idempotent. The worker loads credentials fresh per-job; never reuse SSH keys across jobs or cache them in memory between runs. |
 | **Scaling rule** | Scale worker replicas or `WORKER_CONCURRENCY` for scan throughput. Scale web replicas for HTTP concurrency. Scale Redis vertically. |
 
@@ -35,7 +36,7 @@ Record of key architectural choices, their rationale, and invariants that must b
 | **Decision** | Single shared Postgres cluster with Row-Level Security policies. Clerk org ID is the tenant boundary. |
 | **Rationale** | Cost-effective at current scale. RLS enforces isolation at the DB layer independently of application code, giving defence-in-depth. |
 | **Role invariant** | The application role (`DB_USER`) must **not** be the table owner and must not have `BYPASSRLS`. Migrations run as a separate privileged role. |
-| **Context pattern** | All queries must run within a transaction that sets `app.current_tenant` to the authenticated Clerk org ID before RLS predicates are evaluated. Never pass tenant IDs as query parameters alone. |
+| **Context pattern** | All queries must run within a transaction that sets `app.tenant_id` (the GUC the application code reads, via `withTenantRls()` in `src/db/index.ts`) to the authenticated Clerk org ID before RLS predicates are evaluated. Never pass tenant IDs as query parameters alone. **Heterogeneity note:** some legacy migrations reference `app.current_tenant` / `app.current_tenant_id`; new policies should standardise on `app.tenant_id`. See `docs/postgres-rls-sketch.md`. |
 | **Evolution path** | "Soft isolation" → stricter per-tenant rate limiting + resource quotas (current). "Harder isolation" → separate schema or dedicated DB cluster per Enterprise customer (future, no code rewrite required if context-setting is consistent). |
 
 ---
@@ -60,7 +61,7 @@ Record of key architectural choices, their rationale, and invariants that must b
 | **Scaling rules** | Web: horizontal (add replicas for HTTP concurrency). Worker: horizontal (add replicas × `WORKER_CONCURRENCY` for scan throughput). Postgres: vertical (managed DO DB, resize instance). Redis: vertical (managed DO Redis, resize). |
 | **Rolling deploys** | App Platform performs rolling updates. Readiness is determined by the HTTP health check on `/api/health` (web) or process startup (worker). The worker's graceful shutdown ensures in-flight scans complete before the old instance is replaced. |
 | **Environments** | `staging` and `production` run as separate App Platform apps with independently tuned resources. Never copy production resource sizing blindly to staging. |
-| **Static egress** | TODO: Route worker egress through a reserved Floating IP / NAT gateway so customers can allowlist a stable IP on port 22. Publish the IP list in the UI. |
+| **Static egress** | Egress IPs are exposed at `GET /api/public/egress-ips` for customer firewall automation. Routing worker egress through a reserved Floating IP / NAT gateway is the next step for fully stable allowlisting. |
 
 ---
 
@@ -68,9 +69,9 @@ Record of key architectural choices, their rationale, and invariants that must b
 
 | | Detail |
 |---|---|
-| **Decision** | Pluggable `SecretProvider` interface: `env` (default/local), `doppler`, `infisical`, `vault`. Selected via `SECRET_PROVIDER` env var. |
+| **Decision** | Pluggable `SecretProvider` interface: `env` (default/local), `doppler`, `infisical`, `vault`, `db` (Postgres-backed with envelope encryption). Selected via `SECRET_PROVIDER` env var. |
 | **Current state** | SSH private keys are fetched JIT per scan from the configured provider. Keys are never cached to disk or reused across jobs. |
-| **Future — envelope encryption** | For Enterprise, SSH keys stored in Postgres must be encrypted with a per-workspace Data Encryption Key (DEK), itself wrapped by a KMS (Vault Transit or AWS KMS). Even a full DB dump would not expose keys without the KMS. |
+| **Envelope encryption (shipped)** | When `SECRET_PROVIDER=db`, SSH keys stored in Postgres are encrypted with a per-tenant DEK, itself wrapped by a KMS-managed KEK. KMS provider is selected by `KMS_PROVIDER` (`local` / `vault` / `awskms`). Even a full DB dump would not expose keys without the KMS. See `src/lib/server/secrets/envelope.ts` and `src/lib/server/secrets/README.md`. |
 
 ---
 
@@ -78,5 +79,5 @@ Record of key architectural choices, their rationale, and invariants that must b
 
 | | Detail |
 |---|---|
-| **Drift events** | In-memory store today (`storeDriftEvents`). Postgres-backed persistence is the next migration target. Use monthly date-range partitioning on `drift_events` so expired partitions can be dropped atomically without locking. |
-| **Baselines / reports / evidence** | Stored in DigitalOcean Spaces with tenant-scoped key prefixes (`{tenantId}/baselines/`, `{tenantId}/reports/`, `{tenantId}/evidence/`). Implement Spaces lifecycle rules: transition baselines > 30 days to cold storage; delete after contractual retention period. |
+| **Drift events** | Postgres-backed in SaaS mode (`drift_events`, monthly date-range partitioned so expired partitions can be dropped atomically without locking). Legacy in-memory and filesystem stores remain for Stage-0 / dev. Selected automatically by `src/lib/server/store/index.ts`. |
+| **Baselines / reports / evidence** | Stored in DigitalOcean Spaces with tenant-scoped key prefixes (`{tenantId}/baselines/`, `{tenantId}/reports/`, `{tenantId}/evidence/`). Spaces lifecycle rules transition cold artefacts and delete after the contractual retention window. See `scripts/configure-spaces-lifecycle.mjs`. |

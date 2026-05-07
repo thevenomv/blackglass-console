@@ -256,12 +256,12 @@ Navigate to **Evidence** to export a bundle for audit or incident response. Each
 ## 7. Demo mode vs live mode
 
 
-|             | Demo mode (`NEXT_PUBLIC_USE_MOCK=true` or `COLLECTOR_HOST_1` not set) | Live mode                                        |
-| ----------- | --------------------------------------------------------------------- | ------------------------------------------------ |
-| Data source | Hardcoded mock data in `src/data/mock/`                               | Real SSH collection                              |
-| Baselines   | Not persisted                                                         | In-process memory                                |
-| Drift       | Pre-generated synthetic events                                        | Real diff vs captured baseline                   |
-| Onboarding  | Simulated collector detection                                         | `collectorsOnline > 0` once baseline is captured |
+|             | Demo mode (`NEXT_PUBLIC_USE_MOCK=true` or `COLLECTOR_HOST_1` not set) | Live mode                                                                       |
+| ----------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Data source | Hardcoded mock data in `src/data/mock/`                               | Real SSH collection                                                             |
+| Baselines   | Not persisted                                                         | Tenant-scoped persistent store: Postgres + DO Spaces (SaaS) or filesystem (dev) |
+| Drift       | Pre-generated synthetic events                                        | Real diff vs captured baseline; events persisted in `drift_events` (partitioned)|
+| Onboarding  | Simulated collector detection                                         | `collectorsOnline > 0` once baseline is captured                                |
 
 
 ---
@@ -269,26 +269,42 @@ Navigate to **Evidence** to export a bundle for audit or incident response. Each
 ## 8. Roles and access
 
 
+**Legacy mode (single-tenant, `AUTH_REQUIRED=true`):** roles defined in
+`src/lib/auth/permissions.ts`.
+
 | Role         | Permissions                                                   |
 | ------------ | ------------------------------------------------------------- |
 | **Admin**    | Full access: configure hosts, capture baselines, manage users |
 | **Operator** | Run scans, view drift, manage findings lifecycle              |
 | **Auditor**  | Read-only: view drift, download evidence bundles              |
 
+**SaaS mode (Clerk + multi-tenant):** roles defined in
+`src/lib/saas/permissions.ts` and enforced via `requireSaasOrLegacyPermission()`.
 
-Role enforcement is configured via `AUTH_REQUIRED` (enable/disable login) and the permissions module at `src/lib/auth/permissions.ts`.
+| Role               | Permissions                                                                            |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| **`admin`**        | Full workspace control, billing, member management, secrets, baselines, scans          |
+| **`operator`**     | Run scans, capture baselines, manage drift events and remediations                     |
+| **`viewer`**       | Read-only across the workspace; unlimited on paid plans                                |
+| **`guest_auditor`**| Scoped read-only access for external reviewers (e.g. SOC 2 auditors); evidence export  |
+
+Choice is automatic: when `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is set the
+SaaS path is active. See `docs/saas-clerk-rbac.md` and
+`docs/auth-clerk-legacy-matrix.md` for the full matrix.
 
 ---
 
 ## 9. Lab: end-to-end drift detection walkthrough
 
-This walkthrough uses the DigitalOcean lab Droplet (`blackglass-lab-01`, `165.227.229.48`).
+This walkthrough uses the long-lived sales-demo Droplet
+`blackglass-lab-01` at `134.209.180.255` (lon1). See
+`docs/runbooks/operations.md` § 4c for the canonical lab properties.
 
 ### Step 1 — Set environment variables
 
 ```bash
 # Local or App Platform
-export COLLECTOR_HOST_1=165.227.229.48
+export COLLECTOR_HOST_1=134.209.180.255
 export COLLECTOR_HOST_1_NAME=blackglass-lab-01
 export COLLECTOR_USER=blackglass
 export SSH_PRIVATE_KEY="$(cat ~/.ssh/id_ed25519)"
@@ -305,7 +321,7 @@ Expected output includes `listenersCount`, `usersCount`, `servicesCount`, and `f
 ### Step 3 — Apply drift scenarios
 
 ```bash
-ssh blackglass@165.227.229.48 "sudo bash /tmp/drift-sim.sh apply"
+ssh blackglass@134.209.180.255 "sudo bash /tmp/drift-sim.sh apply"
 ```
 
 This applies 7 changes: TCP listener on 4444, new user `driftuser`, sudo escalation, malicious cron, SSH root login, firewall disabled, rogue systemd service.
@@ -337,7 +353,7 @@ You should see findings for each of the 7 applied changes.
 ### Step 6 — Revert and verify
 
 ```bash
-ssh blackglass@165.227.229.48 "sudo bash /tmp/drift-sim.sh revert"
+ssh blackglass@134.209.180.255 "sudo bash /tmp/drift-sim.sh revert"
 curl -X POST http://localhost:3000/api/v1/scans -H "Content-Type: application/json" -d '{}'
 # After scan completes, drift events should clear (or have 'low' severity only)
 ```
@@ -366,7 +382,7 @@ For Clerk + `DATABASE_URL` deployments:
 | `SSH connection error: connect ECONNREFUSED`                         | Target firewall blocking SSH                                                                                                                                                                     | Open port 22 from the BLACKGLASS server IP                                              |
 | `SSH connection error: All configured authentication methods failed` | Wrong key or `authorized_keys` not set up                                                                                                                                                        | Verify `~/.ssh/authorized_keys` on target                                               |
 | No drift events after scan                                           | No baseline captured                                                                                                                                                                             | Call `POST /api/v1/baselines` first                                                     |
-| `rate_limited` from `/api/v1/scans`                                  | Too many scan requests (>1 per minute)                                                                                                                                                           | Wait 60 seconds before retrying                                                         |
+| `rate_limited` from `/api/v1/scans`                                  | Too many scan requests — limit is 24 / 60 s per IP (see `docs/http-rate-limit-budgets.md`)                                                                                                       | Wait until the window resets, or back off                                               |
 | `GET /api/health` shows `baseline_store.writable: false`             | Volume or directory not writable by the app                                                                                                                                                      | Fix mount permissions or path; check server logs for `[baseline-store]` write errors    |
 | Dashboard KPIs look like the demo (12 hosts) but SSH is configured   | `NEXT_PUBLIC_USE_MOCK` still `true` without collector—actually with collector, `/` uses live inventory; if you require HTTP SSR only, set `NEXT_PUBLIC_USE_MOCK=false` and `NEXT_PUBLIC_APP_URL` |                                                                                         |
 | Drift chart empty in live mode                                       | No scan history yet, or `DRIFT_HISTORY_PATH` unset and process restarted                                                                                                                         | Complete successful scans on multiple UTC days, or set `DRIFT_HISTORY_PATH` on a volume |

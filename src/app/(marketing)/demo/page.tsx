@@ -105,21 +105,21 @@ export default function DemoOverviewPage() {
         </ul>
       </section>
 
-      {/* Live VM callout */}
+      {/* Drift scenarios callout */}
       <Link
         href="/demo/sandbox"
-        className="group flex items-center justify-between gap-4 rounded-card border border-emerald-500/30 bg-emerald-500/5 px-5 py-4 transition-colors hover:bg-emerald-500/10"
+        className="group flex items-center justify-between gap-4 rounded-card border border-accent-blue/30 bg-accent-blue/5 px-5 py-4 transition-colors hover:bg-accent-blue/10"
       >
         <div className="flex items-center gap-3">
-          <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-emerald-500" />
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent-blue" />
           <div>
-            <p className="text-sm font-semibold text-fg-primary">Live Ubuntu VM — real drift, no sign-up</p>
+            <p className="text-sm font-semibold text-fg-primary">Eight drift scenarios, walked through</p>
             <p className="mt-0.5 text-xs text-fg-muted">
-              A Blackglass-owned Droplet with attack scenarios seeded every few minutes. Watch findings appear in real time.
+              The exact severity, rationale, and remediation Blackglass surfaces for each scenario — backdoor listeners, sudoers tampering, rogue users, sshd policy changes, cron beacons, planted SUID, and more.
             </p>
           </div>
         </div>
-        <span className="shrink-0 text-xs font-medium text-emerald-400 group-hover:underline">View live →</span>
+        <span className="shrink-0 text-xs font-medium text-accent-blue group-hover:underline">Read walkthrough →</span>
       </Link>
     </div>
   );

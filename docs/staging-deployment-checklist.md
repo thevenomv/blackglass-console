@@ -39,15 +39,39 @@ VERIFY_SECRETS_PROBE=1 STAGING_URL=https://... npm run verify:staging
 
 - [ ] **`STRIPE_*` keys:** test mode complete first; restricted live keys only when ready (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — see **`.env.example`**).
 - [ ] **`npm run stripe:setup`** (or parity in dashboard): price, webhook URL on deployed host, **`checkout.session.completed`** routed to **`/api/checkout/webhook`**.
-- [ ] **Live-ish test:** Checkout with a small recurring price → webhook → **`BLACKGLASS_PLAN`** persisted (Spaces) without redeploy (**`npm run stripe:setup`** / operator guide).
+- [ ] **Live-ish test:** Checkout with a small recurring price → webhook → `saas_subscriptions` row updated in Postgres (verify with `psql $DATABASE_URL -c "select status, plan from saas_subscriptions where tenant_id=…"`). The legacy `BLACKGLASS_PLAN` env var path is for single-tenant deployments only.
 
 ## Security & ops
 
-- [ ] **Firewall:** SSH from App Platform egress IPs only (or VPN), if policy requires.
-- [ ] **Backups:** If using files — snapshot or backup plan for volume; if using DB — backup enabled.
-- [ ] **Alerts:** App Platform deployment failure notifications on.
-- [ ] **Runbook:** Link **`docs/operator-guide.md`** and **`docs/saas-customer-roadmap.md`** for on-call.
+- [ ] **Firewall:** SSH from App Platform egress IPs only (or VPN), if policy requires. Egress IPs available at `GET /api/public/egress-ips`.
+- [ ] **Backups:** Managed Postgres daily snapshots enabled; weekly `pg_dump` to Spaces (`scripts/ops/backup-postgres.mjs`).
+- [ ] **Alerts:** App Platform deployment failure notifications on; PagerDuty bridge enabled if you want Sentry-paged on-call (`PD_SENTRY_BRIDGE_ENABLED=true`, `PD_ROUTING_KEY`).
+- [ ] **Runbook:** `docs/operator-guide.md` and `docs/runbooks/operations.md` linked in the on-call channel.
 
-## Not required for staging (track for GA)
+## SaaS staging (when running with Clerk + multi-tenancy)
 
-- Multi-tenant DB, SSO, formal SLA, pen test sign-off — see SaaS roadmap Stage 3+.
+For staging that mirrors the SaaS production path (which is the default
+today), the following are **required**, not optional:
+
+- [ ] **Multi-tenant DB:** Managed Postgres with the application role
+      lacking `BYPASSRLS`; migrations applied via the
+      `db-migrate.yml` workflow with `mode=apply`; partition integrity
+      verified (`scripts/ops/verify-partition-integrity.mjs`).
+- [ ] **Clerk:** publishable + secret keys + webhook signing secret;
+      RBAC roles seeded.
+- [ ] **Workers deployed:** `scan-worker`, `ops-worker`, and (if using
+      the remediator) `sandbox-worker` running and connected to the
+      staging Redis.
+- [ ] **Audit verification:** `npm run audit:verify-jsonl` against an
+      exported staging stream produces a stable digest.
+- [ ] **Air-gap probe (if relevant):** `curl /api/health/airgap` reports
+      the expected per-dispatcher state for the staging configuration.
+
+The legacy "single-tenant staging" path (no Clerk, file-backed baselines)
+remains supported for self-hosted dev environments — it just isn't a
+mirror of the SaaS production path. Pick one path per staging app spec.
+
+## Future / not required for any staging
+
+- SOC 2 attestation, formal customer SLA, pen test sign-off — see
+  `docs/saas-customer-roadmap.md`.
