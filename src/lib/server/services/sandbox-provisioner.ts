@@ -216,7 +216,9 @@ chmod 440 /etc/sudoers.d/blackglass-scan
 
 # Install drift targets
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ncat nginx rsyslog ufw
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ncat nginx rsyslog ufw at
+# 'at' daemon (atd) drives the self-scheduled phase advancement below.
+systemctl enable --now atd
 
 # ---------------------------------------------------------------------------
 # UFW: only inbound SSH (22). We MUST keep DNS (53/udp+tcp) outbound open
@@ -257,7 +259,41 @@ SEEDEOF
 chown root:root /root/sandbox/seed.sh
 chmod 755 /root/sandbox/seed.sh
 
-echo "[blackglass-sandbox] cloud-init done"
+# ---------------------------------------------------------------------------
+# Self-scheduled drift advancement.
+#
+# IMPORTANT — this MUST stay in sync with PHASE_SCHEDULE_MINUTES in
+# src/app/api/public/sandbox-showcase/route.ts.  The public API derives
+# the displayed seedPhase from elapsed time using that same schedule;
+# this block makes sure the actual /etc/sudoers, /etc/passwd, ncat
+# listener etc. are mutated on the same cadence so the demo's reported
+# state and the Droplet's true state agree.
+#
+# Why self-schedule instead of letting the BullMQ sandbox-worker drive it?
+#   DO App Platform components cannot reliably reach managed Droplets over
+#   port 22 — every SSH attempt times out at the 30s readyTimeout even
+#   though the same Droplet handshakes externally in <200ms.  The worker's
+#   seed-drift jobs are kept in place as a backup, but the at-driven
+#   schedule is the primary mechanism.
+#
+# Phase 0 (clean baseline) at +3min, then every 5–10min through phase 8.
+# 'at' is preferable to a 'nohup' background loop because:
+#   - jobs survive cloud-init script termination,
+#   - they run via a real session (logs to /var/spool/mail/root if they fail),
+#   - 'atq' lets an operator see what's pending.
+# ---------------------------------------------------------------------------
+mkdir -p /var/log
+echo '/root/sandbox/seed.sh 0 >> /var/log/blackglass-seed.log 2>&1' | at now + 3 minutes
+echo '/root/sandbox/seed.sh 1 >> /var/log/blackglass-seed.log 2>&1' | at now + 8 minutes
+echo '/root/sandbox/seed.sh 2 >> /var/log/blackglass-seed.log 2>&1' | at now + 18 minutes
+echo '/root/sandbox/seed.sh 3 >> /var/log/blackglass-seed.log 2>&1' | at now + 28 minutes
+echo '/root/sandbox/seed.sh 4 >> /var/log/blackglass-seed.log 2>&1' | at now + 38 minutes
+echo '/root/sandbox/seed.sh 5 >> /var/log/blackglass-seed.log 2>&1' | at now + 48 minutes
+echo '/root/sandbox/seed.sh 6 >> /var/log/blackglass-seed.log 2>&1' | at now + 58 minutes
+echo '/root/sandbox/seed.sh 7 >> /var/log/blackglass-seed.log 2>&1' | at now + 68 minutes
+echo '/root/sandbox/seed.sh 8 >> /var/log/blackglass-seed.log 2>&1' | at now + 78 minutes
+
+echo "[blackglass-sandbox] cloud-init done — $(atq | wc -l) phases scheduled"
 `;
 }
 

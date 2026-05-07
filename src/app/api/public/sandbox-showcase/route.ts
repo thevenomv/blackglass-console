@@ -59,6 +59,35 @@ const KNOWN_BENIGN_SERVICES = new Set([
   "do-agent.service",
 ]);
 
+/**
+ * Self-driving phase schedule.
+ *
+ * The sandbox Droplet schedules the same phases via cloud-init's
+ * `at` daemon (see sandbox-provisioner.ts:buildCloudInit) so the actual
+ * /etc/sudoers, /etc/passwd, ncat listener etc. ARE drifted — independent
+ * of whether the BullMQ sandbox-worker can reach the Droplet over SSH.
+ *
+ * Why duplicate the schedule here?
+ *   DO App Platform components cannot reliably reach managed Droplets over
+ *   port 22 (we get `Timed out while waiting for handshake` despite the
+ *   target being externally reachable in <200ms — see incident notes in
+ *   docs/runbooks/operations.md §4b).  Rather than depend on a flaky
+ *   network path, we treat the worker's seed-drift jobs as best-effort
+ *   and derive the displayed `seedPhase` from elapsed time.
+ *
+ * Index 0 corresponds to phase 0 (clean baseline applied), index 1 to
+ * phase 1, and so on.  Times are minutes after sandbox creation.
+ */
+const PHASE_SCHEDULE_MINUTES = [3, 8, 18, 28, 38, 48, 58, 68, 78] as const;
+
+function effectivePhaseFromAge(ageMs: number): number {
+  let phase = 0;
+  for (let i = 0; i < PHASE_SCHEDULE_MINUTES.length; i++) {
+    if (ageMs >= PHASE_SCHEDULE_MINUTES[i] * 60_000) phase = i;
+  }
+  return Math.min(8, phase);
+}
+
 // Drift scene descriptions for each seed phase (matches sandbox-seed.sh)
 const SCENE_LABELS: Record<number, {
   title: string;
@@ -222,12 +251,22 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // The displayed phase is the MAX of:
+  //   - what the worker last reported in the DB (truth when SSH succeeds)
+  //   - what the schedule says should have happened by now (true on the
+  //     Droplet because cloud-init's `at` jobs apply the same phases)
+  //
+  // This makes the showcase advance reliably even when the worker can't
+  // reach the Droplet over SSH (DO App-Platform → Droplet network is flaky).
+  const ageMs = Date.now() - new Date(sandbox.createdAt).getTime();
+  const effectivePhase = Math.max(sandbox.seedPhase ?? 0, effectivePhaseFromAge(ageMs));
+
   // Build event list from phases applied so far — most recent first.
   // Filter out any findings that match known-benign DO platform services.
   const recentEvents = Array.from(
-    { length: sandbox.seedPhase },
+    { length: effectivePhase },
     (_, i) => {
-      const phase = sandbox.seedPhase - i;
+      const phase = effectivePhase - i;
       const scene = SCENE_LABELS[phase];
       if (!scene) return null;
       // Suppress known-benign services that the DO platform installs
@@ -248,7 +287,7 @@ export async function GET(request: NextRequest) {
         id: sandbox.id,
         status: sandbox.status,
         region: sandbox.region,
-        seedPhase: sandbox.seedPhase,
+        seedPhase: effectivePhase,
         driftSeededAt: sandbox.driftSeededAt,
         ttlExpiresAt: sandbox.ttlExpiresAt,
         lastSeededAt: sandbox.driftSeededAt ?? sandbox.updatedAt,

@@ -24,6 +24,10 @@ const WORKER = readFileSync(
   join(process.cwd(), "src/worker/sandbox-worker.ts"),
   "utf8",
 );
+const SHOWCASE_ROUTE = readFileSync(
+  join(process.cwd(), "src/app/api/public/sandbox-showcase/route.ts"),
+  "utf8",
+);
 
 describe("sandbox cloud-init contract", () => {
   it("worker invokes the exact path that sudoers permits", () => {
@@ -57,5 +61,33 @@ describe("sandbox cloud-init contract", () => {
     // enough because some resolvers fail over to TCP for large responses.
     expect(PROVISIONER).toMatch(/ufw\s+allow\s+out\s+53\/udp/);
     expect(PROVISIONER).toMatch(/ufw\s+allow\s+out\s+53\/tcp/);
+  });
+
+  it("at-driven seed schedule on the Droplet matches the API's elapsed-time table", () => {
+    // Cloud-init's `at` schedule is the ground truth for actual drift on
+    // the box. The public API derives the displayed phase from elapsed
+    // time using PHASE_SCHEDULE_MINUTES. They MUST agree, otherwise the
+    // UI will claim phase N while the Droplet is still on phase N-1
+    // (or vice versa), which makes the demo confusing.
+    const apiSchedule = SHOWCASE_ROUTE.match(
+      /PHASE_SCHEDULE_MINUTES\s*=\s*\[([^\]]+)\]/,
+    );
+    expect(apiSchedule, "PHASE_SCHEDULE_MINUTES must be defined in showcase route").not.toBeNull();
+    const apiMinutes = apiSchedule![1]
+      .split(",")
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n));
+    expect(apiMinutes.length).toBe(9);
+
+    // Each phase must be queued via `at now + N minutes` in the cloud-init.
+    for (let phase = 0; phase <= 8; phase++) {
+      const minutes = apiMinutes[phase];
+      const re = new RegExp(
+        `seed\\.sh\\s+${phase}\\b[^\\n]*\\|\\s*at\\s+now\\s*\\+\\s*${minutes}\\s+minutes`,
+      );
+      expect(
+        PROVISIONER,
+      ).toMatch(re);
+    }
   });
 });
