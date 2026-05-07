@@ -33,6 +33,11 @@ vi.mock("ssh2", () => {
     }
 
     end() {}
+
+    // ssh.ts now calls conn.destroy() in its error path so the
+    // socket gets cleaned up promptly instead of waiting on the
+    // event-loop GC. Mock it as a no-op.
+    destroy() {}
   }
 
   return { Client: FailingClient };

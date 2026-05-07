@@ -33,6 +33,12 @@ const QUICK_ACTIONS = [
   { label: "Members", value: "member" },
   { label: "Billing", value: "checkout" },
   { label: "API keys", value: "apikey" },
+  // `auth` substring matches the wave 7/8 SSO + SCIM audit rows
+  // (auth.sso_login, auth.scim_provisioned) plus auth.login_*
+  // events. SOC reviewers asked for a one-click filter to answer
+  // "show me all SSO / SCIM activity in the last 30 days".
+  { label: "Auth", value: "auth" },
+  { label: "Settings", value: "settings" },
 ];
 
 function fmt(iso: string): string {

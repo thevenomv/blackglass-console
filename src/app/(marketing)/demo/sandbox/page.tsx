@@ -103,11 +103,15 @@ function SandboxShowcaseInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Honour ?scene=N from URL
+  // Honour ?scene=N from URL — multiple writers to expandedPhase
+  // (this URL sync, the user click handler, the poll handler) so a
+  // pure derived-from-searchParams approach would lose the imperative
+  // updates. Suppress: this is intentional URL→state sync.
   useEffect(() => {
     const sceneParam = searchParams.get("scene");
     if (sceneParam !== null) {
       const n = parseInt(sceneParam, 10);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!isNaN(n)) setExpandedPhase(n);
     }
   }, [searchParams]);

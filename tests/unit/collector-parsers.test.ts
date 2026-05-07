@@ -36,9 +36,20 @@ LISTEN 0      128             [::]:443          [::]:*    users:(("nginx",pid=3,
 
   it("parseSshConfig reads sshd -T output", () => {
     const raw = `permitrootlogin no\npasswordauthentication no\n`;
+    // parseSshConfig fills every tracked SSH directive so the
+    // policy engine can compare a stable shape — directives not
+    // present in the input are reported as "unknown" rather than
+    // dropped (otherwise a removed directive would silently regress
+    // to its OpenSSH default and we'd miss the drift).
     expect(parseSshConfig(raw)).toEqual({
       permitRootLogin: "no",
       passwordAuthentication: "no",
+      port: "unknown",
+      x11Forwarding: "unknown",
+      maxAuthTries: "unknown",
+      permitEmptyPasswords: "unknown",
+      allowAgentForwarding: "unknown",
+      allowTcpForwarding: "unknown",
     });
   });
 

@@ -36,7 +36,11 @@ export function DriftTrendChart() {
   const [days, setDays] = useState<TrendDay[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Standard fetch-on-mount with spinner — Compiler rule prefers
+  // Suspense, but the chart is decorative and shouldn't block its
+  // surrounding dashboard layout.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetch("/api/v1/drift/trend")
       .then((r) => r.json())

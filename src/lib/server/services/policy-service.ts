@@ -117,7 +117,6 @@ export async function deletePolicy(tenantId: string, policyId: string): Promise<
  */
 function extractValue(snapshot: HostSnapshot, keyPath: string): string | undefined {
   const parts = keyPath.split(".");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let obj: unknown = snapshot as unknown;
   for (const part of parts) {
     if (obj === null || typeof obj !== "object") return undefined;

@@ -30,6 +30,19 @@ export function SandboxBanner() {
   const [sandbox, setSandbox] = useState<SandboxRow | null | "loading">("loading");
   const [provisioning, setProvisioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Tick once a minute so the "expires in Xh Ym" label re-renders
+  // without us calling Date.now() during render (which the React
+  // Compiler purity rule rejects). The tick is the actual current
+  // ms — recomputing the label off this state is pure.
+  const [nowMs, setNowMs] = useState<number>(() => 0);
+  useEffect(() => {
+    // Bridge the wall clock (external system) into React state so
+    // expiry labels re-render without calling Date.now() in render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -42,10 +55,13 @@ export function SandboxBanner() {
     }
   }, []);
 
-  // Auto-provision when ?sandbox=1 is present and no sandbox exists yet
+  // Auto-provision when ?sandbox=1 is present and no sandbox exists yet.
+  // Compiler rule wants Suspense but this is a side-effect-on-mount
+  // (POST /sandbox provisioning) that doesn't fit the Suspense model.
   useEffect(() => {
     if (params.get("sandbox") !== "1") {
-      fetchStatus();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void fetchStatus();
       return;
     }
     // Remove query param from URL without full navigation
@@ -109,9 +125,9 @@ export function SandboxBanner() {
   }
 
   if (sandbox?.status === "ready") {
-    const expiresLabel = sandbox.ttlExpiresAt
+    const expiresLabel = sandbox.ttlExpiresAt && nowMs > 0
       ? (() => {
-          const ms = new Date(sandbox.ttlExpiresAt).getTime() - Date.now();
+          const ms = new Date(sandbox.ttlExpiresAt).getTime() - nowMs;
           const h = Math.floor(ms / 3_600_000);
           const m = Math.floor((ms % 3_600_000) / 60_000);
           return h > 0 ? `${h}h ${m}m` : `${m}m`;

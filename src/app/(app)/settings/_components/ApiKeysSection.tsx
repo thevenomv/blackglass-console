@@ -58,6 +58,8 @@ export function ApiKeysSection() {
       .finally(() => setLoading(false));
   };
 
+  // Standard load-on-mount; the Compiler rule prefers Suspense.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(load, []);
 
   const createKey = async () => {

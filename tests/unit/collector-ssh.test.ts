@@ -17,7 +17,63 @@ vi.mock("net", () => ({
   },
 }));
 
+/**
+ * The collector now bundles every check into one big shell script
+ * separated by `=BGS:<key>` sentinel lines (see BUNDLE_CMD in
+ * src/lib/server/collector/ssh.ts). The script is sent as a single
+ * cmd to ssh.exec(), so the mock has to return a properly framed
+ * response or every section parses to empty.
+ */
+function syntheticBundleOutput(): string {
+  return [
+    "=BGS:ss",
+    "LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:((\"sshd\",pid=1,fd=3))",
+    "=BGS:ssudp",
+    "",
+    "=BGS:passwd",
+    "alice:1000",
+    "=BGS:sudo",
+    "sudo:x:27:alice",
+    "=BGS:sudofiles",
+    "",
+    "=BGS:cron",
+    "weekly",
+    "=BGS:svc",
+    "ssh.service loaded active running SSH",
+    "=BGS:sshd",
+    "permitrootlogin no",
+    "passwordauthentication no",
+    "=BGS:ufw",
+    "Status: active",
+    "Default: deny (incoming)",
+    "-----------",
+    "22/tcp ALLOW",
+    "=BGS:authkeys",
+    "",
+    "=BGS:filehashes",
+    "",
+    "=BGS:hosts",
+    "",
+    "=BGS:lsmod",
+    "",
+    "=BGS:suid",
+    "",
+    "=BGS:usercron",
+    "",
+    "=BGS:pkgs",
+    "",
+    "=BGS:systemdunits",
+    "",
+    "",
+  ].join("\n");
+}
+
 function syntheticCommandOutput(cmd: string): string {
+  // Bundled-script invocation: any cmd containing the BGS sentinel
+  // marker is the multi-section bundle; return the framed response.
+  if (cmd.includes("=BGS:")) return syntheticBundleOutput();
+  // Legacy single-command path (kept in case probeTcp or a future
+  // standalone exec lands here).
   if (cmd.includes("ss -tlnp") || cmd.includes("netstat")) {
     return `LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=1,fd=3))\n`;
   }

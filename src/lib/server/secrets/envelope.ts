@@ -152,8 +152,7 @@ async function awsWrapDek(dek: Buffer): Promise<string> {
   const keyId = process.env.AWS_KMS_KEY_ID?.trim();
   if (!keyId) throw new Error("AWS_KMS_KEY_ID is required for awskms provider");
   // Dynamically import the AWS SDK to avoid forcing it as a hard dependency
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { KMSClient, EncryptCommand } = await import(/* webpackIgnore: true */ "@aws-sdk/client-kms" as any);
+  const { KMSClient, EncryptCommand } = await import(/* webpackIgnore: true */ "@aws-sdk/client-kms" as string);
   const client = new KMSClient({});
   const cmd = new EncryptCommand({ KeyId: keyId, Plaintext: dek });
   const resp = await client.send(cmd);
@@ -162,8 +161,7 @@ async function awsWrapDek(dek: Buffer): Promise<string> {
 }
 
 async function awsUnwrapDek(wrappedDek: string): Promise<Buffer> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { KMSClient, DecryptCommand } = await import(/* webpackIgnore: true */ "@aws-sdk/client-kms" as any);
+  const { KMSClient, DecryptCommand } = await import(/* webpackIgnore: true */ "@aws-sdk/client-kms" as string);
   const client = new KMSClient({});
   const cmd = new DecryptCommand({ CiphertextBlob: Buffer.from(wrappedDek, "base64") });
   const resp = await client.send(cmd);

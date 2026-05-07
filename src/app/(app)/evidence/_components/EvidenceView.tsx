@@ -65,6 +65,10 @@ export function EvidenceView({ refreshSignal }: { refreshSignal?: number }) {
 
   useEffect(() => {
     let cancelled = false;
+    // Fetch-on-mount with spinner — Suspense would fight the
+    // EvidenceBody page-level Suspense boundary, so we own the
+    // loading state here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
     fetch("/api/v1/evidence/bundles")

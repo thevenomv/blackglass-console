@@ -70,6 +70,11 @@ export function RemediationRecommendation({
 
   useEffect(() => {
     let cancelled = false;
+    // Standard fetch-on-mount: setState toggle drives the spinner.
+    // The React Compiler rule prefers Suspense here, but the
+    // remediator is an optional service and we'd rather degrade
+    // to "no recommendation" than crash a Suspense boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetch(`/api/v1/remediations?driftEventId=${encodeURIComponent(driftEventId)}`)
       .then((r) => r.json())
