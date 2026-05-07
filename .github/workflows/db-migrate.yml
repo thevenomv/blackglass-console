@@ -1,16 +1,35 @@
-name: "Apply database migration"
+name: "Apply database migrations"
 
-# Manual-trigger only. Run this once to apply pending Drizzle migrations via
-# the GitHub Actions runner, which has network access to the DO managed database.
+# Manual-trigger workflow that applies any pending Drizzle migrations to the
+# production DigitalOcean managed Postgres. Idempotent and safe to re-run —
+# `scripts/ops/apply-migrations.mjs` only applies migrations whose sha256 hash
+# is not already recorded in `drizzle.__drizzle_migrations`.
 #
-# Required secrets (already set as repo secrets):
-#   DATABASE_URL    — production Postgres connection string
-#   DO_API_TOKEN    — DigitalOcean API token (to manage DB firewall)
+# Required repo secrets:
+#   DATABASE_URL  — production Postgres connection string
+#   DO_API_TOKEN  — DigitalOcean API token (to manage the DB firewall)
 #
 # DO DB cluster: 4d063be8-1cc1-4b45-8b57-2a96a9c77161
+#
+# Usage:
+#   - Default (no input): dry-run via `--check`. Exits non-zero if anything
+#     is pending. Use this to verify drift without touching the DB.
+#   - mode=apply: runs the migrator. Each migration runs in its own
+#     transaction; failure rolls back and the runner exits 1.
+#   - mode=baseline: marks every file as recorded WITHOUT running the SQL.
+#     Use only when adopting a database whose schema was applied by hand
+#     (this was the recovery path used after the 2026-05-07 incident).
+#   - mode=status: prints the applied/pending list and exits 0.
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "What to do"
+        required: true
+        default: "check"
+        type: choice
+        options: [check, apply, baseline, status]
 
 jobs:
   migrate:
@@ -35,7 +54,6 @@ jobs:
 
       - name: Add runner IP to DO DB trusted sources
         run: |
-          # Fetch existing rules (keep them), append runner IP
           EXISTING=$(curl -sf \
             -H "Authorization: Bearer $DO_TOKEN" \
             "https://api.digitalocean.com/v2/databases/$DO_DB_CLUSTER_ID/firewall" \
@@ -54,29 +72,28 @@ jobs:
           DO_TOKEN: ${{ secrets.DO_API_TOKEN }}
           RUNNER_IP: ${{ steps.runner_ip.outputs.ip }}
 
-      # Brief pause for the firewall rule to propagate
       - name: Wait for firewall propagation
         run: sleep 15
 
-      # --- Migration ------------------------------------------------------------
-      - name: Apply migration 0001 (collector hosts)
-        run: node scripts/_apply-migration-0001.mjs
+      # --- Run the migrator ----------------------------------------------------
+      - name: Run migrations (${{ inputs.mode }})
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NODE_NO_WARNINGS: "1"
+        run: |
+          case "${{ inputs.mode }}" in
+            check)    node scripts/ops/apply-migrations.mjs --check ;;
+            apply)    node scripts/ops/apply-migrations.mjs ;;
+            baseline) node scripts/ops/apply-migrations.mjs --baseline ;;
+            status)   node scripts/ops/apply-migrations.mjs --status ;;
+            *) echo "::error::unknown mode '${{ inputs.mode }}'"; exit 2 ;;
+          esac
 
-      - name: Apply migration 0002 (evidence bundles)
-        run: node scripts/_apply-migration-0002.mjs
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NODE_NO_WARNINGS: "1"
-
-      # --- Firewall: close (always run) ----------------------------------------
+      # --- Firewall: close (always) -------------------------------------------
       - name: Remove runner IP from DO DB trusted sources
         if: always()
         run: |
           RUNNER_IP="${{ steps.runner_ip.outputs.ip }}"
-          # Re-fetch rules and strip the runner IP entry
           EXISTING=$(curl -sf \
             -H "Authorization: Bearer $DO_TOKEN" \
             "https://api.digitalocean.com/v2/databases/$DO_DB_CLUSTER_ID/firewall" \

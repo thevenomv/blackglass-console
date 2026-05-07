@@ -129,6 +129,28 @@ their question, link them straight to that section.
 
 ---
 
+## 8a. Schema integrity & migration governance
+
+| Control                                  | Implementation                                                                                                              | Verify here                                                                       |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Versioned, hash-tracked migrations       | `scripts/ops/apply-migrations.mjs` records every applied file's sha256 in `drizzle.__drizzle_migrations`                    | `scripts/ops/apply-migrations.mjs`                                                |
+| Idempotent migrations                    | Every prod migration uses `IF NOT EXISTS` / `ON CONFLICT` / `DO $$ ... $$` guards so re-runs are no-ops                     | `drizzle/*.sql`                                                                   |
+| Static layout check (PR-time)            | `db:migrate:files` enforces 4-digit prefixes, no gaps, no duplicate hashes, valid UTF-8                                     | `scripts/ops/check-migration-files.mjs`, `package.json` (`verify:stage0`)         |
+| End-to-end check (CI-time)               | `migrations-end-to-end` job boots fresh Postgres, applies every migration, verifies idempotency and `db:migrate:check` clean | `.github/workflows/ci.yml`                                                        |
+| Production runs are auditable + scoped   | `db-migrate.yml` workflow opens DO DB firewall to the runner IP, runs the migrator, closes it (`if: always`)                | `.github/workflows/db-migrate.yml`                                                 |
+| Recovery from manually-applied state     | `apply-migrations.mjs --baseline` records every file as "applied" without running it, for adopting drifted databases        | `scripts/ops/apply-migrations.mjs` (look for `FLAG_BASELINE`)                     |
+| Migration role separation                | Only the migration role has `BYPASSRLS`; the application role does not                                                       | `drizzle/0000_init_saas_schema.sql`                                                |
+| Drift incident post-mortem (May 2026)    | Captured in operations runbook; controls above are the response                                                              | `docs/runbooks/operations.md` (§ 4a)                                              |
+
+**Why this matters for buyers:** The ability to reason about "what
+schema is actually in production right now?" is a foundational
+compliance question. SOC 2 CC8.1 (change management) and ISO 27001 A.14
+both require evidence of a controlled change pipeline. The combination
+of (hash-tracked bookkeeping) + (PR-time check) + (CI-time end-to-end
+check) + (manual workflow that uses the same code) is that evidence.
+
+---
+
 ## 9. Vendor / sub-processor list
 
 See [`docs/vendor-inventory.md`](./vendor-inventory.md) for the full
@@ -186,6 +208,11 @@ For the most common questions:
 
 > **Q: What's your DR plan?**
 > A: See [`docs/runbooks/operations.md`](./runbooks/operations.md).
+
+> **Q: How do you prevent silent schema drift between code and database?**
+> A: Hash-tracked migrations (`drizzle.__drizzle_migrations`) plus a PR-time
+> static check (`db:migrate:files`) plus a CI-time end-to-end apply against
+> a fresh Postgres. See § 8a above.
 
 ---
 

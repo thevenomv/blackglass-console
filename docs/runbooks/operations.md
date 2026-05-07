@@ -235,6 +235,157 @@ checks) is filed under `docs/runbooks/drills/<YYYY-Q?>.md`.
 
 ---
 
+## 4a. Schema migrations (Drizzle)
+
+Migrations live in `drizzle/NNNN_*.sql` (4-digit zero-padded prefix, strictly
+monotonic). They are applied by `scripts/ops/apply-migrations.mjs`, which
+records every applied file's sha256 hash in `drizzle.__drizzle_migrations`
+so re-runs are no-ops.
+
+### npm scripts
+
+| Script                      | Effect                                                            |
+| --------------------------- | ----------------------------------------------------------------- |
+| `npm run db:migrate`        | Apply all pending migrations (default — what you want most days). |
+| `npm run db:migrate:check`  | Dry-run; exits 1 if anything is pending. Used in CI.              |
+| `npm run db:migrate:status` | Print applied vs. pending list and exit 0.                        |
+| `npm run db:migrate:files`  | Static check (no DB) — file ordering, gaps, duplicates.           |
+
+The static check (`db:migrate:files`) runs in `verify:stage0` on every
+commit. The end-to-end check (boot ephemeral Postgres, apply all
+migrations, verify nothing pending, verify re-run is a no-op) runs as the
+`migrations-end-to-end` job in `.github/workflows/ci.yml`.
+
+### Production runs
+
+Use the `Apply database migrations` workflow in GitHub Actions
+(`.github/workflows/db-migrate.yml`):
+
+1. Actions → "Apply database migrations" → "Run workflow".
+2. Pick the mode:
+   - **`check`** (default): dry-run. Tells you what's pending without
+     applying anything. **Always run this first.**
+   - **`apply`**: runs the migrator. Each migration runs inside a
+     transaction; failure rolls back and the workflow exits 1.
+   - **`baseline`**: marks every file as applied without running the SQL.
+     **Only use this when adopting a database whose schema was applied by
+     hand**, e.g. the recovery path used after the 2026-05-07 incident.
+   - **`status`**: print the bookkeeping table contents and exit 0.
+
+The workflow opens the DO managed-DB firewall to the GitHub runner IP for
+the duration of the run, then closes it again on exit (in an `if: always`
+block, so it runs even on failure).
+
+### When `db:migrate:check` reports drift
+
+```text
+SCHEMA DRIFT: 2 migration(s) not applied:
+  • 0014_some_thing.sql
+  • 0015_some_other.sql
+```
+
+1. Read the SQL files. Confirm they're idempotent (every prod migration
+   should use `IF NOT EXISTS` / `ON CONFLICT`). If not, push a fix first.
+2. Run the workflow with **`mode=apply`**.
+3. Re-run with **`mode=check`** to confirm 0 pending.
+4. Hit `https://blackglasssec.com/api/health` to confirm the app still
+   responds; check the dashboard for affected features.
+
+### Schema drift incident — 2026-05-07 (post-mortem reference)
+
+**What happened:** The "Showcase VM offline" symptom traced to six
+production migrations (`0008`–`0013`) that had been applied by hand at
+some earlier point but never recorded in `drizzle.__drizzle_migrations`.
+Several customer-facing features (api keys, remediations, drift mutes,
+retention, exports, CIS evidence, tenant notifications, rotated webhook
+keys) were silently broken because the application schema referenced
+columns and tables the database lacked.
+
+**Root cause:** The pre-existing manual migration workflow
+(`db-migrate.yml`) shelled out to per-migration scripts (`_apply-0001`,
+`_apply-0002`) without bookkeeping. Whoever applied later migrations
+ran them by hand and never updated the workflow.
+
+**Fix shipped (Wave 11):**
+
+- Replaced the per-migration scripts with `apply-migrations.mjs`
+  (hash-tracked, idempotent).
+- Added `db:migrate:files` (static) to `verify:stage0`.
+- Added `migrations-end-to-end` CI job that boots fresh Postgres, applies
+  all migrations, verifies idempotency.
+- Added the `mode=baseline` recovery path so this kind of drift is
+  recoverable (mark current state as the baseline) instead of requiring
+  manual SQL.
+- This runbook section.
+
+**Detection signal going forward:**
+`db:migrate:files` fails the PR if anyone adds a SQL file out of order or
+with a duplicate hash. `migrations-end-to-end` fails if any SQL file is
+broken or assumes state that other files don't establish. Combined with
+the `mode=check` workflow being a one-click sanity check, this class of
+drift should not be able to silently land in production again.
+
+---
+
+## 4b. Public showcase sandbox
+
+The public demo at `https://blackglasssec.com/demo/sandbox` runs against a
+single shared "showcase" tenant, identified by the
+`SANDBOX_SHOWCASE_TENANT_ID` env var. The full lifecycle is documented in
+`src/lib/server/services/sandbox-provisioner.ts`; this section covers
+operations only.
+
+### Health probe
+
+`GET https://blackglasssec.com/api/health/showcase`:
+
+| HTTP | `status` value     | Meaning                                                                |
+| ---- | ------------------ | ---------------------------------------------------------------------- |
+| 200  | `ok`               | Sandbox is `ready` or `seeding` and within TTL. **Healthy.**           |
+| 200  | `disabled`         | `SANDBOX_SHOWCASE_TENANT_ID` is unset. Operator-chosen, not a failure. |
+| 503  | `no_sandbox`       | Showcase tenant exists but no sandbox row. Auto-provision will retry.  |
+| 503  | `provisioning`     | Sandbox row exists, sandbox.status is intermediate (no Droplet yet).   |
+| 503  | `expired`          | TTL elapsed. Sandbox-worker would normally recycle.                    |
+| 503  | `error`            | `sandbox.status='error'` — `errorMessage` field has the details.       |
+| 503  | `db_unavailable`   | DB query failed. Likely Postgres outage.                               |
+
+Wire any uptime monitor (DO Uptime, Pingdom, Sentry Cron) at this URL and
+alert on `http != 200 OR status != "ok"`. Responses also emit a Sentry
+breadcrumb (`category=health.showcase`) so an alert in Sentry's UI carries
+the same diagnostic context.
+
+### Operator panel
+
+The dashboard shows a `ShowcaseOpsTile` component (visible to anyone
+signed into the showcase tenant) that polls `/api/admin/showcase` every
+30 s. It shows the same data as the health probe plus DB-internal fields:
+droplet ID (with a deep link to the DO console), error message, host ID,
+firewall ID. **Use this first** before SSHing anywhere.
+
+### Common failure modes
+
+| Symptom                                       | Likely cause                                              | Fix                                                                                      |
+| --------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `status: "no_sandbox"` won't resolve          | DO API call failing in `provisionSandbox`                 | Check `web` logs for `[showcase] auto-provision failed`. Common: DO quota, missing token.|
+| `status: "error"` with `droplet limit` error  | DO account hit its Droplet quota (default 3, raise via DO support) | Delete an unused Droplet OR raise the quota.                                            |
+| `status: "expired"`                           | TTL elapsed and no sandbox-worker to recycle              | `node scripts/ops/_reset-showcase-sandbox.mjs` to mark destroyed; next page load re-provisions. |
+| `status: "provisioning"` for > 5 min          | The web Node process recycled before in-process activator finished | Same recovery as above.                                                                  |
+| Probe returns 200 but page shows `phase 0/8`  | No `REDIS_QUEUE_URL` + worker → seed-drift never enqueues | Out of scope for this runbook; see Wave 12 worker deployment plan.                       |
+
+### Recovery scripts (under `scripts/ops/`)
+
+| Script                          | Purpose                                                          |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `_bootstrap-showcase.mjs`       | Idempotent insert of the showcase `saas_tenants` row.            |
+| `_inspect-showcase.mjs`         | Diagnostic dump of tenant + sandbox + audit rows.                |
+| `_reset-showcase-sandbox.mjs`   | Mark all non-`destroyed`/`ready`/`seeding` sandbox rows destroyed.|
+
+All three read PG\* env vars set by the operator — they do not embed
+credentials. Open the DO DB firewall to your IP first (`databases/{id}/firewall`
+PUT with the existing rule list plus your IP), run, then close it again.
+
+---
+
 ## 5. One-page on-call checklist
 
 When you get paged:
@@ -270,3 +421,8 @@ When you get paged:
 - [`blackglass-remediator/docs/safety-model.md`](../../blackglass-remediator/docs/safety-model.md) — remediator safety model.
 - `src/lib/server/queue/config.ts` — queue configuration (source of truth).
 - `scripts/ops/verify-partition-integrity.mjs` — partition + RLS sanity check.
+- `scripts/ops/apply-migrations.mjs` — Drizzle migration runner (used in `db-migrate` workflow).
+- `scripts/ops/check-migration-files.mjs` — static layout check (used in `db:migrate:files`).
+- `.github/workflows/db-migrate.yml` — production migration runner (manual dispatch).
+- `src/app/api/health/showcase/route.ts` — public showcase health probe.
+- `src/app/api/admin/showcase/route.ts` — authenticated operator detail endpoint.

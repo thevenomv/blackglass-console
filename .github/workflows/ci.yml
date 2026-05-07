@@ -40,6 +40,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Migration file layout check
+        run: npm run db:migrate:files
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -80,6 +83,61 @@ jobs:
         env:
           CI: true
           PLAYWRIGHT_LIVE: "1"
+
+  migrations-end-to-end:
+    name: Migrations apply cleanly to fresh Postgres
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: blackglass_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply all migrations from scratch
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: blackglass_test
+        run: npm run db:migrate
+
+      - name: Verify nothing pending after apply
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: blackglass_test
+        run: npm run db:migrate:check
+
+      - name: Re-apply must be no-op (idempotency check)
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: blackglass_test
+        run: |
+          OUT=$(npm run --silent db:migrate)
+          echo "$OUT"
+          echo "$OUT" | grep -q "0 pending" || (echo "::error::Re-running migrations was not a no-op" && exit 1)
 
   staging-smoke:
     name: Staging smoke (post-deploy)
