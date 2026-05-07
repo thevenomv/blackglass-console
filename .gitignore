@@ -67,3 +67,7 @@ __pycache__/
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Scratch commit-message temp files used by the agent when piping
+# multi-line messages on PowerShell (which can't handle bash heredocs).
+.git-commit-msg.tmp
