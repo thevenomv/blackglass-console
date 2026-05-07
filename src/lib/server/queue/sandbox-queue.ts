@@ -84,7 +84,10 @@ export async function enqueueSandboxProvision(
   await q.add(
     "sandbox:provision",
     { type: "sandbox:provision", sandboxId, tenantId },
-    { jobId: `provision:${sandboxId}` },
+    // BullMQ rejects jobIds containing ":" (it's its own internal namespace
+    // separator).  Use "-" so deduplication still works (one provision job
+    // per sandbox row) without throwing on enqueue.
+    { jobId: `provision-${sandboxId}` },
   );
 }
 
@@ -103,7 +106,7 @@ export async function enqueueSandboxSeedDrift(
   await q.add(
     "sandbox:seed-drift",
     { type: "sandbox:seed-drift", sandboxId, tenantId, phase },
-    { jobId: `seed:${sandboxId}:${phase}`, delay: delayMs },
+    { jobId: `seed-${sandboxId}-${phase}`, delay: delayMs },
   );
 }
 
@@ -121,6 +124,6 @@ export async function enqueueSandboxCleanup(
   await q.add(
     "sandbox:cleanup",
     { type: "sandbox:cleanup", sandboxId, tenantId },
-    { jobId: `cleanup:${sandboxId}`, delay: delayMs },
+    { jobId: `cleanup-${sandboxId}`, delay: delayMs },
   );
 }
