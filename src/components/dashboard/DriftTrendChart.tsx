@@ -1,10 +1,15 @@
 "use client";
 
 /**
- * DriftTrendChart — inline SVG sparkline showing daily drift counts.
+ * DriftTrendChart — responsive stacked bar chart of daily drift counts.
  *
- * Fetches from GET /api/v1/drift/trend and renders a simple bar chart.
- * Zero-state gracefully shows "No trend data yet".
+ * Fetches from GET /api/v1/drift/trend and renders a chart that fills the
+ * available width of its container. Each bar is a vertical stack of
+ * low / medium / high segments, sized as a percentage of the busiest day
+ * in the window.
+ *
+ * Zero-state shows "No trend data yet". Empty days within the window still
+ * render a faint baseline tick so the time axis stays anchored.
  */
 
 import { useEffect, useState } from "react";
@@ -22,9 +27,7 @@ interface TrendResponse {
   days: TrendDay[];
 }
 
-const BAR_W = 24;
-const BAR_GAP = 8;
-const CHART_H = 56;
+const CHART_HEIGHT_PX = 160;
 
 function severityColor(s: "high" | "medium" | "low"): string {
   if (s === "high") return "var(--danger-red)";
@@ -51,7 +54,11 @@ export function DriftTrendChart() {
 
   if (loading) {
     return (
-      <div className="h-14 animate-pulse rounded bg-bg-elevated" aria-label="Loading drift trend" />
+      <div
+        className="w-full animate-pulse rounded bg-bg-elevated"
+        style={{ height: CHART_HEIGHT_PX }}
+        aria-label="Loading drift trend"
+      />
     );
   }
 
@@ -62,86 +69,99 @@ export function DriftTrendChart() {
   }
 
   const maxTotal = Math.max(1, ...days.map((d) => d.total));
-  const chartW = days.length * (BAR_W + BAR_GAP) - BAR_GAP;
+  const grandTotal = days.reduce((acc, d) => acc + d.total, 0);
 
   return (
-    <div className="flex flex-col gap-2">
-      <svg
-        width={chartW}
-        height={CHART_H}
-        viewBox={`0 0 ${chartW} ${CHART_H}`}
-        aria-label="Drift trend chart"
+    <div className="flex flex-col gap-3">
+      <div
+        className="relative flex w-full items-end justify-between gap-2"
+        style={{ height: CHART_HEIGHT_PX }}
         role="img"
-        className="overflow-visible"
+        aria-label={`Drift trend chart: ${grandTotal} total findings across ${days.length} days`}
       >
-        {days.map((d, i) => {
-          const x = i * (BAR_W + BAR_GAP);
-          const totalH = Math.round((d.total / maxTotal) * CHART_H);
-          const highH = Math.round((d.high / maxTotal) * CHART_H);
-          const medH = Math.round((d.medium / maxTotal) * CHART_H);
-          const lowH = totalH - highH - medH;
-          let y = CHART_H;
+        {/* faint baseline */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border-subtle" />
 
-          const segments: { color: string; h: number }[] = [];
-          if (lowH > 0) segments.push({ color: severityColor("low"), h: lowH });
-          if (medH > 0) segments.push({ color: severityColor("medium"), h: medH });
-          if (highH > 0) segments.push({ color: severityColor("high"), h: highH });
+        {days.map((d) => {
+          const totalPct = (d.total / maxTotal) * 100;
+          const highPct = d.total === 0 ? 0 : (d.high / d.total) * totalPct;
+          const medPct = d.total === 0 ? 0 : (d.medium / d.total) * totalPct;
+          const lowPct = d.total === 0 ? 0 : (d.low / d.total) * totalPct;
 
           return (
-            <g key={d.ymd}>
-              {d.total === 0 ? (
-                <rect
-                  x={x}
-                  y={CHART_H - 3}
-                  width={BAR_W}
-                  height={3}
-                  rx={2}
-                  fill="currentColor"
-                  className="text-border-subtle"
-                />
-              ) : (
-                segments.map((seg, si) => {
-                  y -= seg.h;
-                  return (
-                    <rect
-                      key={si}
-                      x={x}
-                      y={y}
-                      width={BAR_W}
-                      height={seg.h}
-                      fill={seg.color}
-                      rx={si === segments.length - 1 ? 2 : 0}
-                      opacity={0.85}
+            <div
+              key={d.ymd}
+              className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end"
+            >
+              {d.total > 0 ? (
+                <div
+                  className="flex w-full max-w-[40px] flex-col-reverse overflow-hidden rounded-t-sm transition-opacity hover:opacity-90"
+                  style={{ height: `${totalPct}%` }}
+                  title={`${d.label} — ${d.total} finding${d.total === 1 ? "" : "s"} (high ${d.high}, medium ${d.medium}, low ${d.low})`}
+                >
+                  {lowPct > 0 ? (
+                    <div
+                      style={{
+                        height: `${(lowPct / totalPct) * 100}%`,
+                        background: severityColor("low"),
+                      }}
                     />
-                  );
-                })
+                  ) : null}
+                  {medPct > 0 ? (
+                    <div
+                      style={{
+                        height: `${(medPct / totalPct) * 100}%`,
+                        background: severityColor("medium"),
+                      }}
+                    />
+                  ) : null}
+                  {highPct > 0 ? (
+                    <div
+                      style={{
+                        height: `${(highPct / totalPct) * 100}%`,
+                        background: severityColor("high"),
+                      }}
+                    />
+                  ) : null}
+                </div>
+              ) : (
+                <div
+                  className="w-full max-w-[40px] rounded-sm bg-border-subtle"
+                  style={{ height: 3 }}
+                  title={`${d.label} — 0 findings`}
+                />
               )}
-              <text
-                x={x + BAR_W / 2}
-                y={CHART_H + 12}
-                textAnchor="middle"
-                fontSize={9}
-                fill="currentColor"
-                className="text-fg-faint"
-              >
-                {d.label}
-              </text>
-            </g>
+            </div>
           );
         })}
-      </svg>
+      </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-3 text-[10px] text-fg-faint">
-        {(["high", "medium", "low"] as const).map((s) => (
-          <span key={s} className="flex items-center gap-1">
-            <span
-              className="inline-block h-2 w-2 rounded-sm"
-              style={{ background: severityColor(s) }}
-            />
-            {s}
+      {/* X-axis labels in their own row so they never overlap the bars */}
+      <div className="flex w-full items-start justify-between gap-2">
+        {days.map((d) => (
+          <span
+            key={`label-${d.ymd}`}
+            className="min-w-0 flex-1 text-center text-[11px] tabular-nums text-fg-faint"
+          >
+            {d.label}
           </span>
         ))}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-fg-faint">
+        {(["high", "medium", "low"] as const).map((s) => (
+          <span key={s} className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-sm"
+              style={{ background: severityColor(s) }}
+            />
+            <span className="capitalize">{s}</span>
+          </span>
+        ))}
+        <span className="ml-auto text-fg-muted">
+          {grandTotal} finding{grandTotal === 1 ? "" : "s"} in window
+        </span>
       </div>
     </div>
   );

@@ -51,8 +51,20 @@ export class PostgresDriftHistoryRepository implements DriftHistoryRepository {
 
   async getDays(): Promise<DayEntry[]> {
     try {
+      // CAST is critical: pg returns DATE columns as JS Date objects, but
+      // the chart helper concatenates `ymd + "T12:00:00.000Z"` to build
+      // a timestamp. A Date stringifies to "Wed May 07 2026 ..." which
+      // produces "Invalid Date" downstream. TO_CHAR forces YYYY-MM-DD text.
+      // Caused the "Invalid Date Invalid Date" labels seen in the Fleet
+      // overview drift chart on 2026-05-07.
+      //
+      // Order ASC so callers can `.slice(-6)` to get the most recent 6
+      // (the previous DESC order made `.slice(-6)` return the OLDEST 6).
       const res = await this.pool.query<{ ymd: string; total_new_findings: number }>(
-        "SELECT ymd, total_new_findings FROM blackglass_drift_history ORDER BY ymd DESC LIMIT 90",
+        `SELECT TO_CHAR(ymd, 'YYYY-MM-DD') AS ymd, total_new_findings
+         FROM blackglass_drift_history
+         ORDER BY ymd ASC
+         LIMIT 90`,
       );
       return res.rows.map((r) => ({ ymd: r.ymd, totalNewFindings: r.total_new_findings }));
     } catch (err) {

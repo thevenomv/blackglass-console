@@ -400,11 +400,19 @@ export function DashboardV3({
                   role="img"
                   aria-labelledby="drift-chart-summary"
                 >
-                  {fleet.driftVolumeByDay.map((b) => (
-                    <div key={b.day} className="flex flex-1 flex-col items-center gap-2">
+                  {fleet.driftVolumeByDay.map((b, i) => (
+                    <div
+                      key={`${b.day}-${i}`}
+                      className="flex flex-1 flex-col items-center gap-2"
+                    >
                       <div
-                        className="drift-volume-bar w-full max-w-[28px] rounded-sm bg-accent-blue/25 hover:bg-accent-blue/45"
-                        style={{ height: `${b.valuePct}%` }}
+                        className="drift-volume-bar w-full max-w-[28px] rounded-sm bg-accent-blue/25 transition-colors hover:bg-accent-blue/45"
+                        style={{
+                          // Always render at least a 4px stub so empty days
+                          // remain visually anchored; otherwise the chart
+                          // looks like floating labels.
+                          height: `max(4px, ${b.valuePct}%)`,
+                        }}
                         title={`${b.day}: drift index ${b.valuePct}%`}
                       />
                       <span className="text-[10px] text-fg-faint">{b.day}</span>
