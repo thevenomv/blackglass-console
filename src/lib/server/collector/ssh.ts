@@ -8,6 +8,7 @@ import {
   parseFileHashes,
   parseFirewall,
   parseHostsEntries,
+  parseInstalledPackages,
   parseKernelModules,
   parseListeners,
   parseServices,
@@ -15,6 +16,7 @@ import {
   parseSuidBinaries,
   parseSudoers,
   parseSudoersFiles,
+  parseSystemdUnitFiles,
   parseUserCrontabs,
   parseUsers,
 } from "./parsers";
@@ -129,6 +131,8 @@ const BUNDLE_SEP = "=BGS:" as const;
 const BUNDLE_CMD = `
 echo '=BGS:ss'
 ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null
+echo '=BGS:ssudp'
+ss -ulnp 2>/dev/null || netstat -ulnp 2>/dev/null
 echo '=BGS:passwd'
 awk -F: '$3>=1000 && $3<65534 {print $1 ":" $3}' /etc/passwd 2>/dev/null
 echo '=BGS:sudo'
@@ -155,6 +159,10 @@ echo '=BGS:suid'
 timeout 20 find /usr /bin /sbin /tmp /var/tmp -perm /6000 -type f 2>/dev/null | sort
 echo '=BGS:usercron'
 ls /var/spool/cron/crontabs/ 2>/dev/null
+echo '=BGS:pkgs'
+if command -v dpkg-query >/dev/null 2>&1; then dpkg -l 2>/dev/null | tail -n +6; elif command -v rpm >/dev/null 2>&1; then rpm -qa --qf '%{NAME}|%{VERSION}-%{RELEASE}\n' 2>/dev/null; fi
+echo '=BGS:systemdunits'
+find /etc/systemd/system -maxdepth 3 \\( -type f -o -type l \\) \\( -name '*.service' -o -name '*.timer' -o -name '*.socket' -o -name '*.path' -o -name '*.mount' \\) 2>/dev/null | sort
 `.trim();
 
 /**
@@ -272,7 +280,10 @@ export async function runCollection(
             hostId: cfg.hostId,
             hostname: cfg.displayName,
             collectedAt: new Date().toISOString(),
-            listeners: parseListeners(s["ss"] ?? ""),
+            listeners: [
+              ...parseListeners(s["ss"] ?? "", "tcp"),
+              ...parseListeners(s["ssudp"] ?? "", "udp"),
+            ],
             users: parseUsers(s["passwd"] ?? ""),
             sudoers: parseSudoers(s["sudo"] ?? ""),
             sudoersFiles: parseSudoersFiles(s["sudofiles"] ?? ""),
@@ -286,6 +297,8 @@ export async function runCollection(
             hostsEntries: parseHostsEntries(s["hosts"] ?? ""),
             kernelModules: parseKernelModules(s["lsmod"] ?? ""),
             suidBinaries: parseSuidBinaries(s["suid"] ?? ""),
+            installedPackages: parseInstalledPackages(s["pkgs"] ?? ""),
+            systemdUnitFiles: parseSystemdUnitFiles(s["systemdunits"] ?? ""),
           });
         });
       } catch (e) {

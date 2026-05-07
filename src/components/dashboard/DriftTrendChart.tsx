@@ -27,9 +27,9 @@ const BAR_GAP = 8;
 const CHART_H = 56;
 
 function severityColor(s: "high" | "medium" | "low"): string {
-  if (s === "high") return "var(--color-danger, #e53e3e)";
-  if (s === "medium") return "var(--color-warning, #d97706)";
-  return "var(--color-success, #38a169)";
+  if (s === "high") return "var(--danger-red)";
+  if (s === "medium") return "var(--warning-amber)";
+  return "var(--success-green)";
 }
 
 export function DriftTrendChart() {

@@ -6,6 +6,7 @@ import { MockDataBanner } from "@/components/layout/MockDataBanner";
 import { MobileNavBar } from "@/components/layout/MobileNavBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SaasTrialBanner } from "@/components/saas/SaasTrialBanner";
+import { DocsDrawer } from "@/components/layout/DocsDrawer";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -18,13 +19,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         Skip to main content
       </a>
-      <div className="hidden shrink-0 lg:block">
+      <div className="hidden shrink-0 md:block">
         <Sidebar />
       </div>
 
       {mobileOpen ? (
         <div
-          className="fixed inset-0 z-50 lg:hidden"
+          className="fixed inset-0 z-50 md:hidden"
           role="dialog"
           aria-modal="true"
           aria-label="Primary navigation"
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </div>
       </div>
+      <DocsDrawer />
     </div>
   );
 }

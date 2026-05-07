@@ -49,39 +49,53 @@ export interface ApiKeyContext {
 /**
  * Resolves a raw Bearer token to an ApiKeyContext.
  * Returns null if the key is not found, expired, or the DB is unavailable.
+ *
+ * The lastUsedAt write is awaited so the timestamp survives a cold-start
+ * crash that occurs immediately after the auth check (P1a #20).
  */
 export async function resolveApiKey(bearerToken: string): Promise<ApiKeyContext | null> {
   if (!bearerToken.startsWith(API_KEY_PREFIX)) return null;
   const hash = hashApiKey(bearerToken);
 
-  const { tryGetDb, schema: s } = await import("@/db");
+  const { tryGetDb, withBypassRls, schema: s } = await import("@/db");
   const db = tryGetDb();
   if (!db) return null;
 
   const { eq } = await import("drizzle-orm");
 
-  const rows = await db
-    .select({
-      id: s.saasApiKeys.id,
-      tenantId: s.saasApiKeys.tenantId,
-      scopes: s.saasApiKeys.scopes,
-      label: s.saasApiKeys.label,
-      expiresAt: s.saasApiKeys.expiresAt,
-    })
-    .from(s.saasApiKeys)
-    .where(eq(s.saasApiKeys.keyHash, hash))
-    .limit(1);
+  // Bypass RLS at the lookup step — the request has not yet established a
+  // tenant identity, so the row read must be a trusted server operation.
+  const rows = await withBypassRls((bdb) =>
+    bdb
+      .select({
+        id: s.saasApiKeys.id,
+        tenantId: s.saasApiKeys.tenantId,
+        scopes: s.saasApiKeys.scopes,
+        label: s.saasApiKeys.label,
+        expiresAt: s.saasApiKeys.expiresAt,
+      })
+      .from(s.saasApiKeys)
+      .where(eq(s.saasApiKeys.keyHash, hash))
+      .limit(1),
+  );
 
   const row = rows[0];
   if (!row) return null;
 
   if (row.expiresAt && row.expiresAt < new Date()) return null;
 
-  // Fire-and-forget: update last_used_at
-  void db
-    .update(s.saasApiKeys)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(s.saasApiKeys.id, row.id));
+  try {
+    await withBypassRls((bdb) =>
+      bdb
+        .update(s.saasApiKeys)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(s.saasApiKeys.id, row.id)),
+    );
+  } catch (err) {
+    // Don't fail the request if the bookkeeping write is briefly unavailable;
+    // log so chronic failures are visible.
+    console.warn("[api-key-auth] lastUsedAt write failed:", err);
+  }
 
   return {
     tenantId: row.tenantId,
@@ -101,4 +115,13 @@ export function extractBearerToken(request: Request): string | null {
   const [scheme, token] = header.split(" ");
   if (scheme?.toLowerCase() !== "bearer" || !token) return null;
   return token;
+}
+
+/**
+ * Returns true if the API key context has the requested scope.
+ * Wildcard scopes ("*") grant everything; exact-match otherwise.
+ */
+export function hasScope(ctx: ApiKeyContext, requiredScope: string): boolean {
+  if (ctx.scopes.includes("*")) return true;
+  return ctx.scopes.includes(requiredScope);
 }

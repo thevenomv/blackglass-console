@@ -24,6 +24,12 @@ export const QUEUE_NAMES = {
   EVIDENCE: "blackglass-evidence",
   /** Sandbox lifecycle: provision, seed-drift, cleanup. */
   SANDBOX: "blackglass-sandbox",
+  /** Outbound webhook delivery (Slack/PagerDuty/generic) with retries + DLQ. */
+  WEBHOOKS: "blackglass-webhooks",
+  /** Per-tenant data-export bundles (Spaces upload or inline JSON). */
+  EXPORTS: "blackglass-exports",
+  /** Maintenance jobs: retention sweeps, idempotency pruning, future ops crons. */
+  MAINTENANCE: "blackglass-maintenance",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -78,6 +84,32 @@ export const RETRY_POLICIES = {
     attempts: 10,
     backoff: { type: "exponential" as const, delay: 30_000 },
   },
+  /**
+   * Outbound webhook delivery: receivers commonly rate-limit or 5xx
+   * transiently.  6 attempts with exponential backoff covers ~10 minutes
+   * before the job is moved to the failed set (acts as a DLQ).
+   */
+  webhook: {
+    attempts: 6,
+    backoff: { type: "exponential" as const, delay: 5_000 },
+  },
+  /**
+   * Data export jobs: bundle assembly + Spaces upload. Transient Spaces
+   * 5xx is retriable; 3 attempts with a long backoff because each attempt
+   * re-collects the bundle and we'd rather fail visibly than thrash.
+   */
+  export: {
+    attempts: 3,
+    backoff: { type: "exponential" as const, delay: 30_000 },
+  },
+  /**
+   * Maintenance jobs (retention sweep, etc.): single attempt — these run
+   * on a repeatable schedule so a transient failure is recovered by the
+   * next tick rather than an in-job retry.
+   */
+  maintenance: {
+    attempts: 1,
+  },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -91,6 +123,12 @@ export const RETRY_POLICIES = {
 export const RETENTION = {
   scans: { removeOnComplete: { count: 200 }, removeOnFail: { count: 100 } },
   sandbox: { removeOnComplete: { count: 100 }, removeOnFail: { count: 50 } },
+  /** Keep 50 successful and 200 failed webhook deliveries for the DLQ UI. */
+  webhooks: { removeOnComplete: { count: 50 }, removeOnFail: { count: 200 } },
+  /** Keep 50 ready and 50 failed export jobs visible from the UI. */
+  exports: { removeOnComplete: { count: 50 }, removeOnFail: { count: 50 } },
+  /** Maintenance is high-frequency repeatable; trim aggressively. */
+  maintenance: { removeOnComplete: { count: 20 }, removeOnFail: { count: 20 } },
 } as const;
 
 // ---------------------------------------------------------------------------

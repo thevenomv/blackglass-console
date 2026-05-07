@@ -11,6 +11,12 @@
  * Response:
  *   { days: [{ ymd, label, high, medium, low, total }] }
  *
+ * Tenant scoping
+ * --------------
+ * In SaaS mode the query is restricted to the caller's `saas_collector_hosts`
+ * — every tenant only sees its own trend.  In legacy mode the trend spans
+ * every host_id present in `blackglass_drift_events`.
+ *
  * Falls back to an empty array when DATABASE_URL is not set.
  */
 
@@ -18,10 +24,13 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
+import { PostgresDriftEventsRepository } from "@/lib/server/store/driftevents-pg";
+import { withTenantRls, schema } from "@/db";
 
 interface TrendDay {
   ymd: string;
@@ -32,62 +41,52 @@ interface TrendDay {
   total: number;
 }
 
-async function queryTrendFromPg(days: number): Promise<TrendDay[]> {
-  const dbUrl = process.env.DATABASE_URL?.trim();
-  if (!dbUrl) return [];
+async function tenantHostIds(tenantId: string): Promise<string[]> {
+  const rows = await withTenantRls(tenantId, (db) =>
+    db
+      .select({ id: schema.saasCollectorHosts.id, hostname: schema.saasCollectorHosts.hostname })
+      .from(schema.saasCollectorHosts)
+      .where(eq(schema.saasCollectorHosts.tenantId, tenantId)),
+  );
+  // Drift events are stored under the synthetic id used by the collector
+  // (e.g. host-167-172-224-47); we accept either the saas row id or the
+  // hostname-derived id, so include both candidate keys.
+  const ids = new Set<string>();
+  for (const r of rows) {
+    ids.add(r.id);
+    if (r.hostname) ids.add(`host-${r.hostname.replace(/[^a-zA-Z0-9]/g, "-")}`);
+  }
+  return Array.from(ids);
+}
 
+async function buildTrend(days: number, hostIds?: string[]): Promise<TrendDay[]> {
+  if (!process.env.DATABASE_URL?.trim()) return [];
+  let buckets: Array<{ ymd: string; severity: string; count: number }>;
   try {
-    const { Pool } = await import("pg");
-    const cleanUrl = dbUrl.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
-    const sslOpts = dbUrl.includes("sslmode=") ? { ssl: { rejectUnauthorized: false } } : {};
-    const pool = new Pool({ connectionString: cleanUrl, max: 2, ...sslOpts });
-
-    // Unnest the JSONB event arrays and group by day + severity
-    const res = await pool.query<{
-      ymd: string;
-      severity: string;
-      cnt: string;
-    }>(
-      `SELECT
-         to_char((e->>'detectedAt')::timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS ymd,
-         e->>'severity' AS severity,
-         COUNT(*)::text AS cnt
-       FROM blackglass_drift_events,
-            jsonb_array_elements(events) AS e
-       WHERE (e->>'detectedAt')::timestamptz >= NOW() - ($1 || ' days')::interval
-       GROUP BY 1, 2
-       ORDER BY 1`,
-      [days],
-    );
-
-    await pool.end();
-
-    // Build a map: ymd → { high, medium, low }
-    const byDay = new Map<string, { high: number; medium: number; low: number }>();
-    for (const row of res.rows) {
-      const entry = byDay.get(row.ymd) ?? { high: 0, medium: 0, low: 0 };
-      const count = parseInt(row.cnt, 10) || 0;
-      if (row.severity === "high") entry.high += count;
-      else if (row.severity === "medium") entry.medium += count;
-      else entry.low += count;
-      byDay.set(row.ymd, entry);
-    }
-
-    // Fill the last N days, including zero-count days
-    const result: TrendDay[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 86400_000);
-      const ymd = d.toISOString().slice(0, 10);
-      const label = d.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
-      const counts = byDay.get(ymd) ?? { high: 0, medium: 0, low: 0 };
-      result.push({ ymd, label, ...counts, total: counts.high + counts.medium + counts.low });
-    }
-
-    return result;
+    buckets = await PostgresDriftEventsRepository.trendByDay(days, hostIds);
   } catch (err) {
     console.error("[drift/trend] query failed:", err);
     return [];
   }
+
+  const byDay = new Map<string, { high: number; medium: number; low: number }>();
+  for (const row of buckets) {
+    const entry = byDay.get(row.ymd) ?? { high: 0, medium: 0, low: 0 };
+    if (row.severity === "high") entry.high += row.count;
+    else if (row.severity === "medium") entry.medium += row.count;
+    else entry.low += row.count;
+    byDay.set(row.ymd, entry);
+  }
+
+  const result: TrendDay[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400_000);
+    const ymd = d.toISOString().slice(0, 10);
+    const label = d.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
+    const counts = byDay.get(ymd) ?? { high: 0, medium: 0, low: 0 };
+    result.push({ ymd, label, ...counts, total: counts.high + counts.medium + counts.low });
+  }
+  return result;
 }
 
 export async function GET(request: Request) {
@@ -97,15 +96,18 @@ export async function GET(request: Request) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const access = await requireSaasOrLegacyPermission("reports.view", [
-    "viewer", "auditor", "operator", "admin",
-  ]);
+  const access = await requireSaasOrLegacyPermission(
+    "reports.view",
+    ["viewer", "auditor", "operator", "admin"],
+    { request, scope: "drift.read" },
+  );
   if (!access.ok) return access.response;
 
   const url = new URL(request.url);
   const rawDays = parseInt(url.searchParams.get("days") ?? "7", 10);
   const days = Number.isFinite(rawDays) && rawDays >= 1 && rawDays <= 30 ? rawDays : 7;
 
-  const trendDays = await queryTrendFromPg(days);
+  const hostIds = access.mode === "saas" ? await tenantHostIds(access.ctx.tenant.id) : undefined;
+  const trendDays = await buildTrend(days, hostIds);
   return NextResponse.json({ days: trendDays });
 }

@@ -6,10 +6,15 @@
  *
  * Plan gate: scheduledScans must be true in plan limits.
  *
+ * Tenant scoping
+ * --------------
+ * Every Redis key and BullMQ jobId is namespaced by tenant id so two tenants
+ * enabling auto-scan do not overwrite each other's schedule.  In legacy
+ * (non-SaaS) mode the literal key `"legacy"` is used.
+ *
  * Usage:
- *   import { getAutoScanSchedule, setAutoScanSchedule } from "@/lib/server/queue/schedule";
- *   const config = await getAutoScanSchedule();
- *   await setAutoScanSchedule({ enabled: true, intervalHours: 4 });
+ *   await getAutoScanSchedule(tenantId);
+ *   await setAutoScanSchedule(tenantId, { enabled: true, intervalHours: 4 });
  */
 
 import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
@@ -23,11 +28,30 @@ export interface AutoScanSchedule {
   enabled: boolean;
   /** How often to trigger an automatic fleet scan. Min: 1h, max: 168h (1 week). */
   intervalHours: number;
+  /**
+   * Optional collector host id allow-list.  Empty/undefined = fleet-wide
+   * scan.  When set, only the listed host_ids are included in each
+   * scheduled scan (CollectScanOptions.hostIds).
+   */
+  hostIds?: string[];
 }
 
 const DEFAULT_SCHEDULE: AutoScanSchedule = { enabled: false, intervalHours: 4 };
-const REPEATABLE_JOB_NAME = "auto-fleet-scan";
-const SCHEDULE_KEY = "bg:auto-scan-schedule";
+
+/** Tenant id used by the legacy (non-SaaS) deployment. */
+export const LEGACY_SCHEDULE_TENANT = "legacy";
+
+function scheduleKey(tenantId: string): string {
+  return `bg:auto-scan-schedule:${tenantId}`;
+}
+
+function repeatableJobName(tenantId: string): string {
+  return `auto-fleet-scan:${tenantId}`;
+}
+
+function repeatableJobId(tenantId: string): string {
+  return `auto-scan-${tenantId}`;
+}
 
 // ---------------------------------------------------------------------------
 // Redis helpers
@@ -45,18 +69,22 @@ async function redisClient() {
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Read the current auto-scan schedule from Redis.  Falls back to disabled. */
-export async function getAutoScanSchedule(): Promise<AutoScanSchedule> {
+/** Read the current auto-scan schedule for a tenant.  Falls back to disabled. */
+export async function getAutoScanSchedule(tenantId: string): Promise<AutoScanSchedule> {
   const client = await redisClient();
   if (!client) return DEFAULT_SCHEDULE;
   try {
-    const raw = await client.get(SCHEDULE_KEY);
+    const raw = await client.get(scheduleKey(tenantId));
     client.disconnect();
     if (!raw) return DEFAULT_SCHEDULE;
     const parsed = JSON.parse(raw) as Partial<AutoScanSchedule>;
+    const hostIds = Array.isArray(parsed.hostIds)
+      ? parsed.hostIds.filter((h): h is string => typeof h === "string")
+      : undefined;
     return {
       enabled: parsed.enabled ?? false,
       intervalHours: Number.isFinite(parsed.intervalHours) ? (parsed.intervalHours as number) : 4,
+      ...(hostIds && hostIds.length > 0 ? { hostIds } : {}),
     };
   } catch {
     client.disconnect();
@@ -66,10 +94,13 @@ export async function getAutoScanSchedule(): Promise<AutoScanSchedule> {
 
 /**
  * Persist a new auto-scan schedule and update the BullMQ repeatable job.
- * - Removes any existing `auto-fleet-scan` repeatable job first.
+ * - Removes any existing per-tenant `auto-fleet-scan:{tenantId}` repeatable job first.
  * - Adds a new one if `enabled` is true.
  */
-export async function setAutoScanSchedule(schedule: AutoScanSchedule): Promise<void> {
+export async function setAutoScanSchedule(
+  tenantId: string,
+  schedule: AutoScanSchedule,
+): Promise<void> {
   const url = process.env.REDIS_QUEUE_URL?.trim();
   if (!url) return; // in-process mode — scheduled scans not supported
 
@@ -79,23 +110,29 @@ export async function setAutoScanSchedule(schedule: AutoScanSchedule): Promise<v
     defaultJobOptions: { ...RETRY_POLICIES.scan, ...RETENTION.scans },
   });
 
-  // Remove existing repeatable jobs for auto-scan
+  const jobName = repeatableJobName(tenantId);
   const existingJobs = await queue.getRepeatableJobs();
   await Promise.all(
     existingJobs
-      .filter((j) => j.name === REPEATABLE_JOB_NAME)
+      .filter((j) => j.name === jobName)
       .map((j) => queue.removeRepeatableByKey(j.key)),
   );
 
-  // Add new job if enabled
   if (schedule.enabled && schedule.intervalHours >= 1) {
     const everyMs = schedule.intervalHours * 60 * 60 * 1000;
-    const autoJobId = `auto-scan-repeatable-v1`;
+    const autoJobId = repeatableJobId(tenantId);
+    const hostIds = schedule.hostIds && schedule.hostIds.length > 0 ? schedule.hostIds : undefined;
     const payload: ScanJobPayload = {
       jobId: autoJobId,
-      collectOpts: { scanId: autoJobId, reason: "drift_scan" as const },
+      collectOpts: {
+        scanId: autoJobId,
+        reason: "drift_scan" as const,
+        ...(hostIds ? { hostIds } : {}),
+        ...(tenantId !== LEGACY_SCHEDULE_TENANT ? { tenantId } : {}),
+      },
+      ...(tenantId !== LEGACY_SCHEDULE_TENANT ? { saasTenantId: tenantId } : {}),
     };
-    await queue.add(REPEATABLE_JOB_NAME, payload, {
+    await queue.add(jobName, payload, {
       repeat: { every: everyMs },
       jobId: autoJobId,
     });
@@ -103,10 +140,9 @@ export async function setAutoScanSchedule(schedule: AutoScanSchedule): Promise<v
 
   await queue.close();
 
-  // Persist config in Redis so GET can read it without inspecting BullMQ
   const client = await redisClient();
   if (client) {
-    await client.set(SCHEDULE_KEY, JSON.stringify(schedule));
+    await client.set(scheduleKey(tenantId), JSON.stringify(schedule));
     client.disconnect();
   }
 }

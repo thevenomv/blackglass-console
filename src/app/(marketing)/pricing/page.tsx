@@ -38,7 +38,7 @@ const FAQ = [
   },
   {
     q: "Is annual billing available?",
-    a: "Yes. Annual billing is approximately equivalent to two months free (10× the monthly price). Contact us at jamie@obsidiandynamics.co.uk to switch to annual billing.",
+    a: "Yes. Use the Monthly / Annual toggle above the plan cards — annual is billed once per year at 10× the monthly price (≈ 17% off, or two months free). Already on monthly? Email us and we'll switch your subscription without losing your current period.",
   },
   {
     q: "What is included in the free trial?",

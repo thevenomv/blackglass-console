@@ -21,6 +21,8 @@ function baseSnap(overrides: Partial<HostSnapshot> = {}): HostSnapshot {
     hostsEntries: [],
     suidBinaries: [],
     kernelModules: [],
+    installedPackages: [],
+    systemdUnitFiles: [],
   };
   return { ...base, ...overrides };
 }

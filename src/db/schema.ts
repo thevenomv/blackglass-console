@@ -304,3 +304,248 @@ export const saasHostPolicies = pgTable("saas_host_policies", {
 });
 
 export type SaasHostPolicy = typeof saasHostPolicies.$inferSelect;
+
+// ── Tenant notification settings ──────────────────────────────────────────────
+
+/**
+ * Per-tenant notification routing for drift alerts.  Single row per tenant
+ * (enforced by the FK uniqueness on tenant_id).  Each column holds a
+ * destination override; when null the env-var default is used.
+ *
+ * Use saas/notifications-service.ts to read this in code paths that previously
+ * read process.env.{ALERT_EMAIL_TO,WEBHOOK_URLS,SLACK_ALERT_WEBHOOK_URL,PD_ROUTING_KEY}.
+ */
+export const saasTenantNotifications = pgTable("saas_tenant_notifications", {
+  tenantId: uuid("tenant_id")
+    .primaryKey()
+    .references(() => saasTenants.id, { onDelete: "cascade" }),
+  /** Comma-separated list of email addresses to alert on high-severity drift. */
+  alertEmailTo: text("alert_email_to"),
+  /** Comma-separated list of HTTP(S) outbound webhook destinations. */
+  webhookUrls: text("webhook_urls"),
+  /** Single Slack incoming-webhook URL for fleet-wide drift summaries. */
+  slackWebhookUrl: text("slack_webhook_url"),
+  /** PagerDuty Events v2 integration routing key. */
+  pdRoutingKey: text("pd_routing_key"),
+  /**
+   * Active webhook HMAC signing key for this tenant.  When non-null this is
+   * used in preference to the WEBHOOK_SECRET env var; per-tenant keys mean
+   * one tenant's leaked key can't forge another tenant's payloads.
+   */
+  webhookSigningKey: text("webhook_signing_key"),
+  /**
+   * Previous signing key — kept valid during the rotation overlap window
+   * (default 24h, overridable via ROTATION_OVERLAP_HOURS).  The dispatcher
+   * emits both `X-Blackglass-Signature` (current) and
+   * `X-Blackglass-Signature-Previous` (previous) headers while populated so
+   * receivers can verify against either without a hard cutover.
+   */
+  webhookSigningKeyPrevious: text("webhook_signing_key_previous"),
+  /**
+   * Wall-clock time of the last rotation.  When `now() - rotated_at` exceeds
+   * the overlap window the previous key is considered retired and the
+   * `-Previous` header stops being emitted.
+   */
+  webhookSigningKeyRotatedAt: timestamp("webhook_signing_key_rotated_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type SaasTenantNotifications = typeof saasTenantNotifications.$inferSelect;
+
+// ── Remediation recommendations (from blackglass-remediator) ──────────────────
+
+/**
+ * AI-generated remediation recommendations received from the
+ * blackglass-remediator Python service.  Lifecycle:
+ *
+ *   draft → awaiting_approval → approved | rejected
+ *
+ * The remediator owns plan generation; BLACKGLASS owns approval state and
+ * surfacing in the UI.  All approval mutations also POST back to the
+ * remediator so it can drive any subsequent execution path (currently always
+ * disabled; commands never auto-execute).
+ */
+export const remediationStatusEnum = pgEnum("remediation_status", [
+  "draft",
+  "awaiting_approval",
+  "approved",
+  "rejected",
+  "expired",
+]);
+
+export const saasRemediations = pgTable("saas_remediations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => saasTenants.id, { onDelete: "cascade" }),
+  /** Remediator-issued ID (ULID) — used for callbacks / approve/reject. */
+  remediationId: text("remediation_id").notNull().unique(),
+  /** Originating drift event id for UI deep-linking (nullable when unknown). */
+  driftEventId: text("drift_event_id"),
+  hostId: text("host_id"),
+  scanId: text("scan_id"),
+  status: remediationStatusEnum("status").notNull().default("awaiting_approval"),
+  riskPolicyTier: text("risk_policy_tier").notNull(),
+  summary: text("summary").notNull(),
+  /** Full plan JSON {commands, verification_steps, confidence_score, …}. */
+  plan: jsonb("plan").$type<Record<string, unknown>>().notNull(),
+  approvedBy: text("approved_by"),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type SaasRemediation = typeof saasRemediations.$inferSelect;
+
+// ── Drift mute / snooze patterns ──────────────────────────────────────────────
+
+/**
+ * Per-tenant rules for hiding known-noisy drift findings without losing the
+ * underlying data.  Each rule matches by category + a substring on the
+ * finding title, optionally scoped to a host id.  When `mutedUntil` is null
+ * the mute is permanent; otherwise it expires and the finding re-appears.
+ *
+ * The scan job applies mutes by setting `lifecycle = 'accepted_risk'` on
+ * matching events instead of dropping them — auditors still see everything.
+ */
+export const saasDriftMutes = pgTable("saas_drift_mutes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => saasTenants.id, { onDelete: "cascade" }),
+  /** Drift category enum value (matches DriftCategory in mock/types). */
+  category: text("category").notNull(),
+  /** Lower-cased substring matched against the event title. */
+  titlePattern: text("title_pattern").notNull(),
+  /** Optional collector host id — null means cross-host. */
+  hostId: text("host_id"),
+  /** Free-form reason captured at mute creation time. */
+  reason: text("reason"),
+  mutedUntil: timestamp("muted_until", { withTimezone: true }),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type SaasDriftMute = typeof saasDriftMutes.$inferSelect;
+
+// ── Per-tenant data retention policies ────────────────────────────────────────
+
+/**
+ * Tenant-controlled retention windows for the long-tail telemetry tables.
+ *
+ * A nightly worker job (`retention-cleanup-worker.ts`) walks every tenant
+ * with a row here and deletes records older than the configured number of
+ * days for each data class.  When no row exists, the deployment-wide
+ * fallback is used (the historic behaviour — keep everything).
+ *
+ * Setting any column to NULL or 0 disables retention for that data class;
+ * keep-forever wins over the global default.
+ */
+export const saasRetentionPolicies = pgTable("saas_retention_policies", {
+  tenantId: uuid("tenant_id")
+    .primaryKey()
+    .references(() => saasTenants.id, { onDelete: "cascade" }),
+  /** Days to keep `blackglass_drift_events` rows. */
+  driftEventsDays: integer("drift_events_days"),
+  /** Days to keep `blackglass_baselines` snapshots beyond the most recent per host. */
+  baselineSnapshotsDays: integer("baseline_snapshots_days"),
+  /** Days to keep `saas_audit_events` rows. */
+  auditEventsDays: integer("audit_events_days"),
+  /** Days to keep `saas_evidence_bundles` rows + their underlying objects. */
+  evidenceBundlesDays: integer("evidence_bundles_days"),
+  updatedBy: text("updated_by"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type SaasRetentionPolicy = typeof saasRetentionPolicies.$inferSelect;
+
+// ── Per-tenant data export jobs (GDPR / portability) ──────────────────────────
+
+export const dataExportStatusEnum = pgEnum("data_export_status", [
+  "queued",
+  "running",
+  "ready",
+  "failed",
+  "expired",
+]);
+
+/**
+ * Tenant-initiated data export jobs.
+ *
+ * Each job ZIPs the tenant's evidence + drift + audit + host inventory,
+ * uploads to Spaces under a temporary key, and emails the requester a
+ * signed, expiring download URL.  Rows are kept for `expiresAt` so the
+ * UI can show recent exports without surfacing stale download links.
+ */
+export const saasDataExports = pgTable("saas_data_exports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => saasTenants.id, { onDelete: "cascade" }),
+  status: dataExportStatusEnum("status").notNull().default("queued"),
+  requestedBy: text("requested_by"),
+  /** Optional override email — defaults to the requester's primary email. */
+  deliverTo: text("deliver_to"),
+  /** Spaces object key once the bundle has uploaded. */
+  objectKey: text("object_key"),
+  /** Bytes — for the UI to show "12.4 MB" without re-fetching. */
+  sizeBytes: integer("size_bytes"),
+  errorMessage: text("error_message"),
+  /** Set when `status='ready'` — when the signed URL stops working. */
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type SaasDataExport = typeof saasDataExports.$inferSelect;
+
+// ── Per-tenant CIS evidence-of-control mapping ────────────────────────────────
+
+/**
+ * Maps a tenant's CIS Controls / CIS Benchmarks IDs to drift categories that
+ * provide ongoing evidence the control is enforced.  Used to render the
+ * "Controls" tab on the Evidence page so auditors can see which control IDs
+ * each tenant is actively monitoring and where to find the supporting drift
+ * stream.
+ *
+ * Multiple drift categories can satisfy a single control; multiple controls
+ * can be satisfied by the same category.  The lifecycle column lets the
+ * tenant mark a control as `not_applicable` (with a reason) without losing
+ * the row.
+ */
+export const cisMappingStatusEnum = pgEnum("cis_mapping_status", [
+  "active",
+  "not_applicable",
+  "draft",
+]);
+
+export const saasCisMappings = pgTable(
+  "saas_cis_mappings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => saasTenants.id, { onDelete: "cascade" }),
+    /** CIS Control / Sub-Control identifier, e.g. "CIS-4.1" or "CIS-Linux-5.2.4". */
+    controlId: text("control_id").notNull(),
+    /** Display title cached at mapping time so the UI doesn't need a static dictionary. */
+    controlTitle: text("control_title").notNull(),
+    /** Drift category that provides ongoing evidence (matches DriftCategory). */
+    driftCategory: text("drift_category").notNull(),
+    status: cisMappingStatusEnum("status").notNull().default("active"),
+    /** Free-form rationale — required when status='not_applicable'. */
+    notes: text("notes"),
+    createdBy: text("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    tenantControlCategoryUq: uniqueIndex("saas_cis_mappings_tenant_control_cat_uq").on(
+      t.tenantId,
+      t.controlId,
+      t.driftCategory,
+    ),
+  }),
+);
+
+export type SaasCisMapping = typeof saasCisMappings.$inferSelect;

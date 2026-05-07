@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { getRemediationSnippet } from "@/lib/remediation-snippets";
 import { scoreEvent } from "@/lib/server/risk-score";
 import { getCisControls } from "@/lib/cis-controls";
+import { RemediationRecommendation } from "./RemediationRecommendation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -240,6 +241,8 @@ export function DriftInvestigationDrawer({
               </ul>
             </section>
           )}
+
+          <RemediationRecommendation driftEventId={event.id} canMutate={canMutate} />
 
           <section className="mt-6 space-y-3">
             <h3 className="text-sm font-medium text-fg-primary">Provenance</h3>

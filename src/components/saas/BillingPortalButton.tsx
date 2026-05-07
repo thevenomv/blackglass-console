@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 
-export function BillingPortalButton({ customerId }: { customerId: string }) {
+/**
+ * Opens the Stripe Customer Portal for the current tenant.
+ *
+ * Hits the no-arg /api/billing/portal route — the server resolves the Stripe
+ * customer id from the authenticated tenant subscription, so the client
+ * never has to know (or be able to forge) the customer id.
+ *
+ * The legacy `customerId` prop is accepted for backwards compatibility with
+ * existing call sites; it's no longer required and ignored when set.
+ */
+export function BillingPortalButton({ customerId: _customerId }: { customerId?: string } = {}) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -11,11 +21,7 @@ export function BillingPortalButton({ customerId }: { customerId: string }) {
     setError(null);
     setPending(true);
     try {
-      const res = await fetch("/api/checkout/portal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId }),
-      });
+      const res = await fetch("/api/billing/portal", { method: "POST" });
       const data = (await res.json()) as { url?: string; message?: string; error?: string };
       if (!res.ok) {
         setError(data.message ?? data.error ?? "Could not open billing portal.");

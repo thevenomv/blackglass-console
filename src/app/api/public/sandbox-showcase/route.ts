@@ -22,7 +22,7 @@
 import { NextResponse } from "next/server";
 import { withBypassRls, schema } from "@/db";
 import { eq, and, ne, desc } from "drizzle-orm";
-import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
+import { checkSandboxShowcaseRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { provisionSandbox } from "@/lib/server/services/sandbox-provisioner";
@@ -31,6 +31,21 @@ import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+/**
+ * Process-wide throttle for the auto-provision branch — prevents a request
+ * loop (bot or browser tab left open) from creating a queue stampede when
+ * the showcase Droplet is briefly missing.  Default 60s; override with
+ * SHOWCASE_PROVISION_THROTTLE_MS.
+ */
+let lastShowcaseProvisionAt = 0;
+function canKickShowcaseProvision(): boolean {
+  const throttleMs = Number(process.env.SHOWCASE_PROVISION_THROTTLE_MS ?? "60000");
+  const now = Date.now();
+  if (now - lastShowcaseProvisionAt < throttleMs) return false;
+  lastShowcaseProvisionAt = now;
+  return true;
+}
 
 /**
  * Service names that are installed on every DigitalOcean Droplet by the
@@ -145,7 +160,7 @@ const SCENE_LABELS: Record<number, {
 export async function GET(request: NextRequest) {
   const requestId = getOrCreateRequestId(request);
   const ip = clientIp(request);
-  if (!(await checkReadApiRate(ip))) {
+  if (!(await checkSandboxShowcaseRate(ip))) {
     return jsonError(429, "rate_limited", "Too many requests.", requestId);
   }
 
@@ -186,13 +201,20 @@ export async function GET(request: NextRequest) {
   if (!sandbox) {
     // No active sandbox for the showcase tenant — auto-provision one so the
     // demo page is self-healing without operator intervention.
-    // Fire-and-forget: create the DB row + enqueue the worker job.
-    try {
-      const newId = await provisionSandbox(tenantId);
-      await enqueueSandboxProvision(newId, tenantId);
-    } catch (err) {
-      // Log but don't fail the request — we can still return "provisioning"
-      console.error("[showcase] auto-provision failed", err);
+    //
+    // ABUSE GUARD: only one provisioning attempt may run per
+    // SHOWCASE_PROVISION_THROTTLE_MS across all IPs.  A unique constraint on
+    // saasSandboxes (tenant_id where status != 'destroyed') already caps the
+    // worst-case to one Droplet per tenant, but we don't even want to
+    // *enqueue* repeat jobs from a bot loop — the queue would fill up and
+    // every request would still pay the DB cost.
+    if (canKickShowcaseProvision()) {
+      try {
+        const newId = await provisionSandbox(tenantId);
+        await enqueueSandboxProvision(newId, tenantId);
+      } catch (err) {
+        console.error("[showcase] auto-provision failed", err);
+      }
     }
     return NextResponse.json(
       { status: "provisioning", sandbox: null, recentEvents: [] },

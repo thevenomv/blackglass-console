@@ -2,7 +2,7 @@
 
 export function MobileNavBar({ onOpenNav }: { onOpenNav: () => void }) {
   return (
-    <header className="sticky top-0 z-30 flex shrink-0 items-center gap-3 border-b border-border-default bg-bg-panel px-4 py-3 lg:hidden">
+    <header className="sticky top-0 z-30 flex shrink-0 items-center gap-3 border-b border-border-default bg-bg-panel px-4 py-3 md:hidden">
       <button
         type="button"
         onClick={onOpenNav}

@@ -13,6 +13,7 @@
  */
 
 import { Resend } from "resend";
+import { isAirgapped } from "@/lib/server/airgap";
 
 export interface SendEmailOptions {
   to: string | string[];
@@ -38,6 +39,14 @@ const DEFAULT_FROM =
   process.env.EMAIL_FROM ?? "BLACKGLASS <noreply@blackglasssec.com>";
 
 export async function sendEmail(opts: SendEmailOptions): Promise<{ id?: string; skipped?: boolean }> {
+  // Resend is a public-internet SaaS; air-gapped deployments must use
+  // a self-hosted SMTP relay (configure your own bridge instead of
+  // calling sendEmail directly).
+  if (isAirgapped()) {
+    console.info("[email] BLACKGLASS_AIRGAPPED is on — skipping Resend send to", opts.to);
+    return { skipped: true };
+  }
+
   const resend = getResend();
 
   if (!resend) {

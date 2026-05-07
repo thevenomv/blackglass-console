@@ -36,7 +36,10 @@ export async function GET(request: Request) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const access = await requireSaasOrLegacyPermission("reports.view", ["operator", "admin"]);
+  const access = await requireSaasOrLegacyPermission(
+    "reports.view",
+    ["viewer", "auditor", "operator", "admin"],
+  );
   if (!access.ok) return access.response;
 
   if (access.mode === "legacy") {
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const access = await requireSaasOrLegacyPermission("reports.view", ["operator", "admin"]);
+  const access = await requireSaasOrLegacyPermission("policies.manage", ["admin"]);
   if (!access.ok) return access.response;
 
   if (access.mode === "legacy") {

@@ -1,0 +1,57 @@
+{{- if .Values.opsWorker.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "blackglass.fullname" . }}-ops-worker
+  labels:
+    {{- include "blackglass.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ops-worker
+spec:
+  replicas: {{ .Values.opsWorker.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "blackglass.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ops-worker
+  template:
+    metadata:
+      labels:
+        {{- include "blackglass.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ops-worker
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if not .Values.secrets.existingSecret }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "blackglass.serviceAccountName" . }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: ops-worker
+          image: {{ include "blackglass.workerImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: {{ toYaml .Values.opsWorker.command | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "blackglass.fullname" . }}-config
+            - secretRef:
+                name: {{ include "blackglass.envSecretName" . }}
+          {{- with .Values.opsWorker.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.opsWorker.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

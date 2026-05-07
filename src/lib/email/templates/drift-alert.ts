@@ -56,7 +56,7 @@ export function driftAlertHtml(opts: DriftAlertOptions): string {
         <tbody>${rows}</tbody>
       </table>
       <div style="margin-top:24px;">
-        <a href="${opts.appUrl}/drift" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600;">Review in console &rarr;</a>
+        <a href="${opts.appUrl}/drift?jobId=${encodeURIComponent(opts.jobId)}" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600;">Review this scan &rarr;</a>
       </div>
     </div>
     <div style="background:#f7fafc;padding:12px 24px;border-top:1px solid #e2e8f0;">
@@ -79,6 +79,6 @@ export function driftAlertText(opts: DriftAlertOptions): string {
     ``,
     lines,
     ``,
-    `Review at: ${opts.appUrl}/drift`,
+    `Review at: ${opts.appUrl}/drift?jobId=${encodeURIComponent(opts.jobId)}`,
   ].join("\n");
 }

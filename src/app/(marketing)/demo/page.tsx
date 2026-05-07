@@ -31,6 +31,13 @@ export default function DemoOverviewPage() {
         <div className="flex flex-wrap gap-2">
           <DemoGateButton actionLabel="Run fleet scan">Run scan</DemoGateButton>
           <DemoGateButton actionLabel="Capture baseline">Capture baseline</DemoGateButton>
+          <a
+            href="/api/public/demo-evidence"
+            download
+            className="rounded-card border border-border-default bg-bg-panel px-4 py-2 text-sm font-medium text-fg-primary transition-colors hover:bg-bg-elevated"
+          >
+            Download sample evidence bundle
+          </a>
           <TrialSignupLink className="rounded-card bg-accent-blue px-4 py-2 text-sm font-semibold text-white hover:bg-accent-blue-hover">
             Start free trial
           </TrialSignupLink>

@@ -27,7 +27,7 @@ export async function DELETE(
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const access = await requireSaasOrLegacyPermission("reports.view", ["operator", "admin"]);
+  const access = await requireSaasOrLegacyPermission("policies.manage", ["admin"]);
   if (!access.ok) return access.response;
 
   if (access.mode === "legacy") {

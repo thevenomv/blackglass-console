@@ -14,13 +14,25 @@ import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { checkReadApiRate, checkScanPostRate, clientIp } from "@/lib/server/rate-limit";
-import { getAutoScanSchedule, setAutoScanSchedule } from "@/lib/server/queue/schedule";
+import {
+  getAutoScanSchedule,
+  setAutoScanSchedule,
+  LEGACY_SCHEDULE_TENANT,
+} from "@/lib/server/queue/schedule";
 import { planGuard } from "@/lib/plan";
 
 const ScheduleBodySchema = z.object({
   enabled: z.boolean(),
   intervalHours: z.number().int().min(1).max(168),
+  /** Optional list of collector host_ids — empty / omitted = fleet-wide. */
+  hostIds: z.array(z.string().min(1).max(64)).max(200).optional(),
 });
+
+function tenantKeyForAccess(
+  access: { mode: "saas"; ctx: { tenant: { id: string } } } | { mode: "legacy" },
+): string {
+  return access.mode === "saas" ? access.ctx.tenant.id : LEGACY_SCHEDULE_TENANT;
+}
 
 // ── GET ──────────────────────────────────────────────────────────────────────
 export async function GET(request: Request) {
@@ -33,10 +45,14 @@ export async function GET(request: Request) {
   const guard = planGuard("scheduledScans");
   if (!guard.ok) return guard.response;
 
-  const access = await requireSaasOrLegacyPermission("scans.run", ["operator", "admin"]);
+  const access = await requireSaasOrLegacyPermission(
+    "scans.run",
+    ["operator", "admin"],
+    { request, scope: "scans.run" },
+  );
   if (!access.ok) return access.response;
 
-  const schedule = await getAutoScanSchedule();
+  const schedule = await getAutoScanSchedule(tenantKeyForAccess(access));
   return NextResponse.json({ schedule, requestId });
 }
 
@@ -51,7 +67,11 @@ export async function PUT(request: Request) {
   const guard = planGuard("scheduledScans");
   if (!guard.ok) return guard.response;
 
-  const access = await requireSaasOrLegacyPermission("scans.run", ["operator", "admin"]);
+  const access = await requireSaasOrLegacyPermission(
+    "scans.run",
+    ["operator", "admin"],
+    { request, scope: "scans.run" },
+  );
   if (!access.ok) return access.response;
 
   const raw = await readJsonBodyOptional(request, requestId);
@@ -61,7 +81,7 @@ export async function PUT(request: Request) {
   if (!parsed.success) return zodErrorResponse(parsed.error, requestId);
 
   try {
-    await setAutoScanSchedule(parsed.data);
+    await setAutoScanSchedule(tenantKeyForAccess(access), parsed.data);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return jsonError(500, "schedule_update_failed", msg, requestId);

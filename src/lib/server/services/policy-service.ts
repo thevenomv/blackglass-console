@@ -13,6 +13,7 @@
 import { withTenantRls, schema } from "@/db";
 import { eq, and } from "drizzle-orm";
 import type { HostSnapshot } from "@/lib/server/collector/types";
+import type { DriftCategory, DriftSeverity } from "@/data/mock/types";
 
 const { saasHostPolicies } = schema;
 
@@ -20,13 +21,27 @@ const { saasHostPolicies } = schema;
 // Types
 // ---------------------------------------------------------------------------
 
+/** Drift categories that policies may target — must match `DriftCategory` in mock/types. */
+export const POLICY_CATEGORIES = [
+  "ssh",
+  "network_exposure",
+  "firewall",
+  "packages",
+  "integrity",
+  "identity",
+  "privilege_escalation",
+  "persistence",
+] as const satisfies readonly DriftCategory[];
+
+export type PolicyCategory = (typeof POLICY_CATEGORIES)[number];
+
 export interface PolicyRule {
   id: string;
   name: string;
-  category: string;
+  category: PolicyCategory;
   conditionKey: string;
   conditionValue: string;
-  severity: "high" | "medium" | "low";
+  severity: DriftSeverity;
   enabled: boolean;
   createdAt: string;
   createdBy: string | null;
@@ -35,11 +50,15 @@ export interface PolicyRule {
 export interface PolicyViolation {
   policyId: string;
   policyName: string;
-  category: string;
-  severity: "high" | "medium" | "low";
+  category: PolicyCategory;
+  severity: DriftSeverity;
   key: string;
   expected: string;
   actual: string;
+}
+
+function isPolicyCategory(value: string): value is PolicyCategory {
+  return (POLICY_CATEGORIES as readonly string[]).includes(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -140,13 +159,16 @@ export function evaluatePolicies(
 // ---------------------------------------------------------------------------
 
 function rowToRule(row: typeof saasHostPolicies.$inferSelect): PolicyRule {
+  const category: PolicyCategory = isPolicyCategory(row.category)
+    ? row.category
+    : "integrity"; // safe fallback for legacy rows with unrecognised categories
   return {
     id: row.id,
     name: row.name,
-    category: row.category,
+    category,
     conditionKey: row.conditionKey,
     conditionValue: row.conditionValue,
-    severity: row.severity as "high" | "medium" | "low",
+    severity: row.severity as DriftSeverity,
     enabled: row.enabled,
     createdAt: row.createdAt.toISOString(),
     createdBy: row.createdBy,

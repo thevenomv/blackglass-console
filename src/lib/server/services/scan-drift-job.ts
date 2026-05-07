@@ -12,13 +12,18 @@ import { dispatchDriftWebhook } from "@/lib/server/outbound-webhook";
 import { sendEmail } from "@/lib/email/send";
 import { driftAlertHtml, driftAlertText } from "@/lib/email/templates/drift-alert";
 import type { DriftEvent } from "@/data/mock/types";
+import { evaluatePolicies, listPolicies, type PolicyViolation } from "./policy-service";
+import { getTenantNotifications } from "./notifications-service";
+import { applyMutes, listActiveMutesForWorker } from "./drift-mute-service";
+import type { HostSnapshot } from "@/lib/server/collector/types";
 
 // ---------------------------------------------------------------------------
-// Slack alerting — fire-and-forget; no-op when SLACK_ALERT_WEBHOOK_URL is unset
+// Slack alerting — fire-and-forget; resolves URL from per-tenant settings or env.
 // ---------------------------------------------------------------------------
 
-async function alertSlack(text: string): Promise<void> {
-  const url = process.env.SLACK_ALERT_WEBHOOK_URL;
+async function alertSlack(text: string, tenantId: string | undefined): Promise<void> {
+  const routing = await getTenantNotifications(tenantId);
+  const url = routing.slackWebhookUrl;
   if (!url) return;
   try {
     await fetch(url, {
@@ -36,13 +41,67 @@ async function alertSlack(text: string): Promise<void> {
 // Email alerting — fire-and-forget; no-op when ALERT_EMAIL_TO is unset
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Policy evaluation — fetch tenant policies once per scan, evaluate per host,
+// and surface violations as synthetic DriftEvents alongside engine-produced
+// drift. No-op when collectOpts.tenantId is unset (legacy/non-SaaS mode).
+// ---------------------------------------------------------------------------
+
+function violationToDriftEvent(
+  hostId: string,
+  v: PolicyViolation,
+  detectedAt: string,
+): DriftEvent {
+  return {
+    id: `policy-${v.policyId}-${hostId}`.slice(0, 64),
+    hostId,
+    category: v.category,
+    severity: v.severity,
+    lifecycle: "new",
+    title: `Policy violation: ${v.policyName}`,
+    detectedAt,
+    rationale: `Policy "${v.policyName}" requires ${v.key} = "${v.expected}" but the host reports "${v.actual}".`,
+    evidenceSummary: JSON.stringify({
+      policyId: v.policyId,
+      key: v.key,
+      expected: v.expected,
+      actual: v.actual,
+    }),
+    suggestedActions: [
+      `Restore ${v.key} to "${v.expected}" on the host`,
+      "Investigate why the value drifted (manual change, configuration management, package update)",
+      "Update the policy if the change is legitimate",
+    ],
+  };
+}
+
+async function evaluateTenantPolicies(
+  tenantId: string,
+  snapshot: HostSnapshot,
+): Promise<DriftEvent[]> {
+  try {
+    const policies = await listPolicies(tenantId);
+    if (policies.length === 0) return [];
+    const violations = evaluatePolicies(policies, snapshot);
+    if (violations.length === 0) return [];
+    const detectedAt = new Date().toISOString();
+    return violations.map((v) => violationToDriftEvent(snapshot.hostId, v, detectedAt));
+  } catch (err) {
+    console.error("[scan-drift-job] Policy evaluation failed:", err);
+    return [];
+  }
+}
+
 async function alertDriftEmail(
   jobId: string,
   hostname: string,
   highEvents: DriftEvent[],
+  tenantId: string | undefined,
 ): Promise<void> {
-  const to = process.env.ALERT_EMAIL_TO?.trim();
-  if (!to || highEvents.length === 0) return;
+  if (highEvents.length === 0) return;
+  const routing = await getTenantNotifications(tenantId);
+  const to = routing.alertEmailTo;
+  if (!to) return;
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "https://app.blackglasssec.com";
   try {
@@ -87,24 +146,48 @@ export async function executeDriftScanJob(
         continue;
       }
 
-      const events = computeDrift(baseline, current);
-      console.log(`[scan-drift-job] hostId=${current.hostId} drift=${events.length} events: ${events.map(e => e.title).join(", ") || "(none)"}`);
+      const driftEvents = computeDrift(baseline, current);
+      const policyEvents = collectOpts.tenantId
+        ? await evaluateTenantPolicies(collectOpts.tenantId, current)
+        : [];
+      let events = [...driftEvents, ...policyEvents];
+
+      // Apply tenant snooze/mute rules — matched events are kept but flipped
+      // to lifecycle:"accepted_risk" so they stop alerting while remaining
+      // in the audit trail.
+      if (collectOpts.tenantId) {
+        try {
+          const mutes = await listActiveMutesForWorker(collectOpts.tenantId);
+          if (mutes.length > 0) events = applyMutes(events, mutes);
+        } catch (err) {
+          console.error("[scan-drift-job] mute load failed:", err);
+        }
+      }
+      console.log(
+        `[scan-drift-job] hostId=${current.hostId} drift=${driftEvents.length} policy=${policyEvents.length} events: ${events.map((e) => e.title).join(", ") || "(none)"}`,
+      );
       storeDriftEvents(current.hostId, events);
       totalDrift += events.length;
 
-      // Email alert for high-severity findings (non-blocking).
-      const highEvents = events.filter((e) => e.severity === "high");
+      // Email alert for high-severity findings (non-blocking).  Muted
+      // findings (lifecycle === "accepted_risk") are excluded from alerting
+      // but kept in the audit trail.
+      const highEvents = events.filter(
+        (e) => e.severity === "high" && e.lifecycle !== "accepted_risk",
+      );
       if (highEvents.length > 0) {
-        void alertDriftEmail(jobId, current.hostname, highEvents);
+        void alertDriftEmail(jobId, current.hostname, highEvents, collectOpts.tenantId);
       }
 
-      // Fire outbound webhooks for qualifying findings (non-blocking).
-      if (events.length > 0) {
+      // Fire outbound webhooks for non-muted findings (non-blocking).
+      const dispatchableEvents = events.filter((e) => e.lifecycle !== "accepted_risk");
+      if (dispatchableEvents.length > 0) {
         void dispatchDriftWebhook({
           scanId: jobId,
+          ...(collectOpts.tenantId ? { tenantId: collectOpts.tenantId } : {}),
           hostId: current.hostId,
           hostname: current.hostname,
-          events,
+          events: dispatchableEvents,
         });
       }
 
@@ -122,7 +205,7 @@ export async function executeDriftScanJob(
         detail: `Scan ${jobId} failed: ${failures.join("; ")}`,
         scan_id: jobId,
       });
-      void alertSlack(`:x: *Scan failed* \`${jobId}\`\n${failures.join("\n")}`);
+      void alertSlack(`:x: *Scan failed* \`${jobId}\`\n${failures.join("\n")}`, collectOpts.tenantId);
     } else {
       await recordDriftScanDayStamp(totalDrift);
       resolveScan(jobId, "succeeded", failures.length ? failures.join("; ") : undefined, totalDrift);
@@ -155,7 +238,7 @@ export async function executeDriftScanJob(
       detail: `Scan ${jobId} failed: ${message}`,
       scan_id: jobId,
     });
-    void alertSlack(`:x: *Scan exception* \`${jobId}\`\n${message}`);
+    void alertSlack(`:x: *Scan exception* \`${jobId}\`\n${message}`, collectOpts.tenantId);
   } finally {
     // Always drain the running-scans registry so SIGTERM doesn't hang.
     markScanDone(jobId);

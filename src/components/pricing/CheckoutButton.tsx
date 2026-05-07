@@ -8,9 +8,11 @@ interface CheckoutButtonProps {
   children: React.ReactNode;
   /** SaaS plan code — passed to the checkout API to route to the correct Stripe price. */
   planCode?: string;
+  /** "monthly" (default) or "annual" — selects the matching Stripe price. */
+  billingCycle?: "monthly" | "annual";
 }
 
-export default function CheckoutButton({ className, children, planCode }: CheckoutButtonProps) {
+export default function CheckoutButton({ className, children, planCode, billingCycle }: CheckoutButtonProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
@@ -20,7 +22,11 @@ export default function CheckoutButton({ className, children, planCode }: Checko
     setErrorCode(null);
     setErrorDetail(null);
     try {
-      const body = planCode ? JSON.stringify({ planCode }) : undefined;
+      const reqPayload: Record<string, string> = {};
+      if (planCode) reqPayload.planCode = planCode;
+      if (billingCycle) reqPayload.billingCycle = billingCycle;
+      const body =
+        Object.keys(reqPayload).length > 0 ? JSON.stringify(reqPayload) : undefined;
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

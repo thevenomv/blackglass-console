@@ -31,33 +31,53 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
     new URL(request.url).origin;
 
-  // Resolve Stripe price ID by plan code.
-  // Set STRIPE_STARTER_PRICE_ID / STRIPE_GROWTH_PRICE_ID / STRIPE_BUSINESS_PRICE_ID in env.
-  // Falls back to inline price_data so checkout works without Stripe dashboard setup.
+  // Resolve Stripe price ID by plan code + billing cycle.
+  //   STRIPE_<PLAN>_PRICE_ID         — monthly recurring (default)
+  //   STRIPE_<PLAN>_ANNUAL_PRICE_ID  — annual recurring (≈ 10× monthly = 2 months free)
+  //
+  // When the annual env var is missing we fall back to inline price_data
+  // with interval='year' and amount = monthly × 10 so the toggle on the
+  // pricing page works against a freshly-cloned deployment without
+  // operator setup.
   let planCode = "starter";
+  let billingCycle: "monthly" | "annual" = "monthly";
   try {
-    const body = await request.json() as { planCode?: string };
+    const body = (await request.json()) as { planCode?: string; billingCycle?: string };
     if (body?.planCode && ["starter", "growth", "business"].includes(body.planCode)) {
       planCode = body.planCode;
     }
+    if (body?.billingCycle === "annual" || body?.billingCycle === "monthly") {
+      billingCycle = body.billingCycle;
+    }
   } catch {
-    // No body or non-JSON body — use default plan
+    // No body or non-JSON body — use defaults.
   }
 
-  const PLAN_PRICE_ENV: Record<string, string | undefined> = {
-    starter:  process.env.STRIPE_STARTER_PRICE_ID,
-    growth:   process.env.STRIPE_GROWTH_PRICE_ID,
-    business: process.env.STRIPE_BUSINESS_PRICE_ID,
+  const PLAN_PRICE_ENV: Record<string, { monthly: string | undefined; annual: string | undefined }> = {
+    starter: {
+      monthly: process.env.STRIPE_STARTER_PRICE_ID,
+      annual: process.env.STRIPE_STARTER_ANNUAL_PRICE_ID,
+    },
+    growth: {
+      monthly: process.env.STRIPE_GROWTH_PRICE_ID,
+      annual: process.env.STRIPE_GROWTH_ANNUAL_PRICE_ID,
+    },
+    business: {
+      monthly: process.env.STRIPE_BUSINESS_PRICE_ID,
+      annual: process.env.STRIPE_BUSINESS_ANNUAL_PRICE_ID,
+    },
   };
 
-  const PLAN_FALLBACK: Record<string, { name: string; description: string; amount: number }> = {
-    starter:  { name: "BLACKGLASS Starter",  description: "25 hosts · 2 operator seats · 180-day history", amount: 7900  },
-    growth:   { name: "BLACKGLASS Growth",   description: "100 hosts · 5 operator seats · fleet dashboard",  amount: 19900 },
-    business: { name: "BLACKGLASS Business", description: "300 hosts · 10 operator seats · approval workflows", amount: 49900 },
+  const PLAN_FALLBACK: Record<string, { name: string; description: string; monthlyAmount: number }> = {
+    starter:  { name: "BLACKGLASS Starter",  description: "25 hosts · 2 operator seats · 180-day history", monthlyAmount: 7900  },
+    growth:   { name: "BLACKGLASS Growth",   description: "100 hosts · 5 operator seats · fleet dashboard",  monthlyAmount: 19900 },
+    business: { name: "BLACKGLASS Business", description: "300 hosts · 10 operator seats · approval workflows", monthlyAmount: 49900 },
   };
 
-  const priceId = PLAN_PRICE_ENV[planCode];
+  const priceId = PLAN_PRICE_ENV[planCode][billingCycle];
   const fallback = PLAN_FALLBACK[planCode];
+  const interval: "month" | "year" = billingCycle === "annual" ? "year" : "month";
+  const amount = billingCycle === "annual" ? fallback.monthlyAmount * 10 : fallback.monthlyAmount;
 
   const lineItems = priceId
     ? [{ price: priceId, quantity: 1 }]
@@ -65,15 +85,23 @@ export async function POST(request: Request) {
         {
           price_data: {
             currency: "usd",
-            product_data: { name: fallback.name, description: fallback.description, images: [] as string[] },
-            unit_amount: fallback.amount,
-            recurring: { interval: "month" as const },
+            product_data: {
+              name: `${fallback.name}${billingCycle === "annual" ? " (annual)" : ""}`,
+              description: fallback.description,
+              images: [] as string[],
+            },
+            unit_amount: amount,
+            recurring: { interval },
           },
           quantity: 1,
         },
       ];
 
-  let sessionMetadata: Record<string, string> = { plan: planCode, source: "blackglass_checkout" };
+  let sessionMetadata: Record<string, string> = {
+    plan: planCode,
+    billing_cycle: billingCycle,
+    source: "blackglass_checkout",
+  };
   if (isClerkAuthEnabled()) {
     const { orgId } = await auth();
     if (orgId) {

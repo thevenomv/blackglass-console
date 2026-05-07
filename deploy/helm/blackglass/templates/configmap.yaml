@@ -1,0 +1,15 @@
+{{- /*
+ConfigMap with non-secret env vars. Mounted via envFrom on every pod
+alongside the Secret. Keys are emitted verbatim so .Values.config can
+include any env name BLACKGLASS recognises.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "blackglass.fullname" . }}-config
+  labels:
+    {{- include "blackglass.labels" . | nindent 4 }}
+data:
+  {{- range $k, $v := .Values.config }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}

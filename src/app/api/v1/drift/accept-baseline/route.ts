@@ -80,38 +80,58 @@ export async function POST(request: Request) {
   }
 
   // ------------------------------------------------------------------
-  // Attempt live baseline re-capture for affected hosts (best-effort)
+  // Attempt live baseline re-capture for affected hosts in parallel
+  // (best-effort).  Bounded fan-out so a 50-host bulk-accept doesn't
+  // exhaust the SSH worker pool — sshd MaxStartups default is 10:30:100.
   // ------------------------------------------------------------------
   const hostsCaptured: string[] = [];
   const failed: { hostId: string; detail: string }[] = [];
 
-  for (const hostId of affectedHostIds) {
-    try {
-      // Lazy import to avoid pulling SSH deps into every request
-      const { collectSnapshot } = await import("@/lib/server/collector");
-      const { saveBaseline } = await import("@/lib/server/baseline-store");
-      const snap = await collectSnapshot({ hostIds: [hostId], reason: "baseline" });
-      await saveBaseline(snap);
-      hostsCaptured.push(hostId);
-    } catch (err) {
-      // Best-effort — we already removed the events, so the drift list is clean
-      const detail = err instanceof Error ? err.message : String(err);
-      console.warn(`[accept-baseline] Re-capture failed for ${hostId}: ${detail}`);
-      failed.push({ hostId, detail });
-    }
+  const { collectSnapshot } = await import("@/lib/server/collector");
+  const { saveBaseline } = await import("@/lib/server/baseline-store");
+
+  const FANOUT = 8;
+  for (let i = 0; i < affectedHostIds.length; i += FANOUT) {
+    const batch = affectedHostIds.slice(i, i + FANOUT);
+    const settled = await Promise.allSettled(
+      batch.map(async (hostId) => {
+        const snap = await collectSnapshot({ hostIds: [hostId], reason: "baseline" });
+        await saveBaseline(snap);
+        return hostId;
+      }),
+    );
+    settled.forEach((res, idx) => {
+      const hostId = batch[idx]!;
+      if (res.status === "fulfilled") {
+        hostsCaptured.push(hostId);
+      } else {
+        const detail = res.reason instanceof Error ? res.reason.message : String(res.reason);
+        console.warn(`[accept-baseline] Re-capture failed for ${hostId}: ${detail}`);
+        failed.push({ hostId, detail });
+      }
+    });
   }
 
   // ------------------------------------------------------------------
   // Audit log
   // ------------------------------------------------------------------
   const summary = `${accepted.length} finding(s) accepted as new baseline on host(s): ${affectedHostIds.join(", ")}`;
-  await appendAudit(AUDIT_ACTIONS.BASELINE_ACCEPTED ?? "baseline_accepted", summary);
+  appendAudit({
+    action: AUDIT_ACTIONS.BASELINE_ACCEPTED ?? "baseline_accepted",
+    detail: summary,
+  });
 
   if (saasCtx) {
-    await emitSaasAudit(saasCtx, "baseline_accepted", {
-      eventCount: accepted.length,
-      hostIds: affectedHostIds,
-      eventIds: [...eventIds],
+    await emitSaasAudit({
+      tenantId: saasCtx.tenant.id,
+      actorUserId: saasCtx.userId,
+      action: "baseline_accepted",
+      targetType: "drift_event",
+      metadata: {
+        eventCount: accepted.length,
+        hostIds: affectedHostIds,
+        eventIds: [...eventIds],
+      },
     });
   }
 

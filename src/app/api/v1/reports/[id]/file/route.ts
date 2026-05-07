@@ -53,7 +53,10 @@ export async function GET(
   if (meta.format === "pdf") {
     // The stored content is always JSON — generate real PDF bytes on demand.
     const pdfBytes = await generateReportPdf(content);
-    return new NextResponse(pdfBytes, {
+    // BlobPart accepts ArrayBuffer / Uint8Array<ArrayBuffer>; the slice copy
+    // turns the lib's Uint8Array<ArrayBufferLike> into a fresh ArrayBuffer.
+    const buf = new Uint8Array(pdfBytes).slice().buffer;
+    return new NextResponse(buf, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

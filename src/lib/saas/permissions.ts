@@ -16,7 +16,13 @@ export type SaasPermission =
   | "reports.view"
   | "dashboards.view"
   | "alerts.view"
-  | "evidence.view";
+  | "evidence.view"
+  /** Manage long-lived programmatic API keys (mint/list/revoke). Owner + admin. */
+  | "apikeys.manage"
+  /** Manage host-policy invariants (mint/list/disable). Owner + admin. */
+  | "policies.manage"
+  /** Manage tenant integration settings (webhooks, alert routing, schedule). Owner + admin. */
+  | "settings.write";
 
 const matrix: Record<TenantRole, readonly SaasPermission[]> = {
   owner: [
@@ -33,6 +39,9 @@ const matrix: Record<TenantRole, readonly SaasPermission[]> = {
     "dashboards.view",
     "alerts.view",
     "evidence.view",
+    "apikeys.manage",
+    "policies.manage",
+    "settings.write",
   ],
   admin: [
     "members.invite_non_owner",
@@ -46,6 +55,9 @@ const matrix: Record<TenantRole, readonly SaasPermission[]> = {
     "dashboards.view",
     "alerts.view",
     "evidence.view",
+    "apikeys.manage",
+    "policies.manage",
+    "settings.write",
   ],
   operator: [
     "secrets.manage",

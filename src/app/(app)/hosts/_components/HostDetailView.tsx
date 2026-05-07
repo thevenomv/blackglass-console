@@ -213,7 +213,8 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
 
       {tab === "users" && (
         <Card title="Local users">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-fg-faint">
               <tr>
                 <th className="pb-2 font-medium">User</th>
@@ -243,12 +244,14 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
 
       {tab === "services" && (
         <Card title="systemd units">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-fg-faint">
               <tr>
                 <th className="pb-2 font-medium">Unit</th>
@@ -276,6 +279,7 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
 

@@ -35,6 +35,7 @@ const NAV_RESOURCE: { href: string; label: string }[] = [
     ? [
         { href: "/settings/members", label: "Members" },
         { href: "/settings/billing", label: "Billing" },
+        { href: "/audit", label: "Audit log" },
       ]
     : []),
 ];
@@ -45,6 +46,7 @@ const GUEST_AUDITOR_HREFS = new Set([
   "/reports",
   "/welcome",
   "/demo",
+  "/audit",
 ]);
 
 function navAllowed(href: string, tenantRole: TenantRole | null): boolean {

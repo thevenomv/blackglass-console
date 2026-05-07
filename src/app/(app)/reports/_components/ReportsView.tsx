@@ -195,14 +195,34 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState
-          title="No reports for this filter"
-          description="Generate a report from the latest fleet scan or schedule recurring summaries."
-          action={<Button type="button" onClick={() => setNewReportOpen(true)}>Generate report</Button>}
-        />
+        reports.length === 0 ? (
+          <EmptyState
+            title="No reports yet"
+            description="Reports roll up the latest fleet scan into a shareable summary — useful for post-incident review, change windows, and compliance evidence. Generate your first one when you have a recent scan to summarise."
+            action={
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={() => setNewReportOpen(true)}>
+                  Generate report
+                </Button>
+                <a
+                  href="/drift"
+                  className="inline-flex h-9 items-center justify-center rounded-card border border-border-default px-4 text-sm font-medium text-fg-muted transition-colors hover:text-fg-primary"
+                >
+                  Review drift findings
+                </a>
+              </div>
+            }
+          />
+        ) : (
+          <EmptyState
+            title="No reports for this filter"
+            description="Adjust the status filter above, or generate a new report from the latest fleet scan."
+            action={<Button type="button" onClick={() => setNewReportOpen(true)}>Generate report</Button>}
+          />
+        )
       ) : (
-        <div className="overflow-hidden rounded-card border border-border-default">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-card border border-border-default">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="border-b border-border-subtle bg-bg-panel text-xs uppercase tracking-wide text-fg-faint">
               <tr>
                 <th className="px-4 py-3 font-medium">Report</th>

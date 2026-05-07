@@ -210,6 +210,125 @@ export async function POST(request: Request) {
         }
         break;
       }
+      case "user.created": {
+        // SCIM provisioning detection.  Clerk doesn't expose a clean
+        // "created via SCIM" flag on the webhook payload, so we use
+        // the structural heuristic that SCIM-provisioned users have
+        // ALL of:
+        //   - no password_enabled
+        //   - no external_accounts (no OAuth)
+        //   - at least one email marked as `from_oauth=false` and
+        //     verification.strategy in {"admin", "ticket", null}
+        // — i.e. the IdP minted them, the user never signed up
+        // interactively. We emit `auth.scim_provisioned` so the
+        // SaaS audit log distinguishes IdP-pushed users from in-app
+        // invites.
+        try {
+          const userData = evt.data as {
+            id?: string;
+            password_enabled?: boolean;
+            external_accounts?: unknown[];
+            email_addresses?: Array<{
+              verification?: { strategy?: string; status?: string };
+              from_oauth?: boolean;
+            }>;
+            organization_memberships?: Array<{
+              organization?: { id?: string };
+            }>;
+          };
+          const userId = userData.id;
+          if (!userId) break;
+          const isScim =
+            userData.password_enabled === false &&
+            (userData.external_accounts?.length ?? 0) === 0 &&
+            (userData.email_addresses ?? []).every((e) => {
+              const strat = e.verification?.strategy;
+              return e.from_oauth !== true && (strat === "admin" || strat === "ticket" || !strat);
+            });
+          if (!isScim) break;
+
+          // SCIM users land in an org from the same SCIM transaction;
+          // the org id is available either on the user payload's
+          // organization_memberships or via a follow-up Clerk API
+          // call. Prefer the cheap path (payload field) and fall
+          // back to nothing rather than burning an API call.
+          const orgId = userData.organization_memberships?.[0]?.organization?.id;
+          if (!orgId) break;
+          const rows = await getTenantRowByClerkOrg(orgId);
+          const tenantId = rows[0]?.id;
+          if (!tenantId) break;
+
+          await emitSaasAudit({
+            tenantId,
+            actorUserId: userId,
+            action: "auth.scim_provisioned",
+            targetType: "user",
+            targetId: userId,
+            metadata: {
+              clerk_org_id: orgId,
+              email_count: (userData.email_addresses ?? []).length,
+            },
+          });
+        } catch (e) {
+          console.warn(
+            `[clerk-webhook] user.created SCIM audit failed: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        break;
+      }
+      case "session.created": {
+        // SAML SSO logins arrive as a regular Clerk session — the only
+        // signal that this was federated rather than direct password /
+        // OAuth is `last_active_organization_id` paired with the user's
+        // verifications. We emit a structured audit row so SOC reviewers
+        // can filter on `auth.sso_login` distinctly from password
+        // logins. Best-effort: never fails the webhook on parse errors.
+        try {
+          const sessionData = evt.data as {
+            user_id?: string;
+            last_active_organization_id?: string;
+            client_id?: string;
+            id?: string;
+          };
+          const userId = sessionData.user_id;
+          const orgId = sessionData.last_active_organization_id;
+          if (!userId || !orgId) break;
+
+          // Look up the user's primary verification strategy. We only
+          // want to audit SSO/SAML strategies as a security event; OAuth
+          // and password sign-ins already have abundant audit coverage.
+          const client = await clerkClient();
+          const user = await client.users.getUser(userId);
+          const verifications = (user.emailAddresses ?? [])
+            .map((e) => e.verification?.strategy)
+            .filter((s): s is string => typeof s === "string");
+          const isSaml = verifications.some((s) => s.includes("saml"));
+          const isOAuth = verifications.some((s) => s.startsWith("oauth_"));
+          if (!isSaml) break;
+
+          const rows = await getTenantRowByClerkOrg(orgId);
+          const tenantId = rows[0]?.id;
+          if (!tenantId) break;
+
+          await emitSaasAudit({
+            tenantId,
+            actorUserId: userId,
+            action: "auth.sso_login",
+            targetType: "session",
+            targetId: sessionData.id ?? null,
+            metadata: {
+              clerk_org_id: orgId,
+              strategies: verifications,
+              also_oauth: isOAuth,
+            },
+          });
+        } catch (e) {
+          console.warn(
+            `[clerk-webhook] session.created SSO audit failed: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        break;
+      }
       default:
         break;
     }

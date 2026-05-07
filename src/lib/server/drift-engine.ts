@@ -313,6 +313,35 @@ export function computeDrift(
 
   // --- Sudoers.d files ---
   const baselineSudoersFiles = new Set(baseline.sudoersFiles ?? []);
+  const currentSudoersFiles = new Set(current.sudoersFiles ?? []);
+  for (const file of baselineSudoersFiles) {
+    if (!currentSudoersFiles.has(file)) {
+      events.push({
+        id: id("drift-sudoers-file-removed", file),
+        hostId,
+        category: "identity",
+        severity: "medium",
+        lifecycle: "new",
+        title: `Sudoers policy file removed: /etc/sudoers.d/${file}`,
+        detectedAt: now(),
+        rationale: `A sudoers file present in the baseline is no longer on disk. Removal could be intentional cleanup, or an attacker covering tracks after using a temporary delegation.`,
+        evidenceSummary: JSON.stringify({
+          file: `/etc/sudoers.d/${file}`,
+          current: "not present",
+        }),
+        suggestedActions: [
+          "Confirm the removal was intentional",
+          "Check auth.log around the removal time for who ran sudo or modified /etc/sudoers.d/",
+        ],
+        provenance: {
+          collector: "ssh/sudoers.d",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
   for (const file of current.sudoersFiles ?? []) {
     if (!baselineSudoersFiles.has(file)) {
       events.push({
@@ -345,6 +374,35 @@ export function computeDrift(
 
   // --- Cron entries ---
   const baselineCron = new Set(baseline.cronEntries.map((c) => c.filename));
+  const currentCron = new Set(current.cronEntries.map((c) => c.filename));
+  for (const filename of baselineCron) {
+    if (!currentCron.has(filename)) {
+      events.push({
+        id: id("drift-cron-removed", filename),
+        hostId,
+        category: "persistence",
+        severity: "medium",
+        lifecycle: "new",
+        title: `Cron job removed: /etc/cron.d/${filename}`,
+        detectedAt: now(),
+        rationale: `Cron file "${filename}" was present in the baseline but is no longer on disk. Removal can indicate an attacker cleaning up a planted job after first execution, or scheduled-task hygiene.`,
+        evidenceSummary: JSON.stringify({
+          file: `/etc/cron.d/${filename}`,
+          current: "not present",
+        }),
+        suggestedActions: [
+          "Confirm the removal was intentional",
+          "Audit syslog for execution evidence: `journalctl --since=<baseline-date> | grep " + filename + "`",
+        ],
+        provenance: {
+          collector: "ssh/cron.d",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
   for (const entry of current.cronEntries) {
     if (!baselineCron.has(entry.filename)) {
       events.push({
@@ -743,6 +801,35 @@ export function computeDrift(
 
   // --- SUID/SGID binaries ---
   const baselineSuid = new Set(baseline.suidBinaries ?? []);
+  const currentSuid = new Set(current.suidBinaries ?? []);
+  for (const bin of baselineSuid) {
+    if (!currentSuid.has(bin)) {
+      events.push({
+        id: id("drift-suid-removed", bin),
+        hostId,
+        category: "privilege_escalation",
+        severity: "low",
+        lifecycle: "new",
+        title: `SUID/SGID binary removed: ${bin}`,
+        detectedAt: now(),
+        rationale: `A binary with SUID/SGID permissions present in the baseline is no longer on disk. Removal can indicate hardening, or an attacker cleaning up a planted privilege-escalation tool.`,
+        evidenceSummary: JSON.stringify({
+          path: bin,
+          current: "not present",
+        }),
+        suggestedActions: [
+          "Confirm the removal was intentional (hardening) or expected (package uninstall)",
+          "If unexpected, audit recent file deletions and shell history",
+        ],
+        provenance: {
+          collector: "ssh/find-suid",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
   for (const bin of current.suidBinaries ?? []) {
     if (!baselineSuid.has(bin)) {
       events.push({
@@ -776,6 +863,36 @@ export function computeDrift(
 
   // --- Kernel modules ---
   const baselineMods = new Set(baseline.kernelModules ?? []);
+  const currentMods = new Set(current.kernelModules ?? []);
+  for (const mod of baselineMods) {
+    if (!currentMods.has(mod)) {
+      events.push({
+        id: id("drift-kmod-removed", mod),
+        hostId,
+        category: "integrity",
+        severity: "medium",
+        lifecycle: "new",
+        title: `Kernel module unloaded: ${mod}`,
+        detectedAt: now(),
+        rationale: `Kernel module "${mod}" was loaded in the baseline but is no longer present. Modules rarely unload spontaneously — investigate whether a security module was disabled or a rootkit cleaned up after itself.`,
+        evidenceSummary: JSON.stringify({
+          module: mod,
+          current: "not loaded",
+        }),
+        suggestedActions: [
+          "Confirm whether the unload was intentional",
+          "Check dmesg for module unload events: `dmesg -T | grep " + mod + "`",
+          "If a security module (audit, apparmor, selinux), re-enable immediately",
+        ],
+        provenance: {
+          collector: "ssh/lsmod",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
   for (const mod of current.kernelModules ?? []) {
     if (!baselineMods.has(mod)) {
       events.push({
@@ -807,8 +924,139 @@ export function computeDrift(
     }
   }
 
+  // --- Installed packages (apt/dpkg or rpm) ---
+  // Three change classes worth surfacing:
+  //   - new package      (medium — could be authorised install or ad-hoc)
+  //   - removed package  (low    — typically intentional cleanup)
+  //   - version change   (medium — patch / supply-chain interest)
+  const baselinePkgs = new Map(
+    (baseline.installedPackages ?? []).map((p) => [p.name, p.version]),
+  );
+  const currentPkgs = new Map(
+    (current.installedPackages ?? []).map((p) => [p.name, p.version]),
+  );
+
+  for (const [name, version] of currentPkgs) {
+    const prev = baselinePkgs.get(name);
+    if (prev === undefined) {
+      events.push({
+        id: id("drift-pkg-added", `${name}-${version}`),
+        hostId,
+        category: "packages",
+        severity: "medium",
+        lifecycle: "new",
+        title: `Package installed: ${name} (${version || "no version"})`,
+        detectedAt: now(),
+        rationale: `Package "${name}" was not present in the baseline. Newly installed packages can introduce new code paths, network listeners, and supply-chain risk.`,
+        evidenceSummary: JSON.stringify({
+          name,
+          version,
+          baseline: "not present",
+        }),
+        suggestedActions: [
+          `Verify the install was authorised: \`apt-get install --simulate ${name}\` shows the dependency tree`,
+          "Check who installed it: `last`, `journalctl _COMM=apt`",
+          "Update the baseline if the install is approved",
+        ],
+        provenance: {
+          collector: "ssh/dpkg|rpm",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    } else if (prev !== version) {
+      events.push({
+        id: id("drift-pkg-version", `${name}-${version}`),
+        hostId,
+        category: "packages",
+        severity: "medium",
+        lifecycle: "new",
+        title: `Package version changed: ${name} (${prev} → ${version})`,
+        detectedAt: now(),
+        rationale: `Package "${name}" was upgraded or downgraded since the baseline. Version changes commonly land via patching or out-of-band ad-hoc installs.`,
+        evidenceSummary: JSON.stringify({
+          name,
+          baselineVersion: prev,
+          currentVersion: version,
+        }),
+        suggestedActions: [
+          `Inspect the change: \`apt list --installed | grep ${name}\` or \`rpm -q --info ${name}\``,
+          "Confirm the upgrade matches a scheduled patch window",
+          "Update the baseline if the change is intentional",
+        ],
+        provenance: {
+          collector: "ssh/dpkg|rpm",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  for (const [name, version] of baselinePkgs) {
+    if (!currentPkgs.has(name)) {
+      events.push({
+        id: id("drift-pkg-removed", `${name}-${version}`),
+        hostId,
+        category: "packages",
+        severity: "low",
+        lifecycle: "new",
+        title: `Package removed: ${name} (was ${version || "unknown"})`,
+        detectedAt: now(),
+        rationale: `Package "${name}" was present in the baseline but is no longer installed. Surface for visibility — usually intentional cleanup, but worth confirming.`,
+        evidenceSummary: JSON.stringify({
+          name,
+          baselineVersion: version,
+          current: "not installed",
+        }),
+        suggestedActions: [
+          "Confirm the removal was intentional",
+          "Update the baseline if it was",
+        ],
+        provenance: {
+          collector: "ssh/dpkg|rpm",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
   // --- User crontabs ---
   const baselineCrontabs = new Set(baseline.userCrontabs ?? []);
+  const currentCrontabs = new Set(current.userCrontabs ?? []);
+  for (const user of baselineCrontabs) {
+    if (!currentCrontabs.has(user)) {
+      events.push({
+        id: id("drift-usercron-removed", user),
+        hostId,
+        category: "persistence",
+        severity: "low",
+        lifecycle: "new",
+        title: `User crontab removed: ${user}`,
+        detectedAt: now(),
+        rationale: `User "${user}" had a crontab in the baseline that no longer exists. Could indicate intentional cleanup, or an attacker covering tracks after a planted job ran.`,
+        evidenceSummary: JSON.stringify({
+          user,
+          path: `/var/spool/cron/crontabs/${user}`,
+          current: "not present",
+        }),
+        suggestedActions: [
+          "Confirm the removal was intentional",
+          `Check shell history for the user: \`last ${user}\` and \`cat ~${user}/.bash_history\``,
+        ],
+        provenance: {
+          collector: "ssh/crontabs",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
   for (const user of current.userCrontabs ?? []) {
     if (!baselineCrontabs.has(user)) {
       events.push({
@@ -832,6 +1080,81 @@ export function computeDrift(
         ],
         provenance: {
           collector: "ssh/crontabs",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  // --- Systemd unit files on disk (under /etc/systemd/system) ---
+  // We track admin-installed units and wants/* enable-symlinks specifically;
+  // /usr/lib/* is intentionally excluded because it churns with package updates
+  // and would duplicate the package drift signal.
+  const baselineUnits = new Set(baseline.systemdUnitFiles ?? []);
+  const currentUnits = new Set(current.systemdUnitFiles ?? []);
+  for (const path of baselineUnits) {
+    if (!currentUnits.has(path)) {
+      events.push({
+        id: id("drift-systemd-removed", path),
+        hostId,
+        category: "persistence",
+        severity: "low",
+        lifecycle: "new",
+        title: `Systemd unit file removed: ${path}`,
+        detectedAt: now(),
+        rationale: `A systemd unit (or enable-symlink) under /etc/systemd/system that was present in the baseline is no longer on disk. Removal is usually intentional cleanup but can also indicate an attacker disabling a security service.`,
+        evidenceSummary: JSON.stringify({
+          path: `/etc/systemd/system/${path}`,
+          current: "not present",
+        }),
+        suggestedActions: [
+          "Confirm the removal was intentional (uninstall, hardening pass)",
+          `Check journal for the unit: journalctl -u ${path.split("/").pop() ?? path} --since=<baseline>`,
+          "If a security daemon (auditd, falco, osquery, etc.), re-enable immediately",
+        ],
+        provenance: {
+          collector: "ssh/systemd-files",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+  for (const path of current.systemdUnitFiles ?? []) {
+    if (!baselineUnits.has(path)) {
+      // wants/*.* symlinks (enable a unit) get a slightly different framing
+      // from raw .service / .timer files (define a unit). Both are interesting
+      // but distinguishing them in the title speeds triage.
+      const isEnableLink = path.includes(".wants/");
+      events.push({
+        id: id("drift-systemd", path),
+        hostId,
+        category: "persistence",
+        severity: isEnableLink ? "medium" : "high",
+        lifecycle: "new",
+        title: isEnableLink
+          ? `Systemd unit enabled: ${path}`
+          : `New systemd unit on disk: ${path}`,
+        detectedAt: now(),
+        rationale: isEnableLink
+          ? `A wants/*.* enable-symlink appeared under /etc/systemd/system that was not present in the baseline — a previously-installed unit just got enabled. Common for legitimate \`systemctl enable\` calls, also a classic attacker persistence step.`
+          : `A new systemd unit file appeared under /etc/systemd/system that was not in the baseline. Custom units in this directory bypass package management and are the standard way an attacker establishes persistence on a modern Linux host.`,
+        evidenceSummary: JSON.stringify({
+          path: `/etc/systemd/system/${path}`,
+          baseline: "not present",
+        }),
+        suggestedActions: [
+          `Inspect: systemctl cat ${path.split("/").pop()?.replace(/\.[^.]+$/, "") ?? path}`,
+          "Confirm the install matches a deploy / config-mgmt run",
+          isEnableLink
+            ? "Disable if unauthorised: systemctl disable <unit>"
+            : "Remove if unauthorised: rm /etc/systemd/system/" + path + " && systemctl daemon-reload",
+        ],
+        provenance: {
+          collector: "ssh/systemd-files",
           confidenceLabel: "high",
           modelVersion: "drift-engine-v1",
           verifiedAt: now(),

@@ -1,5 +1,10 @@
-﻿import Link from "next/link";
+﻿"use client";
+
+import Link from "next/link";
+import { useState } from "react";
 import CheckoutButton from "./CheckoutButton";
+
+type BillingCycle = "monthly" | "annual";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -8,8 +13,10 @@ import CheckoutButton from "./CheckoutButton";
 interface PricingTier {
   key: string;
   label: string;
-  price: string;
-  priceSub?: string;
+  /** Monthly price in dollars (no currency / period suffix). Use null for "Custom". */
+  monthlyUsd: number | null;
+  /** When monthly is null, render this verbatim instead. */
+  customLabel?: string;
   tagline: string;
   bullets: string[];
   overageNote?: string;
@@ -21,6 +28,15 @@ interface PricingTier {
   ctaVariant: "primary" | "secondary" | "enterprise";
 }
 
+function formatPrice(monthlyUsd: number | null, cycle: BillingCycle): { price: string; sub: string } {
+  if (monthlyUsd === null) return { price: "Custom", sub: "" };
+  if (cycle === "annual") {
+    // 2 months free → 10× monthly per year, displayed as "$… / mo billed annually".
+    return { price: `$${monthlyUsd}`, sub: "/ mo billed annually" };
+  }
+  return { price: `$${monthlyUsd}`, sub: "/ month" };
+}
+
 // ---------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------
@@ -29,8 +45,7 @@ const TIERS: PricingTier[] = [
   {
     key: "starter",
     label: "Starter",
-    price: "$79",
-    priceSub: "/ month",
+    monthlyUsd: 79,
     tagline: "For small infra teams protecting a real estate and needing audit-ready evidence.",
     bullets: [
       "25 Linux hosts under management",
@@ -52,8 +67,7 @@ const TIERS: PricingTier[] = [
   {
     key: "growth",
     label: "Growth",
-    price: "$199",
-    priceSub: "/ month",
+    monthlyUsd: 199,
     tagline: "For growing security and ops teams that need fleet-wide visibility and governance.",
     bullets: [
       "100 Linux hosts under management",
@@ -75,8 +89,7 @@ const TIERS: PricingTier[] = [
   {
     key: "business",
     label: "Business",
-    price: "$499",
-    priceSub: "/ month",
+    monthlyUsd: 499,
     tagline: "For larger teams that need environment segmentation and compliance controls.",
     bullets: [
       "300 Linux hosts under management",
@@ -96,7 +109,8 @@ const TIERS: PricingTier[] = [
   {
     key: "enterprise",
     label: "Enterprise",
-    price: "Custom",
+    monthlyUsd: null,
+    customLabel: "Custom",
     tagline: "For organisations that need governance, compliance, and support at scale.",
     bullets: [
       "300+ hosts (hundreds or thousands)",
@@ -147,8 +161,9 @@ function BulletList({ items, muted = false }: { items: string[]; muted?: boolean
   );
 }
 
-function TierCard({ tier }: { tier: PricingTier }) {
+function TierCard({ tier, billingCycle }: { tier: PricingTier; billingCycle: BillingCycle }) {
   const isHighlighted = tier.highlight;
+  const { price, sub } = formatPrice(tier.monthlyUsd, billingCycle);
 
   const cardClasses = isHighlighted
     ? "relative flex flex-col rounded-card border-2 border-accent-blue bg-bg-panel p-7 shadow-elevated"
@@ -173,11 +188,18 @@ function TierCard({ tier }: { tier: PricingTier }) {
       <div>
         <p className={labelClasses}>{tier.label}</p>
         <div className="mt-3 flex items-baseline gap-1">
-          <span className="text-3xl font-bold tracking-tight text-fg-primary">{tier.price}</span>
-          {tier.priceSub && (
-            <span className="text-sm font-normal text-fg-muted">{tier.priceSub}</span>
+          <span className="text-3xl font-bold tracking-tight text-fg-primary">
+            {tier.monthlyUsd === null ? (tier.customLabel ?? "Custom") : price}
+          </span>
+          {sub && tier.monthlyUsd !== null && (
+            <span className="text-sm font-normal text-fg-muted">{sub}</span>
           )}
         </div>
+        {billingCycle === "annual" && tier.monthlyUsd !== null ? (
+          <p className="mt-1 text-[11px] font-medium text-success-DEFAULT">
+            ${tier.monthlyUsd * 10}/yr — save ~17%
+          </p>
+        ) : null}
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">{tier.tagline}</p>
       </div>
 
@@ -199,6 +221,7 @@ function TierCard({ tier }: { tier: PricingTier }) {
         {tier.ctaVariant === "primary" && tier.planCode ? (
           <CheckoutButton
             planCode={tier.planCode}
+            billingCycle={billingCycle}
             className="block w-full cursor-pointer rounded-card bg-accent-blue py-2.5 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-bg-panel disabled:opacity-60"
           >
             {tier.cta}
@@ -206,6 +229,7 @@ function TierCard({ tier }: { tier: PricingTier }) {
         ) : tier.ctaVariant === "secondary" && tier.planCode ? (
           <CheckoutButton
             planCode={tier.planCode}
+            billingCycle={billingCycle}
             className="block w-full cursor-pointer rounded-card border border-border-default bg-bg-elevated py-2.5 text-center text-sm font-semibold text-fg-primary transition-colors hover:border-accent-blue hover:text-accent-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-bg-panel disabled:opacity-60"
           >
             {tier.cta}
@@ -228,6 +252,7 @@ function TierCard({ tier }: { tier: PricingTier }) {
 // ---------------------------------------------------------------------------
 
 export default function PricingSection() {
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   return (
     <section
       aria-labelledby="pricing-heading"
@@ -266,15 +291,41 @@ export default function PricingSection() {
           </p>
         </div>
 
-        {/* Annual discount teaser */}
-        <p className="mt-4 text-center text-xs text-fg-faint">
-          Annual billing available – approximately two months free. Contact us to switch.
-        </p>
+        {/* Billing cycle toggle */}
+        <div
+          className="mt-8 flex justify-center"
+          role="radiogroup"
+          aria-label="Billing cycle"
+        >
+          <div className="inline-flex rounded-full border border-border-default bg-bg-panel p-1 text-xs">
+            {(["monthly", "annual"] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={billingCycle === c}
+                onClick={() => setBillingCycle(c)}
+                className={`rounded-full px-4 py-1.5 font-semibold uppercase tracking-wide transition-colors ${
+                  billingCycle === c
+                    ? "bg-accent-blue text-white"
+                    : "text-fg-muted hover:text-fg-primary"
+                }`}
+              >
+                {c}
+                {c === "annual" ? (
+                  <span className="ml-1.5 rounded bg-success-DEFAULT/15 px-1.5 py-0.5 text-[10px] text-success-DEFAULT">
+                    save ~17%
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Cards grid — 4 columns at lg */}
         <div className="mt-12 grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:items-start">
           {TIERS.map((tier) => (
-            <TierCard key={tier.key} tier={tier} />
+            <TierCard key={tier.key} tier={tier} billingCycle={billingCycle} />
           ))}
         </div>
 

@@ -67,6 +67,13 @@ export type HostsEntry = {
   hostnames: string[];
 };
 
+export type InstalledPackage = {
+  /** Package name as reported by the package manager. */
+  name: string;
+  /** Package version (e.g. "1.2.3-1ubuntu0.1"). Empty string when unparseable. */
+  version: string;
+};
+
 export type HostSnapshot = {
   hostId: string;
   hostname: string;
@@ -92,4 +99,12 @@ export type HostSnapshot = {
   suidBinaries: string[];
   /** Loaded kernel modules — detect rootkits. */
   kernelModules: string[];
+  /** Installed packages — apt/dpkg or rpm. Empty array when no supported package manager. */
+  installedPackages: InstalledPackage[];
+  /**
+   * Systemd unit files / wants-symlinks under /etc/systemd/system. Stored as
+   * paths relative to that directory so the diff is hostname-stable.
+   * Empty array on hosts without systemd.
+   */
+  systemdUnitFiles: string[];
 };

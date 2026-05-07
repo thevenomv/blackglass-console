@@ -3,10 +3,12 @@ import { AppShell } from "@/components/layout/AppShell";
 import { DashboardV3 } from "./_components/DashboardV3";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { FetchFailed } from "@/components/ui/FetchFailed";
+import Link from "next/link";
 import { fetchFleetPageData } from "@/lib/api/fleet";
 import { fetchHosts } from "@/lib/api/hosts";
-import { baselineStoreHealth } from "@/lib/server/baseline-store";
+import { baselineStoreHealth, listBaselineHostIds } from "@/lib/server/baseline-store";
 import { collectorConfigured } from "@/lib/server/collector";
+import { isSampleDataEnabled } from "@/lib/server/sample-data";
 import { deriveDriftCardsFromEvents, pickSpotlightHost } from "@/lib/server/dashboard-context";
 import { resolveDriftEventsForDashboardAsync } from "@/lib/server/drift-resolve";
 import { fleetRiskScore, riskPriorityFromScore } from "@/lib/server/risk-score";
@@ -26,6 +28,11 @@ async function DashboardDeferred() {
   let baselinePersistence: ReturnType<typeof baselineStoreHealth>;
   let collectorOn: boolean;
   let valueRecap: ValueRecap;
+  let onboardingState: {
+    hostConnected: boolean;
+    baselineCaptured: boolean;
+    scanRun: boolean;
+  };
 
   try {
     const page = await fetchFleetPageData();
@@ -71,6 +78,18 @@ async function DashboardDeferred() {
       fleet.notableEvents[0]?.hostId ??
       spotlightHost?.id ??
       null;
+
+    // Drive the onboarding checklist's auto-detected steps. `hostConnected`
+    // covers both the env-var collector path and the saas-managed hosts table
+    // (collectorConfigured() handles both); `baselineCaptured` is true once at
+    // least one baseline exists in the store; `scanRun` is true once any
+    // host has been scanned (fleet.hostsChecked > 0).
+    const baselineHostIds = collectorOn ? await listBaselineHostIds() : [];
+    onboardingState = {
+      hostConnected: collectorOn,
+      baselineCaptured: baselineHostIds.length > 0,
+      scanRun: fleet.hostsChecked > 0,
+    };
   } catch {
     return (
       <FetchFailed title="Fleet snapshot unavailable" description="Could not load fleet KPIs from the configured API." />
@@ -87,7 +106,31 @@ async function DashboardDeferred() {
       ctaHostId={ctaHostId}
       baselinePersistence={baselinePersistence}
       valueRecap={valueRecap}
+      onboardingState={onboardingState}
     />
+  );
+}
+
+async function SampleDataBanner() {
+  const enabled = await isSampleDataEnabled();
+  if (!enabled) return null;
+  return (
+    <div
+      role="region"
+      aria-label="Sample data active"
+      className="mx-6 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-warning/40 bg-warning-soft/25 px-4 py-2.5 text-sm text-fg-muted"
+    >
+      <p>
+        <strong className="font-semibold text-fg-primary">Sample data view</strong>{" "}
+        — you&apos;re looking at a pre-built demo fleet, not your real data.
+      </p>
+      <Link
+        href="/settings"
+        className="rounded-md border border-border-default bg-bg-panel px-2.5 py-1 text-xs font-medium text-fg-primary transition-colors hover:border-border-strong"
+      >
+        Disable in Settings
+      </Link>
+    </div>
   );
 }
 
@@ -96,6 +139,9 @@ export default function DashboardPage() {
     <AppShell>
       <Suspense fallback={null}>
         <SandboxBanner />
+      </Suspense>
+      <Suspense fallback={null}>
+        <SampleDataBanner />
       </Suspense>
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardDeferred />

@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
-import { withTenantRls, withBypassRls, schema } from "@/db";
+import { withTenantRls, schema } from "@/db";
 import { eq, and, ne } from "drizzle-orm";
 import { provisionSandbox, destroySandbox } from "@/lib/server/services/sandbox-provisioner";
 import {
@@ -75,9 +75,15 @@ export async function POST(request: Request) {
   // Enqueue activation job
   await enqueueSandboxProvision(sandboxId, tenantId);
 
-  // Schedule cleanup at TTL
-  const [sandbox] = await withBypassRls((db) =>
-    db.select().from(saasSandboxes).where(eq(saasSandboxes.id, sandboxId)),
+  // Schedule cleanup at TTL — read under the caller's tenant scope so RLS
+  // catches any cross-tenant id mix-up (sandboxId always belongs to this tenant
+  // because provisionSandbox returned it for this tenantId, but the explicit
+  // RLS check is the safer default).
+  const [sandbox] = await withTenantRls(tenantId, (db) =>
+    db
+      .select()
+      .from(saasSandboxes)
+      .where(and(eq(saasSandboxes.id, sandboxId), eq(saasSandboxes.tenantId, tenantId))),
   );
   if (sandbox?.ttlExpiresAt) {
     await enqueueSandboxCleanup(sandboxId, tenantId, sandbox.ttlExpiresAt);

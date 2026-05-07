@@ -1,0 +1,35 @@
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "blackglass.fullname" . }}-web
+  labels:
+    {{- include "blackglass.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "blackglass.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  policyTypes:
+    - Ingress
+  ingress:
+    {{- if .Values.networkPolicy.allowFromNamespaces }}
+    - from:
+        {{- range .Values.networkPolicy.allowFromNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . | quote }}
+        {{- end }}
+      ports:
+        - port: {{ .Values.web.port }}
+          protocol: TCP
+    {{- else }}
+    # No explicit namespace allow-list — fall back to "same namespace"
+    # which is what most ingress-controller setups need.
+    - from:
+        - podSelector: {}
+      ports:
+        - port: {{ .Values.web.port }}
+          protocol: TCP
+    {{- end }}
+{{- end }}

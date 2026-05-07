@@ -187,6 +187,19 @@ export function checkWebhooksTestRate(ip: string): Promise<boolean> {
 }
 
 /**
+ * GET /api/public/sandbox-showcase — anonymous polling guard.
+ *
+ * The /demo/sandbox page polls every few seconds while open.  This is
+ * tighter than the generic read-API limit (240/min) because the showcase
+ * endpoint runs an extra DB read on every call and may auto-provision
+ * Droplets — we'd rather a runaway tab time out than push the demo
+ * environment over its quota.  60/min == one poll/sec sustained.
+ */
+export function checkSandboxShowcaseRate(ip: string): Promise<boolean> {
+  return allowHybrid(`showcase:${ip}`, 60, 60_000);
+}
+
+/**
  * GET read-tier API endpoints — general authenticated read guard.
  * 240 requests per IP per minute (4/s sustained) covers normal UI polling
  * while blocking scraping / runaway clients.

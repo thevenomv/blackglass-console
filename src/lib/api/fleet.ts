@@ -5,6 +5,7 @@ import { apiV1BaseUrl } from "@/lib/api/origin";
 import { mockLatency } from "@/lib/mockLatency";
 import { collectorConfigured } from "@/lib/server/collector";
 import { loadFleetSnapshot } from "@/lib/server/inventory";
+import { isSampleDataEnabled } from "@/lib/server/sample-data";
 
 export type FleetPageData = {
   fleet: FleetSnapshot;
@@ -42,6 +43,17 @@ async function fetchFleetSnapshotFromHttp(): Promise<FleetSnapshot> {
 }
 
 export async function fetchFleetPageData(): Promise<FleetPageData> {
+  // Per-tenant sample-data toggle takes precedence over real data so an
+  // operator demoing the product to a customer can flip it on without
+  // affecting other admins. Only kicks in when the workspace has no real
+  // hosts yet — once a real collector is configured, live data wins so we
+  // don't hide a real fleet behind a forgotten toggle.
+  const sampleEnabled = await isSampleDataEnabled();
+  if (sampleEnabled && !collectorConfigured()) {
+    await mockLatency(150);
+    return { fleet: mockFleet, showDemoKpiDeltas: true };
+  }
+
   // Mock mode with no real collector: serve demo data with fake deltas.
   if (apiConfig.useMock && !collectorConfigured()) {
     await mockLatency(200);

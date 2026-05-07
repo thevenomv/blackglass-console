@@ -6,6 +6,7 @@ import type { Tone } from "@/components/ui/Badge";
 import { Badge } from "@/components/ui/Badge";
 import { CaptureBaselineButton } from "@/app/(app)/baselines/_components/CaptureBaselineButton";
 import { RunScanButton } from "./RunScanButton";
+import { OnboardingChecklist } from "./OnboardingChecklist";
 import { Card } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { ProgressRow } from "@/components/ui/ProgressBar";
@@ -87,6 +88,7 @@ export function DashboardV3({
   ctaHostId,
   baselinePersistence,
   valueRecap,
+  onboardingState,
 }: {
   fleet: FleetSnapshot;
   showDemoKpiDeltas: boolean;
@@ -96,6 +98,11 @@ export function DashboardV3({
   ctaHostId: string | null;
   baselinePersistence: { configured: boolean; path?: string; writable: boolean | null };
   valueRecap: ValueRecap;
+  onboardingState?: {
+    hostConnected: boolean;
+    baselineCaptured: boolean;
+    scanRun: boolean;
+  };
 }) {
   const liveMode = !showDemoKpiDeltas;
   const attention = fleet.highRiskDrift > 0;
@@ -156,6 +163,14 @@ export function DashboardV3({
           <RunScanButton />
         </div>
       </header>
+
+      {liveMode && onboardingState ? (
+        <OnboardingChecklist
+          hostConnected={onboardingState.hostConnected}
+          baselineCaptured={onboardingState.baselineCaptured}
+          scanRun={onboardingState.scanRun}
+        />
+      ) : null}
 
       {liveMode && !collectorOn ? (
         <div

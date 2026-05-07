@@ -260,6 +260,8 @@ export function projectScanJob(rec: ScanJobRecord): {
   progress: number;
   detail: string;
   host_ids: string[];
+  /** Drift count once the scan has resolved; undefined while running. */
+  eventsFound?: number;
 } {
   // Real collector already finished
   if (rec.resolvedStatus) {
@@ -271,6 +273,7 @@ export function projectScanJob(rec: ScanJobRecord): {
         ? `Snapshot merged · ${rec.driftCount ?? 0} drift signal${rec.driftCount !== 1 ? "s" : ""} found`
         : "Collection failed"),
       host_ids: rec.hostIds,
+      eventsFound: rec.driftCount,
     };
   }
 

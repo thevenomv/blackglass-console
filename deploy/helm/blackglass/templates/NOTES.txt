@@ -1,0 +1,50 @@
+{{- /* Rendered after `helm install` / `helm upgrade`. */ -}}
+BLACKGLASS {{ .Chart.AppVersion }} installed in namespace `{{ .Release.Namespace }}`.
+
+╭─────────────────────────────────────────────────────────────────────╮
+│ Components deployed                                                 │
+╰─────────────────────────────────────────────────────────────────────╯
+  Web ........ {{ include "blackglass.fullname" . }}-web ({{ .Values.web.replicaCount }} replicas)
+{{- if .Values.scanWorker.enabled }}
+  Scan worker  {{ include "blackglass.fullname" . }}-scan-worker ({{ .Values.scanWorker.replicaCount }} replicas)
+{{- end }}
+{{- if .Values.opsWorker.enabled }}
+  Ops worker . {{ include "blackglass.fullname" . }}-ops-worker ({{ .Values.opsWorker.replicaCount }} replicas)
+{{- end }}
+
+╭─────────────────────────────────────────────────────────────────────╮
+│ Reach the console                                                   │
+╰─────────────────────────────────────────────────────────────────────╯
+{{- if .Values.ingress.enabled }}
+  https://{{ .Values.ingress.host }}/
+{{- else }}
+  No ingress configured. Port-forward for local access:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "blackglass.fullname" . }}-web {{ .Values.service.port }}:{{ .Values.service.port }}
+  Then visit http://127.0.0.1:{{ .Values.service.port }}/
+{{- end }}
+
+╭─────────────────────────────────────────────────────────────────────╮
+│ Required env vars (point them at managed services)                  │
+╰─────────────────────────────────────────────────────────────────────╯
+  DATABASE_URL                — Postgres connection string
+  REDIS_URL                   — Redis connection string (web)
+  REDIS_QUEUE_URL             — Redis connection string (workers)
+  CLERK_SECRET_KEY            — Clerk Backend API key (SaaS mode)
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY — Clerk frontend key (SaaS mode)
+  WEBHOOK_SECRET              — HMAC secret (legacy / fallback)
+  STRIPE_SECRET_KEY           — Stripe API key (billing)
+  STRIPE_WEBHOOK_SECRET       — Stripe webhook signing secret
+
+  Hand them in via secrets.existingSecret (recommended) or
+  --set-string secrets.values.DATABASE_URL=...
+
+╭─────────────────────────────────────────────────────────────────────╮
+│ Optional features                                                   │
+╰─────────────────────────────────────────────────────────────────────╯
+  PD_SENTRY_BRIDGE_ENABLED=true   PagerDuty paging on Sentry errors
+  OTEL_EXPORTER_OTLP_ENDPOINT=    Forward server traces to OTLP
+  COLLECTOR_EGRESS_IPS=           Comma-separated outbound NAT IPs
+  ROTATION_OVERLAP_HOURS=24       Webhook signing key dual-sign window
+
+Verify the install:
+  kubectl -n {{ .Release.Namespace }} get pods,svc,ingress -l app.kubernetes.io/instance={{ .Release.Name }}

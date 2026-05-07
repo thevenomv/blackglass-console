@@ -135,6 +135,11 @@ const CronEntrySchema = z.object({
   filename: z.string().max(512),
 });
 
+const InstalledPackageSchema = z.object({
+  name: z.string().min(1).max(256),
+  version: z.string().max(128),
+});
+
 export const IngestPayloadSchema = z.object({
   /** Stable identifier matching COLLECTOR_HOST_* config, e.g. "host-10-0-0-1" */
   hostId: ResourceIdPathSchema,
@@ -154,6 +159,8 @@ export const IngestPayloadSchema = z.object({
   hostsEntries: z.array(HostsEntrySchema).max(1024).optional().default([]),
   suidBinaries: z.array(z.string().max(512)).max(2048).optional().default([]),
   kernelModules: z.array(z.string().max(128)).max(4096).optional().default([]),
+  installedPackages: z.array(InstalledPackageSchema).max(8192).optional().default([]),
+  systemdUnitFiles: z.array(z.string().max(512)).max(4096).optional().default([]),
 });
 
 export type IngestPayload = z.infer<typeof IngestPayloadSchema>;

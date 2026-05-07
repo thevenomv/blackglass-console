@@ -1,0 +1,198 @@
+# Default values for the BLACKGLASS Helm chart.
+#
+# Production guidance:
+#   - DO NOT use the bundled postgres / redis enable flags in production —
+#     bring your own managed instances. Bundled subcharts are intended for
+#     air-gapped POCs only.
+#   - Pin both image.web.tag and image.worker.tag to a release SHA, not
+#     "latest". Use checksum-pinned digests if your registry supports
+#     them (`@sha256:<digest>`).
+#   - Mount your secrets via secrets.existingSecret rather than letting
+#     this chart generate one from values; values get checked into git
+#     by accident more often than they should.
+
+# ── Image references ───────────────────────────────────────────────────
+image:
+  registry: registry.digitalocean.com/blackglass
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+  web:
+    repository: blackglass-web
+    tag: ""           # required — set via --set image.web.tag=<sha>
+  worker:
+    repository: blackglass-worker
+    tag: ""           # required — set via --set image.worker.tag=<sha>
+
+# ── Web tier (Next.js console) ────────────────────────────────────────
+web:
+  enabled: true
+  replicaCount: 2
+  port: 3000
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "768Mi"
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 15
+    periodSeconds: 20
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    failureThreshold: 2
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  # Extra env vars merged on top of those derived from .Values.config.
+  extraEnv: []
+
+# ── Scan worker (BullMQ consumer for SSH fan-out + drift compute) ────
+scanWorker:
+  enabled: true
+  replicaCount: 2
+  command: ["node", "worker.cjs"]
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "384Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  # Workers should NOT auto-scale — BullMQ already load-balances within
+  # one worker process via WORKER_CONCURRENCY. Add replicas only when
+  # you need horizontal isolation (e.g. one replica per region).
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraEnv:
+    - name: WORKER_CONCURRENCY
+      value: "4"
+
+# ── Ops worker (webhook delivery + retention sweep + data exports) ───
+opsWorker:
+  enabled: true
+  replicaCount: 1
+  # The ops-worker bundle lives in the same image as the scan-worker;
+  # we just override the entrypoint to point at ops-worker.cjs which
+  # build-worker.mjs emits alongside scan-worker.cjs.
+  command: ["node", "ops-worker.cjs"]
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  extraEnv:
+    - name: OPS_WORKER_CONCURRENCY
+      value: "4"
+
+# ── Service / Ingress ─────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: true
+  className: nginx
+  host: blackglass.example.com
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "16m"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    enabled: true
+    secretName: blackglass-tls
+  paths:
+    - path: /
+      pathType: Prefix
+
+# ── Configuration env vars (non-secret) ───────────────────────────────
+# These are baked into a ConfigMap and mounted as envFrom on every pod.
+config:
+  NEXT_PUBLIC_APP_URL: "https://blackglass.example.com"
+  NEXT_PUBLIC_USE_MOCK: "false"
+  SECRET_PROVIDER: "env"            # env | db | aws-secrets-manager
+  WEBHOOK_MIN_SEVERITY: "high"
+  RETENTION_SWEEP_HOURS: "24"
+  PD_SENTRY_BRIDGE_ENABLED: "false"
+  # OpenTelemetry — leave blank to disable; install the @opentelemetry/*
+  # packages into your image first (see src/lib/observability/otel.ts).
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
+  OTEL_SERVICE_NAME: "blackglass-web"
+
+# ── Secrets ───────────────────────────────────────────────────────────
+# Strategy:
+#   1. Recommended: secrets.existingSecret = "<my-pre-created-secret>"
+#      The chart references it via envFrom on every pod.
+#   2. Acceptable: pass a key=value newline-separated string via
+#      --set-file secrets.envFile=./prod.env  (the chart hashes the
+#      contents into a generated Secret; rotate by re-installing).
+#   3. Discouraged: inline secrets.values map below — these end up in
+#      `helm get values` output and Terraform state.
+secrets:
+  # Name of an existing Secret to reference. When set, takes precedence
+  # over secrets.values / secrets.envFile.
+  existingSecret: ""
+  # Inline key/value map. Keys become env-var names verbatim.
+  values: {}
+  # Optional file mounted via --set-file; one KEY=VALUE per line.
+  envFile: ""
+
+# ── Service account + pod security ────────────────────────────────────
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# ── Network policy ────────────────────────────────────────────────────
+networkPolicy:
+  enabled: false
+  # Only allow ingress traffic from inside the cluster (e.g. via the
+  # ingress controller). Disable when running in a flat-namespace
+  # cluster without explicit ingress isolation.
+  allowFromNamespaces: []
+
+# ── Bundled deps (POC only — do NOT use in production) ────────────────
+postgresql:
+  enabled: false
+  auth:
+    database: blackglass
+    username: blackglass
+    existingSecret: ""
+
+redis:
+  enabled: false
+  auth:
+    enabled: false

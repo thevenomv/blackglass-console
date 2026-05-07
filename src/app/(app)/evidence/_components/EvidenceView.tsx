@@ -1,7 +1,9 @@
 ﻿"use client";
 
+import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export interface BundleListItem {
   id: string;
@@ -90,6 +92,34 @@ export function EvidenceView({ refreshSignal }: { refreshSignal?: number }) {
     );
   }, [query, bundles]);
 
+  // Zero-state: no bundles in the workspace at all and no active filter.
+  // Render a CTA card pointing the operator to drift triage + the
+  // bundle-export flow above instead of an empty 5-column table.
+  if (!loading && !error && bundles.length === 0 && !query.trim()) {
+    return (
+      <EmptyState
+        title="No evidence bundles yet"
+        description="Bundles let you export an audit-ready packet of baselines, drift findings, acknowledgements, and operator notes. Triage some drift first, then click ‘New evidence bundle’ above to capture it."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/drift"
+              className="inline-flex h-9 items-center justify-center rounded-card bg-accent-blue px-4 text-sm font-medium text-white hover:bg-accent-blue-hover"
+            >
+              Go to drift triage
+            </Link>
+            <Link
+              href="/baselines"
+              className="inline-flex h-9 items-center justify-center rounded-card border border-border-default px-4 text-sm font-medium text-fg-muted transition-colors hover:text-fg-primary"
+            >
+              Capture baseline
+            </Link>
+          </div>
+        }
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
@@ -121,8 +151,8 @@ export function EvidenceView({ refreshSignal }: { refreshSignal?: number }) {
         ) : null}
       </div>
 
-      <div className="overflow-hidden rounded-card border border-border-default">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto rounded-card border border-border-default">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="border-b border-border-subtle bg-bg-panel text-xs uppercase tracking-wide text-fg-faint">
             <tr>
               <th className="px-4 py-3 font-medium">Bundle</th>

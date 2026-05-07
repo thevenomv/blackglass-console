@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DriftInvestigationDrawer } from "./DriftInvestigationDrawer";
+import { SavedDriftViews } from "./SavedDriftViews";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -406,6 +407,9 @@ export function DriftEventsView({
             >
               Clear filters
             </button>
+            <div className="ml-auto">
+              <SavedDriftViews />
+            </div>
           </div>
         </div>
 

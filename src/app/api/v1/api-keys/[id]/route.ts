@@ -34,7 +34,7 @@ export async function DELETE(
   const guard = planGuard("apiAccess");
   if (!guard.ok) return guard.response;
 
-  const access = await requireSaasOrLegacyPermission("reports.view", ["operator", "admin"]);
+  const access = await requireSaasOrLegacyPermission("apikeys.manage", ["admin"]);
   if (!access.ok) return access.response;
 
   if (access.mode === "legacy") {

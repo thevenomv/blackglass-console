@@ -63,11 +63,69 @@ export const PostgresDriftEventsRepository = {
     );
   },
 
+  /**
+   * Tenant-scoped read for data exports — returns up to `limit` events
+   * across the supplied collector host_ids, newest first.  Intentionally
+   * permissive on size: the export job caps the JSON it builds, not this
+   * call.
+   */
+  async listByHostIds(hostIds: string[], limit = 5000): Promise<DriftEvent[]> {
+    if (hostIds.length === 0) return [];
+    const pool = await getPool();
+    const res = await pool.query<{ events: DriftEvent[] }>(
+      "SELECT events FROM blackglass_drift_events WHERE host_id = ANY($1::text[]) ORDER BY updated_at DESC",
+      [hostIds],
+    );
+    const all: DriftEvent[] = [];
+    for (const row of res.rows) all.push(...(row.events as DriftEvent[]));
+    all.sort((a, b) => new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime());
+    return all.slice(0, limit);
+  },
+
   async hasAny(): Promise<boolean> {
     const pool = await getPool();
     const res = await pool.query<{ exists: boolean }>(
       "SELECT EXISTS(SELECT 1 FROM blackglass_drift_events WHERE jsonb_array_length(events) > 0) AS exists",
     );
     return res.rows[0]?.exists ?? false;
+  },
+
+  /**
+   * Per-day severity buckets for the last N days.
+   *
+   * When `hostIds` is provided, only events from those host_ids count — used
+   * to scope the trend to a single tenant's collector hosts.  When omitted,
+   * counts span every host (legacy single-tenant mode).
+   */
+  async trendByDay(
+    days: number,
+    hostIds?: string[],
+  ): Promise<Array<{ ymd: string; severity: string; count: number }>> {
+    if (hostIds !== undefined && hostIds.length === 0) return [];
+    const pool = await getPool();
+    const params: Array<unknown> = [days];
+    let hostFilter = "";
+    if (hostIds && hostIds.length > 0) {
+      params.push(hostIds);
+      hostFilter = `AND host_id = ANY($${params.length}::text[])`;
+    }
+    const res = await pool.query<{ ymd: string; severity: string; cnt: string }>(
+      `SELECT
+         to_char((e->>'detectedAt')::timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS ymd,
+         e->>'severity' AS severity,
+         COUNT(*)::text AS cnt
+       FROM blackglass_drift_events,
+            jsonb_array_elements(events) AS e
+       WHERE (e->>'detectedAt')::timestamptz >= NOW() - ($1 || ' days')::interval
+         ${hostFilter}
+       GROUP BY 1, 2
+       ORDER BY 1`,
+      params,
+    );
+    return res.rows.map((r) => ({
+      ymd: r.ymd,
+      severity: r.severity,
+      count: parseInt(r.cnt, 10) || 0,
+    }));
   },
 };

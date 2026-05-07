@@ -54,6 +54,7 @@ export const AUDIT_ACTIONS = {
   // Settings
   KEY_ROTATED: "settings.key_rotated",
   WEBHOOK_TEST_SENT: "settings.webhook_test_sent",
+  WEBHOOK_SIGNING_KEY_ROTATED: "settings.webhook_signing_key_rotated",
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

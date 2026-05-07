@@ -1,0 +1,42 @@
+apiVersion: v2
+name: blackglass
+description: |
+  BLACKGLASS — operational integrity for Linux fleets.
+
+  Self-hosted Helm chart for the BLACKGLASS console, scan worker, and
+  ops worker. Brings up:
+    - Next.js web (Deployment + Service + optional Ingress)
+    - Scan worker (Deployment, no inbound traffic)
+    - Ops worker  (Deployment, no inbound traffic) — handles webhook
+      delivery, data exports, retention sweeps
+    - Optional bundled PostgreSQL / Redis (disabled by default; we
+      strongly recommend pointing at managed services in production)
+    - One Kubernetes Secret holding the DB / Redis URLs and
+      service-credentials (Clerk, Stripe, Sentry, etc.)
+    - Optional ServiceAccount + PodSecurityContext + NetworkPolicy
+
+  Quickstart:
+    helm install blackglass ./deploy/helm/blackglass \\
+      --namespace blackglass --create-namespace \\
+      --set image.web.tag=v1.2.3 \\
+      --set image.worker.tag=v1.2.3 \\
+      --set ingress.host=blackglass.example.com \\
+      --set-file secrets.envFile=./prod.env
+
+  See values.yaml for the full configuration surface.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://app.blackglasssec.com
+sources:
+  - https://github.com/blackglass/blackglass
+maintainers:
+  - name: Obsidian Dynamics
+    email: hello@obsidiandynamics.dev
+keywords:
+  - security
+  - drift-detection
+  - linux
+  - compliance
+  - cis
+icon: https://app.blackglasssec.com/icon.svg
