@@ -82,13 +82,25 @@ async function emitSentryBreadcrumb(level: "info" | "warning" | "error", body: B
   }
 }
 
-function respond(body: Body, http: 200 | 503) {
+/**
+ * Always returns HTTP 200. The semantic status lives in `body.status` and the
+ * `X-Showcase-Status` header. This is intentional: DO App Platform's edge
+ * intercepts ANY origin 5xx response and replaces the JSON body with its own
+ * HTML "service unavailable" page (we discovered this the hard way during
+ * the 2026-05-07 showcase incident — see docs/runbooks/operations.md §4b).
+ *
+ * Health monitors should alert on `body.status !== "ok"` (or check
+ * `X-Showcase-Status`), not on the HTTP status code.
+ */
+function respond(body: Body, _semantic: 200 | 503) {
   return NextResponse.json(body, {
-    status: http,
+    status: 200,
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate",
-      // Make the JSON shape discoverable from the response itself.
       "X-Showcase-Status": body.status,
+      // Mirrors `_semantic` so callers/dashboards can still see what the
+      // route considered a failure even though the wire status is 200.
+      "X-Showcase-Severity": _semantic === 200 ? "ok" : "degraded",
     },
   });
 }

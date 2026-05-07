@@ -20,7 +20,7 @@
  *   KMS_PROVIDER / KMS_LOCAL_SECRET — for envelope-encrypting the keypair
  */
 
-import { generateKeyPairSync, createHash } from "node:crypto";
+import { createHash } from "node:crypto";
 import { withBypassRls, withTenantRls, schema } from "@/db";
 import { encryptKey } from "@/lib/server/secrets/envelope";
 import { eq, and, ne } from "drizzle-orm";
@@ -237,7 +237,7 @@ echo "[blackglass-sandbox] cloud-init done"
 // ---------------------------------------------------------------------------
 
 type SandboxKeypair = {
-  /** PEM-encoded ed25519 private key (PKCS#8 format). */
+  /** OpenSSH-format ed25519 private key (`-----BEGIN OPENSSH PRIVATE KEY-----`). */
   privateKeyPem: string;
   /** OpenSSH public key string for authorized_keys injection. */
   pubKeyOpenSsh: string;
@@ -246,23 +246,33 @@ type SandboxKeypair = {
 };
 
 function generateSandboxKeypair(): SandboxKeypair {
-  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  // We MUST use ssh2's keypair generator (not node:crypto) because the same
+  // `ssh2` library does the SSH connection in the sandbox-worker, and its
+  // parser accepts OpenSSH-format private keys but rejects PKCS#8 ed25519
+  // with `Cannot parse privateKey: Unsupported key format`. Discovered on
+  // 2026-05-07 when seed-drift jobs failed for the showcase sandbox; see
+  // docs/runbooks/operations.md §4b.
+  //
+  // The output `private` is the canonical OpenSSH armored block:
+  //   -----BEGIN OPENSSH PRIVATE KEY-----
+  //   ...
+  //   -----END OPENSSH PRIVATE KEY-----
+  // and `public` is `ssh-ed25519 <base64> [comment]`.
+  const ssh2 = require("ssh2") as typeof import("ssh2");
+  const { private: privateKeyPem, public: pubBareLine } = ssh2.utils.generateKeyPairSync(
+    "ed25519",
+  );
 
-  const privateKeyPem = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+  // ssh2 emits the public line without a comment; append our own so it shows
+  // up usefully in `authorized_keys` when an operator inspects the Droplet.
+  const pubKeyOpenSsh = pubBareLine.includes(" blackglass-sandbox")
+    ? pubBareLine
+    : `${pubBareLine.trim()} blackglass-sandbox`;
 
-  // Export as DER then convert to OpenSSH wire format
-  const pubDer = publicKey.export({ type: "spki", format: "der" });
-  // ed25519 SPKI: last 32 bytes are the raw public key
-  const rawPub = pubDer.slice(-32);
-  const keyType = Buffer.from("ssh-ed25519");
-  const typeLen = Buffer.allocUnsafe(4);
-  typeLen.writeUInt32BE(keyType.length, 0);
-  const keyLen = Buffer.allocUnsafe(4);
-  keyLen.writeUInt32BE(rawPub.length, 0);
-  const wire = Buffer.concat([typeLen, keyType, keyLen, rawPub]);
-  const pubKeyOpenSsh = `ssh-ed25519 ${wire.toString("base64")} blackglass-sandbox`;
-
-  // SHA-256 fingerprint of the public key wire bytes
+  // SHA-256 fingerprint of the wire-format public key bytes (matches what
+  // `ssh-keygen -lf <pubkey>` would print, sans the `SHA256:` prefix).
+  const wireB64 = pubBareLine.trim().split(/\s+/)[1] ?? "";
+  const wire = Buffer.from(wireB64, "base64");
   const fingerprint = createHash("sha256").update(wire).digest("hex");
 
   return { privateKeyPem, pubKeyOpenSsh, fingerprint };
