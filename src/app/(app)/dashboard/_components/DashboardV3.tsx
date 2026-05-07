@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CaptureBaselineButton } from "@/app/(app)/baselines/_components/CaptureBaselineButton";
 import { RunScanButton } from "./RunScanButton";
 import { OnboardingChecklist } from "./OnboardingChecklist";
+import { ComplianceScoreTile } from "./ComplianceScoreTile";
 import { Card } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { ProgressRow } from "@/components/ui/ProgressBar";
@@ -262,6 +263,12 @@ export function DashboardV3({
       )}
 
       <ValueRecapBanner recap={valueRecap} />
+
+      <ComplianceScoreTile
+        hostsChecked={fleet.hostsChecked}
+        highRiskDrift={fleet.highRiskDrift}
+        readyHosts={fleet.readyHosts}
+      />
 
       <Card title="Drift trend — last 7 days">
         <DriftTrendChart />

@@ -257,6 +257,60 @@ describe("outbound-webhook platform routing", () => {
     expect(body).toContain("msg=key\\=val and another | here");
   });
 
+  it("OCSF body emits one Compliance Finding per drift event with required class metadata", () => {
+    const { body, headers } = buildBodyAndHeaders(
+      "https://ingest.example.com/ocsf",
+      { ...SAMPLE_PAYLOAD, tenantId: "tenant-123" },
+      null,
+      EMPTY_CREDS,
+    );
+    expect(headers["Content-Type"]).toBe("application/json");
+    const parsed = JSON.parse(body) as {
+      events: Array<{
+        class_uid: number;
+        category_uid: number;
+        type_uid: number;
+        activity_id: number;
+        severity_id: number;
+        severity: string;
+        metadata: { version: string; product: { name: string } };
+        finding_info: { uid: string; title: string };
+        device: { hostname: string };
+        unmapped: Record<string, unknown>;
+      }>;
+    };
+    expect(parsed.events).toHaveLength(2);
+    const high = parsed.events[0];
+    // OCSF Compliance Finding shape — class_uid 2003, category_uid 2,
+    // type_uid 200301 (= class*100 + activity_id). These are part of the
+    // OCSF contract; getting any of them wrong drops the event into a
+    // Security Lake "rejected" partition rather than the queryable table.
+    expect(high.class_uid).toBe(2003);
+    expect(high.category_uid).toBe(2);
+    expect(high.type_uid).toBe(200301);
+    expect(high.activity_id).toBe(1);
+    // High → severity_id 4 / "High" (OCSF scale: 0-6).
+    expect(high.severity_id).toBe(4);
+    expect(high.severity).toBe("High");
+    expect(high.metadata.version).toBe("2.0.0");
+    expect(high.metadata.product.name).toBe("BLACKGLASS");
+    expect(high.finding_info.uid).toBe("f-1");
+    expect(high.finding_info.title).toBe("New SUID binary detected");
+    expect(high.device.hostname).toBe("web-01.example.com");
+    // Tenant context is promoted to unmapped so customers can filter the
+    // data lake without a JOIN.
+    expect(high.unmapped.blackglass_tenant_id).toBe("tenant-123");
+    expect(high.unmapped.blackglass_category).toBe("privilege_escalation");
+  });
+
+  it("OCSF detects /ocsf, /security-lake, and /ocsf-ingest URL suffixes", () => {
+    expect(detectPlatform("https://ingest.example.com/ocsf")).toBe("ocsf");
+    expect(detectPlatform("https://acme.com/security-lake/firehose")).toBe("ocsf");
+    expect(detectPlatform("https://example.com/ocsf-ingest/v1")).toBe("ocsf");
+    // Generic webhook URLs without an OCSF marker stay generic — opt-in only.
+    expect(detectPlatform("https://example.com/webhook")).toBe("generic");
+  });
+
   it("missing credentials still produce a body — server-side errors surface clearly downstream", () => {
     // No Authorization header is set so the upstream API will respond 401/403,
     // which the worker logs and the operator sees in the DLQ. Better than
