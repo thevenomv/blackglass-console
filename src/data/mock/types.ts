@@ -165,4 +165,6 @@ export type ReportRecord = {
   generatedAt: string;
   status: "ready" | "generating" | "failed";
   format: "markdown" | "pdf";
+  /** Set when status is 'failed'; surfaced in the UI as a tooltip + retry hint. */
+  failReason?: string;
 };

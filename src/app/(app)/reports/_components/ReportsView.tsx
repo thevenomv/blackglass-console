@@ -246,6 +246,11 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
                         &gt;30d old
                       </span>
                     ) : null}
+                    {r.status === "failed" && r.failReason ? (
+                      <p className="mt-1 max-w-md text-xs text-danger" title={r.failReason}>
+                        {r.failReason.length > 120 ? `${r.failReason.slice(0, 120)}…` : r.failReason}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3 text-fg-muted">{r.scope}</td>
                   <td className="px-4 py-3 text-fg-muted">{formatGenerated(r.generatedAt)} UTC</td>
@@ -268,17 +273,27 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
                         disabled={retrying === r.id}
                         className="text-xs font-semibold text-accent-blue hover:underline disabled:opacity-50"
                         onClick={() => {
+                          // Hits the per-report regenerate endpoint so the
+                          // existing id is reused (any links already shared
+                          // — e.g. emailed PDF links — keep working).
+                          // Previously this POSTed to /api/v1/reports with
+                          // {reportId} which the schema silently rejected
+                          // (zod -> 400), so retry was a no-op.
                           setRetrying(r.id);
-                          void fetch("/api/v1/reports", {
+                          void fetch(`/api/v1/reports/${r.id}/regenerate`, {
                             method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ reportId: r.id }),
                           })
-                            .then(() => {
+                            .then(async (res) => {
+                              if (!res.ok) {
+                                const err = await res.json().catch(() => ({}));
+                                throw new Error(err.detail ?? `HTTP ${res.status}`);
+                              }
                               toast(`Report "${r.title}" queued for regeneration.`, "success");
                               refresh();
                             })
-                            .catch(() => toast("Retry failed — try again.", "danger"))
+                            .catch((e) =>
+                              toast(`Retry failed — ${e instanceof Error ? e.message : "try again."}`, "danger"),
+                            )
                             .finally(() => setRetrying(null));
                         }}
                       >

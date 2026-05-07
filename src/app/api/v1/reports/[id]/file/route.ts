@@ -1,5 +1,20 @@
 /**
- * GET /api/v1/reports/:id/file — download report content as a file
+ * GET /api/v1/reports/:id/file — download report content as a file.
+ *
+ * Error responses are STRUCTURED JSON (not bare strings) so the dashboard,
+ * the CLI, and operators clicking a stale URL can all see exactly *why* a
+ * report can't be served — not just "404". Reasons:
+ *   - report_not_found   : id absent from the index
+ *   - report_generating  : status still 'generating' (with elapsed seconds)
+ *   - report_failed      : generation failed (failReason surfaced)
+ *   - report_content_missing : index entry exists but content blob is gone
+ *                              (typically happens when Spaces was reconfigured
+ *                              between generation and download)
+ *   - pdf_render_failed  : the PDF synthesiser threw
+ *
+ * On 2026-05-07 a customer hit `/api/v1/reports/rpt-1778018245406-7f614569/file`
+ * and got a generic failure with no diagnostics. This route is now
+ * self-explaining for the next operator who has to debug it.
  */
 import { NextResponse } from "next/server";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
@@ -9,12 +24,19 @@ import { generateReportPdf } from "@/lib/server/report-pdf";
 
 export const dynamic = "force-dynamic";
 
+function jsonErr(status: number, code: string, detail: string, extra?: Record<string, unknown>) {
+  return NextResponse.json(
+    { error: code, detail, ...(extra ?? {}) },
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   if (!(await checkReadApiRate(clientIp(request)))) {
-    return new NextResponse("Too many requests", { status: 429 });
+    return jsonErr(429, "rate_limited", "Too many requests.");
   }
 
   const access = await requireSaasOrLegacyPermission("reports.view", [
@@ -27,19 +49,42 @@ export async function GET(
 
   const { id } = await params;
 
-  // Resolve metadata so we know the format and title.
   const items = await listReports();
   const meta = items.find((r) => r.id === id);
   if (!meta) {
-    return new NextResponse("Report not found", { status: 404 });
-  }
-  if (meta.status !== "ready") {
-    return new NextResponse("Report is not ready", { status: 409 });
+    return jsonErr(404, "report_not_found", `No report with id "${id}".`, { id });
   }
 
+  if (meta.status === "generating") {
+    const ageSec = Math.round(
+      (Date.now() - new Date(meta.generatedAt).getTime()) / 1000,
+    );
+    return jsonErr(
+      409,
+      "report_generating",
+      `Report is still being prepared (${ageSec}s elapsed). Try again in a moment.`,
+      { id, status: meta.status, generatedAt: meta.generatedAt, ageSeconds: ageSec },
+    );
+  }
+
+  if (meta.status === "failed") {
+    return jsonErr(
+      500,
+      "report_failed",
+      meta.failReason ?? "Report generation failed (no reason recorded).",
+      { id, status: meta.status, failReason: meta.failReason ?? null, generatedAt: meta.generatedAt },
+    );
+  }
+
+  // status === "ready"
   const content = await getReportContent(id);
   if (!content) {
-    return new NextResponse("Report content not found", { status: 404 });
+    return jsonErr(
+      410,
+      "report_content_missing",
+      `Report "${id}" was indexed as ready but its content blob is missing — the storage backend may have been reconfigured since generation. Re-generate the report.`,
+      { id, status: meta.status, generatedAt: meta.generatedAt },
+    );
   }
 
   const ext = meta.format === "pdf" ? "pdf" : "md";
@@ -51,8 +96,19 @@ export async function GET(
   const filename = `${safeName}-${id.slice(0, 8)}.${ext}`;
 
   if (meta.format === "pdf") {
-    // The stored content is always JSON — generate real PDF bytes on demand.
-    const pdfBytes = await generateReportPdf(content);
+    let pdfBytes: Uint8Array;
+    try {
+      pdfBytes = await generateReportPdf(content);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error(`[reports] PDF render failed for ${id}:`, err);
+      return jsonErr(
+        500,
+        "pdf_render_failed",
+        `PDF synthesiser threw while rendering "${id}": ${reason.slice(0, 200)}`,
+        { id, status: meta.status },
+      );
+    }
     // BlobPart accepts ArrayBuffer / Uint8Array<ArrayBuffer>; the slice copy
     // turns the lib's Uint8Array<ArrayBufferLike> into a fresh ArrayBuffer.
     const buf = new Uint8Array(pdfBytes).slice().buffer;

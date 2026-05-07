@@ -24,6 +24,7 @@ async function ReportsBody() {
     generatedAt: r.generatedAt,
     status: r.status,
     format: r.format,
+    failReason: r.failReason,
   }));
   return <ReportsView reports={reports} />;
 }
