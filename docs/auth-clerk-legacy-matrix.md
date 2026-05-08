@@ -14,4 +14,4 @@ Rules:
 
 ## Stripe + `saas_subscriptions`
 
-Checkout (authenticated org) sends **`saas_tenant_id`** in session + subscription metadata. Webhooks call **`src/lib/saas/stripe-sync.ts`** to update `plan_code`, limits, Stripe IDs, and period fields. Apply **`docs/migrations/005_saas_stripe_link.sql`** when adding columns in prod.
+Checkout (authenticated org) sends **`saas_tenant_id`** in session + subscription metadata. Webhooks call **`src/lib/saas/stripe-sync.ts`** to update `plan_code`, limits, Stripe IDs, and period fields. Schema lives in `src/db/schema.ts` and is applied via `npm run db:migrate`.

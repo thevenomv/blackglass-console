@@ -100,7 +100,7 @@ services:
       #   value: postgresql://doadmin:...@db-host:25060/blackglass?sslmode=require
       #   scope: RUN_TIME
       #   type: SECRET
-      # Apply: docs/migrations/*.sql — enables tenant_id columns, audit table (blackglass_audit), baselines, drift.
+      # Apply: `npm run db:migrate` (drizzle/) for the canonical SaaS schema; docs/migrations/{001,002}.sql for the legacy single-tenant blackglass_audit / baselines / drift_history tables.
       #
       # Optional: same cluster with different schema, or separate DB for audit-only isolation:
       # - key: AUDIT_DATABASE_URL

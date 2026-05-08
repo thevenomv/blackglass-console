@@ -72,7 +72,7 @@
   - **Webhook handlers** (Stripe, Clerk) that act before a tenant context is established.
 - Every new table that holds tenant data **must** have:
   1. A `tenant_id` foreign key to `saas_tenants.id`.
-  2. A `SELECT` and `INSERT/UPDATE/DELETE` RLS policy gating on `current_setting('app.tenant_id')`. Some legacy policies use `app.current_tenant` — new tables should standardise on `app.tenant_id` (the GUC `withTenantRls` actually sets). See `docs/postgres-rls-sketch.md` for the full audit.
+  2. A `SELECT` and `INSERT/UPDATE/DELETE` RLS policy gating on `current_setting('app.tenant_id')`. Migration `drizzle/0016_consolidate_rls_gucs.sql` aligned every shipped policy onto the canonical `(app.tenant_id, app.bypass_rls)` GUC pair — model new policies after the `_v2` policies in that migration. See `docs/security-compliance.md` § 3 for the operator-facing RLS story.
 - Application code never connects with a Postgres superuser or owner role — only the `app_user` role.
 
 ### SSH / Collector
@@ -157,7 +157,7 @@ Backends are selected automatically by `src/lib/server/store/index.ts` based on 
 
 ## 7. Adding a New Feature — Checklist
 
-1. **New DB table**: add `tenant_id`, RLS policy, Drizzle migration, update `docs/postgres-rls-sketch.md`.
+1. **New DB table**: add `tenant_id`, RLS policy (model after the `_v2` policies in `drizzle/0016_consolidate_rls_gucs.sql`), Drizzle migration.
 2. **New API route**: use `requireSaasOrLegacyPermission()` for authenticated routes; use `checkDemoCtaRate()` or equivalent for public routes.
 3. **New long-running task**: add a job type to the appropriate queue, define retry policy in `queue/config.ts`, handle in the relevant worker.
 4. **New secret/credential type**: route through `secrets/factory.ts`; never store plain-text in DB.

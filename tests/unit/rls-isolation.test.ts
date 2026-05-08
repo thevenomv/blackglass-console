@@ -12,7 +12,8 @@
  *    sequential calls do not leak).
  *
  * For live end-to-end RLS verification against a real Postgres instance, see
- * docs/postgres-rls-sketch.md and the staging runbook.
+ * tests/unit/rls-tenant-leak.test.ts (the CI-gated guardrail run under a
+ * non-superuser, non-BYPASSRLS role) and docs/security-compliance.md § 3.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 

@@ -2,7 +2,6 @@
 
 Use before inviting external operators or pilots. Copy into a ticket and mark each item.
 
-For a shorter **post–Stage 0 / DO** checklist (login, collector, verify), see **`docs/do-list.md`**.
 
 ## Build & config
 

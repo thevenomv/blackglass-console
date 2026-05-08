@@ -57,4 +57,4 @@ set STRIPE_SECRET_KEY=sk_test_...
 npx playwright test tests/e2e/wiring-revenue-identity.spec.ts
 ```
 
-See also: **`docs/release-checklist.md`**, **`docs/best-recommendations.md`**.
+See also: **`docs/release-checklist.md`**.

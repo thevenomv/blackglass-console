@@ -10,7 +10,7 @@ BLACKGLASS is a server integrity console. It:
 
 **End-to-end spine:** baseline capture → scan job → drift findings → investigation (UI / audit) → evidence/export surfaces. See **`docs/architecture-flow.md`** for how this maps to routes and `src/lib/server/` (including **`services/`** orchestration helpers).
 
-**Staging / SaaS:** Track deploy follow-ups in **`docs/do-list.md`**. Before external pilots, run **`docs/staging-deployment-checklist.md`** and **`npm run verify:staging`** with **`STAGING_URL`**. Longer-term product phases: **`docs/saas-customer-roadmap.md`**. Prioritised engineering next steps: **`docs/best-recommendations.md`**. Revenue/checkout verification: **`docs/wiring-checklist.md`**.
+**Staging / SaaS:** Before external pilots, run **`docs/staging-deployment-checklist.md`** and **`npm run verify:staging`** with **`STAGING_URL`**. Longer-term product phases: **`docs/saas-customer-roadmap.md`**. Revenue/checkout verification: **`docs/wiring-checklist.md`**.
 
 ---
 
@@ -365,10 +365,10 @@ curl -X POST http://localhost:3000/api/v1/scans -H "Content-Type: application/js
 For Clerk + `DATABASE_URL` deployments:
 
 1. **Enable automated backups** on your provider (e.g. DigitalOcean Managed Postgres daily backups + point-in-time where offered).
-2. **Test a restore** at least once into a scratch instance and run `docs/migrations/*.sql` from scratch on empty DB, then document your RPO/RTO with stakeholders.
+2. **Test a restore** at least once into a scratch instance and run `npm run db:migrate` against the empty DB, then document your RPO/RTO with stakeholders.
 3. **Store credentials** for standby restores only in your secrets manager; never in the repo.
 4. **Webhook idempotency** (`saas_webhook_idempotency`) is safe to restore with the rest of the tenant snapshot — replayed Stripe/Clerk events will no-op on unique `(source, event_key)`. Schedule `npm run prune:webhooks` weekly (or `scripts/prune-webhook-idempotency.mjs --days=30`) to cap table growth.
-5. **Row-level security:** after `docs/migrations/004`–`006`, apply `docs/migrations/007_saas_rls.sql`. The app sets `app.tenant_id` / `app.bypass_rls` per transaction (`src/db/index.ts`). Ops scripts that delete across tenants (e.g. audit prune) must set bypass or use a privileged role (see `docs/postgres-rls-sketch.md`).
+5. **Row-level security:** the canonical RLS policy set is enforced by `drizzle/0016_consolidate_rls_gucs.sql`, which standardises every shipped tenant policy on the `(app.tenant_id, app.bypass_rls)` GUC pair. The app sets these per transaction (`src/db/index.ts`). Ops scripts that delete across tenants (e.g. audit prune) must use `withBypassRls()` or a privileged role. See `docs/security-compliance.md` § 3.
 6. **Billing consistency:** schedule `npm run reconcile:billing` daily (Stripe + optional `RECONCILE_CLERK_ORGS=1` with `CLERK_SECRET_KEY`) to catch webhook gaps.
 
 ---

@@ -91,7 +91,7 @@ See [docs/architecture-overview.md](docs/architecture-overview.md) for the layer
 | Tenant auth context | [`src/lib/saas/auth-context.ts`](src/lib/saas/auth-context.ts) — `requireTenantContext()` is the entry point for every authenticated route |
 | Authorization policy | [`src/lib/saas/operations.ts`](src/lib/saas/operations.ts) — `can*` checks + `ensure*` throwing wrappers; never duplicated in route handlers |
 | Data isolation (RLS) | [`src/db/index.ts`](src/db/index.ts) — `withTenantRls` for app reads/writes, `withBypassRls` for webhooks/migrations only |
-| Schema | [`src/db/schema.ts`](src/db/schema.ts) + migrations in [`docs/migrations/`](docs/migrations/) |
+| Schema | [`src/db/schema.ts`](src/db/schema.ts) + Drizzle migrations in [`drizzle/`](drizzle/); apply via `npm run db:migrate` |
 | Billing | [`src/lib/saas/stripe-sync.ts`](src/lib/saas/stripe-sync.ts) — idempotent status mapping from Stripe events |
 | Plan limits | [`src/lib/saas/plans.ts`](src/lib/saas/plans.ts) — only source of `hostLimit` / `paidSeatLimit` |
 | Observability | [`src/lib/observability/sentry-saas.ts`](src/lib/observability/sentry-saas.ts) — Sentry tags `tenant_id`, `user_id`, `plan`, `env` |

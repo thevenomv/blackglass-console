@@ -183,7 +183,7 @@ Three lines you should always end on, then stop talking:
   (sandbox-verified vs approval-required vs guidance-only — different
   buyers light up at different points).
 - If they asked about a feature you didn't have ready, log it under
-  `docs/best-recommendations.md` § P2 so we surface it next planning.
+  `docs/saas-customer-roadmap.md` next-up section so we surface it in the next planning round.
 
 ---
 

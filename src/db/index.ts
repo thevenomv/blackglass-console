@@ -54,7 +54,8 @@ export type BlackglassDb = ReturnType<typeof createDb>;
  *
  * All other app code **must** use `withTenantRls` to enforce per-tenant data isolation.
  * Sets `app.bypass_rls=1` so RLS policies allow cross-tenant writes for one transaction.
- * @see docs/migrations/007_saas_rls.sql
+ * @see drizzle/0016_consolidate_rls_gucs.sql for the canonical RLS policy set
+ * @see docs/security-compliance.md § 3 for the operator-facing RLS story
  */
 /**
  * Sentinel UUID for `app.tenant_id` in bypass mode.

@@ -18,7 +18,7 @@ CREATE UNIQUE INDEX "saas_collector_hosts_tenant_hostname_uq"
   ON "saas_collector_hosts" USING btree ("tenant_id", "hostname");
 --> statement-breakpoint
 
--- Row-level security (same GUC pattern as docs/migrations/007_saas_rls.sql)
+-- Row-level security (same GUC pattern as drizzle/0016_consolidate_rls_gucs.sql)
 ALTER TABLE saas_collector_hosts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saas_collector_hosts FORCE ROW LEVEL SECURITY;
 

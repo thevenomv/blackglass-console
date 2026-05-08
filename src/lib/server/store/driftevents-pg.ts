@@ -6,7 +6,7 @@
  * previous result.
  *
  * Activated when `DATABASE_URL` is set (same as baseline-pg).
- * DDL: docs/migrations/003_drift_events.sql
+ * DDL: drizzle/0003_drift_events_partition.sql (canonical, partitioned)
  */
 
 import type { Pool } from "pg";

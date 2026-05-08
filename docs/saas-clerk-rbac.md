@@ -33,7 +33,7 @@ When **`DATABASE_URL`** is set and checkout includes **`saas_tenant_id`** metada
 - `plan_code`, `host_limit`, `paid_seat_limit`, `status`, billing period timestamps  
 - `stripe_customer_id`, `stripe_subscription_id` (for portal customer matching)
 
-Migration: **`docs/migrations/005_saas_stripe_link.sql`**. Price → plan mapping uses optional env vars documented in `.env.example` (`STRIPE_STARTER_PRICE_ID`, …). Legacy **`STRIPE_PRO_PRICE_ID`** maps to the Starter envelope.
+Schema: `src/db/schema.ts` (`saas_subscriptions` table; applied via `npm run db:migrate`). Price → plan mapping uses optional env vars documented in `.env.example` (`STRIPE_STARTER_PRICE_ID`, …). Legacy **`STRIPE_PRO_PRICE_ID`** maps to the Starter envelope.
 
 ## Authorization architecture
 
@@ -43,7 +43,7 @@ Migration: **`docs/migrations/005_saas_stripe_link.sql`**. Price → plan mappin
 
 ## Database
 
-Apply `docs/migrations/004_saas_clerk_core.sql` (or `npm run db:push` in non-prod) after `DATABASE_URL` is set. Drizzle schema lives in `src/db/schema.ts`.
+Apply migrations via `npm run db:migrate` (or `npm run db:push` in non-prod) after `DATABASE_URL` is set. Drizzle schema lives in `src/db/schema.ts`.
 
 ## Audit & security events
 
