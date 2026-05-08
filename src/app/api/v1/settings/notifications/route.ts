@@ -36,6 +36,15 @@ const NotificationsSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => null)),
   pdRoutingKey: z.string().max(200).nullable().optional(),
+  /**
+   * Per-tenant drift-digest opt-out. Only "off" or null are accepted —
+   * the cadence (daily / weekly) stays a deployment-wide knob; this
+   * column just lets a tenant opt OUT of the deployment default.
+   * See `effectiveTenantInterval` in drift-digest-service.ts.
+   */
+  driftDigestCadence: z
+    .union([z.literal("off"), z.null()])
+    .optional(),
 });
 
 export async function GET(request: Request) {
@@ -61,6 +70,7 @@ export async function GET(request: Request) {
       webhookUrls: settings.webhookUrls.join(","),
       slackWebhookUrl: settings.slackWebhookUrl,
       pdRoutingKey: settings.pdRoutingKey ? "••••••" : null,
+      driftDigestCadence: settings.driftDigestCadence ?? null,
     },
     requestId,
   });

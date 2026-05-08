@@ -139,6 +139,56 @@ jobs:
           echo "$OUT"
           echo "$OUT" | grep -q "0 pending" || (echo "::error::Re-running migrations was not a no-op" && exit 1)
 
+  helm-template:
+    name: Helm chart renders cleanly (web + 3 workers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4.3.1
+        with:
+          version: v3.14.4
+
+      - name: Lint chart
+        run: helm lint deploy/helm/blackglass
+
+      - name: Render with sandbox-worker enabled (locks parity)
+        run: |
+          helm template blackglass deploy/helm/blackglass \
+            --namespace blackglass \
+            --set image.web.tag=sha-deadbeef \
+            --set image.worker.tag=sha-deadbeef \
+            --set sandboxWorker.enabled=true \
+            --set ingress.host=ci.blackglass.example \
+            --set secrets.existingSecret=blackglass-env \
+            > rendered.yaml
+          # Fail if any of the four expected workloads is missing —
+          # this is the regression check that locks the sandbox-worker
+          # template into chart parity.
+          for w in blackglass-web blackglass-scan-worker blackglass-ops-worker blackglass-sandbox-worker; do
+            if ! grep -q "name: $w$" rendered.yaml; then
+              echo "::error::Helm chart did not render Deployment '$w'"
+              exit 1
+            fi
+          done
+          echo "All four workloads present."
+
+      - name: Render with sandbox-worker disabled (default)
+        run: |
+          helm template blackglass deploy/helm/blackglass \
+            --namespace blackglass \
+            --set image.web.tag=sha-deadbeef \
+            --set image.worker.tag=sha-deadbeef \
+            --set secrets.existingSecret=blackglass-env \
+            > rendered-default.yaml
+          if grep -q "name: blackglass-sandbox-worker$" rendered-default.yaml; then
+            echo "::error::sandbox-worker rendered when sandboxWorker.enabled=false (default)"
+            exit 1
+          fi
+          echo "sandbox-worker correctly absent at default values."
+
   staging-smoke:
     name: Staging smoke (post-deploy)
     runs-on: ubuntu-latest

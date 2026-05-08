@@ -68,6 +68,11 @@ export interface NotificationRouting extends IntegrationCredentials {
    * overlap window has elapsed so the dispatcher stops dual-signing.
    */
   webhookSigningKeyPrevious: string | null;
+  /**
+   * Per-tenant override of the drift-digest opt-out toggle.
+   * 'off' → don't email this tenant; null → inherit deployment default.
+   */
+  driftDigestCadence: string | null;
 }
 
 /**
@@ -112,6 +117,7 @@ function envFallback(): NotificationRouting {
     // single-tenant deployments. Per-tenant keys override it at the row level.
     webhookSigningKey: process.env.WEBHOOK_SECRET?.trim() || null,
     webhookSigningKeyPrevious: null,
+    driftDigestCadence: null,
   };
 }
 
@@ -169,6 +175,7 @@ export async function getTenantNotifications(
         row.webhookSigningKey && isPreviousKeyStillValid(row.webhookSigningKeyRotatedAt)
           ? row.webhookSigningKeyPrevious?.trim() || null
           : null,
+      driftDigestCadence: row.driftDigestCadence?.trim() || null,
     };
   } catch (err) {
     console.error("[notifications-service] Read failed, falling back to env:", err);
@@ -221,6 +228,7 @@ export async function getTenantNotificationsRls(
         row.webhookSigningKey && isPreviousKeyStillValid(row.webhookSigningKeyRotatedAt)
           ? row.webhookSigningKeyPrevious?.trim() || null
           : null,
+      driftDigestCadence: row.driftDigestCadence?.trim() || null,
     };
   } catch (err) {
     console.error("[notifications-service] Tenant read failed:", err);
@@ -239,6 +247,8 @@ export async function setTenantNotifications(
     webhookUrls: string | null;
     slackWebhookUrl: string | null;
     pdRoutingKey: string | null;
+    /** 'off' | null. Other values are rejected at the API layer. */
+    driftDigestCadence: string | null;
   }>,
 ): Promise<void> {
   const norm = (v: string | null | undefined): string | null => {
@@ -256,6 +266,7 @@ export async function setTenantNotifications(
         webhookUrls: norm(patch.webhookUrls),
         slackWebhookUrl: norm(patch.slackWebhookUrl),
         pdRoutingKey: norm(patch.pdRoutingKey),
+        driftDigestCadence: norm(patch.driftDigestCadence),
       })
       .onConflictDoUpdate({
         target: saasTenantNotifications.tenantId,
@@ -264,6 +275,7 @@ export async function setTenantNotifications(
           webhookUrls: norm(patch.webhookUrls),
           slackWebhookUrl: norm(patch.slackWebhookUrl),
           pdRoutingKey: norm(patch.pdRoutingKey),
+          driftDigestCadence: norm(patch.driftDigestCadence),
           updatedAt: new Date(),
         },
       }),

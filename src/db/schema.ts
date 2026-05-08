@@ -347,6 +347,13 @@ export const saasTenantNotifications = pgTable("saas_tenant_notifications", {
    * `-Previous` header stops being emitted.
    */
   webhookSigningKeyRotatedAt: timestamp("webhook_signing_key_rotated_at", { withTimezone: true }),
+  /**
+   * Per-tenant override for the scheduled drift-events digest cadence.
+   * Null = inherit the deployment-wide default (DRIFT_DIGEST_INTERVAL).
+   * Allowed values: 'off' | 'daily' | 'weekly' (enforced by SQL CHECK
+   * `saas_tenant_notifications_digest_cadence_chk`).
+   */
+  driftDigestCadence: text("drift_digest_cadence"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

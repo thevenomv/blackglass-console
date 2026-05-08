@@ -4,6 +4,7 @@ import {
   digestInterval,
   digestWindowLabel,
   digestWindowMs,
+  effectiveTenantInterval,
 } from "../../src/lib/server/services/drift-digest-service";
 import {
   driftDigestHtml,
@@ -53,6 +54,33 @@ describe("drift-digest cadence helpers", () => {
     expect(digestEveryMs("weekly")).toBe(7 * 24 * 60 * 60 * 1000);
     expect(digestWindowMs("weekly")).toBe(7 * 24 * 60 * 60 * 1000);
     expect(digestWindowLabel("weekly")).toBe("last 7 days");
+  });
+});
+
+describe("effectiveTenantInterval (per-tenant override)", () => {
+  it("inherits the deployment default when override is null", () => {
+    expect(effectiveTenantInterval("weekly", null)).toBe("weekly");
+    expect(effectiveTenantInterval("daily", null)).toBe("daily");
+    expect(effectiveTenantInterval("off", null)).toBe("off");
+  });
+
+  it("respects per-tenant 'off' even when deployment is enabled", () => {
+    expect(effectiveTenantInterval("weekly", "off")).toBe("off");
+    expect(effectiveTenantInterval("daily", "off")).toBe("off");
+  });
+
+  it("ignores per-tenant 'daily' / 'weekly' (not supported as overrides)", () => {
+    // Per-tenant cadence overrides were intentionally dropped — the worker
+    // cadence is the upper bound on email frequency, so a tenant asking
+    // for 'daily' on a weekly deployment would just get weekly anyway.
+    // Anything other than 'off' falls through to the deployment default.
+    expect(effectiveTenantInterval("weekly", "daily")).toBe("weekly");
+    expect(effectiveTenantInterval("daily", "weekly")).toBe("daily");
+  });
+
+  it("guards against junk values in the DB column", () => {
+    expect(effectiveTenantInterval("weekly", "fortnightly")).toBe("weekly");
+    expect(effectiveTenantInterval("daily", "")).toBe("daily");
   });
 });
 

@@ -39,6 +39,9 @@ import { AutoScanSection } from "./_components/AutoScanSection";
 import { PoliciesSection } from "./_components/PoliciesSection";
 import { ApiKeysSection } from "./_components/ApiKeysSection";
 import { RuntimeHealthSection } from "./_components/RuntimeHealthSection";
+import { LabHealthSection } from "./_components/LabHealthSection";
+import { ByokSection } from "./_components/ByokSection";
+import { DriftDigestSection } from "./_components/DriftDigestSection";
 import { WebhookDeliveryLog } from "./_components/WebhookDeliveryLog";
 import { WebhookSigningKeySection } from "./_components/WebhookSigningKeySection";
 import { ThemeToggleSection } from "./_components/ThemeToggleSection";
@@ -233,6 +236,12 @@ export default async function SettingsPage() {
               </Card>
               {limits.webhooks ? <IntegrationsSection /> : null}
               {limits.webhooks ? <WebhookSigningKeySection /> : null}
+              <Card
+                title="Email digest"
+                description="Periodic summary of fleet drift activity, sent to the alert email above. Cadence is set per deployment."
+              >
+                <DriftDigestSection />
+              </Card>
             </SettingsPanel>
 
             {/* IDENTITY & ACCESS — auth, SSO, SCIM, API tokens, air-gap. */}
@@ -243,6 +252,7 @@ export default async function SettingsPage() {
             >
               {isClerkAuthEnabled() ? <SsoSection /> : null}
               {isClerkAuthEnabled() ? <ScimSection /> : null}
+              {showOperator ? <ByokSection /> : null}
               <Card
                 title="API keys"
                 description="Long-lived Bearer tokens for CI/CD pipelines to trigger scans programmatically."
@@ -272,6 +282,12 @@ export default async function SettingsPage() {
                   description="Live rate-limit bucket sizes and BullMQ queue depth — same data the ops alerts use."
                 >
                   <RuntimeHealthSection />
+                </Card>
+                <Card
+                  title="Sales-demo VM health"
+                  description="Pre-flight check for the long-lived demo VM (blackglass-lab-01). Probe before prospect calls to catch firewall regressions / sshd outages early."
+                >
+                  <LabHealthSection />
                 </Card>
                 <Card
                   title="Data export"

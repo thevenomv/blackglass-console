@@ -76,6 +76,8 @@ interface TenantRow {
   tenantId: string;
   workspaceName: string;
   alertEmailTo: string | null;
+  /** Per-tenant override; null means "inherit the deployment default". */
+  driftDigestCadence: string | null;
 }
 
 async function listTenantsWithEmail(): Promise<TenantRow[]> {
@@ -85,6 +87,7 @@ async function listTenantsWithEmail(): Promise<TenantRow[]> {
         tenantId: saasTenants.id,
         workspaceName: saasTenants.name,
         alertEmailTo: saasTenantNotifications.alertEmailTo,
+        driftDigestCadence: saasTenantNotifications.driftDigestCadence,
       })
       .from(saasTenants)
       .leftJoin(
@@ -97,8 +100,29 @@ async function listTenantsWithEmail(): Promise<TenantRow[]> {
         tenantId: r.tenantId,
         workspaceName: r.workspaceName ?? "BLACKGLASS workspace",
         alertEmailTo: r.alertEmailTo,
+        driftDigestCadence: r.driftDigestCadence,
       }));
   });
+}
+
+/**
+ * Resolve the effective cadence for a tenant.
+ *
+ * The deployment-wide cadence (`DRIFT_DIGEST_INTERVAL`) decides HOW OFTEN
+ * the worker walks tenants. Per-tenant overrides are deliberately limited
+ * to opt-out: `null` (inherit) or `'off'` (skip). We considered allowing
+ * tenants to pick daily / weekly independently, but that creates the
+ * confusing case where a tenant asks for daily but the worker only fires
+ * weekly. Keeping the cadence at the deployment level means the worker
+ * cadence is the upper bound on email frequency, and the per-tenant knob
+ * is the simple "stop emailing me" toggle that operators actually want.
+ */
+export function effectiveTenantInterval(
+  deploymentDefault: DigestInterval,
+  override: string | null,
+): DigestInterval {
+  if (override === "off") return "off";
+  return deploymentDefault;
 }
 
 interface TenantTotals {
@@ -196,14 +220,15 @@ async function computeTenantTotals(
  * service iterates correctly.
  */
 export async function runDriftDigest(): Promise<DigestRunResult[]> {
-  const interval = digestInterval();
-  if (interval === "off") return [];
+  const deploymentInterval = digestInterval();
+  // Deployment-level "off" wins — when the operator has disabled digests
+  // entirely the worker shouldn't fire at all (and the repeatable isn't
+  // installed by `installDriftDigestRepeatable()`). Per-tenant `off`
+  // still works for opting OUT of an opted-in deployment.
+  if (deploymentInterval === "off") return [];
   if (!tryGetDb()) return [];
 
-  const windowMs = digestWindowMs(interval);
   const now = new Date();
-  const windowStart = new Date(now.getTime() - windowMs);
-  const windowLabel = digestWindowLabel(interval);
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://blackglasssec.com").replace(
     /\/+$/,
     "",
@@ -214,6 +239,30 @@ export async function runDriftDigest(): Promise<DigestRunResult[]> {
 
   for (const tenant of tenants) {
     const to = tenant.alertEmailTo?.trim();
+    const interval = effectiveTenantInterval(
+      deploymentInterval,
+      tenant.driftDigestCadence,
+    );
+    if (interval === "off") {
+      results.push({
+        tenantId: tenant.tenantId,
+        workspaceName: tenant.workspaceName,
+        to: to ?? "",
+        totalsNew: 0,
+        totalsHigh: 0,
+        totalsRemediated: 0,
+        affectedHosts: 0,
+        emailSent: false,
+        skippedReason: "digest_off_for_tenant",
+        error: null,
+      });
+      continue;
+    }
+
+    const windowMs = digestWindowMs(interval);
+    const windowStart = new Date(now.getTime() - windowMs);
+    const windowLabel = digestWindowLabel(interval);
+
     if (!to) {
       results.push({
         tenantId: tenant.tenantId,
