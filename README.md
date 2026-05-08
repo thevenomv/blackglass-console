@@ -1,8 +1,8 @@
-# BLACKGLASS
+# Blackglass
 
 [![CI — main](https://github.com/thevenomv/blackglass-console/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/thevenomv/blackglass-console/actions/workflows/ci.yml)
 
-Next.js **16** fleet console for baselines, drift, evidence exports, Stripe billing hooks, and DigitalOcean-ready deployment.
+Next.js **16** fleet console for baselines, configuration findings, evidence exports, Stripe billing hooks, and DigitalOcean-ready deployment.
 
 ## Requirements
 
@@ -29,6 +29,8 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `typecheck` | `tsc --noEmit` |
 | `test:unit` | Vitest |
 | `test:e2e` | Playwright (needs dev server via config) |
+| `test:e2e:visual` | Playwright **@pixel** screenshot baselines (`theme-visual.spec.ts`); use `--update-snapshots` after intentional marketing UI changes |
+| `test:e2e:all` | Full Playwright suite including `@pixel` |
 | `check:openapi` | OpenAPI ↔ `route.ts` parity |
 | `schemas:export` | Regenerate `openapi/zod-schemas.json` from Zod |
 | `verify:stage0` | CI-shaped gate (lint + OpenAPI + schema diff + **typecheck** + unit + build — no Playwright) |
