@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const paletteModifier = process.platform === "darwin" ? "Meta" : "Control";
 
-test.describe("BLACKGLASS console smoke", () => {
+test.describe("Blackglass console smoke", () => {
   test("marketing landing exposes demo and trial CTAs", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("link", { name: /explore demo/i }).first()).toBeVisible();
@@ -116,7 +116,7 @@ test.describe("BLACKGLASS console smoke", () => {
   test("interactive demo sample workspace", async ({ page }) => {
     await page.goto("/demo");
     await expect(page.getByText("Sample workspace")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Fleet overview" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "At a glance" })).toBeVisible();
   });
 
   test("evidence bundle meta returns JSON", async ({ request }) => {
@@ -143,7 +143,7 @@ test.describe("BLACKGLASS console smoke", () => {
     await page.waitForLoadState("networkidle");
     await page.keyboard.press(`${paletteModifier}+k`);
     await page
-      .getByPlaceholder("Search routes, hosts, drift filters…")
+      .getByPlaceholder("Search routes, hosts, findings filters…")
       .fill("hosts");
     // The first matching option for "hosts" is "Hosts inventory" (a route).
     await page.getByRole("option", { name: /^Hosts inventory/ }).first().click();
@@ -201,7 +201,7 @@ test.describe("BLACKGLASS console smoke", () => {
       page.getByRole("heading", { name: "Connect your first host" }),
     ).toBeVisible();
     await expect(
-      page.getByText("Get to your first drift signal"),
+      page.getByText("Get to your first finding"),
     ).toBeVisible();
   });
 
@@ -212,8 +212,8 @@ test.describe("BLACKGLASS console smoke", () => {
 
   test("drift page renders events grid", async ({ page }) => {
     await page.goto("/drift");
-    await expect(page.getByRole("heading", { name: "Drift" })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Drift events" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Findings" })).toBeVisible();
     await expect(page.getByText("Detection time", { exact: true })).toBeVisible();
   });
 

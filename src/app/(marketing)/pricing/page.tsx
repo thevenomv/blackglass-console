@@ -3,15 +3,15 @@ import Link from "next/link";
 import PricingSection from "@/components/pricing/PricingSection";
 
 export const metadata: Metadata = {
-  title: "Pricing | BLACKGLASS",
+  title: "Pricing · Blackglass",
   description:
-    "Per-host pricing for Linux drift detection and SSH posture auditing. Operators and admins are billed; read-only viewers are always unlimited. 14-day free trial, no card required.",
+    "Straightforward per-server pricing. People who only need to read along never count as paid seats. Start with a 14-day trial — no card required.",
   openGraph: {
-    title: "Pricing | BLACKGLASS",
+    title: "Pricing · Blackglass",
     description:
-      "Per-host pricing for Linux drift detection and SSH posture auditing. Unlimited viewers on every paid plan. 14-day free trial, no card required.",
+      "Plans grow with your Linux fleet. Unlimited read-only teammates on every paid tier. 14-day trial, no card required.",
     type: "website",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
 };
 
@@ -30,7 +30,7 @@ const FAQ = [
   },
   {
     q: "What happens when the trial ends?",
-    a: "After 14 days, if you have not subscribed to a paid plan, your workspace becomes read-only. You can still log in and review existing data — baselines, drift history, evidence bundles — but operational actions (new scans, baseline captures, host management) are locked until you upgrade. There is no automatic charge at trial end.",
+    a: "After 14 days, if you have not subscribed to a paid plan, your workspace becomes read-only. You can still log in and review existing data — baselines, findings history, evidence bundles — but operational actions (new scans, baseline captures, host management) are locked until you upgrade. There is no automatic charge at trial end.",
   },
   {
     q: "Can I switch plans?",
@@ -42,7 +42,7 @@ const FAQ = [
   },
   {
     q: "What is included in the free trial?",
-    a: "The trial is a full-featured workspace: up to 10 hosts, 2 operator seats, unlimited viewers, drift detection, baseline capture, evidence bundles, and API access. No credit card is required to start.",
+    a: "The trial is a full-featured workspace: up to 10 hosts, 2 operator seats, unlimited viewers, change detection, baseline capture, evidence bundles, and API access. No credit card is required to start.",
   },
   {
     q: "Is SSO available?",
@@ -50,11 +50,11 @@ const FAQ = [
   },
   {
     q: "Can I use my own KMS key (BYOK)?",
-    a: "Yes — Enterprise customers can wrap their workspace's data-encryption keys with their own AWS KMS key or HashiCorp Vault Transit key. Plaintext SSH credentials and other tenant secrets never touch the BLACKGLASS root key. Setup is a single Settings → Identity → Bring your own key form, and we round-trip-verify the key the moment you save it. Email us with your KMS Key ARN to enable.",
+    a: "Yes — Enterprise customers can wrap their workspace's data-encryption keys with their own AWS KMS key or HashiCorp Vault Transit key. Plaintext SSH credentials and other tenant secrets never touch the Blackglass root key. Setup is a single Settings → Identity → Bring your own key form, and we round-trip-verify the key the moment you save it. Email us with your KMS Key ARN to enable.",
   },
   {
     q: "Do you support air-gapped deployments?",
-    a: "Yes. Set BLACKGLASS_AIRGAPPED=true and every outbound integration (Slack, PagerDuty, Datadog, Resend, Sentry, …) short-circuits to a no-op log line. The Helm chart ships in a fully air-gapped configuration; the only outbound traffic is to the operator-supplied Postgres, Redis, and Spaces endpoints. /api/health/airgap?probe=true actively exercises the gate so you can prove it works in your network.",
+    a: "Yes. We offer a locked-down mode for networks that cannot call public SaaS APIs, plus packaging for self-hosted Kubernetes. Health checks let you prove the restrictions are active. Technical teams get exact switch names and diagrams on the security page.",
   },
 ];
 

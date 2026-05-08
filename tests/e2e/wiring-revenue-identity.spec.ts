@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 test.describe("Revenue & identity wiring", () => {
   test("pricing page loads with plan CTAs", async ({ page }) => {
     await page.goto("/pricing");
-    await expect(page.getByRole("heading", { name: /scale with your fleet/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /grow at your pace/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /start .* plan/i }).first()).toBeVisible();
   });
 

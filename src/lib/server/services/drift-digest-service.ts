@@ -98,7 +98,7 @@ async function listTenantsWithEmail(): Promise<TenantRow[]> {
       .filter((r) => (r.alertEmailTo?.trim() ?? "") !== "")
       .map((r) => ({
         tenantId: r.tenantId,
-        workspaceName: r.workspaceName ?? "BLACKGLASS workspace",
+        workspaceName: r.workspaceName ?? "Blackglass workspace",
         alertEmailTo: r.alertEmailTo,
         driftDigestCadence: r.driftDigestCadence,
       }));
@@ -330,8 +330,8 @@ export async function runDriftDigest(): Promise<DigestRunResult[]> {
         to,
         subject:
           totalsHigh > 0
-            ? `[BLACKGLASS] ${totalsHigh} high-severity finding${totalsHigh === 1 ? "" : "s"} — ${windowLabel} digest`
-            : `[BLACKGLASS] Drift digest — ${windowLabel}`,
+            ? `[Blackglass] ${totalsHigh} high-severity finding${totalsHigh === 1 ? "" : "s"} — ${windowLabel} digest`
+            : `[Blackglass] Findings digest — ${windowLabel}`,
         html: driftDigestHtml(opts),
         text: driftDigestText(opts),
       });

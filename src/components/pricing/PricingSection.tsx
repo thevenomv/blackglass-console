@@ -46,17 +46,17 @@ const TIERS: PricingTier[] = [
     key: "starter",
     label: "Starter",
     monthlyUsd: 79,
-    tagline: "For small infra teams protecting a real estate and needing audit-ready evidence.",
+    tagline: "For lean teams who want continuous visibility and exports leadership can read.",
     bullets: [
       "25 Linux hosts under management",
       "2 operator / admin seats",
       "Unlimited read-only viewers",
       "Scheduled scans (hourly / daily policies)",
-      "Baseline capture and drift detection",
+      "Baseline capture and change detection",
       "Evidence bundles with notes and tags",
       "Webhook, email, and Slack notifications",
-      "180 days of drift history",
-      "API access for pulling drift and evidence data",
+      "180 days of findings history",
+      "API access for pulling findings and evidence data",
     ],
     overageNote: "+$2 / extra host · +$15 / extra operator seat",
     cta: "Start Starter plan",
@@ -97,7 +97,7 @@ const TIERS: PricingTier[] = [
       "Unlimited read-only viewers",
       "Everything in Growth",
       "Host groups and environments",
-      "Scheduled drift digest email (daily / weekly)",
+      "Scheduled change-summary email (daily / weekly)",
       "Baseline approval workflows",
       "Volume pricing for additional hosts",
     ],
@@ -121,14 +121,14 @@ const TIERS: PricingTier[] = [
       "Custom data residency and retention",
       "Immutable audit logs",
       "Bring Your Own Key (AWS KMS / Vault Transit)",
-      "Air-gapped deployment mode + Helm chart",
-      "AI remediator with risk-tier policy + sandbox verification",
+      "Disconnected-network deployment options and packaging for your stack",
+      "Guided remediation with human approval and optional safe test runs",
       "Self-hosted on your Kubernetes / VMs",
       "Named customer success and onboarding",
       "Support SLAs",
     ],
     cta: "Contact sales",
-    ctaHref: "mailto:jamie@obsidiandynamics.co.uk?subject=BLACKGLASS+Enterprise+Enquiry",
+    ctaHref: "mailto:jamie@obsidiandynamics.co.uk?subject=Blackglass+Enterprise+Enquiry",
     highlight: false,
     ctaVariant: "enterprise",
   },
@@ -175,15 +175,15 @@ function TierCard({ tier, billingCycle }: { tier: PricingTier; billingCycle: Bil
     : "relative flex flex-col rounded-card border border-border-default bg-bg-panel p-7";
 
   const labelClasses = isHighlighted
-    ? "font-mono text-[11px] font-medium uppercase tracking-widest text-accent-blue"
-    : "font-mono text-[11px] font-medium uppercase tracking-widest text-fg-faint";
+    ? "text-[11px] font-semibold uppercase tracking-widest text-accent-blue"
+    : "text-[11px] font-semibold uppercase tracking-widest text-fg-faint";
 
   return (
     <div className={cardClasses}>
       {isHighlighted && tier.highlightLabel && (
         <div
           aria-label={`${tier.highlightLabel} plan`}
-          className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-accent-blue px-3.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-white"
+          className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-accent-blue px-3.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-white"
         >
           {tier.highlightLabel}
         </div>
@@ -266,7 +266,7 @@ export default function PricingSection() {
       <div className="mx-auto max-w-7xl">
 
         {/* Eyebrow */}
-        <p className="text-center font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-fg-faint">
+        <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-fg-faint">
           Pricing
         </p>
 
@@ -275,13 +275,13 @@ export default function PricingSection() {
           id="pricing-heading"
           className="mt-3 text-center text-4xl font-bold tracking-tight text-fg-primary sm:text-5xl"
         >
-          Scale with your fleet
+          Grow at your pace
         </h2>
 
         {/* Subheadline */}
         <p className="mx-auto mt-5 max-w-2xl text-center text-base leading-relaxed text-fg-muted">
-          Per-host pricing that tracks infrastructure size – not seat count.
-          Operators and admins count; read-only viewers never do.
+          Plans scale with how many Linux servers you watch. People who only need to read along —
+          investigators, auditors, executives — never count toward your paid seats.
         </p>
 
         {/* Trial callout */}
@@ -340,7 +340,7 @@ export default function PricingSection() {
             Viewers are always free, on every plan
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
-            Team members with read-only access – investigations, drift history, evidence review –
+            Team members with read-only access – investigations, findings history, evidence review –
             never consume a paid seat. Only operators and admins who can run scans, modify
             baselines, or manage secrets count toward your seat limit.
           </p>
@@ -348,7 +348,7 @@ export default function PricingSection() {
 
         {/* Legal footer */}
         <p className="mt-8 text-center text-xs text-fg-faint">
-          BLACKGLASS is a product of{" "}
+          Blackglass is a product of{" "}
           <a href="https://obsidiandynamics.co.uk" target="_blank" rel="noopener noreferrer" className="text-accent-blue hover:underline">
             Obsidian Dynamics Limited
           </a>

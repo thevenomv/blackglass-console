@@ -23,9 +23,9 @@ export default function DemoOverviewPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-fg-primary">Fleet overview</h1>
+          <h1 className="text-xl font-semibold text-fg-primary">At a glance</h1>
           <p className="mt-1 text-sm text-fg-muted">
-            Integrity posture across Linux SSH targets — sample KPIs only.
+            Sample health indicators for a fictional Linux fleet — for illustration only.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -36,7 +36,28 @@ export default function DemoOverviewPage() {
             download
             className="rounded-card border border-border-default bg-bg-panel px-4 py-2 text-sm font-medium text-fg-primary transition-colors hover:bg-bg-elevated"
           >
-            Download sample evidence bundle
+            Download sample evidence (PDF)
+          </a>
+          <a
+            href="/api/public/demo-evidence?format=json"
+            download
+            className="rounded-card border border-border-subtle bg-bg-panel px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:bg-bg-elevated hover:text-fg-primary"
+          >
+            JSON (integrations)
+          </a>
+          <a
+            href="/api/public/demo-report"
+            download
+            className="rounded-card border border-border-default bg-bg-panel px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:bg-bg-elevated hover:text-fg-primary"
+          >
+            Sample report (PDF)
+          </a>
+          <a
+            href="/api/public/demo-report?format=json"
+            download
+            className="rounded-card border border-border-subtle bg-bg-panel px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:bg-bg-elevated hover:text-fg-primary"
+          >
+            Report JSON
           </a>
           <TrialSignupLink className="rounded-card bg-accent-blue px-4 py-2 text-sm font-semibold text-white hover:bg-accent-blue-hover">
             Start free trial
@@ -64,11 +85,11 @@ export default function DemoOverviewPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-card border border-border-default bg-bg-panel p-4">
-          <h2 className="text-sm font-semibold text-fg-primary">Recent drift</h2>
+          <h2 className="text-sm font-semibold text-fg-primary">Recent findings</h2>
           <ul className="mt-3 divide-y divide-border-subtle text-sm">
             {DEMO_DRIFT.slice(0, 4).map((d) => (
               <li key={d.id} className="flex gap-3 py-2.5">
-                <span className={`shrink-0 font-mono text-xs ${sevColor(d.severity)}`}>
+                <span className={`shrink-0 text-xs font-semibold capitalize ${sevColor(d.severity)}`}>
                   {d.severity}
                 </span>
                 <span className="text-fg-muted">{d.title}</span>
@@ -85,7 +106,7 @@ export default function DemoOverviewPage() {
                 className="flex items-center justify-between gap-2 rounded-md border border-border-subtle px-3 py-2"
               >
                 <span className="text-fg-muted">{r.title}</span>
-                <span className="shrink-0 font-mono text-[10px] uppercase text-fg-faint">
+                <span className="shrink-0 text-[10px] font-medium capitalize text-fg-faint">
                   {r.status.replace("_", " ")}
                 </span>
               </li>
@@ -96,7 +117,7 @@ export default function DemoOverviewPage() {
 
       <section className="rounded-card border border-border-default bg-bg-panel p-4">
         <h2 className="text-sm font-semibold text-fg-primary">Audit tail (sample)</h2>
-        <ul className="mt-3 font-mono text-xs text-fg-muted">
+        <ul className="mt-3 text-xs text-fg-muted">
           {DEMO_AUDIT.map((a) => (
             <li key={a.at + a.action} className="border-b border-border-subtle py-2 last:border-0">
               <span className="text-fg-faint">{a.at}</span> · {a.actor} · {a.action} — {a.detail}
@@ -105,7 +126,7 @@ export default function DemoOverviewPage() {
         </ul>
       </section>
 
-      {/* Drift scenarios callout */}
+      {/* Example scenarios callout */}
       <Link
         href="/demo/sandbox"
         className="group flex items-center justify-between gap-4 rounded-card border border-accent-blue/30 bg-accent-blue/5 px-5 py-4 transition-colors hover:bg-accent-blue/10"
@@ -113,7 +134,7 @@ export default function DemoOverviewPage() {
         <div className="flex items-center gap-3">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent-blue" />
           <div>
-            <p className="text-sm font-semibold text-fg-primary">Eight drift scenarios, walked through</p>
+            <p className="text-sm font-semibold text-fg-primary">Eight example scenarios, walked through</p>
             <p className="mt-0.5 text-xs text-fg-muted">
               The exact severity, rationale, and remediation Blackglass surfaces for each scenario — backdoor listeners, sudoers tampering, rogue users, sshd policy changes, cron beacons, planted SUID, and more.
             </p>

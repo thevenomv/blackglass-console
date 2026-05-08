@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "SSH Configuration Audit Tool | BLACKGLASS",
+  title: "SSH Configuration Audit Tool · Blackglass",
   description:
     "Audit sshd_config changes across your Linux fleet. Blackglass surfaces SSH misconfigurations, tracks posture against a baseline, and flags high-risk directives like PermitRootLogin and weak ciphers.",
   openGraph: {
-    title: "SSH Configuration Audit Tool | BLACKGLASS",
+    title: "SSH Configuration Audit Tool · Blackglass",
     description:
       "Audit sshd_config changes across your Linux fleet. Blackglass surfaces SSH misconfigurations, tracks posture against a baseline, and flags high-risk directives.",
     type: "website",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
 };
 
@@ -50,19 +50,16 @@ const COMMON_MISCONFIGS = [
 export default function SSHAuditPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 text-fg-muted">
-        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-blue">
-          Use case
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use case</p>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
-          SSH configuration audit with Blackglass
+          Keep remote access settings honest across your Linux fleet
         </h1>
         <p className="mt-4 text-lg leading-relaxed">
-          SSH is the primary management plane for most Linux infrastructure. A single misconfigured
-          directive — <code className="font-mono text-accent-blue">PermitRootLogin</code>,{" "}
-          <code className="font-mono text-accent-blue">PasswordAuthentication</code>, weak ciphers —
-          can turn a hardened host into a liability. Blackglass keeps a continuous audit of every
-          SSH directive across your fleet.
+          For most teams, SSH is the front door to production. One relaxed setting — allowing root
+          logins, leaving passwords on, or keeping outdated encryption options — quietly widens your
+          exposure. Blackglass watches those choices continuously and compares them to what you
+          approved.
         </p>
 
         {/* The problem */}

@@ -43,7 +43,7 @@ function RiskGauge({ score, priority }: { score: number; priority: RiskPriority 
           style={{ width: `${fill}%`, backgroundColor: color }}
         />
       </div>
-      <span className="font-mono text-lg font-bold" style={{ color }}>
+      <span className="text-lg font-bold tabular-nums" style={{ color }}>
         {score.toFixed(1)}
         <span className="ml-0.5 text-xs font-medium text-fg-faint">/10</span>
       </span>
@@ -89,8 +89,8 @@ export function ValueRecapBanner({ recap }: { recap: ValueRecap }) {
           className="inline-block h-2 w-2 rounded-full bg-success"
         />
         <span>
-          <span className="font-medium text-fg-primary">Fleet is clean.</span> No open drift
-          findings and no elevated risk signals.
+          <span className="font-medium text-fg-primary">All clear for now.</span> No open findings
+          and no elevated risk on this view.
         </span>
       </div>
     );
@@ -99,31 +99,31 @@ export function ValueRecapBanner({ recap }: { recap: ValueRecap }) {
   return (
     <div
       role="region"
-      aria-label="Fleet value recap"
+      aria-label="Fleet summary"
       className="overflow-hidden rounded-card border border-border-default bg-bg-panel"
     >
       <div className="flex flex-wrap divide-x divide-border-subtle">
         <Stat
-          label="Open findings"
+          label="Open items"
           value={recap.openFindings}
           tone={recap.openFindings > 0 ? "warning" : "success"}
-          sublabel="new + triaged"
+          sublabel="awaiting review"
         />
         <Stat
-          label="High severity"
+          label="Urgent"
           value={recap.highSevFindings}
           tone={recap.highSevFindings > 0 ? "danger" : "success"}
-          sublabel="need urgent review"
+          sublabel="needs attention first"
         />
         <Stat
-          label="Remediated"
+          label="Closed"
           value={recap.remediatedFindings}
           tone={recap.remediatedFindings > 0 ? "success" : "neutral"}
-          sublabel="closed this cycle"
+          sublabel="wrapped up this cycle"
         />
         <div className="flex min-w-[140px] flex-col items-start gap-1.5 px-4 py-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
-            Fleet risk score
+            Overall risk
           </span>
           <RiskGauge score={recap.fleetRiskScore} priority={recap.fleetRiskPriority} />
         </div>

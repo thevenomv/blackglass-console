@@ -7,37 +7,37 @@ import { baselineStoreHealth } from "@/lib/server/baseline-store";
 import { GenerateInviteButton } from "@/components/auth/GenerateInviteButton";
 
 export const metadata = {
-  title: "Get started | BLACKGLASS",
+  title: "Get started · Blackglass",
 };
 
 const FEATURES = [
   {
-    label: "SSH-based collection",
-    detail: "No agent install. Read-only SSH commands gather live state from any Linux host.",
+    label: "Lightweight connection",
+    detail: "Most teams connect without installing an agent — we gather read-only configuration signals you approve.",
   },
   {
-    label: "Baseline anchoring",
-    detail: "Snapshot approved system state after a change freeze. Every future scan diffs against it.",
+    label: "Trusted snapshots",
+    detail: "Save what “good” looks like after a release or hardening pass. Future checks compare against that moment.",
   },
   {
-    label: "Drift engine",
+    label: "Clear change alerts",
     detail:
-      "Structured, severity-ranked drift across listeners, users, SSH posture, firewall rules, packages, and kernel.",
+      "Meaningful differences — listeners, accounts, remote access, firewalls, packages, and more — ranked by urgency.",
   },
   {
-    label: "Evidence bundles",
+    label: "Shareable packages",
     detail:
-      "Export signed evidence packets for audit, incident response, or compliance questionnaires.",
+      "Download dated summaries for leadership, customers, or auditors — without rebuilding slides by hand.",
   },
   {
-    label: "Fleet radar",
+    label: "Fleet perspective",
     detail:
-      "Cross-host risk aggregation — surfaces the host that most needs attention without noise.",
+      "See which servers deserve attention first, without drowning in low-signal noise.",
   },
   {
-    label: "Persistent state",
+    label: "Durable history",
     detail:
-      "Baselines and drift history stored to persistent object storage — survive process restarts and redeployments.",
+      "Snapshots and history live in durable storage so nothing disappears when the app restarts.",
   },
 ] as const;
 
@@ -79,8 +79,8 @@ export default function WelcomePage() {
       cta: { href: "/settings", text: "View runtime health" },
       detail:
         baseline.configured && baseline.writable !== false
-          ? "Object storage adapter active — baselines survive restarts."
-          : "Set SPACES_* env vars or BASELINE_STORE_PATH for persistence.",
+          ? "Durable storage is connected — snapshots survive restarts."
+          : "Ask your admin to connect object storage in Settings so snapshots persist reliably.",
     },
     {
       label: "First baseline captured",
@@ -97,15 +97,15 @@ export default function WelcomePage() {
       <div className="mx-auto flex max-w-[860px] flex-col gap-10 px-6 pb-20 pt-10">
         {/* Header */}
         <div>
-          <p className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-fg-faint">
-            BLACKGLASS · Obsidian Dynamics Limited
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-fg-faint">
+            Blackglass · Obsidian Dynamics Limited
           </p>
           <h1 className="mt-3 text-2xl font-semibold text-fg-primary">
-            Operational integrity for Linux hosts
+            Welcome to your Linux visibility workspace
           </h1>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-fg-muted">
-            BLACKGLASS compares live system state to an approved baseline — surfacing drift that
-            commonly precedes incidents. No agents. No noise. High signal.
+            Blackglass compares what your servers look like today with the snapshot your team
+            trusts — so important drift shows up early, in language your whole org can follow.
           </p>
         </div>
 
@@ -169,7 +169,7 @@ export default function WelcomePage() {
             id="features-heading"
             className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-fg-faint"
           >
-            What BLACKGLASS covers
+            What you can do here
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
@@ -196,7 +196,7 @@ export default function WelcomePage() {
             {[
               { href: "/hosts", label: "Hosts", sub: "Inventory + per-host state" },
               { href: "/baselines", label: "Baselines", sub: "Capture & manage anchors" },
-              { href: "/drift", label: "Drift", sub: "All detected deviations" },
+              { href: "/drift", label: "Findings", sub: "All detected changes" },
               { href: "/evidence", label: "Evidence", sub: "Export audit bundles" },
               { href: "/reports", label: "Reports", sub: "Compliance summaries" },
               { href: "/settings", label: "Settings", sub: "Runtime health + secrets" },

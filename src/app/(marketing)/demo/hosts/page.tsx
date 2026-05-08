@@ -26,9 +26,9 @@ export default function DemoHostsPage() {
               <tr key={h.id} className="border-b border-border-subtle last:border-0">
                 <td className="px-3 py-2 font-medium text-fg-primary">{h.name}</td>
                 <td className="px-3 py-2 text-fg-muted">{h.env}</td>
-                <td className="px-3 py-2 font-mono text-xs text-fg-muted">{h.region}</td>
+                <td className="px-3 py-2 text-xs uppercase text-fg-muted">{h.region}</td>
                 <td className="px-3 py-2 text-fg-muted">{h.os}</td>
-                <td className="px-3 py-2 font-mono text-[11px] text-fg-faint">{h.kernel}</td>
+                <td className="px-3 py-2 text-[11px] text-fg-faint">{h.kernel}</td>
                 <td className="px-3 py-2">
                   <span
                     className={

@@ -204,7 +204,7 @@ export function ByokSection() {
           <p className="mt-1 text-sm text-fg-muted">
             Use your own KMS key (AWS KMS or HashiCorp Vault Transit) to
             wrap data-encryption keys for this workspace. Plaintext SSH
-            keys and other tenant secrets never touch the BLACKGLASS root
+            keys and other tenant secrets never touch the platform root
             key. See the{" "}
             <a
               href="https://github.com/thevenomv/blackglass-console/blob/main/src/lib/server/secrets/README.md#per-tenant-kms--byok-phase-1"
@@ -284,7 +284,7 @@ export function ByokSection() {
         <div className="rounded border border-border-subtle bg-bg-panel-elevated p-3 text-xs text-fg-muted">
           BYOK is enabled per-deployment via the{" "}
           <code className="font-mono">BYOK_ENABLED</code> env var. Hosted
-          customers on the BLACKGLASS Enterprise tier can request it by
+          customers on the Enterprise plan can request it by
           emailing{" "}
           <a
             href="mailto:enterprise@blackglasssec.com?subject=BYOK%20enablement%20request"

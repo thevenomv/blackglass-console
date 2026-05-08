@@ -29,7 +29,7 @@ export function EvidenceBody({
     <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
       <PageHeader
         title="Evidence"
-        subtitle="Tamper-aware bundles for audits, regulated workflows, and incident review."
+        subtitle="Dated, shareable packages for audits, customer security reviews, and incident follow-up."
         breadcrumbs={[
           { href: "/dashboard", label: "Dashboard" },
           { href: "/evidence", label: "Evidence" },
@@ -67,8 +67,8 @@ export function EvidenceBody({
         </>
       ) : (
         <UpgradePrompt
-          feature="Evidence bundles require BLACKGLASS Team"
-          description="Export tamper-evident audit packages containing baselines, drift findings, acknowledgements, and operator notes — accepted for SOC 2, post-incident review, and CAB submissions."
+          feature="Evidence exports need the Team plan"
+          description="Download signed packages with baselines, open items, notes, and who exported them — ready for leadership, customers, or assessors."
         />
       )}
     </div>

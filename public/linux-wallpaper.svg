@@ -44,7 +44,7 @@
     fill="#f2f5f8"
     text-anchor="middle"
     letter-spacing="18"
-  >BLACKGLASS</text>
+  >Blackglass</text>
 
   <!-- ── Blue separator line ── -->
   <rect x="480" y="506" width="960" height="1" fill="url(#lineGrad)"/>
@@ -82,7 +82,7 @@
     x="44" y="1068"
     font-family="'Courier New', 'Consolas', 'SF Mono', monospace"
     font-size="12" fill="#3b82f6" letter-spacing="2"
-  >BLACKGLASS</text>
+  >Blackglass</text>
 
   <!-- Status bar centre -->
   <text

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Data Processing Addendum | BLACKGLASS by Obsidian Dynamics",
+  title: "Data Processing Addendum · Blackglass by Obsidian Dynamics",
   description:
-    "Data Processing Addendum (UK GDPR / UK Data Protection Act 2018) for organisational customers of BLACKGLASS.",
+    "Data Processing Addendum (UK GDPR / UK Data Protection Act 2018) for organisational customers of Blackglass.",
 };
 
 const EFFECTIVE = "2 May 2026";
@@ -24,11 +24,11 @@ export default function DpaPage() {
         <p>
           This Data Processing Addendum (&ldquo;<strong className="text-fg-primary">DPA</strong>
           &rdquo;) applies when you are an organisation and we process personal data on your behalf
-          in connection with BLACKGLASS. It forms part of our agreement with you and supplements our{" "}
+          in connection with Blackglass. It forms part of our agreement with you and supplements our{" "}
           <Link href="/terms" className="text-accent-blue hover:underline">
             Terms of Service
           </Link>
-          . If you are an individual consumer using BLACKGLASS in a personal capacity, our{" "}
+          . If you are an individual consumer using Blackglass in a personal capacity, our{" "}
           <Link href="/privacy" className="text-accent-blue hover:underline">
             Privacy Policy
           </Link>{" "}
@@ -50,7 +50,7 @@ export default function DpaPage() {
       <Section title="3. Subject matter, nature, and purpose">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong className="text-fg-primary">Subject matter:</strong> provision of the BLACKGLASS
+            <strong className="text-fg-primary">Subject matter:</strong> provision of the Blackglass
             configuration-integrity and drift-detection service.
           </li>
           <li>
@@ -74,7 +74,7 @@ export default function DpaPage() {
         <p>
           Categories may include: identifiers (name, email, billing contact), authentication metadata
           (session events, IP at login), subscription metadata, and technical data relating to users
-          you authorise to access the Service. Host telemetry processed by BLACKGLASS is primarily
+          you authorise to access the Service. Host telemetry processed by Blackglass is primarily
           configuration metadata; where it can relate to an identifiable natural person, it is treated
           as personal data when required by applicable law.
         </p>

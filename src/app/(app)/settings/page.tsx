@@ -179,20 +179,20 @@ export default async function SettingsPage() {
             >
               <Card
                 title="Policy rules"
-                description='Define "must stay true" invariants. Violations surface as high-priority drift events.'
+                description='Define "must stay true" rules. Violations surface as high-priority findings.'
               >
                 <PoliciesSection />
               </Card>
               <Card
                 title="Automated scans"
-                description="Schedule recurring fleet-wide drift scans without manual triggers."
+                description="Schedule recurring fleet-wide checks without manual triggers."
               >
                 {limits.scheduledScans ? (
                   <AutoScanSection />
                 ) : (
                   <UpgradePrompt
-                    feature="Scheduled scans require BLACKGLASS Team"
-                    description="Run automatic drift sweeps on a configurable interval. Available on Pro and above."
+                    feature="Scheduled scans need the Team plan"
+                    description="Run automatic fleet checks on a rhythm you choose. Included on Team and Enterprise."
                   />
                 )}
               </Card>
@@ -208,11 +208,11 @@ export default async function SettingsPage() {
             <SettingsPanel
               id="notify"
               title="Notifications"
-              description="Where Blackglass sends drift alerts and how recipients verify the payloads came from us."
+              description="Where Blackglass sends finding alerts and how recipients verify payloads came from us."
             >
               <Card
                 title="Webhooks"
-                description="POST compressed drift summaries with severity thresholds per route."
+                description="POST compressed summaries with severity thresholds per route."
                 upgradeBadge={!limits.webhooks ? <UpgradePrompt feature="" compact /> : undefined}
               >
                 {limits.webhooks ? (
@@ -229,8 +229,8 @@ export default async function SettingsPage() {
                   </>
                 ) : (
                   <UpgradePrompt
-                    feature="Webhooks require BLACKGLASS Team"
-                    description="Deliver real-time drift summaries to Slack, PagerDuty, or any HTTP endpoint. Available on Pro and above."
+                    feature="Webhooks need the Team plan"
+                    description="Send real-time summaries to Slack, PagerDuty, or your own HTTPS endpoint. Included on Team and Enterprise."
                   />
                 )}
               </Card>
@@ -238,7 +238,7 @@ export default async function SettingsPage() {
               {limits.webhooks ? <WebhookSigningKeySection /> : null}
               <Card
                 title="Email digest"
-                description="Periodic summary of fleet drift activity, sent to the alert email above. Cadence is set per deployment."
+                description="Periodic summary of fleet change activity, sent to the alert email above. Cadence is set per deployment."
               >
                 <DriftDigestSection />
               </Card>
@@ -261,8 +261,8 @@ export default async function SettingsPage() {
                   <ApiKeysSection />
                 ) : (
                   <UpgradePrompt
-                    feature="API key access requires BLACKGLASS Pro"
-                    description="Integrate drift scans directly into your deployment pipelines. Available on Pro and above."
+                    feature="API keys need the Team plan"
+                    description="Let CI/CD trigger scans with a secure token. Included on Team and Enterprise."
                   />
                 )}
               </Card>
@@ -291,7 +291,7 @@ export default async function SettingsPage() {
                 </Card>
                 <Card
                   title="Data export"
-                  description="Generate a downloadable archive of all evidence, audit, drift, and host inventory for this workspace. The archive is delivered as a signed URL emailed to you when the job completes."
+                  description="Generate a downloadable archive of evidence, audit log, findings history, and host inventory for this workspace. The archive is delivered as a signed URL emailed to you when the job completes."
                 >
                   <DataExportSection />
                 </Card>

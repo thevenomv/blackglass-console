@@ -130,7 +130,7 @@ export function DriftInvestigationDrawer({
         <header className="flex items-start justify-between gap-4 border-b border-border-subtle px-6 py-5">
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">
-              Drift investigation
+              Finding detail
             </p>
             <h2
               id="drift-drawer-title"
@@ -276,7 +276,7 @@ export function DriftInvestigationDrawer({
                 <p className="font-mono text-[12px]">{formatVerified(prov?.verifiedAt)} UTC</p>
               </li>
               <li>
-                <p className="font-medium text-fg-primary">Drift engine scored</p>
+                <p className="font-medium text-fg-primary">Engine scored</p>
                 <p className="font-mono text-[12px]">{formatDetected(event.detectedAt)} UTC</p>
               </li>
             </ul>
@@ -308,8 +308,8 @@ export function DriftInvestigationDrawer({
                     {snippet.code}
                   </pre>
                   <p className="mt-2 text-[11px] text-fg-faint">
-                    Review before running. BLACKGLASS does not execute commands — this snippet is for your reference only.
-                    Replace <code className="font-mono">&lt;PLACEHOLDERS&gt;</code> with values from the drift detail above.
+                    Review before running. Blackglass does not execute commands — this snippet is for your reference only.
+                    Replace <code className="font-mono">&lt;PLACEHOLDERS&gt;</code> with values from the finding detail above.
                   </p>
                 </CollapsibleSection>
               </div>

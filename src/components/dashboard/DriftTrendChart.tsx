@@ -57,7 +57,7 @@ export function DriftTrendChart() {
       <div
         role="status"
         aria-live="polite"
-        aria-label="Loading drift trend"
+        aria-label="Loading findings trend"
         className="w-full animate-pulse rounded bg-bg-elevated"
         style={{ height: CHART_HEIGHT_PX }}
       />
@@ -66,7 +66,7 @@ export function DriftTrendChart() {
 
   if (days.length === 0) {
     return (
-      <p className="text-xs text-fg-faint">No trend data yet — run a scan to begin tracking.</p>
+      <p className="text-xs text-fg-faint">No trend data yet — run a scan to start the chart.</p>
     );
   }
 
@@ -79,7 +79,7 @@ export function DriftTrendChart() {
         className="relative flex w-full items-end justify-between gap-2"
         style={{ height: CHART_HEIGHT_PX }}
         role="img"
-        aria-label={`Drift trend chart: ${grandTotal} total findings across ${days.length} days`}
+        aria-label={`Findings trend chart: ${grandTotal} total findings across ${days.length} days`}
       >
         {/* faint baseline */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border-subtle" />

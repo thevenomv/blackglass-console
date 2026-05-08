@@ -32,7 +32,7 @@ export async function DELETE(
   );
   if (!access.ok) return access.response;
   if (access.mode === "legacy") {
-    return jsonError(400, "not_supported", "Drift mutes require SaaS mode.", requestId);
+    return jsonError(400, "not_supported", "Finding mutes require SaaS mode.", requestId);
   }
 
   const ok = await deleteMute(access.ctx.tenant.id, id);

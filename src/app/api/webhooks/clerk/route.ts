@@ -113,7 +113,7 @@ export async function POST(request: Request) {
               if (email) {
                 await sendEmail({
                   to: email,
-                  subject: "Welcome to BLACKGLASS — your trial is ready",
+                  subject: "Welcome to Blackglass — your trial is ready",
                   html: welcomeEmailHtml({ firstName, orgName: readOrgName(evt.data), consoleUrl }),
                   text: welcomeEmailText({ firstName, orgName: readOrgName(evt.data), consoleUrl }),
                   replyTo: "jamie@obsidiandynamics.co.uk",

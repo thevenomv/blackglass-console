@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | BLACKGLASS by Obsidian Dynamics",
+  title: "Privacy Policy · Blackglass by Obsidian Dynamics",
   description:
-    "Privacy Policy for BLACKGLASS, a product of Obsidian Dynamics Limited (Co. No. 16663833). UK GDPR compliant.",
+    "Privacy Policy for Blackglass, a product of Obsidian Dynamics Limited (Co. No. 16663833). UK GDPR compliant.",
 };
 
 const EFFECTIVE = "2 May 2026";
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
         <p>
           <strong className="text-fg-primary">Obsidian Dynamics Limited</strong> (&ldquo;we&rdquo;,
           &ldquo;us&rdquo;, &ldquo;our&rdquo;) is the data controller for personal data processed
-          in connection with BLACKGLASS. We are registered in England &amp; Wales under Company
+          in connection with Blackglass. We are registered in England &amp; Wales under Company
           Number <strong className="text-fg-primary">16663833</strong>.
         </p>
         <p>
@@ -47,7 +47,7 @@ export default function PrivacyPage() {
             ["Billing data", "Billing email, Stripe customer ID, subscription status", "Processing payments and managing your subscription"],
             ["Usage data", "IP address, browser/device type, pages visited, session duration", "Security, fraud prevention, service improvement"],
             ["Host configuration metadata", "Configuration state of Linux hosts you enrol (listening ports, local users and groups, sudo policy, sshd effective configuration, systemd unit files, cron entries, installed packages, file integrity hashes for critical paths)", "Core service — computing drift and generating reports"],
-            ["Audit log data", "Timestamped record of operator actions within BLACKGLASS", "Security and compliance audit trail"],
+            ["Audit log data", "Timestamped record of operator actions within Blackglass", "Security and compliance audit trail"],
             ["Support communications", "Emails and messages you send us", "Responding to support requests"],
           ]}
         />
@@ -140,7 +140,7 @@ export default function PrivacyPage() {
 
       <Section title="8. Cookies and tracking">
         <p>
-          BLACKGLASS uses only technically necessary cookies (session authentication). We do not use
+          Blackglass uses only technically necessary cookies (session authentication). We do not use
           advertising or cross-site tracking cookies. Error monitoring via Sentry may collect
           anonymised session replay data (on error only) to diagnose faults; this can be disabled
           on request.
@@ -184,7 +184,7 @@ export default function PrivacyPage() {
 
       <Section title="12. Organisational customers (processor relationship)">
         <p>
-          Where you deploy BLACKGLASS for an organisation and we process personal data on your
+          Where you deploy Blackglass for an organisation and we process personal data on your
           instructions, our{" "}
           <Link href="/dpa" className="text-accent-blue hover:underline">
             Data Processing Addendum

@@ -49,9 +49,9 @@ const TOPICS: DocTopic[] = [
   },
   {
     match: ["/drift"],
-    title: "Triaging drift",
+    title: "Triaging findings",
     blurb:
-      "Drift events are diffs between the live host state and the captured baseline, grouped by integrity class.",
+      "Findings are changes compared with your trusted snapshot, grouped by type so you can filter and bulk-update.",
     bullets: [
       {
         heading: "Lifecycle states",
@@ -63,7 +63,7 @@ const TOPICS: DocTopic[] = [
       },
       {
         heading: "Snooze noisy classes",
-        body: "Settings → Drift mutes lets you suppress matching titles for a window — useful for known-noisy categories during a change window.",
+        body: "Mute rules in Settings let you suppress matching titles for a window — useful for noisy categories during a change window.",
       },
     ],
     links: [
@@ -166,7 +166,7 @@ const TOPICS: DocTopic[] = [
 
 const DEFAULT_TOPIC: DocTopic = {
   match: [],
-  title: "BLACKGLASS docs",
+  title: "Blackglass help",
   blurb:
     "Quick reference for the page you're on. The drawer updates as you navigate.",
   bullets: [

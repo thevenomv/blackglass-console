@@ -207,7 +207,7 @@ function highestSeverity(payload: WebhookPayload): "high" | "medium" | "low" {
 
 function summaryLine(payload: WebhookPayload): string {
   const high = payload.findings.filter((f) => f.severity === "high").length;
-  return `BLACKGLASS: ${payload.findings.length} drift finding${payload.findings.length === 1 ? "" : "s"} on ${payload.hostname}${high > 0 ? ` (${high} high)` : ""}`;
+  return `Blackglass: ${payload.findings.length} finding${payload.findings.length === 1 ? "" : "s"} on ${payload.hostname}${high > 0 ? ` (${high} high)` : ""}`;
 }
 
 function findingsMarkdown(payload: WebhookPayload, max = 10): string {
@@ -255,7 +255,7 @@ function buildServiceNowPayload(
       caller_id: "blackglass.bot",
       // dedupe via correlation_id so a re-run of the same scan updates the same incident
       correlation_id: `blackglass-${payload.scanId}-${payload.hostId}`,
-      correlation_display: "BLACKGLASS drift scan",
+      correlation_display: "Blackglass drift scan",
     }),
     extraHeaders: { Accept: "application/json" },
   };
@@ -296,7 +296,7 @@ function buildJiraPayload(
       {
         type: "paragraph",
         content: [
-          { type: "text", text: "Review in BLACKGLASS: " },
+          { type: "text", text: "Review in Blackglass: " },
           {
             type: "text",
             text: `${APP_URL}/drift`,
@@ -340,7 +340,7 @@ function buildDatadogPayload(
       text:
         `%%%\n` +
         `${findingsMarkdown(payload)}\n\n` +
-        `[Review in BLACKGLASS](${APP_URL}/drift)\n` +
+        `[Review in Blackglass](${APP_URL}/drift)\n` +
         `%%%`,
       alert_type: alertType,
       priority: sev === "high" ? "normal" : "low",
@@ -352,7 +352,7 @@ function buildDatadogPayload(
         `host_id:${payload.hostId}`,
       ],
       aggregation_key: `blackglass-${payload.hostId}`,
-      source_type_name: "BLACKGLASS",
+      source_type_name: "Blackglass",
     }),
     extraHeaders: { Accept: "application/json" },
   };
@@ -374,7 +374,7 @@ function buildLinearPayload(
     `${summaryLine(payload)}\n\n` +
     `**Host:** \`${payload.hostname}\` · **Scan:** \`${payload.scanId}\`\n\n` +
     `### Findings\n${findingsMarkdown(payload)}\n\n` +
-    `[Review in BLACKGLASS](${APP_URL}/drift)`;
+    `[Review in Blackglass](${APP_URL}/drift)`;
   return {
     body: JSON.stringify({
       query: `
@@ -414,7 +414,7 @@ function buildGithubPayload(
         `${summaryLine(payload)}\n\n` +
         `**Host:** \`${payload.hostname}\` · **Scan:** \`${payload.scanId}\`\n\n` +
         `### Findings\n${findingsMarkdown(payload)}\n\n` +
-        `[Review in BLACKGLASS](${APP_URL}/drift)`,
+        `[Review in Blackglass](${APP_URL}/drift)`,
       labels: ["blackglass", `severity:${sev}`],
     }),
     extraHeaders: {
@@ -538,7 +538,7 @@ function buildSentinelCefPayload(
   const sevNum: Record<string, number> = { high: 9, medium: 6, low: 3 };
   const epochMs = new Date(payload.timestamp).getTime();
   const lines = payload.findings.map((f) => {
-    const sig = `BLACKGLASS-${f.category.toUpperCase()}`;
+    const sig = `Blackglass-${f.category.toUpperCase()}`;
     const ext = [
       `rt=${epochMs}`,
       `dvchost=${escapeCefExtension(payload.hostname)}`,
@@ -548,7 +548,7 @@ function buildSentinelCefPayload(
       `cs3Label=ReviewUrl cs3=${escapeCefExtension(`${APP_URL}/drift`)}`,
       `msg=${escapeCefExtension(f.rationale)}`,
     ].join(" ");
-    return `CEF:0|BLACKGLASS|BLACKGLASS|1.0|${escapeCefHeader(sig)}|${escapeCefHeader(f.title)}|${sevNum[f.severity] ?? 3}|${ext}`;
+    return `CEF:0|Blackglass|Blackglass|1.0|${escapeCefHeader(sig)}|${escapeCefHeader(f.title)}|${sevNum[f.severity] ?? 3}|${ext}`;
   });
   return {
     body: lines.join("\n") + "\n",
@@ -601,7 +601,7 @@ function buildOcsfPayload(
       metadata: {
         version: "2.0.0",
         product: {
-          name: "BLACKGLASS",
+          name: "Blackglass",
           vendor_name: "Obsidian Dynamics",
           version: "1.0",
           uid: "blackglass-console",
@@ -677,7 +677,7 @@ function buildSlackPayload(payload: WebhookPayload): string {
       type: "header",
       text: {
         type: "plain_text",
-        text: `${highCount > 0 ? "🔴" : "🟡"} BLACKGLASS: ${count} drift finding${count === 1 ? "" : "s"} on ${payload.hostname}`,
+        text: `${highCount > 0 ? "🔴" : "🟡"} Blackglass: ${count} finding${count === 1 ? "" : "s"} on ${payload.hostname}`,
         emoji: true,
       },
     },
@@ -709,7 +709,7 @@ function buildSlackPayload(payload: WebhookPayload): string {
 function buildPagerDutyPayload(payload: WebhookPayload, pdRoutingKey: string | null): string {
   const highCount = payload.findings.filter((f) => f.severity === "high").length;
   const severity = highCount > 0 ? "critical" : payload.findings.some((f) => f.severity === "medium") ? "warning" : "info";
-  const summary = `BLACKGLASS: ${payload.findings.length} drift finding(s) on ${payload.hostname}`;
+  const summary = `Blackglass: ${payload.findings.length} finding(s) on ${payload.hostname}`;
 
   return JSON.stringify({
     routing_key: pdRoutingKey ?? "",
@@ -736,7 +736,7 @@ function buildPagerDutyPayload(payload: WebhookPayload, pdRoutingKey: string | n
     links: [
       {
         href: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.blackglasssec.com"}/drift`,
-        text: "Review in BLACKGLASS console",
+        text: "Review in Blackglass console",
       },
     ],
   });
@@ -762,7 +762,7 @@ function buildBodyAndHeaders(
   const platform = detectPlatform(url);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "User-Agent": "BLACKGLASS-Webhook/1.0",
+    "User-Agent": "Blackglass-Webhook/1.0",
   };
   let body: string;
 
@@ -1027,7 +1027,7 @@ export async function sendTestWebhook(url: string, pdRoutingKey?: string | null)
         severity: "high",
         title: "Test: sudo group membership changed",
         rationale:
-          "This is a synthetic BLACKGLASS test event — no action required.",
+          "This is a synthetic Blackglass test event — no action required.",
       },
     ],
   };

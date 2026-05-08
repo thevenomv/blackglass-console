@@ -21,7 +21,7 @@ const NAV_WORKSPACE: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/hosts", label: "Hosts" },
   { href: "/baselines", label: "Baselines" },
-  { href: "/drift", label: "Drift" },
+  { href: "/drift", label: "Findings" },
   { href: "/evidence", label: "Evidence" },
   { href: "/reports", label: "Reports" },
   { href: "/workspace", label: "Workspace" },
@@ -71,7 +71,7 @@ function NavGroup({
   if (visible.length === 0) return null;
   return (
     <div className="px-1">
-      <p className="mb-1.5 px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
         {title}
       </p>
       <div className="flex flex-col gap-0.5">
@@ -107,9 +107,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border-default bg-bg-sidebar">
       <div className="border-b border-border-subtle px-5 py-5">
-        <p className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-fg-faint">
-          BLACKGLASS
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-fg-faint">Blackglass</p>
         <p className="mt-1 text-[10px] font-medium text-fg-faint">by Obsidian Dynamics Limited</p>
       </div>
       <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-3 pb-2" aria-label="Primary">
@@ -129,12 +127,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         />
       </nav>
       <div className="border-t border-border-subtle p-3">
-        <p className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-faint">
           Appearance
         </p>
         <ThemeToggle />
-        <p className="mt-2 font-mono text-[10px] text-fg-faint">
-          Palette: <kbd className="rounded border border-border-subtle px-1">⌘K</kbd>
+        <p className="mt-2 text-[10px] text-fg-faint">
+          Quick search: <kbd className="rounded border border-border-subtle px-1">⌘K</kbd>
         </p>
         {clerkOn ? (
           <div className="mt-3 space-y-2 border-t border-border-subtle pt-3">
@@ -156,21 +154,21 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ) : null}
         {!clerkOn && authenticated && (
           <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-3">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-fg-faint">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-fg-faint">
               {role}
             </span>
             <form action={signOut}>
               <button
                 type="submit"
-                className="font-mono text-[10px] uppercase tracking-widest text-fg-faint transition-colors hover:text-fg-primary"
+                className="text-[10px] font-medium uppercase tracking-widest text-fg-faint transition-colors hover:text-fg-primary"
               >
                 Sign out
               </button>
             </form>
           </div>
         )}
-        <div className="mt-3 border-t border-border-subtle pt-3 font-mono text-[10px] text-fg-faint">
-          <p className="mb-1.5 uppercase tracking-widest">Legal</p>
+        <div className="mt-3 border-t border-border-subtle pt-3 text-[10px] text-fg-faint">
+          <p className="mb-1.5 font-semibold uppercase tracking-widest">Legal</p>
           <div className="flex flex-col gap-1">
             <Link href="/terms" className="text-fg-muted hover:text-fg-primary hover:underline">
               Terms

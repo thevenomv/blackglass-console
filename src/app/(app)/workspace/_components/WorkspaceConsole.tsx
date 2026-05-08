@@ -56,7 +56,7 @@ export function WorkspaceConsole({
             </li>
             <li>
               <Link href={`/drift?host=${hostId}&severity=high`} className="font-medium text-accent-blue hover:underline">
-                Drift queue filtered · high severity
+                Findings filtered · high severity
               </Link>
             </li>
             <li>
@@ -99,7 +99,7 @@ export function WorkspaceConsole({
         <ul className="mt-4 space-y-4 border-l-2 border-border-default pl-4">
           {timeline.map((e) => (
             <li key={`${e.at}-${e.label}`} className="text-sm">
-              <p className="font-mono text-[12px] text-fg-faint">{formatAt(e.at)} UTC</p>
+              <p className="text-[12px] tabular-nums text-fg-faint">{formatAt(e.at)} UTC</p>
               <p className="mt-1 font-medium text-fg-primary">{e.label}</p>
               <p className="mt-0.5 text-fg-muted">{e.detail}</p>
             </li>

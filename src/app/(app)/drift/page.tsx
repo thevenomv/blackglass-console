@@ -1,17 +1,24 @@
 export const dynamic = "force-dynamic";
 
+import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { RunScanButton } from "@/app/(app)/dashboard/_components/RunScanButton";
 import { AppShell } from "@/components/layout/AppShell";
-import { DriftEventsView } from "./_components/DriftEventsView";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeletonRows } from "@/components/ui/Skeleton";
-import { RunScanButton } from "@/app/(app)/dashboard/_components/RunScanButton";
-import { apiConfig } from "@/lib/api/config";
 import { driftEvents as mockDriftEvents } from "@/data/mock/drift";
+import { apiConfig } from "@/lib/api/config";
 import { collectorConfigured } from "@/lib/server/collector";
 import { getDriftEventsAsync } from "@/lib/server/drift-engine";
-import { Suspense } from "react";
+import { DriftEventsView } from "./_components/DriftEventsView";
+
+export const metadata: Metadata = {
+  title: "Findings",
+  description:
+    "Review changes compared with your trusted baseline — filter, triage, and open detail for each finding.",
+};
 
 async function DriftBody({ eventId }: { eventId?: string }) {
   const live = collectorConfigured();
@@ -24,20 +31,20 @@ async function DriftBody({ eventId }: { eventId?: string }) {
     return (
       <div className="flex flex-col gap-6 px-6 pb-10 pt-6">
         <PageHeader
-          title="Drift"
-          subtitle="High-signal deltas grouped by integrity class — open an event to investigate."
+          title="Findings"
+          subtitle="Changes compared with your trusted snapshot — open any row for context and next steps."
           breadcrumbs={[
             { href: "/dashboard", label: "Dashboard" },
-            { href: "/drift", label: "Drift" },
+            { href: "/drift", label: "Findings" },
           ]}
           actions={live ? <RunScanButton /> : undefined}
         />
         <EmptyState
-          title={live ? "No drift detected yet" : "Connect a host to see drift"}
+          title={live ? "No findings yet" : "Connect a host to see findings"}
           description={
             live
-              ? "Drift events appear here after the first scan that finds a difference between the captured baseline and live host state. Capture a baseline first if you haven't already, then run a scan."
-              : "BLACKGLASS compares each scan to a captured baseline and surfaces deviations here. Connect a Linux host to start collecting state."
+              ? "Items appear after a scan finds a difference between your trusted snapshot and the live server. Capture a snapshot first if you have not already, then run a scan."
+              : "Blackglass compares each check to your trusted snapshot and lists differences here. Connect a Linux host to get started."
           }
           action={
             live ? (

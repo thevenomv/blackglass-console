@@ -117,7 +117,7 @@ export function SandboxBanner() {
       <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-fg-primary">
         <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-amber-400" />
         <span>
-          <strong>Sandbox — drift seeding in progress.</strong> Attack scenario{" "}
+          <strong>Sandbox — sample changes in progress.</strong> Attack scenario{" "}
           {sandbox.seedPhase}/{MAX_PHASES} applied. Run a scan to see it.
         </span>
       </div>
@@ -144,7 +144,7 @@ export function SandboxBanner() {
             <span className="ml-2 text-xs text-fg-faint">· expires in {expiresLabel}</span>
           )}
           <span className="ml-2 text-xs text-fg-faint">
-            · drift phase {sandbox.seedPhase}/{MAX_PHASES}
+            · scenario phase {sandbox.seedPhase}/{MAX_PHASES}
           </span>
         </span>
         <button

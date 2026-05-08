@@ -38,7 +38,7 @@ export const dynamic = "force-dynamic";
 
 const ReportPostSchema = z.object({
   scope: z.enum(["fleet", "tags", "host"]),
-  format: z.enum(["markdown", "pdf"]).default("markdown"),
+  format: z.enum(["markdown", "pdf"]).default("pdf"),
   hostId: z.string().optional(),
 });
 

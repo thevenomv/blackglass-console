@@ -2,7 +2,7 @@
  * Server-side PDF report generator using pdf-lib.
  *
  * Converts the stored report JSON payload into a professional, printable PDF:
- *   - Cover page: report title, scope, generated timestamp, BLACKGLASS branding
+ *   - Cover page: report title, scope, generated timestamp, Blackglass branding
  *   - Drift events section: severity, category, title, timestamp
  *   - Recent audit section: actor, action, timestamp
  *
@@ -52,7 +52,7 @@ const LINE_MD = 18;
 const LINE_LG = 26;
 
 // ---------------------------------------------------------------------------
-// Color palette — matches BLACKGLASS dark-mode token feel on white paper
+// Color palette — matches Blackglass dark-mode token feel on white paper
 // ---------------------------------------------------------------------------
 
 const C_BLACK = rgb(0.1, 0.1, 0.1);
@@ -138,7 +138,7 @@ class PageManager {
     this.pages.push(this.currentPage);
     this.y = PAGE_H - MARGIN;
     // Footer on every page
-    this.currentPage.drawText("BLACKGLASS · Confidential · Not for distribution", {
+    this.currentPage.drawText("Blackglass · Confidential · Not for distribution", {
       x: MARGIN,
       y: 20,
       size: 7,
@@ -195,9 +195,9 @@ export async function generateReportPdf(contentJson: string): Promise<Uint8Array
   }
 
   const doc = await PDFDocument.create();
-  doc.setTitle("BLACKGLASS Integrity Report");
-  doc.setAuthor("BLACKGLASS");
-  doc.setCreator("BLACKGLASS Console");
+  doc.setTitle("Blackglass Integrity Report");
+  doc.setAuthor("Blackglass");
+  doc.setCreator("Blackglass Console");
   doc.setCreationDate(new Date());
 
   const regular = await doc.embedFont(StandardFonts.Helvetica);
@@ -214,7 +214,7 @@ export async function generateReportPdf(contentJson: string): Promise<Uint8Array
   pm.y = PAGE_H - 80;
 
   // Logo / brand wordmark
-  pm.text("BLACKGLASS", { size: 22, font: bold, color: C_BRAND });
+  pm.text("Blackglass", { size: 22, font: bold, color: C_BRAND });
   pm.advance(LINE_LG);
   pm.text("Linux Server Integrity Report", { size: 16, font: bold, color: C_BLACK });
   pm.advance(LINE_MD + 4);

@@ -2,36 +2,34 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "How to Detect Unauthorized Linux Config Changes | BLACKGLASS",
+  title: "How to Detect Unauthorized Linux Config Changes · Blackglass",
   description:
     "A practical guide to detecting unauthorized configuration changes on Linux servers — covering manual techniques, tooling options, and how to build a sustainable drift detection workflow.",
   openGraph: {
-    title: "How to Detect Unauthorized Linux Config Changes | BLACKGLASS",
+    title: "How to Detect Unauthorized Linux Config Changes · Blackglass",
     description:
       "A practical guide to detecting unauthorized configuration changes on Linux servers — covering manual techniques, tooling options, and how to build a sustainable drift detection workflow.",
     type: "article",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
 };
 
 export default function DetectUnauthorizedChangesGuidePage() {
   return (
     <main className="guide-article mx-auto max-w-3xl px-4 py-16 text-fg-muted">
-        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-blue">
-          Guide
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Guide</p>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
           How to detect unauthorized Linux configuration changes
         </h1>
         <p className="mt-4 text-sm text-fg-faint">
-          ~12 min read · SSH hardening, drift detection, Linux security
+          ~12 min read · practical Linux security habits
         </p>
 
         <p className="mt-6 text-lg leading-relaxed">
-          Unauthorized or untracked configuration changes are one of the most common causes of
-          security regressions and availability incidents on Linux infrastructure. This guide covers
-          the problem, manual detection techniques, and how to build a scalable monitoring workflow.
+          Surprising configuration changes are one of the quietest ways risk creeps back onto Linux
+          servers. This guide walks through what counts as a problem, what you can check by hand, and
+          how to build a routine your team can sustain.
         </p>
 
         {/* TOC */}

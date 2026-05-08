@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Linux Hardening Monitoring & Baseline Audit | BLACKGLASS",
+  title: "Linux Hardening Monitoring & Baseline Audit · Blackglass",
   description:
     "Track your Linux security baseline over time. Blackglass captures hardening state after each change, monitors for regression, and exports evidence for security reviews.",
   openGraph: {
-    title: "Linux Hardening Monitoring & Baseline Audit | BLACKGLASS",
+    title: "Linux Hardening Monitoring & Baseline Audit · Blackglass",
     description:
       "Track your Linux security baseline over time. Blackglass captures hardening state after each change, monitors for regression, and exports evidence for security reviews.",
     type: "website",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
 };
 
@@ -28,18 +28,15 @@ const CHECKS = [
 export default function LinuxHardeningMonitoringPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 text-fg-muted">
-        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-blue">
-          Use case
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use case</p>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
-          Linux hardening monitoring with Blackglass
+          Make sure hardening sticks after the consultants leave
         </h1>
         <p className="mt-4 text-lg leading-relaxed">
-          Hardening a Linux server is a point-in-time action. Monitoring hardening state is the
-          ongoing discipline. Blackglass captures approved hardening baselines and alerts when any
-          host regresses — giving your security team continuous evidence of posture without manual
-          reviews.
+          Locking down a server is a project; keeping it locked down is a habit. Blackglass remembers
+          the approved state, checks back on a rhythm you choose, and nudges you when a host slides
+          backward — without another manual spreadsheet review.
         </p>
 
         {/* The problem */}
@@ -76,11 +73,11 @@ export default function LinuxHardeningMonitoringPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-subtle bg-bg-panel">
-                <th className="px-4 py-2.5 text-left font-mono text-xs font-semibold uppercase tracking-wider text-fg-faint">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-fg-faint">
                   Area
                 </th>
-                <th className="px-4 py-2.5 text-left font-mono text-xs font-semibold uppercase tracking-wider text-fg-faint">
-                  Examples
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-fg-faint">
+                  What we watch
                 </th>
               </tr>
             </thead>

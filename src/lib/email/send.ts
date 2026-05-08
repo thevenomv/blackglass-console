@@ -6,7 +6,7 @@
  *   await sendEmail({ to, subject, html, text });
  *
  * Requires env var: RESEND_API_KEY
- * Optional env var: EMAIL_FROM  (defaults to "BLACKGLASS <noreply@blackglasssec.com>")
+ * Optional env var: EMAIL_FROM  (defaults to "Blackglass <noreply@blackglasssec.com>")
  *
  * When RESEND_API_KEY is absent (local dev without email configured) the send
  * is skipped and a warning is logged — it will never throw.
@@ -36,7 +36,7 @@ function getResend(): Resend | null {
 }
 
 const DEFAULT_FROM =
-  process.env.EMAIL_FROM ?? "BLACKGLASS <noreply@blackglasssec.com>";
+  process.env.EMAIL_FROM ?? "Blackglass <noreply@blackglasssec.com>";
 
 export async function sendEmail(opts: SendEmailOptions): Promise<{ id?: string; skipped?: boolean }> {
   // Resend is a public-internet SaaS; air-gapped deployments must use

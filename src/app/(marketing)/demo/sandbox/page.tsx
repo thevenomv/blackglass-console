@@ -44,9 +44,9 @@ const SCENES: Scene[] = [
     rationale:
       "An unexpected process is listening on TCP 4444. This port is commonly used by reverse shells and C2 frameworks such as Metasploit. It was not present in the host's baseline.",
     suggestedActions: [
-      "Run `ss -tlnp | grep 4444` to identify the process",
-      "Terminate the process and remove any associated binary or script",
-      "Check crontabs and systemd units for persistence mechanisms",
+      "Identify which service is listening on the suspicious port using your normal host-inspection workflow.",
+      "Stop the listener and remove the associated programme or installer after change approval.",
+      "Look for scheduled jobs or services that would bring the listener back after reboot.",
     ],
   },
   {
@@ -57,9 +57,9 @@ const SCENES: Scene[] = [
     rationale:
       "A sudoers rule now allows password-less privilege escalation. This was not present in the baseline. Any process running as this user can silently gain root.",
     suggestedActions: [
-      "Run `sudo visudo` and remove the NOPASSWD line",
-      "Check `/etc/sudoers.d/` for drop-in files",
-      "Audit which accounts triggered sudo since the change",
+      "Edit sudo policy through your approved admin path and remove passwordless root escalation for untrusted accounts.",
+      "Review supplemental sudo policy files for anything that was not in the approved baseline.",
+      "Correlate privileged activity in your logging stack to see who used the new rule.",
     ],
   },
   {
@@ -70,9 +70,9 @@ const SCENES: Scene[] = [
     rationale:
       "User account 'attacker-ssh' (UID 1002) was not present in the baseline. Unauthorised accounts are a primary persistence mechanism — they survive reboots and password rotations.",
     suggestedActions: [
-      "Audit the purpose of account 'attacker-ssh'",
-      "Check for associated SSH keys, crons, and running processes",
-      "Remove account if not authorised: `userdel -r attacker-ssh`",
+      "Confirm whether the new account is authorised; if not, treat it as incident response.",
+      "Review SSH keys, scheduled jobs, and running sessions tied to that account.",
+      "Remove the account and its home directory through your standard identity procedure.",
     ],
   },
   {
@@ -83,9 +83,9 @@ const SCENES: Scene[] = [
     rationale:
       "The 'attacker-ssh' account was added to the `sudo` group, granting full privileged-command access. Combined with the NOPASSWD entry above, this is a clear path to silent root.",
     suggestedActions: [
-      "Run `getent group sudo` and remove unauthorised members",
-      "Review `/etc/group` for group membership drift",
-      "Force a password reset for any compromised account",
+      "List members of the administrators group and remove anyone who should not have full sudo access.",
+      "Compare group membership to the frozen baseline snapshot.",
+      "Rotate credentials for any account that may have been misused.",
     ],
   },
   {
@@ -96,9 +96,9 @@ const SCENES: Scene[] = [
     rationale:
       "The sshd_config now permits direct root login. This deviates from the baseline (which had it disabled) and dramatically expands the attack surface — every brute-force attempt now targets root directly.",
     suggestedActions: [
-      "Restore `PermitRootLogin no` in `/etc/ssh/sshd_config`",
-      "Reload sshd: `systemctl reload ssh`",
-      "Audit `/var/log/auth.log` for successful root logins since the change",
+      "Restore the SSH server policy so interactive root login is not allowed.",
+      "Reload the SSH service using your change window and validation checklist.",
+      "Review authentication logs for successful root sessions after the drift appeared.",
     ],
   },
   {
@@ -109,9 +109,9 @@ const SCENES: Scene[] = [
     rationale:
       "A new cron entry pipes `curl` output to `bash` every 5 minutes from an external IP. This is a textbook command-and-control beacon — it executes whatever the attacker serves, with root privileges.",
     suggestedActions: [
-      "Remove `/etc/cron.d/sandbox-beacon` immediately",
-      "Inspect outbound network connections from cron PIDs",
-      "Block the C2 destination at the network layer",
+      "Delete the unauthorised scheduled job that downloads and executes remote content.",
+      "Inspect outbound connections initiated by scheduled tasks.",
+      "Block the remote destination at your firewall or egress filter until the incident is closed.",
     ],
   },
   {
@@ -122,9 +122,9 @@ const SCENES: Scene[] = [
     rationale:
       "A new SUID-root binary was planted outside any package's manifest. SUID binaries execute with the file owner's privileges regardless of who runs them — this is a stealthy privilege-escalation backdoor.",
     suggestedActions: [
-      "Locate with `find /usr/local/bin -perm -4000 -newer /etc/shadow`",
-      "Compare against `dpkg -V` / `rpm -V` to confirm it's not package-managed",
-      "Remove the binary and audit which UIDs invoked it",
+      "Find newly added set-user-ID binaries outside your software catalogue.",
+      "Verify whether the file belongs to an installed package; if not, escalate as malware.",
+      "Remove the binary and review who executed it in your command logging.",
     ],
   },
   {
@@ -135,9 +135,9 @@ const SCENES: Scene[] = [
     rationale:
       "`/etc/passwd` permissions changed from 0644 to 0666. Any local user can now add a new UID-0 account by appending a single line — this is one of the simplest local-to-root paths in Linux.",
     suggestedActions: [
-      "Restore permissions: `chmod 644 /etc/passwd`",
-      "Check the file for unauthorised entries (UID 0 added)",
-      "Audit `/var/log/auth.log` and shell histories for suspicious activity",
+      "Restore strict file permissions on the system account database.",
+      "Inspect the file for hidden administrator accounts or duplicate user IDs.",
+      "Review authentication and shell history logs around the time permissions changed.",
     ],
   },
 ];
@@ -156,7 +156,7 @@ export default function SandboxWalkthroughPage() {
     <div className="space-y-10">
       {/* Hero */}
       <header className="space-y-3">
-        <p className="font-mono text-[10px] uppercase tracking-wider text-fg-faint">Walkthrough</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-faint">Walkthrough</p>
         <h1 className="text-2xl font-semibold text-fg-primary sm:text-3xl">
           What a Blackglass scan looks like
         </h1>
@@ -195,7 +195,7 @@ export default function SandboxWalkthroughPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 shrink-0 rounded-full ${sev.dot}`} />
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-fg-faint">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-fg-faint">
                     Scenario {scene.phase} · {scene.category}
                   </span>
                 </div>
@@ -215,7 +215,7 @@ export default function SandboxWalkthroughPage() {
                   {scene.suggestedActions.map((a, i) => (
                     <li key={i} className="flex items-start gap-1.5 text-[11px] text-fg-muted">
                       <span className="mt-0.5 shrink-0 text-fg-faint">→</span>
-                      <span className="font-mono">{a}</span>
+                      <span>{a}</span>
                     </li>
                   ))}
                 </ul>
@@ -230,10 +230,10 @@ export default function SandboxWalkthroughPage() {
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-fg-primary">See it run on your own host</h2>
           <p className="text-xs text-fg-muted">
-            A 20-minute live walkthrough on a real Ubuntu VM. We baseline, deliberately drift the
-            box, then watch Blackglass detect every change with severity. The remediator proposes
-            a fix, runs it in an isolated sandbox to verify safety, and surfaces it for one-click
-            approval — the AI never executes commands on production hosts directly.
+            A 20-minute live walkthrough on a real Linux VM. We capture a baseline, introduce
+            controlled changes, and watch Blackglass classify each one with severity and context.
+            Suggested fixes can be validated in an isolated environment first, then approved for
+            production — automation never runs blindly against your live systems.
           </p>
         </div>
         <Link

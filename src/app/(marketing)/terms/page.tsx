@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | BLACKGLASS by Obsidian Dynamics",
+  title: "Terms of Service · Blackglass by Obsidian Dynamics",
   description:
-    "Terms of Service for BLACKGLASS, a product of Obsidian Dynamics Limited (Co. No. 16663833).",
+    "Terms of Service for Blackglass, a product of Obsidian Dynamics Limited (Co. No. 16663833).",
 };
 
 const EFFECTIVE = "2 May 2026";
@@ -20,7 +20,7 @@ export default function TermsPage() {
 
       <Section title="1. Who we are">
         <p>
-          BLACKGLASS is provided by{" "}
+          Blackglass is provided by{" "}
           <strong className="text-fg-primary">Obsidian Dynamics Limited</strong>, a company
           registered in England &amp; Wales (Company Number{" "}
           <strong className="text-fg-primary">16663833</strong>), with its registered office in
@@ -36,10 +36,10 @@ export default function TermsPage() {
 
       <Section title="2. The service">
         <p>
-          BLACKGLASS is a configuration-integrity and drift-detection platform for Linux hosts. It
+          Blackglass is a configuration-integrity and drift-detection platform for Linux hosts. It
           allows authorised operators to capture baselines, detect configuration drift, classify
           risk, and export audit evidence. These Terms govern your access to and use of the
-          BLACKGLASS console, API, and collector tooling (collectively, the <em>&ldquo;Service&rdquo;</em>).
+          Blackglass console, API, and collector tooling (collectively, the <em>&ldquo;Service&rdquo;</em>).
         </p>
       </Section>
 
@@ -108,12 +108,12 @@ export default function TermsPage() {
           <Link href="/privacy" className="text-accent-blue hover:underline">
             Privacy Policy
           </Link>
-          . BLACKGLASS collects only configuration metadata required to compute drift — not file
+          . Blackglass collects only configuration metadata required to compute drift — not file
           contents, environment variables, or secrets. You retain ownership of all host data
           collected through the Service.
         </p>
         <p className="mt-2">
-          If you use BLACKGLASS on behalf of an organisation and we process personal data for you,
+          If you use Blackglass on behalf of an organisation and we process personal data for you,
           our{" "}
           <Link href="/dpa" className="text-accent-blue hover:underline">
             Data Processing Addendum

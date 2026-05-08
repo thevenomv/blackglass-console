@@ -9,8 +9,8 @@ const LINKS = [
   { href: "/demo", label: "Overview" },
   { href: "/demo/hosts", label: "Hosts" },
   { href: "/demo/drift", label: "Findings" },
-  { href: "/demo/timeline", label: "Drift timeline" },
-  { href: "/demo/sandbox", label: "Live sandbox" },
+  { href: "/demo/timeline", label: "Activity timeline" },
+  { href: "/demo/sandbox", label: "Example scenarios" },
   { href: "/demo/reports", label: "Reports" },
   { href: "/demo/members", label: "Members" },
 ] as const;
@@ -26,13 +26,13 @@ export function DemoChrome({ children }: { children: React.ReactNode }) {
         className="border-b border-amber-600/35 bg-amber-100/85 px-4 py-2 text-center text-xs text-amber-950"
       >
         <strong className="font-semibold">Sample workspace</strong> — {DEMO_TENANT_NAME}. Data is
-        fictional and resets on refresh. No SSH or API calls to your systems.
+        fictional and resets on refresh. Nothing here connects to your infrastructure.
       </div>
       <header className="border-b border-border-default bg-bg-panel px-4 py-3">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-fg-faint">
-              BLACKGLASS demo
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-fg-faint">
+              Blackglass product tour
             </p>
             <p className="text-sm font-medium text-fg-primary">{DEMO_TENANT_NAME}</p>
           </div>

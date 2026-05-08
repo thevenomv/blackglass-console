@@ -16,14 +16,11 @@ export default async function SelectWorkspacePage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-bg-base px-6">
       <div className="w-full max-w-md space-y-6 text-center">
-        <p className="font-mono text-xs font-medium uppercase tracking-[0.14em] text-fg-faint">
-          BLACKGLASS
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-fg-faint">Blackglass</p>
         <h1 className="text-xl font-semibold text-fg-primary">Choose a workspace</h1>
         <p className="text-sm text-fg-muted">
-          You are signed in, but no organization is active. Select an existing workspace or create
-          one to continue. Membership and roles sync from Clerk into Postgres — authorization is
-          always enforced on the server.
+          You&apos;re signed in, but no organization is selected yet. Pick an existing workspace or
+          create a new one to continue. Your permissions follow you automatically.
         </p>
         <div className="flex justify-center rounded-card border border-border-default bg-bg-panel p-4">
           <OrganizationSwitcher

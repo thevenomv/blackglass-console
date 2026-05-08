@@ -169,7 +169,7 @@ export default async function BaselinesPage({
         <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
           <PageHeader
             title="Baselines"
-            subtitle="Capture an approved integrity snapshot for drift detection."
+            subtitle="Save a trusted picture of each server for future comparisons."
             breadcrumbs={[
               { href: "/dashboard", label: "Dashboard" },
               { href: "/baselines", label: "Baselines" },
@@ -177,7 +177,7 @@ export default async function BaselinesPage({
           />
           <EmptyState
             title="Collector not configured"
-            description="Set COLLECTOR_HOST_1 and SSH credentials in environment or Settings, then return here to capture your first baseline."
+            description="Configure at least one collector host and credentials in Settings, then return here to capture your first baseline."
             action={
               <Link
                 href="/settings"
@@ -229,7 +229,7 @@ export default async function BaselinesPage({
       <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
         <PageHeader
           title="Baseline comparison"
-          subtitle={`Trusted snapshot versus latest integrity read · ${hostDisplayName}`}
+          subtitle={`Trusted snapshot vs latest check · ${hostDisplayName}`}
           breadcrumbs={[
             { href: "/dashboard", label: "Dashboard" },
             { href: "/baselines", label: "Baselines" },

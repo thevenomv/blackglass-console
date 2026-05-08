@@ -77,7 +77,7 @@ export function HostsView({
   const chips: { id: Filter; label: string }[] = [
     { id: "all", label: "All hosts" },
     { id: "aligned", label: "Healthy" },
-    { id: "drift", label: "Drifted" },
+    { id: "drift", label: "Changed" },
     { id: "needs_review", label: "Needs review" },
   ];
 
@@ -85,7 +85,7 @@ export function HostsView({
     <div className="flex flex-col gap-6 px-6 pb-10 pt-6">
       <PageHeader
         title="Hosts"
-        subtitle="Inventory, readiness, and entry points into integrity review."
+        subtitle="Servers you monitor, their health, and quick links when something needs a look."
         breadcrumbs={[
           { href: "/dashboard", label: "Dashboard" },
           { href: "/hosts", label: "Hosts" },
@@ -95,8 +95,8 @@ export function HostsView({
 
       {atCap && hostCap !== null && (
         <UpgradePrompt
-          feature={`Host cap reached (${hostCap} hosts on free plan)`}
-          description="Upgrade to BLACKGLASS Team to monitor up to 50 hosts, or Fleet for unlimited."
+          feature={`Host limit reached (${hostCap} on Local plan)`}
+          description="Move to Team for a higher host quota, or Enterprise for unlimited — see Pricing for details."
         />
       )}
 
@@ -107,7 +107,7 @@ export function HostsView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="hostname, id, or OS"
-            className="mt-1 w-full rounded-card border border-border-default bg-bg-panel px-3 py-2 font-mono text-sm text-fg-primary outline-none ring-accent-blue placeholder:text-fg-faint focus:ring-2"
+            className="mt-1 w-full rounded-card border border-border-default bg-bg-panel px-3 py-2 text-sm text-fg-primary outline-none ring-accent-blue placeholder:text-fg-faint focus:ring-2"
           />
         </label>
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Host filters">

@@ -69,7 +69,7 @@ export function EgressIpSection({ egressIps, nextEgressIps = "", rotatesAt = "" 
         )}
       </div>
       <p className="text-sm text-fg-muted">
-        BLACKGLASS connects to your servers from these IP addresses. Add them to your
+        Blackglass connects to your servers from these IP addresses. Add them to your
         firewall allowlist on port&nbsp;22 so the collector can reach each host.
       </p>
 

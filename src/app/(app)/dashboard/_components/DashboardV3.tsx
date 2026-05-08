@@ -73,8 +73,8 @@ function trustTone(trust: HostTrust): Tone {
 
 function trustLabel(trust: HostTrust): string {
   const map: Record<HostTrust, string> = {
-    critical: "Critical drift",
-    drift: "Drift",
+    critical: "Critical",
+    drift: "Changed",
     needs_review: "Needs review",
     aligned: "Aligned",
   };
@@ -135,7 +135,7 @@ export function DashboardV3({
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-fg-primary">Fleet dashboard</h1>
           <p className="mt-1 text-sm text-fg-muted">
-            Production hosts · drift, integrity and readiness — prioritize attention items first.
+            Production hosts · findings, readiness, and what to look at first.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -197,10 +197,10 @@ export function DashboardV3({
           aria-label="Baseline persistence"
           className="rounded-card border border-border-default bg-bg-panel px-4 py-3 text-sm text-fg-muted"
         >
-          <p className="font-medium text-fg-primary">Baselines are in-memory only</p>
+          <p className="font-medium text-fg-primary">Snapshots are in-memory only</p>
           <p className="mt-1">
-            Set <span className="font-mono text-fg-primary">BASELINE_STORE_PATH</span> on a mounted
-            volume so baselines survive process restarts (see operator guide).
+            Ask your operator to point baseline storage at a mounted volume so trusted snapshots
+            survive restarts (see Operator settings).
           </p>
         </div>
       ) : null}
@@ -228,13 +228,11 @@ export function DashboardV3({
         >
           <p className="font-medium text-fg-primary">No hosts under monitoring yet</p>
           <p className="mt-1 text-fg-muted">
-            Capture a baseline while systems are known-good — use{" "}
+            Capture a trusted snapshot while systems are known-good — use{" "}
             <Link href="/baselines" className="font-medium text-accent-blue hover:underline">
               Baselines
             </Link>{" "}
-            or{" "}
-            <span className="font-mono text-fg-primary">POST /api/v1/baselines</span>, then run a
-            scan.
+            or your automation, then run a scan.
           </p>
         </div>
       ) : null}
@@ -246,11 +244,11 @@ export function DashboardV3({
           className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-danger/40 bg-danger-soft/35 px-4 py-3 text-sm"
         >
           <p className="text-fg-primary">
-            <span className="font-semibold text-danger">{fleet.highRiskDrift}</span> high-risk drift
-            signal{fleet.highRiskDrift === 1 ? "" : "s"} require review before new baselines ship.
+            <span className="font-semibold text-danger">{fleet.highRiskDrift}</span> urgent
+            finding{fleet.highRiskDrift === 1 ? "" : "s"} need review before you ship new snapshots.
           </p>
           <Link href="/drift" className="shrink-0 font-medium text-accent-blue hover:underline">
-            Open drift queue
+            Open findings
           </Link>
         </div>
       ) : (
@@ -259,7 +257,7 @@ export function DashboardV3({
           aria-label="Fleet drift summary"
           className="rounded-card border border-success/35 bg-success-soft/25 px-4 py-3 text-sm text-fg-muted"
         >
-          No high-risk drift in the latest sweep — continue monitoring notable hosts below.
+          No urgent findings in the latest sweep — keep an eye on notable hosts below.
         </div>
       )}
 
@@ -273,7 +271,7 @@ export function DashboardV3({
 
       <ShowcaseOpsTile />
 
-      <Card title="Drift trend — last 7 days">
+      <Card title="Findings trend — last 7 days">
         <DriftTrendChart />
       </Card>
 
@@ -285,9 +283,9 @@ export function DashboardV3({
           delta={d?.hostsChecked}
         />
         <KpiCard
-          label="High-risk drift"
+          label="Urgent findings"
           value={fleet.highRiskDrift}
-          sublabel="Needs operator review"
+          sublabel="Needs review first"
           tone="risk"
           delta={d?.highRiskDrift}
         />
@@ -312,7 +310,7 @@ export function DashboardV3({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-md border border-border-subtle bg-bg-panel px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Collectors</p>
-            <p className="mt-2 font-mono text-lg text-fg-primary">
+            <p className="mt-2 text-lg font-semibold tabular-nums text-fg-primary">
               {fleet.coverage.collectorsOnline}
               <span className="text-fg-faint"> / </span>
               {fleet.coverage.collectorsExpected}
@@ -321,7 +319,7 @@ export function DashboardV3({
           </div>
           <div className="rounded-md border border-border-subtle bg-bg-panel px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Fleet heartbeat</p>
-            <p className="mt-2 font-mono text-sm text-fg-primary">
+            <p className="mt-2 text-sm tabular-nums text-fg-primary">
               {formatUtc(fleet.coverage.lastFleetHeartbeatAt)} UTC
             </p>
           </div>
@@ -330,7 +328,7 @@ export function DashboardV3({
             {fleet.coverage.staleSlices.length === 0 ? (
               <p className="mt-2 text-sm text-fg-muted">No overdue telemetry slices.</p>
             ) : (
-              <ul className="mt-2 space-y-1.5 font-mono text-[12px] text-fg-primary">
+              <ul className="mt-2 space-y-1.5 text-[12px] text-fg-primary">
                 {fleet.coverage.staleSlices.map((s) => (
                   <li key={`${s.hostId}-${s.slice}`}>
                     <Link href={`/hosts/${s.hostId}`} className="text-accent-blue hover:underline">
@@ -365,9 +363,9 @@ export function DashboardV3({
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Notable items</p>
               {fleet.notableEvents.length === 0 ? (
-                <p className="mt-2 text-sm text-fg-muted">No open drift in the latest window.</p>
+                <p className="mt-2 text-sm text-fg-muted">No open items in the latest window.</p>
               ) : (
-                <ul className="mt-2 space-y-2 font-mono text-[13px] text-fg-primary">
+                <ul className="mt-2 space-y-2 text-[13px] text-fg-primary">
                   {fleet.notableEvents.map((ev) => (
                     <li key={`${ev.hostId}-${ev.slug}`}>
                       <Link
@@ -384,16 +382,16 @@ export function DashboardV3({
             </div>
           </div>
           <div className="w-full shrink-0 lg:w-56">
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Drift volume (index)</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Activity index (7 days)</p>
             {fleet.driftVolumeByDay.length === 0 ? (
               <p className="mt-3 text-sm text-fg-muted">
-                No historical drift index yet — run scans on separate days to build a trend.
+                No historical trend yet — run scans on separate days to build a picture.
               </p>
             ) : (
               <>
                 <p id="drift-chart-summary" className="sr-only">
-                  Bar chart of drift index by day for the last six days. Numeric values are listed in
-                  the hidden data table below for screen readers.
+                  Bar chart of daily finding activity for the last six days. Values are listed in the
+                  data table below for screen readers.
                 </p>
                 <div
                   className="mt-3 flex h-28 items-end justify-between gap-2"
@@ -413,18 +411,18 @@ export function DashboardV3({
                           // looks like floating labels.
                           height: `max(4px, ${b.valuePct}%)`,
                         }}
-                        title={`${b.day}: drift index ${b.valuePct}%`}
+                        title={`${b.day}: activity ${b.valuePct}%`}
                       />
                       <span className="text-[10px] text-fg-faint">{b.day}</span>
                     </div>
                   ))}
                 </div>
                 <table className="sr-only">
-                  <caption>Drift volume index by day</caption>
+                  <caption>Finding activity index by day</caption>
                   <thead>
                     <tr>
                       <th scope="col">Day label</th>
-                      <th scope="col">Drift index (%)</th>
+                      <th scope="col">Index (%)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -444,24 +442,24 @@ export function DashboardV3({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card
-          title="High-risk drift"
+          title="Urgent findings"
           action={<Badge tone="danger">Attention required</Badge>}
         >
           {liveMode ? (
             <>
               <p className="text-sm text-fg-muted">
-                Open findings are grouped by integrity class — triage high-severity items first.
+                Open items are grouped by type — review urgent ones first.
               </p>
               <p className="mt-4 text-xs font-medium uppercase tracking-wide text-fg-faint">
-                Top classes ({fleet.highRiskDrift > 0 ? "high · new" : "new findings"})
+                Top types ({fleet.highRiskDrift > 0 ? "urgent · new" : "new items"})
               </p>
               {driftCategories.length === 0 ? (
                 <p className="mt-2 text-sm text-fg-muted">
                   {fleet.highRiskDrift === 0
-                    ? "No high-severity drift right now."
-                    : "No category breakdown yet — open the drift queue."}{" "}
+                    ? "No urgent items right now."
+                    : "No breakdown yet — open the findings list."}{" "}
                   <Link href="/drift" className="font-medium text-accent-blue hover:underline">
-                    View drift
+                    View findings
                   </Link>
                 </p>
               ) : (
@@ -520,9 +518,8 @@ export function DashboardV3({
               </li>
               <li>
                 <Link href="/drift" className="text-accent-blue hover:underline">
-                  Triage the drift queue
-                </Link>{" "}
-                for new signals
+                  Triage new findings
+                </Link>
               </li>
               <li>
                 <Link href="/evidence" className="text-accent-blue hover:underline">

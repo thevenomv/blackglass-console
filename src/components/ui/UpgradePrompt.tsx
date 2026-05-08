@@ -25,7 +25,7 @@ export function UpgradePrompt({
   return (
     <div className="flex flex-col gap-2 rounded-card border border-border-default bg-bg-elevated px-4 py-3">
       <div className="flex items-center gap-2">
-        <span className="rounded-full border border-accent-blue/40 bg-accent-blue/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-widest text-accent-blue">
+        <span className="rounded-full border border-accent-blue/40 bg-accent-blue/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-accent-blue">
           Pro
         </span>
         <p className="text-sm font-medium text-fg-primary">{feature}</p>

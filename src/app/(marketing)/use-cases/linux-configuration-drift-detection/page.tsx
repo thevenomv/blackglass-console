@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Linux Configuration Drift Detection | BLACKGLASS",
+  title: "Linux Configuration Drift Detection · Blackglass",
   description:
     "Detect unauthorised changes to Linux server configuration on every scan. Blackglass captures approved baselines and surfaces drift across sshd, listeners, identity, sudo, persistence, packages, kernel modules, and file integrity.",
   openGraph: {
-    title: "Linux Configuration Drift Detection | BLACKGLASS",
+    title: "Linux Configuration Drift Detection · Blackglass",
     description:
       "Detect unauthorised changes to Linux server configuration on every scan. Drift across sshd, listeners, identity, persistence, packages, kernel modules, and file integrity — with severity, evidence, and audit trail.",
     type: "website",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
 };
 
@@ -18,17 +18,15 @@ export default function LinuxDriftDetectionPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 text-fg-muted">
         {/* Breadcrumb */}
-        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-blue">
-          Use case
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use case</p>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
-          Linux configuration drift detection with Blackglass
+          Catch Linux configuration drift before it surprises you
         </h1>
         <p className="mt-4 text-lg leading-relaxed">
-          Every fleet drifts. Manual interventions, package updates, automation gaps, and emergency
-          fixes all leave server state diverging from the known-good baseline. Blackglass makes drift
-          visible, measurable, and actionable.
+          Servers pick up small changes every day — hotfixes, upgrades, well-meaning shortcuts.
+          Blackglass makes those differences easy to see, rank, and discuss without living inside a
+          terminal.
         </p>
 
         {/* Problem */}
@@ -38,9 +36,8 @@ export default function LinuxDriftDetectionPage() {
         </p>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed">
           <li>
-            <strong className="text-fg-primary">Manual hotfixes</strong> — an operator tweaks{" "}
-            <code className="font-mono text-accent-blue">/etc/ssh/sshd_config</code> during an
-            incident and never reverts the change.
+            <strong className="text-fg-primary">Manual hotfixes</strong> — someone adjusts remote
+            login settings during an incident and the change never gets rolled back.
           </li>
           <li>
             <strong className="text-fg-primary">Package upgrades</strong> — a kernel or service

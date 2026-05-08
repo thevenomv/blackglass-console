@@ -22,7 +22,7 @@ type PaletteItem = {
   href?: string;
   action?: () => void | Promise<void>;
   /** Section grouping for headers. Defaults to none (renders inline). */
-  section?: "Recent" | "Hosts" | "Drift" | "Routes" | "Actions";
+  section?: "Recent" | "Hosts" | "Findings" | "Routes" | "Actions";
   /** Optional right-side keyboard hint (decorative). */
   shortcut?: string;
 };
@@ -52,7 +52,7 @@ const ROUTES: PaletteItem[] = [
   },
   {
     id: "drift",
-    label: "Drift events",
+    label: "Findings",
     href: "/drift",
     keywords: "delta integrity findings",
     section: "Routes",
@@ -124,36 +124,36 @@ const ROUTES: PaletteItem[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Drift quick-filter actions — pre-built /drift queries the user runs often.
+// Findings quick-filter actions — pre-built /drift queries the user runs often.
 // ---------------------------------------------------------------------------
 const DRIFT_QUICK_FILTERS: PaletteItem[] = [
   {
     id: "drift-open-high",
-    label: "Show open · high severity drift",
+    label: "Show open · high severity",
     href: "/drift?severity=high&lifecycle=open",
-    keywords: "high critical open drift triage",
-    section: "Drift",
+    keywords: "high critical open drift triage findings",
+    section: "Findings",
   },
   {
     id: "drift-open-medium",
-    label: "Show open · medium severity drift",
+    label: "Show open · medium severity",
     href: "/drift?severity=medium&lifecycle=open",
-    keywords: "medium open drift",
-    section: "Drift",
+    keywords: "medium open drift findings",
+    section: "Findings",
   },
   {
     id: "drift-open-all",
-    label: "Show all open drift",
+    label: "Show all open items",
     href: "/drift?lifecycle=open",
-    keywords: "open drift queue triage",
-    section: "Drift",
+    keywords: "open queue triage drift findings",
+    section: "Findings",
   },
   {
     id: "drift-resolved",
-    label: "Show resolved drift",
+    label: "Show resolved items",
     href: "/drift?lifecycle=resolved",
-    keywords: "closed resolved history",
-    section: "Drift",
+    keywords: "closed resolved history drift",
+    section: "Findings",
   },
 ];
 
@@ -333,7 +333,7 @@ export function CommandPalette() {
   if (recents.length > 0) pushSection("Recent", recents);
   if (matchingActions.length > 0) pushSection("Actions", matchingActions);
   if (hostHits.length > 0) pushSection("Hosts", hostHits);
-  if (matchingDrift.length > 0) pushSection("Drift", matchingDrift);
+  if (matchingDrift.length > 0) pushSection("Findings", matchingDrift);
   if (matchingRoutes.length > 0) pushSection("Routes", matchingRoutes);
 
   const selectableItems: PaletteItem[] = rows
@@ -430,7 +430,7 @@ export function CommandPalette() {
             type="search"
             autoComplete="off"
             spellCheck={false}
-            placeholder="Search routes, hosts, drift filters…"
+            placeholder="Search routes, hosts, findings filters…"
             value={query}
             onChange={(e) => {
               const next = e.target.value;
@@ -501,7 +501,7 @@ export function CommandPalette() {
           )}
         </ul>
         <div className="border-t border-border-subtle px-4 py-2 text-[11px] text-fg-faint">
-          BLACKGLASS · Obsidian Dynamics Limited
+          Blackglass · Obsidian Dynamics Limited
         </div>
       </div>
     </div>

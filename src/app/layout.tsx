@@ -23,7 +23,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 const SITE_DESCRIPTION =
-  "Operational integrity for Linux hosts — fleet baselines, drift triage, and evidence exports.";
+  "Operational integrity for Linux hosts — fleet baselines, finding triage, and evidence exports.";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -44,9 +44,9 @@ function metadataBaseOptional(): Metadata["metadataBase"] {
 
 export const metadata: Metadata = {
   metadataBase: metadataBaseOptional(),
-  title: "BLACKGLASS",
+  title: "Blackglass",
   description: SITE_DESCRIPTION,
-  applicationName: "BLACKGLASS",
+  applicationName: "Blackglass",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
@@ -59,8 +59,8 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_GB",
-    siteName: "BLACKGLASS",
-    title: "BLACKGLASS",
+    siteName: "Blackglass",
+    title: "Blackglass",
     description: SITE_DESCRIPTION,
     // Prefer light-themed artwork for og:image when added (see docs/theming.md).
     // Add `metadata.openGraph.images` plus a static asset under `public/` when you ship share art.
@@ -82,7 +82,7 @@ export default function RootLayout({
       ? JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
-          name: "BLACKGLASS",
+          name: "Blackglass",
           description: SITE_DESCRIPTION,
           url: `${origin}/`,
         })

@@ -294,11 +294,11 @@ export function DriftEventsView({
     <>
       <div className="flex flex-col gap-6 px-6 pb-10 pt-6">
         <PageHeader
-          title="Drift"
-          subtitle="High-signal deltas grouped by integrity class — open an event to investigate."
+          title="Findings"
+          subtitle="Changes compared with your trusted snapshot — open any row for context and next steps."
           breadcrumbs={[
             { href: "/dashboard", label: "Dashboard" },
-            { href: "/drift", label: "Drift" },
+            { href: "/drift", label: "Findings" },
           ]}
           actions={<RunScanButton />}
         />
@@ -314,7 +314,7 @@ export function DriftEventsView({
           <span aria-hidden className="text-fg-faint">
             →
           </span>
-          <span className="font-medium text-fg-primary">Drift triage</span>
+          <span className="font-medium text-fg-primary">Finding triage</span>
           <span aria-hidden className="text-fg-faint">
             →
           </span>
@@ -325,7 +325,7 @@ export function DriftEventsView({
 
         <div
           className="rounded-card border border-border-subtle bg-bg-panel/70 px-4 py-3"
-          aria-label="Drift list filters"
+          aria-label="Findings list filters"
         >
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
@@ -417,7 +417,7 @@ export function DriftEventsView({
 
         <div
           role="region"
-          aria-label="Drift events"
+          aria-label="Findings"
           className="overflow-hidden rounded-card border border-border-default bg-bg-panel"
         >
           {/* Bulk action toolbar */}

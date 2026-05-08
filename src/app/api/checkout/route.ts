@@ -69,9 +69,9 @@ export async function POST(request: Request) {
   };
 
   const PLAN_FALLBACK: Record<string, { name: string; description: string; monthlyAmount: number }> = {
-    starter:  { name: "BLACKGLASS Starter",  description: "25 hosts · 2 operator seats · 180-day history", monthlyAmount: 7900  },
-    growth:   { name: "BLACKGLASS Growth",   description: "100 hosts · 5 operator seats · fleet dashboard",  monthlyAmount: 19900 },
-    business: { name: "BLACKGLASS Business", description: "300 hosts · 10 operator seats · approval workflows", monthlyAmount: 49900 },
+    starter:  { name: "Blackglass Starter",  description: "25 hosts · 2 operator seats · 180-day history", monthlyAmount: 7900  },
+    growth:   { name: "Blackglass Growth",   description: "100 hosts · 5 operator seats · fleet dashboard",  monthlyAmount: 19900 },
+    business: { name: "Blackglass Business", description: "300 hosts · 10 operator seats · approval workflows", monthlyAmount: 49900 },
   };
 
   const priceId = PLAN_PRICE_ENV[planCode][billingCycle];

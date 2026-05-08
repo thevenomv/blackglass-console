@@ -86,7 +86,7 @@ export default function CheckoutButton({ className, children, planCode, billingC
                 Book a walkthrough
               </Link>{" "}
               ·{" "}
-              <a href="mailto:jamie@obsidiandynamics.co.uk?subject=BLACKGLASS%20billing" className="font-medium text-accent-blue hover:underline">
+              <a href="mailto:jamie@obsidiandynamics.co.uk?subject=Blackglass%20billing" className="font-medium text-accent-blue hover:underline">
                 Email billing
               </a>
             </>

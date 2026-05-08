@@ -23,7 +23,7 @@ export default function GlobalError({
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#f1f5f9" />
-        <title>Error · BLACKGLASS</title>
+        <title>Error · Blackglass</title>
       </head>
       <body
         style={{

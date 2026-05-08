@@ -185,7 +185,7 @@ export function OnboardingChecklist({
         label: "Capture a baseline",
         detail: baselineCaptured
           ? "Baseline pinned — every future scan diffs against this snapshot."
-          : "Capture the current good state. Future scans diff against it to surface drift.",
+          : "Capture the current good state. Future scans compare against it to surface changes.",
         done: baselineCaptured,
         cta: { href: "/baselines", text: "Open baselines" },
       },
@@ -202,7 +202,7 @@ export function OnboardingChecklist({
         id: "alerts",
         label: "Configure alerts",
         detail:
-          "Send drift findings to Slack, PagerDuty, or a webhook so you don't have to check the dashboard manually.",
+          "Send new findings to Slack, PagerDuty, or a webhook so you do not have to watch the dashboard all day.",
         done: state.manuallyDone.includes("alerts"),
         cta: { href: "/settings#notifications", text: "Open notification settings" },
         manual: true,

@@ -13,7 +13,7 @@ export default function DriftRouteError({
   return (
     <div className="flex min-h-[30vh] flex-col items-start gap-4 px-6 py-8">
       <ErrorState
-        title="Drift view failed"
+        title="Findings view failed"
         description={
           error.message || "The drift queue could not be loaded. You can retry or return home."
         }

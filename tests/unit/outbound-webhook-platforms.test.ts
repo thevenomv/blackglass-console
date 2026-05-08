@@ -224,8 +224,8 @@ describe("outbound-webhook platform routing", () => {
     expect(headers["Content-Type"]).toBe("text/plain");
     const lines = body.trim().split("\n");
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toMatch(/^CEF:0\|BLACKGLASS\|BLACKGLASS\|1\.0\|/);
-    expect(lines[0]).toContain("BLACKGLASS-PRIVILEGE_ESCALATION");
+    expect(lines[0]).toMatch(/^CEF:0\|Blackglass\|Blackglass\|1\.0\|/);
+    expect(lines[0]).toContain("Blackglass-PRIVILEGE_ESCALATION");
     expect(lines[0]).toContain("|9|"); // high severity → 9
     expect(lines[0]).toContain("dvchost=web-01.example.com");
     expect(lines[1]).toContain("|6|"); // medium severity → 6
@@ -293,7 +293,7 @@ describe("outbound-webhook platform routing", () => {
     expect(high.severity_id).toBe(4);
     expect(high.severity).toBe("High");
     expect(high.metadata.version).toBe("2.0.0");
-    expect(high.metadata.product.name).toBe("BLACKGLASS");
+    expect(high.metadata.product.name).toBe("Blackglass");
     expect(high.finding_info.uid).toBe("f-1");
     expect(high.finding_info.title).toBe("New SUID binary detected");
     expect(high.device.hostname).toBe("web-01.example.com");

@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Use Cases | BLACKGLASS",
+  title: "Use Cases · Blackglass",
   description:
-    "How ops and security teams use Blackglass: Linux configuration drift detection, SSH posture auditing, hardening monitoring, and CIS benchmark tracking.",
+    "Practical ways teams use Blackglass: catching silent server drift, reviewing remote access, keeping hardening honest, and staying aligned with common security baselines.",
   openGraph: {
-    title: "Use Cases | BLACKGLASS",
+    title: "Use Cases · Blackglass",
     description:
-      "How ops and security teams use Blackglass: Linux configuration drift detection, SSH posture auditing, hardening monitoring, and CIS benchmark tracking.",
+      "Stories and starting points for operations and security leaders who want calmer Linux visibility.",
     type: "website",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
 };
 
@@ -19,28 +19,28 @@ const USE_CASES = [
     href: "/use-cases/linux-configuration-drift-detection",
     title: "Linux configuration drift detection",
     description:
-      "Capture approved baselines and surface drift across sshd, sysctl, listeners, and service states — with severity classification and a remediation workflow.",
+      "Save what “good” looks like, then get a steady stream of clear alerts when real servers wander away from it.",
     keywords: ["linux drift", "server drift monitoring", "config change detection"],
   },
   {
     href: "/use-cases/ssh-configuration-audit",
     title: "SSH configuration audit",
     description:
-      "Track every SSH directive change across your fleet. Surface PermitRootLogin, weak ciphers, and other misconfigurations against an approved baseline.",
+      "Keep remote login settings consistent and catch risky changes before they spread across your fleet.",
     keywords: ["ssh audit", "sshd_config audit", "ssh posture"],
   },
   {
     href: "/use-cases/linux-hardening-monitoring",
     title: "Linux hardening monitoring",
     description:
-      "Monitor hardening posture after every change. Detect regressions from package upgrades, emergency fixes, or stale golden images, and export evidence for reviews.",
+      "See when updates or quick fixes accidentally undo careful lockdown — and prove what good looked like at any point in time.",
     keywords: ["linux hardening", "security baseline", "hardening regression"],
   },
   {
     href: "/use-cases/cis-benchmark-monitoring",
     title: "CIS benchmark monitoring",
     description:
-      "Track the configuration areas CIS benchmarks address — SSH, sysctl, listeners — and detect when state drifts from your CIS-aligned baseline.",
+      "Stay close to the parts of CIS-style guidance that matter to you, with alerts when posture slips between formal audits.",
     keywords: ["CIS benchmark", "CIS linux", "compliance monitoring"],
   },
 ];
@@ -48,15 +48,14 @@ const USE_CASES = [
 export default function UseCasesIndexPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16">
-        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-blue">
-          Use cases
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use cases</p>
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
-          How teams use Blackglass
+          Where Blackglass fits
         </h1>
         <p className="mt-4 text-lg leading-relaxed">
-          Blackglass is used by SREs, security engineers, and platform teams who need continuous
-          visibility into Linux configuration state — not just point-in-time audit reports.
+          You might be leading infrastructure, answering to a board, or partnering with IT. These
+          are the problems teams tell us Blackglass makes feel lighter — without asking everyone to
+          become a Linux specialist overnight.
         </p>
 
         <div className="mt-10 grid gap-5 sm:grid-cols-2">
@@ -70,7 +69,7 @@ export default function UseCasesIndexPage() {
                 {uc.title}
               </h2>
               <p className="mt-2 text-sm leading-relaxed">{uc.description}</p>
-              <p className="mt-3 text-xs text-fg-faint">{uc.keywords.join(" · ")}</p>
+              <p className="mt-3 text-xs text-fg-faint">Popular with platform &amp; security leads</p>
             </Link>
           ))}
         </div>

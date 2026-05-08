@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "CIS Benchmark Monitoring for Linux | BLACKGLASS",
+  title: "CIS Benchmark Monitoring for Linux · Blackglass",
   description:
     "Track CIS benchmark compliance posture on Linux servers over time. Blackglass captures hardening baselines and surfaces regressions across SSH, listeners, identity, persistence, packages, and integrity controls.",
   openGraph: {
-    title: "CIS Benchmark Monitoring for Linux | BLACKGLASS",
+    title: "CIS Benchmark Monitoring for Linux · Blackglass",
     description:
       "Track CIS benchmark compliance posture on Linux servers over time. Blackglass captures hardening baselines and surfaces regressions from CIS-relevant configurations.",
     type: "website",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
 };
 
@@ -58,27 +58,25 @@ const CIS_AREAS = [
 export default function CISBenchmarkMonitoringPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 text-fg-muted">
-        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-blue">
-          Use case
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use case</p>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
-          CIS benchmark monitoring for Linux with Blackglass
+          Stay aligned with CIS-style guidance between formal audits
         </h1>
 
         {/* Disclaimer */}
         <div className="mt-6 rounded-lg border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-warning">
-          <strong>Note:</strong> Blackglass is not a certified CIS benchmark assessment tool and does
-          not provide formal compliance certification. It tracks the configuration state that CIS
-          controls typically address and alerts when that state drifts — giving you continuous posture
-          visibility rather than a point-in-time pass/fail report.
+          <strong>Note:</strong> Blackglass is not a certified CIS assessment and does not issue
+          compliance certificates. Think of it as a steady companion that watches the parts of your
+          configuration CIS cares about and tells you when things drift — not a one-time pass/fail
+          checklist.
         </div>
 
         <p className="mt-6 text-lg leading-relaxed">
-          The CIS Benchmarks for Linux (Ubuntu, RHEL, Debian, Amazon Linux) define several hundred
-          recommendations. Most teams implement a subset, pass an initial audit, and then struggle to
-          maintain posture as the fleet evolves. Blackglass helps by continuously monitoring the
-          configuration areas CIS benchmarks care about most.
+          CIS guidance for Linux can run hundreds of pages deep. Most teams adopt the pieces that
+          matter to them, pass an audit, and then quietly lose ground as the fleet changes.
+          Blackglass focuses on the practical surfaces — remote access, listeners, accounts,
+          persistence, packages, integrity — so you are not flying blind between assessments.
         </p>
 
         {/* Why continuous monitoring */}

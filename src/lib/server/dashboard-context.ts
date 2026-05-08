@@ -3,7 +3,7 @@ import type { LiveDashboardDriftCategory } from "../dashboard-shared";
 
 const CATEGORY_LABELS: Record<DriftCategory, string> = {
   network_exposure: "Network exposure",
-  identity: "Identity drift",
+  identity: "Identity changes",
   persistence: "Service persistence",
   ssh: "SSH posture",
   firewall: "Firewall",

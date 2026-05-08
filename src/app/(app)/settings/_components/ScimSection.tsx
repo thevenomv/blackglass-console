@@ -76,7 +76,7 @@ export function ScimSection() {
       <div>
         <h2 className="text-sm font-semibold text-fg-primary">SCIM 2.0 user provisioning</h2>
         <p className="mt-1 text-sm text-fg-muted">
-          BLACKGLASS uses Clerk Enterprise for SCIM 2.0 — your IdP
+          Blackglass uses Clerk Enterprise for SCIM 2.0 — your IdP
           (Okta, Azure AD, JumpCloud, OneLogin) pushes user and group
           lifecycle events directly to Clerk. Bearer-token rotation
           happens in the Clerk dashboard.

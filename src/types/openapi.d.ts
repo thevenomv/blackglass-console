@@ -1027,7 +1027,7 @@ export type paths = {
                         /** @description ISO-8601 interval or preset */
                         period?: string;
                         /**
-                         * @default markdown
+                         * @default pdf
                          * @enum {string}
                          */
                         format?: "markdown" | "pdf";

@@ -1,6 +1,13 @@
 import { DEMO_MEMBERS } from "@/lib/demo/seed";
 import { DemoGateButton } from "@/components/demo/DemoGateButton";
 
+function formatRole(role: string) {
+  return role
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export default function DemoMembersPage() {
   return (
     <div className="space-y-4">
@@ -29,7 +36,7 @@ export default function DemoMembersPage() {
               <tr key={m.id} className="border-b border-border-subtle last:border-0">
                 <td className="px-3 py-2 text-fg-primary">{m.name}</td>
                 <td className="px-3 py-2 text-fg-muted">{m.email}</td>
-                <td className="px-3 py-2 font-mono text-xs">{m.role}</td>
+                <td className="px-3 py-2 text-xs text-fg-muted">{formatRole(m.role)}</td>
                 <td className="px-3 py-2">
                   {m.paidSeat ? (
                     <span className="text-accent-blue">Paid seat</span>

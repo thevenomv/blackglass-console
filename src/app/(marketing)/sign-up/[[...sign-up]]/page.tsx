@@ -10,7 +10,7 @@ export default function SignUpPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-bg-base px-6">
       <p className="mb-6 font-mono text-xs font-medium uppercase tracking-[0.14em] text-fg-faint">
-        BLACKGLASS
+        Blackglass
       </p>
       <SignUp
         routing="path"

@@ -71,7 +71,7 @@ export function baseLayout({
             <td class="pad-mobile" style="padding:28px 40px 24px;border-bottom:1px solid #e2e8f0;">
               <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
                            font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#0f172a;">
-                BLACKGLASS
+                Blackglass
               </span>
             </td>
           </tr>

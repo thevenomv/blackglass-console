@@ -24,7 +24,7 @@ const FIELDS: Array<{
 }> = [
   {
     key: "driftEventsDays",
-    label: "Drift events",
+    label: "Findings",
     hint: "Detected findings; the most useful long-tail audit data.",
   },
   {

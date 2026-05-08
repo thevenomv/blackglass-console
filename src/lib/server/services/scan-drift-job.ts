@@ -107,7 +107,7 @@ async function alertDriftEmail(
   try {
     await sendEmail({
       to,
-      subject: `[BLACKGLASS] ${highEvents.length} high-severity drift finding${highEvents.length === 1 ? "" : "s"} on ${hostname}`,
+      subject: `[Blackglass] ${highEvents.length} high-severity finding${highEvents.length === 1 ? "" : "s"} on ${hostname}`,
       html: driftAlertHtml({ hostname, jobId, appUrl, findings: highEvents }),
       text: driftAlertText({ hostname, jobId, appUrl, findings: highEvents }),
     });

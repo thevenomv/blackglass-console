@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   );
   if (!access.ok) return access.response;
   if (access.mode === "legacy") {
-    return jsonError(400, "not_supported", "Drift mutes require SaaS mode.", requestId);
+    return jsonError(400, "not_supported", "Finding mutes require SaaS mode.", requestId);
   }
 
   const raw = await readJsonBodyOptional(request, requestId);

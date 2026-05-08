@@ -69,7 +69,7 @@ function DriftTable() {
         <thead>
           <tr className="border-b border-border-subtle bg-bg-base">
             <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
-              Drift category
+              Finding type
             </th>
             <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
               Example signal
@@ -79,7 +79,7 @@ function DriftTable() {
         <tbody className="divide-y divide-border-subtle">
           {rows.map((r) => (
             <tr key={r.type} className="bg-bg-panel">
-              <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-fg-primary">
+              <td className="whitespace-nowrap px-3 py-2 text-xs font-medium text-fg-primary">
                 {r.type}
               </td>
               <td className="px-3 py-2 text-xs text-fg-muted">{r.example}</td>
@@ -141,7 +141,7 @@ const icons = {
 
 export function SecurityOverviewSection() {
   return (
-    <CollapsibleSection title="Security overview — how BLACKGLASS works and protects your data" id="security-overview">
+    <CollapsibleSection title="Security overview — how Blackglass works and protects your data" id="security-overview">
       <div className="space-y-8 py-2">
 
         {/* Narrative */}
@@ -150,20 +150,20 @@ export function SecurityOverviewSection() {
             Integrity first, monitoring second
           </p>
           <p className="mt-2 text-sm leading-relaxed text-fg-muted">
-            BLACKGLASS is not a SIEM, a vulnerability scanner, or a log aggregator. It is a
+            Blackglass is not a SIEM, a vulnerability scanner, or a log aggregator. It is a
             configuration-integrity product. Its job is to answer one question:{" "}
             <em className="text-fg-primary not-italic">
               is this host still in the configuration we approved, and if not, what changed, when,
               and why does it matter?
             </em>{" "}
-            Every feature — baselines, drift detection, risk classification, evidence export — exists
+            Every feature — snapshots, change detection, risk classification, evidence export — exists
             to answer that question reliably and with an auditable record.
           </p>
         </div>
 
         {/* Part 1: What it does */}
         <div>
-          <SectionHeading>What BLACKGLASS does for security</SectionHeading>
+          <SectionHeading>What Blackglass does for security</SectionHeading>
 
           <div className="space-y-5">
             <div>
@@ -180,13 +180,13 @@ export function SecurityOverviewSection() {
             </div>
 
             <div>
-              <p className="text-sm font-semibold text-fg-primary">Drift detection</p>
+              <p className="text-sm font-semibold text-fg-primary">Change detection</p>
               <Prose>
-                At each scan, BLACKGLASS re-collects the same surface areas and diffs against the
-                active baseline. Every changed, added, or removed item surfaces as a finding.
-                Configuration drift is a well-documented attack vector — attackers abuse CI
-                pipelines, provisioning scripts, and emergency access to make changes that are never
-                reviewed or reverted. BLACKGLASS makes that drift visible and attributable.
+                At each scan, Blackglass re-collects the same surface areas and compares them to the
+                active trusted snapshot. Every changed, added, or removed item surfaces as a finding.
+                Silent configuration drift is a well-documented risk — attackers abuse automation and
+                emergency access to make changes that are never reviewed or reverted. Blackglass makes
+                those changes visible and attributable.
               </Prose>
               <DriftTable />
             </div>
@@ -211,9 +211,9 @@ export function SecurityOverviewSection() {
               <BulletList
                 items={[
                   "Host baseline report — structured record of what the host looked like at baseline time, suitable for a change record or audit questionnaire",
-                  "Drift report — timestamped diff between baseline and current state, with risk classification and recommended response",
-                  "Fleet posture summary — across all enrolled hosts: unacknowledged drift by category and severity, with trending",
-                  "Evidence bundles (Pro / Enterprise) — exportable packages containing baseline, findings, acknowledgements, and operator notes for SOC 2, post-incident review, or CAB submission",
+                  "Change report — timestamped diff between snapshot and current state, with risk classification and recommended response",
+                  "Fleet posture summary — across enrolled hosts: unacknowledged items by type and severity, with trending",
+                  "Evidence bundles (Team / Enterprise) — exportable packages with snapshots, findings, acknowledgements, and operator notes for reviews or CAB submission",
                   "Audit timeline — chronological view of what changed on each host across all scans",
                 ]}
               />
@@ -223,12 +223,12 @@ export function SecurityOverviewSection() {
 
         {/* Part 2: How we protect user data */}
         <div>
-          <SectionHeading>How BLACKGLASS protects your data</SectionHeading>
+          <SectionHeading>How Blackglass protects your data</SectionHeading>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 
             <DomainCard icon={icons.lock} title="Encryption and transport">
               All UI and API traffic is served over HTTPS / TLS 1.3. There are no HTTP endpoints.
-              Drift results, baselines, evidence bundles, and audit logs are encrypted at rest
+              Scan results, baselines, evidence bundles, and audit logs are encrypted at rest
               (AES-256). Encryption is always on — not an option.
             </DomainCard>
 
@@ -237,14 +237,14 @@ export function SecurityOverviewSection() {
               (read-only),{" "}
               <strong className="text-fg-primary font-medium">Operator</strong> (scan + acknowledge),
               and <strong className="text-fg-primary font-medium">Admin</strong> (full access). API
-              tokens (Pro+) are scoped to a role at issuance. Enterprise adds SSO / SAML / OIDC with
+              tokens (Team+) are scoped to a role at issuance. Enterprise adds SSO / SAML / OIDC with
               MFA enforced at your identity provider.
             </DomainCard>
 
             <DomainCard icon={icons.clock} title="Data minimisation and retention">
-              BLACKGLASS collects only what is needed to compute drift — not file contents, not
-              environment variables, not secrets. Retention is configurable per plan (30 days free,
-              180 days Pro, custom on Enterprise). Data is hard-deleted after the window closes —
+              Blackglass collects only what is needed to detect meaningful change — not file contents, not
+              environment variables, not secrets. Retention is configurable per plan (30 days Local,
+              180 days Team, custom on Enterprise). Data is hard-deleted after the window closes —
               not hidden, removed.
             </DomainCard>
 
@@ -257,7 +257,7 @@ export function SecurityOverviewSection() {
 
             <DomainCard icon={icons.log} title="Audit logging">
               Every security-relevant action is recorded: authentication, scan execution, baseline
-              changes, drift acknowledgement, evidence export, and user management. Logs are
+              changes, finding acknowledgement, evidence export, and user management. Logs are
               append-only at the application layer, encrypted at rest, and kept separate from raw
               operational output. No host configuration data is written to application logs.
             </DomainCard>

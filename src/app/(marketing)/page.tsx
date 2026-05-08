@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { LandingPage } from "@/components/marketing/LandingPage";
 
-const TITLE = "BLACKGLASS — Linux configuration drift detection & SSH posture auditing";
+const TITLE = "Blackglass — Know when your Linux servers drift from what you approved";
 const DESCRIPTION =
-  "Blackglass audits SSH posture, tracks baseline changes on your Linux servers, and gives ops and security teams a clear workflow to harden their fleet.";
+  "Blackglass gives operations and security teams a calm, clear view of Linux configuration changes — with severity, context, and exports leadership can read.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     type: "website",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
   twitter: {
     card: "summary_large_image",

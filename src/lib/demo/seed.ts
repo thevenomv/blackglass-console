@@ -266,20 +266,20 @@ export const DEMO_AUDIT: DemoAuditRow[] = [
   {
     at: "2026-05-02T14:22:01Z",
     actor: "sam@northbridge.example",
-    action: "scan.completed",
-    detail: "Fleet scan 412 hosts (sample) · 6 new findings",
+    action: "Fleet scan finished",
+    detail: "412 hosts (illustrative) · 6 new findings",
   },
   {
     at: "2026-05-02T11:15:22Z",
     actor: "jamie@northbridge.example",
-    action: "drift.acknowledged",
-    detail: "demo-d-01 on jump-sbx-01",
+    action: "Finding acknowledged",
+    detail: "Jump host root login on jump-sbx-01",
   },
   {
     at: "2026-05-02T09:02:00Z",
     actor: "system",
-    action: "policy.evaluate",
-    detail: "CIS SSH L1 — 2 failures, 4 warns",
+    action: "Policy check completed",
+    detail: "CIS SSH level 1 — 2 failed checks, 4 warnings",
   },
 ];
 

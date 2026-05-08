@@ -40,7 +40,7 @@ function NewReportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const { toast } = useToast();
   const trapRef = useFocusTrap(true, onClose);
   const [scope, setScope] = useState<"fleet" | "tags" | "host">("fleet");
-  const [format, setFormat] = useState<"markdown" | "pdf">("markdown");
+  const [format, setFormat] = useState<"markdown" | "pdf">("pdf");
   const [generating, setGenerating] = useState(false);
 
   const submit = async () => {
@@ -115,7 +115,7 @@ function NewReportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
                   onChange={() => setFormat(f)}
                   className="accent-[var(--accent-blue)]"
                 />
-                {f === "markdown" ? "Markdown narrative" : "PDF"}
+                {f === "markdown" ? "Plain text (Markdown)" : "PDF (recommended)"}
               </label>
             ))}
           </fieldset>
@@ -171,7 +171,7 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
     <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
       <PageHeader
         title="Reports"
-        subtitle="Integrity summaries for leadership, auditors, or customer deliverables."
+        subtitle="Readable summaries for leadership, auditors, or customer security reviews."
         actions={<Button type="button" onClick={() => setNewReportOpen(true)}>Generate report</Button>}
       />
 
@@ -198,7 +198,7 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
         reports.length === 0 ? (
           <EmptyState
             title="No reports yet"
-            description="Reports roll up the latest fleet scan into a shareable summary — useful for post-incident review, change windows, and compliance evidence. Generate your first one when you have a recent scan to summarise."
+            description="Reports bundle the latest fleet picture into something you can email or attach. Generate one when you have a fresh scan to summarise."
             action={
               <div className="flex flex-wrap gap-2">
                 <Button type="button" onClick={() => setNewReportOpen(true)}>
@@ -208,7 +208,7 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
                   href="/drift"
                   className="inline-flex h-9 items-center justify-center rounded-card border border-border-default px-4 text-sm font-medium text-fg-muted transition-colors hover:text-fg-primary"
                 >
-                  Review drift findings
+                  Review findings
                 </a>
               </div>
             }

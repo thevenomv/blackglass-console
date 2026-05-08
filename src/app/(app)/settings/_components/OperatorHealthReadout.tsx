@@ -44,7 +44,7 @@ export function OperatorHealthReadout() {
                 </a>{" "}
                 below for setup instructions, or email{" "}
                 <a
-                  href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20BLACKGLASS"
+                  href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20Blackglass"
                   className="text-accent-blue hover:underline"
                 >
                   jamie@obsidiandynamics.co.uk

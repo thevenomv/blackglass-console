@@ -28,7 +28,7 @@ interface AuditPage {
 const QUICK_ACTIONS = [
   { label: "All", value: "" },
   { label: "Scans", value: "scan" },
-  { label: "Drift", value: "drift" },
+  { label: "Findings", value: "drift" },
   { label: "Remediation", value: "remediation" },
   { label: "Members", value: "member" },
   { label: "Billing", value: "checkout" },

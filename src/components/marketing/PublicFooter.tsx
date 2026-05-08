@@ -5,15 +5,14 @@ export function PublicFooter() {
     <footer className="border-t border-border-default bg-bg-panel py-12 text-sm text-fg-muted">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-3">
         <div>
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-fg-faint">
-            BLACKGLASS
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Blackglass</p>
           <p className="mt-2 max-w-sm">
-            Linux integrity monitoring — SSH posture, baselines, drift, and audit-ready exports.
+            Friendly visibility into Linux configuration changes — with snapshots you trust, alerts that
+            make sense, and reports you can share.
           </p>
         </div>
         <div>
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-fg-faint">Use cases</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Use cases</p>
           <ul className="mt-2 space-y-1.5">
             <li><Link href="/use-cases/linux-configuration-drift-detection" className="hover:text-fg-primary">Configuration drift</Link></li>
             <li><Link href="/use-cases/ssh-configuration-audit" className="hover:text-fg-primary">SSH audit</Link></li>
@@ -24,7 +23,7 @@ export function PublicFooter() {
         </div>
         <div className="space-y-6">
           <div>
-            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-fg-faint">Platform</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Platform</p>
             <ul className="mt-2 space-y-1.5">
               <li><Link href="/product" className="hover:text-fg-primary">Product</Link></li>
               <li><Link href="/pricing" className="hover:text-fg-primary">Pricing</Link></li>
@@ -35,7 +34,7 @@ export function PublicFooter() {
             </ul>
           </div>
           <div>
-            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-fg-faint">Legal</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Legal</p>
             <ul className="mt-2 space-y-1.5">
               <li><Link href="/terms" className="hover:text-fg-primary">Terms</Link></li>
               <li><Link href="/privacy" className="hover:text-fg-primary">Privacy</Link></li>

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Book a walkthrough | BLACKGLASS",
-  description: "Schedule a walkthrough of BLACKGLASS for your team.",
+  title: "Book a walkthrough · Blackglass",
+  description: "Schedule a friendly, no-pressure tour of Blackglass with our team.",
 };
 
 export default function BookWalkthroughPage() {
@@ -10,7 +10,8 @@ export default function BookWalkthroughPage() {
     <main className="mx-auto max-w-xl px-4 py-16 text-fg-muted">
       <h1 className="text-2xl font-semibold text-fg-primary">Book a walkthrough</h1>
       <p className="mt-4 text-sm leading-relaxed">
-        Pick a time that works for you.
+        Choose a time that suits you. We&apos;ll walk through the product at your pace — bring
+        questions, bring a colleague, no homework required.
       </p>
       <a
         href="https://calendar.app.google/Yi9abUYJafS8TobX8"

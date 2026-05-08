@@ -1,15 +1,10 @@
 /**
  * GET /api/public/demo-evidence
  *
- * Returns a downloadable JSON evidence bundle built from the deterministic
- * demo seed.  No auth required — this is the same data shown on /demo and
- * is intentionally sharable so prospects can hand it to their security
- * team without spinning up a workspace.
+ * Default: branded PDF sample pack (same fictional data as /demo).
+ * ?format=json — downloadable JSON with a top-level sha256 for integrity checks.
  *
- * Tamper evident: the response includes a `sha256` over the bundle body so
- * the recipient can verify integrity.
- *
- * Rate limited the same way as the public sandbox feed.
+ * No auth required. Rate limited like other public read endpoints.
  */
 
 export const dynamic = "force-dynamic";
@@ -25,6 +20,7 @@ import {
   DEMO_TENANT_NAME,
   DEMO_TENANT_SLUG,
 } from "@/lib/demo/seed";
+import { generateDemoEvidencePdf } from "@/lib/server/demo-evidence-pdf";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
@@ -36,6 +32,8 @@ export async function GET(request: Request) {
   }
 
   const generatedAt = new Date().toISOString();
+  const url = new URL(request.url);
+  const asJson = url.searchParams.get("format") === "json";
 
   const payload = {
     schema: "blackglass-demo-evidence/1",
@@ -54,19 +52,43 @@ export async function GET(request: Request) {
     notes: [
       "This is a deterministic sample bundle. No real tenant data is included.",
       "The 'sha256' field at the top level is computed over the JSON body without itself.",
-      "Use the BLACKGLASS console to download a real, signed evidence bundle for your workspace.",
+      "Customers download a signed evidence bundle from the Blackglass console.",
+      "The default download for this URL is a PDF overview; add ?format=json for machine-readable JSON.",
     ],
   };
 
-  const body = JSON.stringify(payload, null, 2);
-  const sha256 = createHash("sha256").update(body).digest("hex");
-  const wrapped = JSON.stringify({ sha256, ...payload }, null, 2);
+  if (asJson) {
+    const body = JSON.stringify(payload, null, 2);
+    const sha256 = createHash("sha256").update(body).digest("hex");
+    const wrapped = JSON.stringify({ sha256, ...payload }, null, 2);
+    const filename = `blackglass-sample-evidence-${generatedAt.slice(0, 10)}.json`;
+    return new NextResponse(wrapped, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "x-request-id": requestId,
+      },
+    });
+  }
 
-  const filename = `blackglass-demo-evidence-${generatedAt.slice(0, 10)}.json`;
-  return new NextResponse(wrapped, {
+  const pdfBytes = await generateDemoEvidencePdf({
+    tenantName: DEMO_TENANT_NAME,
+    tenantSlug: DEMO_TENANT_SLUG,
+    generatedAt,
+    hosts: DEMO_HOSTS,
+    drift: DEMO_DRIFT,
+    remediations: DEMO_REMEDIATIONS,
+    audit: DEMO_AUDIT,
+  });
+  const buf = new Uint8Array(pdfBytes).slice().buffer;
+  const filename = `blackglass-sample-evidence-${generatedAt.slice(0, 10)}.pdf`;
+  return new NextResponse(buf, {
     status: 200,
     headers: {
-      "Content-Type": "application/json; charset=utf-8",
+      "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",

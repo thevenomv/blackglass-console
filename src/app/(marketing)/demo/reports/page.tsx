@@ -39,12 +39,13 @@ export default function DemoReportsPage() {
               <time className="font-mono text-xs text-fg-faint">{r.generated}</time>
             </div>
             <p className="mt-2 text-sm text-fg-muted">{r.summary}</p>
-            <DemoGateButton
-              actionLabel="Export report"
-              className="mt-3 text-xs font-medium text-accent-blue hover:underline"
+            <a
+              href="/api/public/demo-report"
+              download
+              className="mt-3 inline-block text-xs font-medium text-accent-blue hover:underline"
             >
-              Export PDF (sample)
-            </DemoGateButton>
+              Download sample report (PDF)
+            </a>
           </li>
         ))}
       </ul>

@@ -14,7 +14,7 @@
  *                                 pages on a noisy Sentry stream.
  *   PD_SENTRY_MIN_LEVEL         — "error" (default) or "fatal".
  *   NEXT_PUBLIC_APP_URL         — used to build the deep-link back into
- *                                 the BLACKGLASS console.
+ *                                 the Blackglass console.
  *
  * Behaviour:
  *   - Fire-and-forget. Failure is logged but never re-throws — the bridge
@@ -122,8 +122,8 @@ export async function maybeTriggerPagerDuty(event: {
 
   const exc = event.exception?.values?.[0];
   const summary = exc
-    ? `BLACKGLASS Sentry: ${exc.type ?? "Error"} — ${exc.value ?? ""}`.slice(0, 1024)
-    : `BLACKGLASS Sentry: ${event.message ?? "unhandled error"}`.slice(0, 1024);
+    ? `Blackglass Sentry: ${exc.type ?? "Error"} — ${exc.value ?? ""}`.slice(0, 1024)
+    : `Blackglass Sentry: ${event.message ?? "unhandled error"}`.slice(0, 1024);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.blackglasssec.com";
   const sentryOrg = process.env.SENTRY_ORG ?? "";
@@ -135,7 +135,7 @@ export async function maybeTriggerPagerDuty(event: {
       text: "Sentry event",
     });
   }
-  links.push({ href: `${appUrl}/audit`, text: "BLACKGLASS audit log" });
+  links.push({ href: `${appUrl}/audit`, text: "Blackglass audit log" });
 
   const payload = {
     routing_key: routingKey,

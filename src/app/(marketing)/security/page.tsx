@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Security — BLACKGLASS by Obsidian Dynamics",
+  title: "Security — Blackglass by Obsidian Dynamics",
   description:
-    "How BLACKGLASS protects your data: encryption, access control, credential handling, audit logging, and the security posture of the platform itself.",
+    "How Blackglass keeps your Linux visibility data safe — in plain language up top, with technical depth for security reviewers below.",
   openGraph: {
-    title: "Security — BLACKGLASS",
+    title: "Security — Blackglass",
     description:
-      "How BLACKGLASS protects your data: encryption, access control, credential handling, audit logging, and platform hardening.",
+      "Encryption, access control, careful handling of credentials, audit trails, and platform hardening — explained for both executives and engineers.",
     type: "website",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
 };
 
@@ -77,12 +77,23 @@ export default function SecurityPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-16 text-sm leading-relaxed text-fg-muted">
       {/* Header */}
-      <p className="mb-2 font-mono text-xs uppercase tracking-widest text-fg-faint">Security</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-fg-faint">Security</p>
       <h1 className="mb-4 text-3xl font-bold text-fg-primary">Security overview</h1>
       <p className="max-w-2xl text-base text-fg-muted">
-        BLACKGLASS is a configuration-integrity product. This page describes what it does to
-        improve your security posture — and how we protect the data you entrust to us.
+        Blackglass helps you notice when Linux servers move away from the configuration you
+        approved. This page explains what that means for your risk — and how we safeguard the
+        information you share with us.
       </p>
+
+      <div className="mb-10 mt-6 max-w-2xl rounded-lg border border-accent-blue/25 bg-accent-blue/5 px-5 py-4 text-sm leading-relaxed text-fg-muted">
+        <p className="font-semibold text-fg-primary">In plain language</p>
+        <ul className="mt-2 list-disc space-y-1.5 pl-5">
+          <li>We show you what changed, why it matters, and who touched it — with exports you can hand to leadership.</li>
+          <li>Your workspace stays separate from everyone else&apos;s, with encryption in transit and at rest.</li>
+          <li>Automation that suggests fixes is designed so humans stay in charge; nothing runs on production without an explicit approval path.</li>
+          <li>Need the engineering detail? Everything below this box is the deeper dive procurement and security teams usually ask for.</li>
+        </ul>
+      </div>
       <p className="mb-12 mt-3 max-w-2xl text-xs text-fg-faint">
         Last reviewed 2026-05-08 · Looking for procurement evidence? See the{" "}
         <Link
@@ -95,16 +106,16 @@ export default function SecurityPage() {
       </p>
 
       <div className="space-y-14">
-        {/* Section 1 — What BLACKGLASS does */}
+        {/* Section 1 — What Blackglass does */}
         <section aria-labelledby="what-it-does">
           <SectionHeading>
-            <span id="what-it-does">What BLACKGLASS does for security</span>
+            <span id="what-it-does">What Blackglass does for security</span>
           </SectionHeading>
 
           <div className="rounded-lg border border-border-subtle bg-bg-panel/60 px-5 py-4 mb-8">
             <p className="text-sm font-semibold text-fg-primary">Integrity first, monitoring second</p>
             <Prose>
-              BLACKGLASS is not a SIEM, a vulnerability scanner, or a log aggregator. It is a
+              Blackglass is not a SIEM, a vulnerability scanner, or a log aggregator. It is a
               configuration-integrity product. Its job is to answer one question:{" "}
               <em className="text-fg-primary not-italic">
                 is this host still in the configuration we approved, and if not, what changed,
@@ -133,11 +144,11 @@ export default function SecurityPage() {
             <div>
               <p className="text-sm font-semibold text-fg-primary">Drift detection</p>
               <Prose>
-                At each scan, BLACKGLASS re-collects the same surface areas and diffs against the
+                At each scan, Blackglass re-collects the same surface areas and diffs against the
                 active baseline. Every changed, added, or removed item surfaces as a finding.
                 Configuration drift is a well-documented attack vector — attackers abuse CI
                 pipelines, provisioning scripts, and emergency access to make changes that are
-                never reviewed or reverted. BLACKGLASS makes that drift visible and attributable.
+                never reviewed or reverted. Blackglass makes that drift visible and attributable.
               </Prose>
               <div className="mt-4 overflow-x-auto rounded-lg border border-border-default">
                 <table className="w-full text-xs">
@@ -204,7 +215,7 @@ export default function SecurityPage() {
               The remediator never runs AI-generated commands directly on production.
             </p>
             <Prose>
-              BLACKGLASS includes an LLM-driven remediator that proposes plans for
+              Blackglass includes an LLM-driven remediator that proposes plans for
               detected drift. It is the most-asked-about component in security review
               — so the safety contract is uncompromising and enforced in code, not in
               the prompt.
@@ -278,7 +289,7 @@ export default function SecurityPage() {
         {/* Section 2 — How we protect your data */}
         <section aria-labelledby="data-protection">
           <SectionHeading>
-            <span id="data-protection">How BLACKGLASS protects your data</span>
+            <span id="data-protection">How Blackglass protects your data</span>
           </SectionHeading>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -310,7 +321,7 @@ export default function SecurityPage() {
             </DomainCard>
 
             <DomainCard title="Data minimisation and retention">
-              BLACKGLASS collects only what is needed to compute drift — not file contents, not
+              Blackglass collects only what is needed to compute drift — not file contents, not
               environment variables, not secrets. Retention is configurable per plan (14-day trial;
               180 days on Starter / Growth / Business; custom on Enterprise). Data is hard-deleted
               after the window closes — not hidden, removed.

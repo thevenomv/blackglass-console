@@ -3,15 +3,15 @@ import Link from "next/link";
 import { TrialSignupLink } from "@/components/demo/DemoGateButton";
 
 export const metadata: Metadata = {
-  title: "Product — BLACKGLASS",
+  title: "Product — Blackglass",
   description:
-    "A complete tour of Blackglass: fleet dashboard, host detail, SSH posture, baselines, drift events, evidence bundles, and role-based access for ops and security teams.",
+    "See how Blackglass brings fleet overview, per-server detail, trusted snapshots, clear change alerts, exports for reviews, and sensible access roles into one calm workflow.",
   openGraph: {
-    title: "Product — BLACKGLASS",
+    title: "Product — Blackglass",
     description:
-      "A complete tour of Blackglass: fleet dashboard, host detail, SSH posture, baselines, drift events, evidence bundles, and role-based access for ops and security teams.",
+      "Fleet overview, per-server detail, trusted snapshots, change alerts, shareable reports, and roles that match how real teams work.",
     type: "website",
-    siteName: "BLACKGLASS",
+    siteName: "Blackglass",
   },
 };
 
@@ -24,95 +24,94 @@ const FEATURES = [
   {
     id: "fleet",
     label: "01",
-    title: "Fleet dashboard",
+    title: "Fleet overview",
     summary:
-      "A single view of all managed hosts — scan state, drift event counts, and SSH posture score for every server in your workspace.",
+      "One calm screen for every Linux host you watch: last check-in, how many open items need attention, and remote-access health at a glance.",
     bullets: [
-      "Host list with last-successful-scan timestamp and connectivity from the last collection.",
-      "Per-host drift event count, broken down by severity (HIGH / MEDIUM / INFO).",
-      "SSH posture summary: passing, warning, and failing directive checks.",
-      "Risk-score ordering so the highest-risk hosts surface first.",
-      "Click through to any host for the full detail view.",
+      "See when each server was last checked and whether we could reach it.",
+      "Open items grouped by urgency so the noisy stuff does not drown out what matters.",
+      "A simple roll-up of remote-login settings — what is healthy, what needs a look.",
+      "Servers that carry the most risk rise to the top automatically.",
+      "Click any row to open the full story for that machine.",
     ],
     useCase: null,
   },
   {
     id: "host-detail",
     label: "02",
-    title: "Host detail view",
+    title: "Per-server detail",
     summary:
-      "Everything Blackglass knows about a single host: baseline metadata, open drift events, SSH configuration, listeners, and service states — in one place.",
+      "Everything about one host in a single place: the snapshot you trust, what changed since then, remote login settings, network listeners, and key services.",
     bullets: [
-      "Active baseline with capture timestamp and capturing operator.",
-      "Open drift events with before/after values and severity classification.",
-      "Effective SSH configuration (resolved across all Include fragments via sshd -T).",
-      "Open TCP/UDP listener list compared to the approved baseline.",
-      "Service states for tracked critical services.",
+      "The active trusted snapshot, who captured it, and when.",
+      "Open items with plain-language titles, before/after context, and urgency.",
+      "The effective remote-login policy as the server actually runs it.",
+      "Listening ports compared to what you approved.",
+      "Status signals for services you mark as important.",
     ],
     useCase: "/use-cases/ssh-configuration-audit",
-    useCaseLabel: "SSH audit use case →",
+    useCaseLabel: "Remote access review →",
   },
   {
     id: "baselines",
     label: "03",
-    title: "Baselines",
+    title: "Trusted snapshots",
     summary:
-      "Capture an approved snapshot of host state after a hardening pass, deployment, or change freeze. All future scans compare against that baseline.",
+      "After hardening, a release, or a change freeze, save an approved picture of a host. Every future check compares live state to that moment.",
     bullets: [
-      "One-click baseline capture from the host view or via API.",
-      "Baseline metadata: captured by, captured at, host scan ID.",
-      "Baseline history — previous baselines are retained for audit queries.",
-      "Baseline approval workflow on Business and Enterprise plans.",
-      "Compare any two baselines side-by-side to understand what changed between them.",
+      "Capture from the console or your automation — your choice.",
+      "Each snapshot remembers who saved it and when.",
+      "Older snapshots stay available when you need to look back.",
+      "On larger plans, optional approval steps before a snapshot goes live.",
+      "Compare two points in time side by side to see exactly what moved.",
     ],
     useCase: "/use-cases/linux-hardening-monitoring",
-    useCaseLabel: "Hardening monitoring use case →",
+    useCaseLabel: "Keeping hardening on track →",
   },
   {
     id: "drift",
     label: "04",
-    title: "Drift events",
+    title: "Change alerts",
     summary:
-      "When a scan finds a configuration value that differs from the approved baseline, Blackglass creates a drift event with severity, field, before/after values, and a remediation workflow.",
+      "When a check finds something different from the trusted snapshot, Blackglass opens a tracked item with urgency, detail, and space for your team to respond.",
     bullets: [
-      "Severity: HIGH (security-critical directives), MEDIUM (hardening-relevant), INFO (cosmetic/expected).",
-      "Field-level diff: shows exactly which directive changed and the old vs. new value.",
-      "Assign owner, set due date, add notes, and close with a resolution record.",
-      "Filter by severity, host, status (open / acknowledged / closed), and date range.",
-      "Webhook notifications for new HIGH and MEDIUM events to Slack, email, or any HTTP endpoint.",
+      "Urgency levels separate “drop everything” from “note for next week.”",
+      "Plain before/after context so you are not guessing what moved.",
+      "Assign an owner, pick a due date, leave notes, and close with a short resolution.",
+      "Filter by urgency, server, status, and timeframe.",
+      "Optional notifications to Slack, email, or any HTTPS endpoint you run.",
     ],
     useCase: "/use-cases/linux-configuration-drift-detection",
-    useCaseLabel: "Drift detection deep-dive →",
+    useCaseLabel: "More on continuous checks →",
   },
   {
     id: "evidence",
     label: "05",
-    title: "Evidence bundles & reports",
+    title: "Reports you can share",
     summary:
-      "Export a structured, dated evidence bundle for a host or the whole fleet — useful for auditors, internal security reviews, and compliance questionnaires.",
+      "Download a dated package for one server or the whole fleet — ideal for leadership updates, customer security reviews, or working with an outside assessor.",
     bullets: [
-      "Bundle includes: baseline snapshot, all drift events in scope, remediation records, and exporter metadata.",
-      "Operator notes and acknowledgements are included inline for chain-of-custody.",
-      "Export format is structured for readability by non-technical reviewers.",
-      "Scoped exports: per-host, per-environment, or full-workspace.",
-      "Audit log covers every export event (who exported, when, what scope).",
+      "Includes the trusted snapshot, related items, notes, and who exported it.",
+      "Written so reviewers outside engineering can follow along.",
+      "Scope exports to one server, one environment, or everything in the workspace.",
+      "A running log records each export for accountability.",
     ],
     useCase: "/use-cases/linux-hardening-monitoring",
-    useCaseLabel: "Hardening monitoring use case →",
+    useCaseLabel: "Hardening story for stakeholders →",
   },
   {
     id: "rbac",
     label: "06",
-    title: "Roles & access",
+    title: "Roles that match reality",
     summary:
-      "Five roles with distinct permissions — from read-only external auditors to workspace owners. Viewers and guest auditors are always unlimited on paid plans.",
+      "Five roles from read-only guests to full administrators. People who only need to read never count against your paid seats.",
     bullets: [
-      "Owner: full workspace control, billing, member management.",
-      "Admin: manage members, baselines, and settings.",
-      "Operator: run scans, capture baselines, manage drift events.",
-      "Viewer: read-only access to all workspace data — unlimited on paid plans.",
-      "Guest auditor: scoped read access for external reviewers — unlimited on paid plans.",
-      "All role checks enforced server-side; cannot be bypassed from the browser.",
+      "Owners handle billing and membership.",
+      "Admins manage people, snapshots, and settings.",
+      "Operators run checks, capture snapshots, and work items.",
+      "Viewers can read everything — unlimited on paid plans.",
+      "Guest auditors get scoped read access for outside partners — also unlimited on paid plans.",
+      "Permissions are enforced on the server, not just hidden in the UI.",
     ],
     useCase: null,
   },
@@ -124,16 +123,14 @@ export default function ProductPage() {
         {/* Hero */}
         <section className="border-b border-border-subtle px-4 py-16 sm:py-20">
           <div className="mx-auto max-w-3xl">
-            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-blue">
-              Product
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Product</p>
             <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
-              Linux integrity monitoring without scraping secrets off the host
+              A single place to trust, check, and explain your Linux configuration story
             </h1>
             <p className="mt-4 text-lg leading-relaxed">
-              Blackglass standardizes how you capture approved SSH and listener baselines, run drift
-              scans on demand or on schedule, and export auditor-ready evidence — with workspace
-              isolation per organisation and role-based access baked in from the start.
+              Blackglass helps teams agree on a known-good moment for each server, watch for
+              meaningful change, and package what happened for people who are not logged into the
+              console every day — with sensible access control from day one.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -161,7 +158,7 @@ export default function ProductPage() {
             {FEATURES.map((f) => (
               <article key={f.id} id={f.id} className="scroll-mt-20">
                 <div className="flex items-start gap-4">
-                  <span className="font-mono text-xs font-semibold text-accent-blue">{f.label}</span>
+                  <span className="text-xs font-semibold text-accent-blue">{f.label}</span>
                   <div className="flex-1">
                     <h2 className="text-xl font-semibold text-fg-primary">{f.title}</h2>
                     <p className="mt-3 leading-relaxed">{f.summary}</p>
@@ -188,28 +185,28 @@ export default function ProductPage() {
         {/* Collector model */}
         <section className="border-t border-border-subtle bg-bg-panel/40 px-4 py-14">
           <div className="mx-auto max-w-3xl">
-            <h2 className="text-xl font-semibold text-fg-primary">Collector model</h2>
+            <h2 className="text-xl font-semibold text-fg-primary">How we read your servers</h2>
             <p className="mt-3 leading-relaxed text-sm">
-              Blackglass uses an agentless SSH collection model for most deployments. For hosts not
-              reachable over SSH from the control plane (NAT-ed internal hosts, air-gapped segments),
-              a push-ingest agent can be deployed on the host itself.
+              Most teams connect with a read-only path over SSH from our service. If a machine cannot
+              be reached that way — for example, it sits on a private network — you can use a small
+              helper that sends results to us over HTTPS instead.
             </p>
             <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed">
               <li>
-                <strong className="text-fg-primary">Agentless (pull):</strong> Blackglass connects
-                over SSH using a dedicated least-privilege collector user. No root access required.
+                <strong className="text-fg-primary">Connect in (typical):</strong> We use a dedicated
+                low-privilege account. Full administrator access is not required.
               </li>
               <li>
-                <strong className="text-fg-primary">Agent (push):</strong> For hosts that cannot be
-                reached from the outside, a lightweight agent sends scan results to the Blackglass
-                ingest API over HTTPS.
+                <strong className="text-fg-primary">Send results out (optional):</strong> For
+                hard-to-reach hosts, a lightweight helper posts summaries securely when you prefer
+                that model.
               </li>
               <li>
-                <strong className="text-fg-primary">No secrets harvested:</strong> The collector
-                gathers configuration metadata — effective sshd directives, listeners, identity
-                and sudo, persistence (cron / systemd / authorized_keys fingerprints), packages,
-                loaded kernel modules, and integrity hashes. It does not read application
-                configuration, environment variables, file contents, or private keys.
+                <strong className="text-fg-primary">Built to respect boundaries:</strong> We collect
+                the configuration signals needed to spot drift — things like remote-login settings,
+                listeners, accounts, privilege rules, scheduled work, installed packages, and selected
+                fingerprints. We do not bulk-copy application configs, environment files, or private
+                keys.
               </li>
             </ul>
           </div>
@@ -244,10 +241,10 @@ export default function ProductPage() {
         <section className="border-t border-border-subtle bg-bg-panel/50 px-4 py-14">
           <div className="mx-auto flex max-w-3xl flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-lg font-semibold text-fg-primary">Ready to connect your first host?</h2>
+              <h2 className="text-lg font-semibold text-fg-primary">Want to connect a real server?</h2>
               <p className="mt-2 text-sm">
-                Start with the demo, then provision a workspace when you are ready to connect real
-                infrastructure.
+                Try the demo first, then open a workspace when you are ready to point Blackglass at
+                your own fleet.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">

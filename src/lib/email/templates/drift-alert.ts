@@ -36,7 +36,7 @@ export function driftAlertHtml(opts: DriftAlertOptions): string {
 <body style="margin:0;padding:24px;background:#f7fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a202c;">
   <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;border:1px solid #e2e8f0;overflow:hidden;">
     <div style="background:#e53e3e;padding:16px 24px;">
-      <p style="margin:0;color:#fff;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;">BLACKGLASS Security Alert</p>
+      <p style="margin:0;color:#fff;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;">Blackglass Security Alert</p>
     </div>
     <div style="padding:24px;">
       <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;">
@@ -61,7 +61,7 @@ export function driftAlertHtml(opts: DriftAlertOptions): string {
     </div>
     <div style="background:#f7fafc;padding:12px 24px;border-top:1px solid #e2e8f0;">
       <p style="margin:0;font-size:11px;color:#a0aec0;">
-        You are receiving this because ALERT_EMAIL_TO is configured. Manage notifications in your BLACKGLASS settings.
+        You are receiving this because ALERT_EMAIL_TO is configured. Manage notifications in your Blackglass settings.
       </p>
     </div>
   </div>
@@ -72,7 +72,7 @@ export function driftAlertHtml(opts: DriftAlertOptions): string {
 export function driftAlertText(opts: DriftAlertOptions): string {
   const lines = opts.findings.map((f) => `  • ${f.title} (${f.category}, ${f.severity})`).join("\n");
   return [
-    `BLACKGLASS Security Alert`,
+    `Blackglass Security Alert`,
     ``,
     `${opts.findings.length} high-severity drift finding(s) detected on ${opts.hostname}`,
     `Scan ID: ${opts.jobId}`,

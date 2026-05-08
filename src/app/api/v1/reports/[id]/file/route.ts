@@ -15,6 +15,9 @@
  * On 2026-05-07 a customer hit `/api/v1/reports/rpt-1778018245406-7f614569/file`
  * and got a generic failure with no diagnostics. This route is now
  * self-explaining for the next operator who has to debug it.
+ *
+ * Stored report bodies are JSON; this handler renders PDF by default so browser
+ * downloads open correctly. Use `?format=json` for the raw JSON payload.
  */
 import { NextResponse } from "next/server";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
@@ -87,14 +90,70 @@ export async function GET(
     );
   }
 
-  const ext = meta.format === "pdf" ? "pdf" : "md";
   const safeName = meta.title
     .replace(/[^a-z0-9]+/gi, "-")
     .replace(/^-+|-+$/g, "")
     .toLowerCase()
     .slice(0, 60);
-  const filename = `${safeName}-${id.slice(0, 8)}.${ext}`;
 
+  const url = new URL(request.url);
+  const formatParam = url.searchParams.get("format");
+
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    parsed = null;
+  }
+
+  const isReportJson =
+    parsed !== null &&
+    typeof parsed === "object" &&
+    Array.isArray((parsed as { drift_events?: unknown }).drift_events);
+
+  if (isReportJson && formatParam === "json") {
+    const filename = `${safeName}-${id.slice(0, 8)}.json`;
+    return new NextResponse(JSON.stringify(parsed, null, 2), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  }
+
+  // Generation always persists JSON; render PDF by default so downloads open correctly.
+  if (isReportJson) {
+    const filename = `${safeName}-${id.slice(0, 8)}.pdf`;
+    let pdfBytes: Uint8Array;
+    try {
+      pdfBytes = await generateReportPdf(JSON.stringify(parsed));
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error(`[reports] PDF render failed for ${id}:`, err);
+      return jsonErr(
+        500,
+        "pdf_render_failed",
+        `PDF synthesiser threw while rendering "${id}": ${reason.slice(0, 200)}`,
+        { id, status: meta.status },
+      );
+    }
+    const buf = new Uint8Array(pdfBytes).slice().buffer;
+    return new NextResponse(buf, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  }
+
+  const ext = meta.format === "pdf" ? "pdf" : "md";
+  const filename = `${safeName}-${id.slice(0, 8)}.${ext}`;
   if (meta.format === "pdf") {
     let pdfBytes: Uint8Array;
     try {
@@ -109,8 +168,6 @@ export async function GET(
         { id, status: meta.status },
       );
     }
-    // BlobPart accepts ArrayBuffer / Uint8Array<ArrayBuffer>; the slice copy
-    // turns the lib's Uint8Array<ArrayBufferLike> into a fresh ArrayBuffer.
     const buf = new Uint8Array(pdfBytes).slice().buffer;
     return new NextResponse(buf, {
       status: 200,

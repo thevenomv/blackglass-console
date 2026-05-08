@@ -475,7 +475,7 @@ export function CollectorHostsSection() {
       </div>
       <div>
         <p className="text-sm text-fg-muted">
-          Add each server you want BLACKGLASS to monitor via SSH. You&apos;ll need the
+          Add each server you want Blackglass to monitor via SSH. You&apos;ll need the
           server&apos;s IP address and an SSH key pair as the login credential.
         </p>
         <details className="mt-2 rounded-card border border-border-subtle bg-bg-elevated text-xs text-fg-muted">

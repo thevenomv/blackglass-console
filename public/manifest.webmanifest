@@ -1,7 +1,7 @@
 {
-  "name": "BLACKGLASS",
-  "short_name": "BLACKGLASS",
-  "description": "Operational integrity for Linux hosts — fleet baselines, drift triage, and evidence exports.",
+  "name": "Blackglass",
+  "short_name": "Blackglass",
+  "description": "Operational integrity for Linux hosts — fleet baselines, finding triage, and evidence exports.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f1f5f9",

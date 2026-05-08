@@ -3,7 +3,7 @@
 /**
  * Settings card for SAML SSO via Clerk Enterprise.
  *
- * BLACKGLASS doesn't run its own SAML implementation — Clerk owns the
+ * Blackglass doesn't run its own SAML implementation — Clerk owns the
  * IdP metadata, signing certs, and assertion verification. This card
  * just renders a read-only view of the org's SAML connections (fetched
  * from the Clerk Backend API server-side) plus a deep-link to the
@@ -85,7 +85,7 @@ export function SsoSection() {
       <div>
         <h2 className="text-sm font-semibold text-fg-primary">Single sign-on (SAML)</h2>
         <p className="mt-1 text-sm text-fg-muted">
-          BLACKGLASS uses Clerk Enterprise for SAML SSO. IdP metadata,
+          Blackglass uses Clerk Enterprise for SAML SSO. IdP metadata,
           signing certificates, and attribute mappings live in the Clerk
           dashboard; this view is read-only.
         </p>

@@ -91,8 +91,8 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
     <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">
       <h2 className="text-sm font-semibold text-fg-primary">Connect your first host</h2>
       <p className="text-sm text-fg-muted">
-        Choose how BLACKGLASS collects from your server. Both methods produce the
-        same drift detection and evidence exports.
+        Choose how Blackglass collects from your server. Both methods produce the
+        same change detection and evidence exports.
       </p>
 
       <div className="flex gap-2">
@@ -129,7 +129,7 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
             <p className="font-medium text-fg-primary">How it works</p>
             <p className="text-fg-muted">
               A lightweight script runs on your server and sends a read-only snapshot to
-              BLACKGLASS over HTTPS. No inbound firewall rules needed — your server
+              Blackglass over HTTPS. No inbound firewall rules needed — your server
               calls us, not the other way round.
             </p>
             <ol className="list-decimal space-y-3 pl-5 text-fg-muted">
@@ -200,7 +200,7 @@ function ConnectHostStep({ onNext }: { onNext: () => void }) {
           <div className="space-y-3 rounded-card border border-border-subtle bg-bg-elevated p-4 text-sm">
             <p className="font-medium text-fg-primary">SSH pull setup</p>
             <p className="text-fg-muted">
-              BLACKGLASS SSHs into your server using a dedicated read-only account
+              Blackglass connects to your server over SSH using a dedicated read-only account
               — no agent required, no inbound ports needed.
             </p>
             <ol className="space-y-3 text-fg-muted">
@@ -332,9 +332,9 @@ function CaptureBaselineStep({ onNext }: { onNext: () => void }) {
     <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">
       <h2 className="text-sm font-semibold text-fg-primary">Capture baseline</h2>
       <p className="text-sm text-fg-muted">
-        BLACKGLASS records the current state of every connected host as your{" "}
+        Blackglass records the current state of every connected host as your{" "}
         <strong className="font-medium text-fg-primary">approved baseline</strong>.
-        Every future scan diffs against it, so any deviation surfaces as drift.
+        Every future scan compares against it, so meaningful differences show up as findings.
       </p>
       <p className="text-xs text-fg-faint">
         Read-only — no config writes, no package installs, no reboots. Typical
@@ -504,7 +504,7 @@ function RunFirstScanStep() {
     <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-6">
       <h2 className="text-sm font-semibold text-fg-primary">Run your first scan</h2>
       <p className="text-sm text-fg-muted">
-        With a baseline pinned, the first scan will show zero drift (unless your
+        With a baseline pinned, the first scan usually shows a clean bill of health (unless your
         fleet has actually changed since capture). Future scans surface anything
         that deviates.
       </p>
@@ -534,14 +534,14 @@ function RunFirstScanStep() {
             </p>
             <p className="mt-1 text-xs">
               {state.eventsFound > 0
-                ? `${state.eventsFound} drift event${state.eventsFound === 1 ? "" : "s"} detected — open the drift triage queue to investigate.`
-                : "No drift detected. From now on, the dashboard will alert you when a future scan finds anything."}
+                ? `${state.eventsFound} finding${state.eventsFound === 1 ? "" : "s"} detected — open Findings to review.`
+                : "No changes detected. From now on, the dashboard will alert you when a future scan finds anything."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href={state.eventsFound > 0 ? "/drift" : "/dashboard"}>
               <Button type="button">
-                {state.eventsFound > 0 ? "Triage drift" : "Open dashboard"}
+                {state.eventsFound > 0 ? "Open findings" : "Open dashboard"}
               </Button>
             </Link>
             <Link href="/dashboard">
@@ -587,10 +587,10 @@ export function OnboardingFlow() {
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">First run</p>
         <h1 className="mt-2 text-xl font-semibold text-fg-primary">
-          Get to your first drift signal
+          Get to your first finding
         </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Three real steps. Each one calls a real BLACKGLASS API — no faked
+          Three real steps. Each one calls a real Blackglass API — no faked
           progress bars. Should take under 5 minutes once a host is reachable.
         </p>
       </div>

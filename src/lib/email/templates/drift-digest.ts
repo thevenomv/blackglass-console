@@ -58,7 +58,7 @@ export function driftDigestHtml(opts: DriftDigestOptions): string {
 <body style="margin:0;padding:24px;background:#f7fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a202c;">
   <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:8px;border:1px solid #e2e8f0;overflow:hidden;">
     <div style="background:#0f1419;padding:18px 24px;">
-      <p style="margin:0;color:#9aa5b1;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;">BLACKGLASS · Drift digest</p>
+      <p style="margin:0;color:#9aa5b1;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;">Blackglass · Findings digest</p>
       <p style="margin:4px 0 0;color:#fff;font-size:18px;font-weight:600;">${escapeHtml(opts.workspaceName)} — ${escapeHtml(opts.windowLabel)}</p>
     </div>
 
@@ -107,7 +107,7 @@ export function driftDigestHtml(opts: DriftDigestOptions): string {
 
     <div style="padding:20px 24px 24px;">
       <a href="${opts.appUrl}/drift?lifecycle=open" style="display:inline-block;background:#1d4ed8;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600;">
-        Open the drift queue →
+        Open findings →
       </a>
     </div>
 
@@ -124,7 +124,7 @@ export function driftDigestHtml(opts: DriftDigestOptions): string {
 
 export function driftDigestText(opts: DriftDigestOptions): string {
   const lines = [
-    `BLACKGLASS — Drift digest (${opts.workspaceName})`,
+    `Blackglass — Findings digest (${opts.workspaceName})`,
     `Window: ${opts.windowStartIso} → ${opts.windowEndIso} (${opts.windowLabel})`,
     ``,
     `Totals:`,
