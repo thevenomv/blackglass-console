@@ -56,6 +56,23 @@ export type BlackglassDb = ReturnType<typeof createDb>;
  * Sets `app.bypass_rls=1` so RLS policies allow cross-tenant writes for one transaction.
  * @see docs/migrations/007_saas_rls.sql
  */
+/**
+ * Sentinel UUID for `app.tenant_id` in bypass mode.
+ *
+ * Why not `''`? PostgreSQL's RLS policies cast the GUC to uuid via
+ * `current_setting('app.tenant_id', TRUE)::uuid`. The empty string
+ * is not a valid uuid, so the cast errors during planning even when
+ * the OR-clause `app.bypass_rls = '1'` would have short-circuited
+ * at runtime. With `''` set, every bypass-mode write fails as soon
+ * as the connecting role is not the table owner / not BYPASSRLS —
+ * which is exactly what production is supposed to look like.
+ *
+ * The all-zero UUID is unambiguously NOT a real tenant id (we
+ * generate tenants via gen_random_uuid()), so picking it up in a
+ * comparison is benign.
+ */
+const BYPASS_SENTINEL_TENANT_UUID = "00000000-0000-0000-0000-000000000000";
+
 export async function withBypassRls<T>(fn: (db: BlackglassDb) => Promise<T>): Promise<T> {
   // Emit a structured security event every time bypass mode is entered so that
   // unexpected callers are visible in production logs.
@@ -64,7 +81,12 @@ export async function withBypassRls<T>(fn: (db: BlackglassDb) => Promise<T>): Pr
   const db = getDb();
   return db.transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.bypass_rls', '1', true)`);
-    await tx.execute(sql`select set_config('app.tenant_id', '', true)`);
+    // Set the sentinel UUID rather than '' so policies that cast the
+    // GUC to uuid don't fail their planner-time evaluation. The
+    // bypass_rls flag above is still what makes the policy's USING
+    // clause evaluate true; the tenant_id value here just has to be
+    // a syntactically-valid uuid that isn't a real tenant.
+    await tx.execute(sql`select set_config('app.tenant_id', ${BYPASS_SENTINEL_TENANT_UUID}, true)`);
     return fn(tx as unknown as BlackglassDb);
   });
 }

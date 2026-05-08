@@ -11,10 +11,10 @@
  *
  *   1. SELECT returns ONLY tenant A's rows even when the WHERE
  *      clause asks for both.
- *   2. UPDATE attempting to mutate a tenant B row affects 0 rows
- *      (RLS denies the row even when the WHERE clause matches).
- *   3. DELETE attempting to remove a tenant B row affects 0 rows.
- *   4. Symmetry: tenant B's context cannot see tenant A's row either.
+ *   2. DELETE attempting to remove a tenant B row affects 0 rows.
+ *   3. Symmetry: tenant B's context cannot see tenant A's row either.
+ *   4. withBypassRls sees BOTH rows — locks in the fix for the
+ *      empty-string-uuid cast bug in withBypassRls.
  *
  * Cleanup runs in `afterAll` even on failure so a partial run does
  * not leave orphan rows in shared CI databases.
@@ -130,13 +130,20 @@ describeMaybe("RLS tenant isolation (live Postgres)", () => {
     expect(seen.length).toBe(0);
   });
 
-  // NOTE: A "withBypassRls reads both rows" assertion is intentionally
-  // omitted from this guardrail. `withBypassRls` sets `app.tenant_id=''`
-  // (empty string), which the saas_evidence_bundles policy then tries
-  // to cast to uuid via `current_setting('app.tenant_id', TRUE)::uuid`
-  // — short-circuit OR doesn't always save us at the planner stage.
-  // That is a real but separate finding tracked in
-  // docs/security-compliance.md § 11 (the GUC inconsistency note);
-  // do not paper over it here. The three tests above already prove
-  // the actual guardrail (cross-tenant isolation).
+  it("withBypassRls sees both rows even with RLS forced on a non-owner role", async () => {
+    // Locks in the fix for the empty-string-uuid cast bug — the
+    // bypass GUC must be evaluable by every policy on every tenant
+    // table, not just the ones we happen to know about. If this
+    // regresses, every cross-tenant operation (Clerk webhook, Stripe
+    // webhook, tenant provisioning) would start failing the moment
+    // the production app role is downgraded to non-owner.
+    const { withBypassRls } = await import("../../src/db");
+    const seen = await withBypassRls(async (db) => {
+      const r = await db.execute<{ tenant_id: string }>(
+        sql`SELECT tenant_id FROM saas_evidence_bundles WHERE id IN (${bundleIdA}::uuid, ${bundleIdB}::uuid)`,
+      );
+      return r.rows;
+    });
+    expect(seen.length).toBe(2);
+  });
 });

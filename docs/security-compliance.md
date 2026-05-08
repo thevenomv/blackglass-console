@@ -258,28 +258,17 @@ DPA / SOC-2 evidence bundle.
 
 Transparency reduces back-and-forth in security review:
 
-- **Three different RLS GUC names exist across migrations** —
-  `app.tenant_id`, `app.current_tenant`, `app.current_tenant_id`.
-  `withTenantRls()` sets `app.tenant_id`, so policies referencing
-  the other two names (notably `drift_events` from migration 0003)
-  are not effectively enforced at the DB layer; isolation for those
-  tables relies on application-level WHERE clauses and the per-row
-  `tenant_id` column instead. A consolidating migration is on the
-  backlog. The CI tenant-leak guardrail
-  (`tests/unit/rls-tenant-leak.test.ts`) deliberately exercises a
-  table whose policy DOES match the GUC `withTenantRls` sets, so a
-  regression in the wrapper would still be caught.
-- **`withBypassRls` sets `app.tenant_id=''` (empty string)** which is
-  not a valid uuid. Policies that say
-  `current_setting('app.tenant_id', TRUE)::uuid` will raise on the
-  cast even though the OR-clause `app.bypass_rls = '1'` would have
-  short-circuited, depending on the planner's choice. In production
-  the bypass path works because the app role is also the table
-  owner for most tables (RLS is skipped for owners). When BLACKGLASS
-  graduates to a strictly non-owner production role,
-  `withBypassRls()` should be updated to either use a sentinel UUID
-  (e.g. `'00000000-0000-0000-0000-000000000000'`) or `RESET app.tenant_id`
-  before the bypass GUC is set. Tracked separately.
+- **RLS GUC consolidation (resolved 2026-05-08).** Earlier migrations
+  used three different GUC names (`app.tenant_id`, `app.current_tenant`,
+  `app.current_tenant_id`) — only `app.tenant_id` was ever set by
+  `withTenantRls`, so policies referencing the others were silently
+  no-ops. Migration `0016_consolidate_rls_gucs.sql` aligns every
+  shipped policy onto the canonical pair (`app.tenant_id`,
+  `app.bypass_rls`) and `withBypassRls` now sets a sentinel UUID
+  (`00000000-0000-0000-0000-000000000000`) so the cast in policy
+  USING clauses no longer fails. Forced RLS is opt-in via
+  `BLACKGLASS_FORCE_RLS=1` at migration time — see the migration
+  comment for rollout guidance.
 - **Customer-managed encryption keys (CMEK / BYOK) — Enterprise tier.**
   Per-tenant KEK is supported (AWS KMS or HashiCorp Vault) and routed
   through `EncryptedKey.tenantId` so legacy global-KEK blobs continue
