@@ -139,6 +139,16 @@ jobs:
           echo "$OUT"
           echo "$OUT" | grep -q "0 pending" || (echo "::error::Re-running migrations was not a no-op" && exit 1)
 
+      # RLS tenant-leak guardrail — runs against the freshly-migrated
+      # Postgres above. Asserts that withTenantRls actually filters
+      # rows for tenant A vs tenant B and that cross-tenant
+      # UPDATE/DELETE attempts affect 0 rows. A failure here means
+      # row-level isolation is broken — SEV 1.
+      - name: RLS tenant-leak guardrail
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/blackglass_test
+        run: npx vitest run tests/unit/rls-tenant-leak.test.ts --reporter=default
+
   helm-template:
     name: Helm chart renders cleanly (web + 3 workers)
     runs-on: ubuntu-latest

@@ -1,6 +1,6 @@
 import { configuredCollectorHostIds } from "@/lib/server/collector-env";
 import { enqueueScan } from "@/lib/server/scan-jobs";
-import { checkScanPostRate, clientIp } from "@/lib/server/rate-limit";
+import { checkScanPostRate, checkScanPostRateForTenant, clientIp } from "@/lib/server/rate-limit";
 import { collectorConfigured } from "@/lib/server/collector";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
 import { getScanQueue } from "@/lib/server/queue/scan-queue";
@@ -24,6 +24,21 @@ export async function POST(request: Request) {
 
   if (!(await checkScanPostRate(clientIp(request)))) {
     return jsonError(429, "rate_limited", undefined, requestId);
+  }
+  // Per-tenant enqueue guard — independent of the per-IP cap above.
+  // A single tenant rotating through serverless egress IPs cannot drown
+  // the BullMQ queue and starve other tenants. Tunable via
+  // BLACKGLASS_SCAN_TENANT_RATE_PER_MIN. Only meaningful in saas mode —
+  // legacy single-tenant deployments don't have a tenant id to key on.
+  if (access.mode === "saas") {
+    if (!(await checkScanPostRateForTenant(access.ctx.tenant.id))) {
+      return jsonError(
+        429,
+        "tenant_rate_limited",
+        "This workspace has exceeded its scan-enqueue rate. Wait ~60s and retry.",
+        requestId,
+      );
+    }
   }
 
   const raw = await readJsonBodyOptional(request, requestId);

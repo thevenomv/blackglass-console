@@ -93,9 +93,26 @@ export function clientIp(request: Request): string {
   return clientIpFromHeaders(request.headers);
 }
 
-/** POST /api/v1/scans — enqueue abuse guard */
+/** POST /api/v1/scans — per-IP enqueue abuse guard (anonymous + authenticated). */
 export function checkScanPostRate(ip: string): Promise<boolean> {
   return allowHybrid(`scan:post:${ip}`, 24, 60_000);
+}
+
+/**
+ * POST /api/v1/scans — per-tenant enqueue guard (authenticated requests).
+ *
+ * Sits ALONGSIDE the per-IP guard so a single tenant rotating through
+ * proxies / serverless egress IPs cannot drown the BullMQ queue and
+ * starve other tenants. Capped at 60 enqueues / minute / tenant —
+ * generous for a real fleet, prohibitive for a runaway script. When
+ * `BLACKGLASS_SCAN_TENANT_RATE_PER_MIN` is set on the deployment it
+ * overrides the default (operators with one giant tenant can raise
+ * it without rebuilding).
+ */
+export function checkScanPostRateForTenant(tenantId: string): Promise<boolean> {
+  const limit = Number(process.env.BLACKGLASS_SCAN_TENANT_RATE_PER_MIN ?? "60");
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 60;
+  return allowHybrid(`scan:post:tenant:${tenantId}`, safeLimit, 60_000);
 }
 
 /** GET /api/v1/scans/:id — polling guard */
