@@ -1,14 +1,16 @@
 # BLACKGLASS sales-demo walkthrough
 
-A one-page script for live prospect demos against the long-lived
-sales-demo VM (`blackglass-lab-01`). Read top-to-bottom; expect ~12
-minutes end-to-end.
+A one-page script for live prospect demos against the canonical
+sales-demo VM (`blackglass-rustdesk-demo`). Read top-to-bottom; expect
+~12 minutes end-to-end.
 
 > **Demo VM facts** (from `docs/runbooks/operations.md` § 4c):
-> Hostname `blackglass-lab-01` · IP `134.209.180.255` · Region `lon1` ·
-> Ubuntu 22.04 · `blackglass` user with NOPASSWD sudo on read-only
-> audit commands + the seed script · `ufw` enabled · DO Cloud Firewall
-> `blackglass-lab-fw` attached.
+> Hostname `blackglass-rustdesk-demo` · IP `167.99.59.55` · Region `nyc3`
+> · Ubuntu 22.04 · `blackglass` user with NOPASSWD sudo on read-only
+> audit commands + the seed script · `ufw` enabled · runs the BLACKGLASS
+> push-agent (systemd timer, every 5 min) so findings appear in the
+> console without an inbound SSH path. This is the **same box** you
+> screen-share into via RustDesk during customer demos.
 
 ---
 
@@ -16,7 +18,7 @@ minutes end-to-end.
 
 1. **Confirm the lab is reachable.**
    ```bash
-   ssh blackglass@134.209.180.255 'uname -a && systemctl is-active sshd'
+   ssh blackglass@167.99.59.55 'uname -a && systemctl is-active sshd'
    ```
    Should print kernel + `active`. If not, see § 4c of the operations
    runbook before the call.
@@ -24,7 +26,7 @@ minutes end-to-end.
 2. **Reset to clean baseline.** SSH as root and run the reset script —
    this undoes any drift from the previous demo:
    ```bash
-   ssh root@134.209.180.255 'bash -s' < scripts/lab/reset-drift.sh
+   ssh root@167.99.59.55 'bash -s' < scripts/lab/reset-drift.sh
    ```
 
 3. **Capture a fresh baseline from the console.** Open
@@ -34,7 +36,7 @@ minutes end-to-end.
 4. **Seed drift.** SSH as root and run the seed script — this stages
    four findings (one per remediator risk tier):
    ```bash
-   ssh root@134.209.180.255 'bash -s' < scripts/lab/seed-drift.sh
+   ssh root@167.99.59.55 'bash -s' < scripts/lab/seed-drift.sh
    ```
 
 5. **Have ready in browser tabs:**
@@ -177,7 +179,7 @@ Three lines you should always end on, then stop talking:
 
 - Reset the lab so it's ready for the next demo:
   ```bash
-  ssh root@134.209.180.255 'bash -s' < scripts/lab/reset-drift.sh
+  ssh root@167.99.59.55 'bash -s' < scripts/lab/reset-drift.sh
   ```
 - File the prospect in your CRM with what risk-tier story landed
   (sandbox-verified vs approval-required vs guidance-only — different
@@ -191,9 +193,9 @@ Three lines you should always end on, then stop talking:
 
 | Symptom                                            | Fix                                                                                       |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Dashboard shows `coverage: 0`                      | Confirm `COLLECTOR_HOST_1=134.209.180.255` is set on the App Platform → restart web pods. |
+| Dashboard shows `coverage: 0`                      | Confirm `COLLECTOR_HOST_1=167.99.59.55` is set on the App Platform → restart web pods.    |
 | Scan queue stays at 0 active for >30 s             | Check `scan-worker` Deployment is healthy in DO App Platform; restart if needed.          |
-| `ssh: connection refused` from console             | DO Cloud Firewall `blackglass-lab-fw` may have lost the ingress rule — re-attach via DO. |
+| Findings stale > 10 min                            | Check the push-agent on the demo VM: `ssh root@167.99.59.55 'systemctl status blackglass-agent.timer'`. |
 | Bundles list is empty after evidence export        | `ops-worker` is down — check logs in DO App Platform, restart, retry from `/evidence`.    |
 | Remediator drawer says "remediator unavailable"    | The Python sidecar isn't running. See `blackglass-remediator/README.md` to (re)start it.  |
 

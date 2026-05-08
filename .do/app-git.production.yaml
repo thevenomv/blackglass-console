@@ -87,24 +87,28 @@ services:
         value: ""
         scope: RUN_TIME
         type: SECRET
-      # Optional: override the hostId the lab-health probe checks for
-      # agent freshness. Defaults to "host-<COLLECTOR_HOST_1-with-dashes>".
+      # The lab-health probe checks for agent freshness under this hostId.
+      # Must match BLACKGLASS_HOST_ID in /etc/blackglass-agent.env on the
+      # demo VM. Defaults to "host-<COLLECTOR_HOST_1-with-dashes>".
       - key: LAB_AGENT_HOST_ID
-        value: ""
+        value: "host-167-99-59-55"
         scope: RUN_TIME
-      # Optional: how recent an agent ingest must be to count as "lab is
-      # healthy". Defaults to 900 (15 min — covers 3 missed 5-min runs).
+      # How recent an agent ingest must be to count as "lab is healthy".
+      # 900 = 15 min, covers 3 missed 5-min runs.
       - key: LAB_AGENT_FRESH_WINDOW_SECONDS
-        value: ""
+        value: "900"
         scope: RUN_TIME
-      # --- SSH Collector (optional — set to enable real telemetry collection)
-      # COLLECTOR_HOST_1: IP or hostname of the target server (e.g. 165.227.229.48)
+      # --- Demo VM collector
+      # The canonical sales-demo VM is `blackglass-rustdesk-demo`
+      # (167.99.59.55, nyc3) — the same Droplet operators screen-share into
+      # via RustDesk during customer demos. Findings reach the console via
+      # the BLACKGLASS push-agent on a 5-min systemd timer (App Platform
+      # egress to user-owned Droplets is blocked, so SSH-pull won't work).
       - key: COLLECTOR_HOST_1
-        value: ""
+        value: "167.99.59.55"
         scope: RUN_TIME
-      # COLLECTOR_HOST_1_NAME: display label for the host in the UI
       - key: COLLECTOR_HOST_1_NAME
-        value: ""
+        value: "blackglass-rustdesk-demo"
         scope: RUN_TIME
       # COLLECTOR_USER: SSH username on the target (default: blackglass)
       - key: COLLECTOR_USER
@@ -216,10 +220,10 @@ workers:
         value: "4"
         scope: RUN_TIME
       - key: COLLECTOR_HOST_1
-        value: ""
+        value: "167.99.59.55"
         scope: RUN_TIME
       - key: COLLECTOR_HOST_1_NAME
-        value: ""
+        value: "blackglass-rustdesk-demo"
         scope: RUN_TIME
       - key: COLLECTOR_USER
         value: blackglass

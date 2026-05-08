@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory)][string]$AppId,
     [Parameter(Mandatory)][string]$HostIp,
     [string]$PrivateKeyPath = "$env:TEMP\blackglass-ssh\id_collector",
-    [string]$HostName = "blackglass-lab-01",
+    [string]$HostName = "blackglass-rustdesk-demo",
     [string]$CollectorUser = "blackglass",
     [string]$BaselinePath = "/data/blackglass/baselines.json",
     [string]$DriftPath = "/data/blackglass/drift-history.json"

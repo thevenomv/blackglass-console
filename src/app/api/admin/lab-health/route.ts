@@ -1,9 +1,11 @@
 /**
  * GET /api/admin/lab-health
  *
- * Pre-flight health check for the long-lived sales-demo VM
- * (`blackglass-lab-01`). Catches the ways a demo silently breaks between
- * calls so the operator sees red BEFORE getting on Zoom:
+ * Pre-flight health check for the canonical sales-demo VM
+ * (`blackglass-rustdesk-demo`, 167.99.59.55 — the same Droplet operators
+ * screen-share into via RustDesk during customer calls). Catches the
+ * ways a demo silently breaks between calls so the operator sees red
+ * BEFORE getting on Zoom:
  *
  *   1. The configured `COLLECTOR_HOST_1` IP doesn't resolve / route.
  *   2. SSH (port `COLLECTOR_PORT`, default 22) doesn't accept TCP — most

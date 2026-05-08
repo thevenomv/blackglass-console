@@ -58,6 +58,7 @@ migration-output.txt
 .do/app-update-payload.json
 # One-off secrets generated for lab installs (per-host ingest keys, etc.)
 .lab-bg-key.local
+.lab-host-keys.local
 
 # Python
 __pycache__/

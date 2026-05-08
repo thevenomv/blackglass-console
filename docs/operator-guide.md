@@ -296,16 +296,17 @@ SaaS path is active. See `docs/saas-clerk-rbac.md` and
 
 ## 9. Lab: end-to-end drift detection walkthrough
 
-This walkthrough uses the long-lived sales-demo Droplet
-`blackglass-lab-01` at `134.209.180.255` (lon1). See
-`docs/runbooks/operations.md` § 4c for the canonical lab properties.
+This walkthrough uses the canonical sales-demo Droplet
+`blackglass-rustdesk-demo` at `167.99.59.55` (nyc3) — the same box you
+screen-share into during customer demos. See
+`docs/runbooks/operations.md` § 4c for the full lab properties.
 
 ### Step 1 — Set environment variables
 
 ```bash
 # Local or App Platform
-export COLLECTOR_HOST_1=134.209.180.255
-export COLLECTOR_HOST_1_NAME=blackglass-lab-01
+export COLLECTOR_HOST_1=167.99.59.55
+export COLLECTOR_HOST_1_NAME=blackglass-rustdesk-demo
 export COLLECTOR_USER=blackglass
 export SSH_PRIVATE_KEY="$(cat ~/.ssh/id_ed25519)"
 ```
@@ -321,7 +322,7 @@ Expected output includes `listenersCount`, `usersCount`, `servicesCount`, and `f
 ### Step 3 — Apply drift scenarios
 
 ```bash
-ssh blackglass@134.209.180.255 "sudo bash /tmp/drift-sim.sh apply"
+ssh blackglass@167.99.59.55 "sudo bash /tmp/drift-sim.sh apply"
 ```
 
 This applies 7 changes: TCP listener on 4444, new user `driftuser`, sudo escalation, malicious cron, SSH root login, firewall disabled, rogue systemd service.
@@ -353,7 +354,7 @@ You should see findings for each of the 7 applied changes.
 ### Step 6 — Revert and verify
 
 ```bash
-ssh blackglass@134.209.180.255 "sudo bash /tmp/drift-sim.sh revert"
+ssh blackglass@167.99.59.55 "sudo bash /tmp/drift-sim.sh revert"
 curl -X POST http://localhost:3000/api/v1/scans -H "Content-Type: application/json" -d '{}'
 # After scan completes, drift events should clear (or have 'low' severity only)
 ```

@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
 # scripts/lab/live-attack-sim.sh
 #
-# Live-attack simulation for the long-lived sales-demo VM (blackglass-lab-01,
-# currently 134.209.180.255). Walks an operator through 8 progressively
-# nastier drift scenes — each one shows up in the BLACKGLASS console after
-# the next scan/agent push so the customer can see drift detection,
-# remediation suggestions, and the audit trail in real time.
+# Live-attack simulation for the canonical sales-demo VM
+# (blackglass-rustdesk-demo, 167.99.59.55). This is the box you screen-share
+# into via RustDesk during customer demos. Walks an operator through 8
+# progressively nastier drift scenes — each one shows up in the
+# BLACKGLASS console after the next agent push so the customer can see
+# drift detection, remediation suggestions, and the audit trail in real
+# time.
 #
-# Why this exists in the repo:
-#   The previous "Live Attack Simulation" script was hard-wired to
-#   blackglass-rustdesk-demo (167.99.59.55:2222) which got deleted long
-#   ago. Operators who still had a local copy were demoing against a
-#   ghost host. This file is the canonical, version-controlled
-#   replacement that points at the current lab and stays aligned with
-#   COLLECTOR_HOST_1 in .do/app-git.production.yaml.
+# Why this script exists in the repo:
+#   The previous "Live Attack Simulation" was an unversioned local copy
+#   that referenced a port (2222) the box no longer uses. Operators
+#   running it from their laptops were either failing to seed drift or
+#   seeding it on the wrong host. This file is the canonical,
+#   version-controlled replacement; it stays aligned with
+#   COLLECTOR_HOST_1 in .do/app-git.production.yaml so docs, scripts,
+#   and the App Platform spec all agree on what "the demo VM" means.
 #
 # Usage on the demo VM (as root, after capturing a clean baseline):
 #   curl -fsSL https://raw.githubusercontent.com/thevenomv/blackglass-console/main/scripts/lab/live-attack-sim.sh \
@@ -30,8 +33,12 @@
 set -euo pipefail
 
 # ── Constants — single source of truth ──────────────────────────────────────
-DEMO_HOST_NAME="blackglass-lab-01"
-DEMO_HOST_IP="134.209.180.255"
+# These MUST match COLLECTOR_HOST_1{,_NAME} in .do/app-git.production.yaml
+# and LAB_AGENT_HOST_ID. If you ever rebuild the demo droplet, update
+# all three places (the helper `scripts/configure-collector-on-app.ps1`
+# does the App Platform side for you).
+DEMO_HOST_NAME="blackglass-rustdesk-demo"
+DEMO_HOST_IP="167.99.59.55"
 CONSOLE_URL="https://blackglasssec.com/dashboard"
 AGENT_TIMER_INTERVAL_SECONDS=300
 

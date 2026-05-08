@@ -2,9 +2,10 @@
 # scripts/lab/seed-drift.sh
 #
 # Seeds a small, deterministic set of drift-triggering changes on the
-# long-lived sales-demo VM (blackglass-lab-01). Run AFTER the operator
-# has captured a clean baseline from the BLACKGLASS console — every
-# change here will then surface as drift on the next scan.
+# canonical sales-demo VM (blackglass-rustdesk-demo, 167.99.59.55). Run
+# AFTER the operator has captured a clean baseline from the BLACKGLASS
+# console — every change here will then surface as drift on the next
+# agent push (or scan).
 #
 # What gets changed (categorised so the demo lines up with the four
 # remediator risk tiers):
@@ -21,8 +22,8 @@
 #   curl -fsSL https://raw.githubusercontent.com/thevenomv/blackglass-console/main/scripts/lab/seed-drift.sh | bash
 #
 # Or, scp'd then run locally:
-#   scp scripts/lab/seed-drift.sh root@blackglass-lab-01:/root/
-#   ssh root@blackglass-lab-01 bash /root/seed-drift.sh
+#   scp scripts/lab/seed-drift.sh root@167.99.59.55:/root/
+#   ssh root@167.99.59.55 bash /root/seed-drift.sh
 
 set -euo pipefail
 

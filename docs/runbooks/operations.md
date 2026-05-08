@@ -364,8 +364,12 @@ drift should not be able to silently land in production again.
 > It is now disabled in production via `SHOWCASE_AUTO_PROVISION_DISABLED=true`,
 > and `/demo/sandbox` is a static walkthrough page.
 >
-> The dedicated long-lived **sales-demo VM** (`blackglass-lab-01`) replaced
-> it as the primary live-host story for prospect calls — see § 4c.
+> The dedicated long-lived **sales-demo VM** (`blackglass-rustdesk-demo`,
+> 167.99.59.55) replaced it as the primary live-host story for prospect
+> calls — see § 4c. This is the **same** Droplet you screen-share into via
+> RustDesk during demos; it runs the BLACKGLASS push-agent on a 5-minute
+> systemd timer so its drift shows up in the console without any inbound
+> connection from App Platform.
 
 ### What is still in the codebase
 
@@ -419,27 +423,30 @@ Open the DO DB firewall to your IP first, run, then close it again.
 
 ---
 
-## 4c. Long-lived sales-demo VM (`blackglass-lab-01`)
+## 4c. Long-lived sales-demo VM (`blackglass-rustdesk-demo`)
 
 The primary live-host story for prospect calls is a long-lived demo VM
 provisioned and maintained out of band. It is **not** auto-managed by the
-console.
+console. **This is the same Droplet you screen-share into via RustDesk
+during customer demos** — picking up scans on the box you're literally
+showing the prospect is the whole point of the demo.
 
 | Property              | Value                                                |
 | --------------------- | ---------------------------------------------------- |
-| Hostname              | `blackglass-lab-01`                                  |
-| IP                    | `134.209.180.255`                                    |
-| Region                | `lon1`                                               |
+| Hostname              | `blackglass-rustdesk-demo`                           |
+| IP                    | `167.99.59.55`                                       |
+| Region                | `nyc3`                                               |
 | OS                    | Ubuntu 22.04                                         |
-| SSH access            | `root` and `blackglass` users (collector + personal keys via cloud-init) |
+| SSH access            | `root` and `blackglass` users                        |
 | `blackglass` shell    | `/bin/bash`                                          |
 | `blackglass` sudoers  | NOPASSWD on read-only audit commands + the seed script (`/etc/sudoers.d/blackglass-scan`) |
-| Firewall (Droplet)    | `ufw` enabled, port 22 only                          |
-| Firewall (DO Cloud)   | `blackglass-lab-fw` attached                         |
-| Provisioning script   | `scripts/create-do-droplet.ps1`                      |
-| Wired into the app via| `COLLECTOR_HOST_1` env var on App Platform → points to this IP |
+| Firewall (Droplet)    | `ufw` enabled, port 22 + RustDesk ports              |
+| RustDesk relay        | `rustdesk-server` Droplet (206.189.114.207, lon1)    |
+| Push-agent            | `/usr/local/bin/blackglass-agent.sh` + systemd timer (5 min interval) |
+| Push-agent host id    | `host-167-99-59-55` (matches `LAB_AGENT_HOST_ID`)    |
+| Wired into the app via| `COLLECTOR_HOST_1` env var on App Platform → points to this IP. Findings reach the console via the push-agent (App Platform egress to other DO Droplets is blocked, so SSH-pull won't work). |
 
-For demos: scan from the dashboard, walk through drift, propose a
+For demos: capture a baseline, walk through drift, propose a
 remediation, approve it. The remediator's sandbox-verification path runs
 against an ephemeral Droplet provisioned from the same `sandbox-provisioner`
 codepath (see § 4b — re-enable the sandbox subsystem if you need this).
@@ -450,12 +457,20 @@ includes a deterministic seed-and-reset workflow:
 
 ```bash
 # Before the call (one-time per demo cycle)
-ssh root@134.209.180.255 'bash -s' < scripts/lab/reset-drift.sh
+ssh root@167.99.59.55 'bash -s' < scripts/lab/reset-drift.sh
 # Capture a fresh baseline from the BLACKGLASS console.
-ssh root@134.209.180.255 'bash -s' < scripts/lab/seed-drift.sh
+ssh root@167.99.59.55 'bash -s' < scripts/lab/seed-drift.sh
 
 # After the call
-ssh root@134.209.180.255 'bash -s' < scripts/lab/reset-drift.sh
+ssh root@167.99.59.55 'bash -s' < scripts/lab/reset-drift.sh
+```
+
+For the polished interactive walkthrough (banner + step-by-step
+prompts), use the canonical version-controlled script:
+
+```bash
+ssh root@167.99.59.55 /root/live-attack-sim.sh         # interactive
+ssh root@167.99.59.55 /root/live-attack-sim.sh --reset # cleanup
 ```
 
 The seed script stages four findings (one per remediator risk tier:
