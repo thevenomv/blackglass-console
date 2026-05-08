@@ -104,6 +104,37 @@ opsWorker:
     - name: OPS_WORKER_CONCURRENCY
       value: "4"
 
+# ── Sandbox worker (drains the blackglass-sandbox queue) ─────────────
+# Required for the remediator's sandbox-verification path: provisions
+# ephemeral DigitalOcean Droplets, seeds drift via SSH, and tears them
+# down on TTL. Disable if you do not use the remediator or do not have a
+# DO_API_TOKEN — but note that the public auto-provisioning showcase
+# also depends on this worker.
+#
+# The sandbox-worker bundle lives in the same image as scan-worker /
+# ops-worker (build-worker.mjs emits all three) — only the entrypoint
+# differs.
+sandboxWorker:
+  enabled: false
+  replicaCount: 1
+  command: ["node", "sandbox-worker.cjs"]
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraEnv:
+    - name: SANDBOX_WORKER_CONCURRENCY
+      value: "2"
+    - name: SANDBOX_TTL_HOURS
+      value: "4"
+
 # ── Service / Ingress ─────────────────────────────────────────────────
 service:
   type: ClusterIP

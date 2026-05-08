@@ -4,22 +4,21 @@ Self-hosted Kubernetes distribution of the BLACKGLASS console + workers.
 
 ## What gets deployed
 
-| Workload         | Purpose                                                 | Image            | Replicas |
-|------------------|---------------------------------------------------------|------------------|----------|
-| `*-web`          | Next.js console (HTTP)                                  | `blackglass-web` | 2        |
-| `*-scan-worker`  | BullMQ consumer for SSH fan-out + drift compute         | `blackglass-worker` | 2     |
-| `*-ops-worker`   | Webhook delivery, retention sweep, data exports         | `blackglass-worker` | 1     |
+| Workload            | Purpose                                                          | Image               | Default replicas | Default `enabled` |
+|---------------------|------------------------------------------------------------------|---------------------|------------------|-------------------|
+| `*-web`             | Next.js console (HTTP)                                           | `blackglass-web`    | 2                | `true`            |
+| `*-scan-worker`     | BullMQ consumer for SSH fan-out + drift compute                  | `blackglass-worker` | 2                | `true`            |
+| `*-ops-worker`      | Webhook delivery, retention sweep, data exports                  | `blackglass-worker` | 1                | `true`            |
+| `*-sandbox-worker`  | Sandbox lifecycle (provision / seed-drift / cleanup) for remediator + showcase | `blackglass-worker` | 1                | `false`           |
 
 Plus: ConfigMap (non-secret env), Secret (envFrom), Service, optional Ingress, optional HPA, optional NetworkPolicy, ServiceAccount.
 
-> **`sandbox-worker` (optional, not in the chart yet).** The build
-> emits a `sandbox-worker.cjs` artefact (see `scripts/build-worker.mjs`)
-> that drains the `blackglass-sandbox` queue and is required for the
-> remediator's sandbox-verification path. Self-hosted customers who
-> want sandbox verification today need to run a third Deployment
-> manually using the same `blackglass-worker` image with command
-> `node sandbox-worker.cjs`. Adding it to the chart is on the
-> backlog — track it in your GitOps pipeline if you depend on it.
+> **`sandbox-worker` is opt-in.** It is required only if you use the
+> remediator's sandbox-verification path (or self-host the public
+> auto-provisioning showcase). It needs a `DO_API_TOKEN` in the env
+> Secret with Droplet read/write/delete scope and a `KMS_*` configuration
+> so it can decrypt the per-tenant sandbox SSH key. Enable with
+> `--set sandboxWorker.enabled=true`.
 
 ## Prerequisites
 
@@ -77,6 +76,8 @@ Per-tenant signing keys (set via Settings → Webhook signing key) override `WEB
 | `OTEL_EXPORTER_OTLP_ENDPOINT=...`    | Forward server-side spans to your OTLP collector              |
 | `COLLECTOR_EGRESS_IPS=ip,ip,ip`      | Comma-separated NAT IPs (surfaced to customers)               |
 | `ROTATION_OVERLAP_HOURS=24`          | Webhook signing-key dual-sign window                          |
+| `DO_API_TOKEN=...`                   | DigitalOcean API token (sandbox-worker only)                  |
+| `SANDBOX_TTL_HOURS=4`                | Sandbox Droplet lifetime before automatic cleanup             |
 
 ## Image lifecycle
 

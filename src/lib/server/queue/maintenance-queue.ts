@@ -14,8 +14,9 @@
  */
 
 import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
+import { digestEveryMs, digestInterval } from "@/lib/server/services/drift-digest-service";
 
-export type MaintenanceJobType = "retention-sweep";
+export type MaintenanceJobType = "retention-sweep" | "drift-digest";
 
 export interface MaintenanceJobPayload {
   type: MaintenanceJobType;
@@ -28,6 +29,9 @@ type G = typeof globalThis & {
 
 const REPEATABLE_JOB_NAME = "maintenance:retention-sweep";
 const REPEATABLE_JOB_ID = "retention-sweep";
+
+const DIGEST_REPEATABLE_JOB_NAME = "maintenance:drift-digest";
+const DIGEST_REPEATABLE_JOB_ID = "drift-digest";
 
 function retentionEveryMs(): number {
   const raw = process.env.RETENTION_SWEEP_HOURS?.trim();
@@ -84,4 +88,43 @@ export async function installRetentionRepeatable(): Promise<{
   );
 
   return { installed: true, everyMs };
+}
+
+/**
+ * Ensure exactly one drift-digest repeatable is registered with the
+ * cadence implied by `DRIFT_DIGEST_INTERVAL`. Safe to call on every
+ * worker boot. Returns `installed: false` when the cadence is "off"
+ * or when Redis is not configured — in both cases any prior repeatable
+ * is removed so the queue cannot drift out of sync with the env.
+ */
+export async function installDriftDigestRepeatable(): Promise<{
+  installed: boolean;
+  everyMs: number;
+  interval: ReturnType<typeof digestInterval>;
+}> {
+  const interval = digestInterval();
+  const queue = await getMaintenanceQueue();
+  if (!queue) return { installed: false, everyMs: 0, interval };
+
+  const existing = await queue.getRepeatableJobs();
+  await Promise.all(
+    existing
+      .filter((j) => j.name === DIGEST_REPEATABLE_JOB_NAME)
+      .map((j) => queue.removeRepeatableByKey(j.key)),
+  );
+
+  if (interval === "off") {
+    return { installed: false, everyMs: 0, interval };
+  }
+
+  const everyMs = digestEveryMs(interval);
+  await queue.add(
+    DIGEST_REPEATABLE_JOB_NAME,
+    { type: "drift-digest" },
+    {
+      repeat: { every: everyMs },
+      jobId: DIGEST_REPEATABLE_JOB_ID,
+    },
+  );
+  return { installed: true, everyMs, interval };
 }

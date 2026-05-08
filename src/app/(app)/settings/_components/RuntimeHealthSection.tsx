@@ -45,6 +45,19 @@ function ago(ms: number): string {
   return `${(ms / 3_600_000).toFixed(1)}h`;
 }
 
+function timeSince(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "just now";
+  if (ms < 5_000) return "just now";
+  return `${ago(ms)} ago`;
+}
+
+const MAX_BUCKETS_VISIBLE = 12;
+/** Buckets ≥ this count are visually marked as "warm" — they're not
+ *  necessarily over-limit (we don't know the per-route ceiling here),
+ *  but they're worth glancing at when triaging 429 reports. */
+const WARM_THRESHOLD = 50;
+
 export function RuntimeHealthSection() {
   const [rate, setRate] = useState<RateResponse | null>(null);
   const [queues, setQueues] = useState<QueueResponse | null>(null);
@@ -94,12 +107,28 @@ export function RuntimeHealthSection() {
     );
   }
 
+  // Sort buckets by activity descending so the most-active key is at the
+  // top — that's almost always the one an operator wants to see when
+  // triaging 429s.
+  const sortedKeys = rate
+    ? [...rate.keys].sort((a, b) => b.activeHits - a.activeHits)
+    : [];
+  const visibleKeys = sortedKeys.slice(0, MAX_BUCKETS_VISIBLE);
+  const hiddenCount = Math.max(0, sortedKeys.length - visibleKeys.length);
+  const lastRefreshed = rate?.generatedAt ?? queues?.generatedAt ?? null;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-fg-faint">
           Refreshes every 30 seconds. Backed by the same{" "}
           <code className="font-mono">/api/admin/*</code> endpoints used by ops alerts.
+          {lastRefreshed ? (
+            <>
+              {" · "}
+              <span title={lastRefreshed}>Updated {timeSince(lastRefreshed)}</span>
+            </>
+          ) : null}
         </p>
         <Button
           variant="secondary"
@@ -121,17 +150,44 @@ export function RuntimeHealthSection() {
                 Backend: <span className="font-mono">{rate.backend}</span>
                 {rate.note ? ` — ${rate.note}` : ""}
               </p>
-              {rate.keys.length === 0 ? (
+              {visibleKeys.length === 0 ? (
                 <p className="mt-2 text-xs text-fg-faint">No active buckets.</p>
               ) : (
-                <ul className="mt-2 space-y-1 text-xs">
-                  {rate.keys.slice(0, 12).map((k) => (
-                    <li key={k.key} className="flex justify-between gap-3 font-mono">
-                      <span className="truncate text-fg-muted">{k.key}</span>
-                      <span className="text-fg-primary">{k.activeHits}</span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {visibleKeys.map((k) => {
+                      const warm = k.activeHits >= WARM_THRESHOLD;
+                      return (
+                        <li
+                          key={k.key}
+                          className="flex justify-between gap-3 font-mono"
+                        >
+                          <span className="truncate text-fg-muted">{k.key}</span>
+                          <span
+                            className={
+                              warm
+                                ? "text-warning font-semibold"
+                                : "text-fg-primary"
+                            }
+                            title={
+                              warm
+                                ? `≥${WARM_THRESHOLD} active hits — bucket is warm`
+                                : undefined
+                            }
+                          >
+                            {k.activeHits}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {hiddenCount > 0 ? (
+                    <p className="mt-2 text-[11px] text-fg-faint">
+                      …and {hiddenCount} more bucket
+                      {hiddenCount === 1 ? "" : "s"} (sorted by activity).
+                    </p>
+                  ) : null}
+                </>
               )}
             </>
           ) : (

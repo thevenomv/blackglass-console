@@ -29,9 +29,13 @@ import { deliverWebhookInline } from "@/lib/server/outbound-webhook";
 import type { WebhookJobPayload } from "@/lib/server/queue/webhook-queue";
 import type { ExportJobPayload } from "@/lib/server/queue/export-queue";
 import type { MaintenanceJobPayload } from "@/lib/server/queue/maintenance-queue";
-import { installRetentionRepeatable } from "@/lib/server/queue/maintenance-queue";
+import {
+  installRetentionRepeatable,
+  installDriftDigestRepeatable,
+} from "@/lib/server/queue/maintenance-queue";
 import { runExportJob } from "@/lib/server/services/export-service";
 import { pruneAllTenants } from "@/lib/server/services/retention-service";
+import { runDriftDigest } from "@/lib/server/services/drift-digest-service";
 import { logStructured } from "@/lib/server/log";
 
 const redisUrl = process.env.REDIS_QUEUE_URL?.trim();
@@ -176,6 +180,37 @@ const maintenanceWorker = new Worker<MaintenanceJobPayload>(
         });
         return;
       }
+      case "drift-digest": {
+        const startedAt = Date.now();
+        logStructured("info", "drift_digest_start", { bullJobId: job.id });
+        const results = await runDriftDigest();
+        const totals = results.reduce(
+          (acc, r) => {
+            acc.tenantsConsidered += 1;
+            if (r.emailSent) acc.tenantsEmailed += 1;
+            if (r.skippedReason === "no_drift_in_window")
+              acc.tenantsSkippedNoDrift += 1;
+            if (r.error) acc.tenantsWithErrors += 1;
+            acc.totalsHigh += r.totalsHigh;
+            acc.totalsNew += r.totalsNew;
+            return acc;
+          },
+          {
+            tenantsConsidered: 0,
+            tenantsEmailed: 0,
+            tenantsSkippedNoDrift: 0,
+            tenantsWithErrors: 0,
+            totalsHigh: 0,
+            totalsNew: 0,
+          },
+        );
+        logStructured("info", "drift_digest_completed", {
+          bullJobId: job.id,
+          ...totals,
+          elapsedMs: Date.now() - startedAt,
+        });
+        return;
+      }
       default: {
         const _exhaustive: never = job.data.type;
         throw new Error(`Unknown maintenance job type: ${String(_exhaustive)}`);
@@ -210,6 +245,20 @@ void installRetentionRepeatable()
   })
   .catch((err) =>
     logStructured("error", "retention_repeatable_install_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    }),
+  );
+
+void installDriftDigestRepeatable()
+  .then((res) => {
+    logStructured("info", "drift_digest_repeatable", {
+      installed: res.installed,
+      everyMs: res.everyMs,
+      interval: res.interval,
+    });
+  })
+  .catch((err) =>
+    logStructured("error", "drift_digest_repeatable_install_failed", {
       error: err instanceof Error ? err.message : String(err),
     }),
   );

@@ -414,6 +414,25 @@ remediation, approve it. The remediator's sandbox-verification path runs
 against an ephemeral Droplet provisioned from the same `sandbox-provisioner`
 codepath (see § 4b — re-enable the sandbox subsystem if you need this).
 
+The canonical script for prospect demos lives at
+[`docs/sales-demo-walkthrough.md`](../sales-demo-walkthrough.md). It
+includes a deterministic seed-and-reset workflow:
+
+```bash
+# Before the call (one-time per demo cycle)
+ssh root@134.209.180.255 'bash -s' < scripts/lab/reset-drift.sh
+# Capture a fresh baseline from the BLACKGLASS console.
+ssh root@134.209.180.255 'bash -s' < scripts/lab/seed-drift.sh
+
+# After the call
+ssh root@134.209.180.255 'bash -s' < scripts/lab/reset-drift.sh
+```
+
+The seed script stages four findings (one per remediator risk tier:
+`safe_guidance_only` / `sandbox_verified` / `approval_required` /
+`manual_only`) so the demo can hit every part of the safety story
+without improvisation.
+
 ---
 
 ## 5. One-page on-call checklist
