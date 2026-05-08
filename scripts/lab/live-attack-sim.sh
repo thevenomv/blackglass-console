@@ -153,6 +153,15 @@ scene_4_sudo_membership() {
 
 scene_5_permit_root_login() {
   step "Scene 5 -- sshd PermitRootLogin yes"
+  # Snapshot the original directive so reset_all can restore it instead
+  # of blindly forcing 'no' (which would lock out boxes that legitimately
+  # had root SSH enabled in their baseline — exactly how this box is
+  # accessed by the operator).
+  local snap=/etc/ssh/sshd_config.bg-original-permitroot
+  if [[ ! -f "$snap" ]]; then
+    grep -E '^[#[:space:]]*PermitRootLogin' /etc/ssh/sshd_config > "$snap" 2>/dev/null || echo '# (no PermitRootLogin line in original config)' > "$snap"
+    chmod 0600 "$snap"
+  fi
   sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
   systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
   ok "sshd_config rewritten + reloaded -- watch for ssh_hardening finding"
@@ -184,8 +193,21 @@ reset_all() {
   pkill -f 'ncat -lkp 4444' 2>/dev/null || true
   rm -f /etc/sudoers.d/sandbox-backdoor 2>/dev/null || true
   userdel -r attacker-ssh 2>/dev/null || true
-  sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config 2>/dev/null || true
-  systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+
+  # Restore PermitRootLogin to whatever the box ORIGINALLY had, not a
+  # blanket 'no'. The blanket 'no' locks out boxes whose baseline
+  # legitimately allows root SSH (the lab is one of them — operators
+  # SSH in as root via key auth). Only revert if scene_5 left a
+  # snapshot; otherwise leave sshd_config alone.
+  local snap=/etc/ssh/sshd_config.bg-original-permitroot
+  if [[ -f "$snap" ]]; then
+    sed -i '/^[#[:space:]]*PermitRootLogin/d' /etc/ssh/sshd_config 2>/dev/null || true
+    cat "$snap" >> /etc/ssh/sshd_config
+    rm -f "$snap"
+    systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+    ok "Restored original PermitRootLogin directive from snapshot"
+  fi
+
   rm -f /etc/cron.d/sandbox-beacon 2>/dev/null || true
   find /usr/local/bin -name 'sandbox-*' -delete 2>/dev/null || true
   chmod 644 /etc/passwd 2>/dev/null || true
