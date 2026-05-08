@@ -55,9 +55,11 @@ export function DriftTrendChart() {
   if (loading) {
     return (
       <div
+        role="status"
+        aria-live="polite"
+        aria-label="Loading drift trend"
         className="w-full animate-pulse rounded bg-bg-elevated"
         style={{ height: CHART_HEIGHT_PX }}
-        aria-label="Loading drift trend"
       />
     );
   }

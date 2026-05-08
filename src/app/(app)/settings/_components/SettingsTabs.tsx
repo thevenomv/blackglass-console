@@ -94,12 +94,15 @@ export function SettingsTabs({
       data-active-tab={active}
       className="grid gap-6 md:grid-cols-[220px_minmax(0,1fr)] md:items-start"
     >
-      {/* Tab rail */}
+      {/* Tab rail. The container has role="tablist" instead of using a <ul>
+          because ARIA requires a tablist's owned children to be tab elements,
+          not <li> wrappers (axe-core flags the latter as
+          aria-required-children "serious"). */}
       <nav
         aria-label="Settings sections"
         className="md:sticky md:top-6 md:self-start"
       >
-        <ul
+        <div
           role="tablist"
           aria-orientation="vertical"
           className="flex gap-1 overflow-x-auto rounded-card border border-border-default bg-bg-panel p-1.5 md:flex-col md:overflow-visible"
@@ -107,34 +110,34 @@ export function SettingsTabs({
           {tabs.map((tab) => {
             const isActive = tab.id === active;
             return (
-              <li key={tab.id} className="shrink-0 md:shrink">
-                <button
-                  type="button"
-                  role="tab"
-                  id={`settings-tab-${tab.id}`}
-                  aria-selected={isActive}
-                  aria-controls={`settings-panel-${tab.id}`}
-                  onClick={() => select(tab.id)}
-                  className={`flex w-full items-center gap-2.5 rounded-card px-3 py-2 text-left text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-bg-elevated text-fg-primary"
-                      : "text-fg-muted hover:bg-bg-elevated/60 hover:text-fg-primary"
-                  }`}
-                >
-                  {tab.icon ? (
-                    <span
-                      aria-hidden="true"
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center text-[15px] ${isActive ? "text-accent-blue" : "text-fg-faint"}`}
-                    >
-                      {tab.icon}
-                    </span>
-                  ) : null}
-                  <span className="truncate">{tab.label}</span>
-                </button>
-              </li>
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`settings-tab-${tab.id}`}
+                aria-selected={isActive}
+                aria-controls={`settings-panel-${tab.id}`}
+                tabIndex={isActive ? 0 : -1}
+                onClick={() => select(tab.id)}
+                className={`flex w-full shrink-0 items-center gap-2.5 rounded-card px-3 py-2 text-left text-sm font-medium transition-colors md:shrink ${
+                  isActive
+                    ? "bg-bg-elevated text-fg-primary"
+                    : "text-fg-muted hover:bg-bg-elevated/60 hover:text-fg-primary"
+                }`}
+              >
+                {tab.icon ? (
+                  <span
+                    aria-hidden="true"
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center text-[15px] ${isActive ? "text-accent-blue" : "text-fg-faint"}`}
+                  >
+                    {tab.icon}
+                  </span>
+                ) : null}
+                <span className="truncate">{tab.label}</span>
+              </button>
             );
           })}
-        </ul>
+        </div>
       </nav>
 
       {/* Panels */}

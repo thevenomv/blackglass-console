@@ -18,6 +18,31 @@ import {
   generateEvidenceBundle,
 } from "@/lib/server/services/evidence-service";
 import { emitSaasAudit } from "@/lib/saas/event-log";
+import { apiConfig } from "@/lib/api/config";
+import { EVIDENCE_BUNDLE_META } from "@/lib/server/evidence-catalog";
+
+/**
+ * Static fixture used in dev / Playwright mock mode. The same ids appear in
+ * `EVIDENCE_BUNDLE_META` so the bundle download route also resolves them.
+ */
+const MOCK_BUNDLES = [
+  {
+    id: "bundle-production-weekly",
+    title: "Production weekly evidence",
+    scope: "all",
+    sha256: EVIDENCE_BUNDLE_META["bundle-production-weekly"]!.sha256,
+    generatedBy: "demo@blackglass.local",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
+  },
+  {
+    id: "host-07-incident",
+    title: "host-07-incident — drift packet",
+    scope: "host-07",
+    sha256: EVIDENCE_BUNDLE_META["host-07-incident"]!.sha256,
+    generatedBy: "demo@blackglass.local",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+  },
+];
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 export async function GET(request: Request) {
@@ -34,7 +59,12 @@ export async function GET(request: Request) {
   if (!access.ok) return access.response;
 
   if (access.mode === "legacy") {
-    return jsonWithRequestId({ bundles: [] }, requestId);
+    // In Playwright / mock mode we surface a small static fixture so the
+    // /evidence page renders something demonstrable without a database.
+    // Production single-tenant deployments never hit this branch with
+    // useMock set, so it stays a development-only path.
+    const bundles = apiConfig.useMock ? MOCK_BUNDLES : [];
+    return jsonWithRequestId({ bundles }, requestId);
   }
 
   const { tenant } = access.ctx;

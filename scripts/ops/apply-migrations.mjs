@@ -62,16 +62,72 @@ function loadMigration(name) {
   return { name, sql, hash };
 }
 
+/**
+ * Decide whether to negotiate SSL for this connection.
+ *
+ * Order of precedence (first match wins):
+ *   1. `PGSSLMODE` env var — `disable` → no SSL; anything else → SSL on.
+ *   2. `sslmode=` in `DATABASE_URL` — same logic.
+ *   3. Heuristic: if the host looks like localhost / 127.* / a private
+ *      network, default to no SSL (CI Postgres containers, Docker
+ *      Compose, dev). Otherwise default to SSL on with a relaxed CA
+ *      check (managed Postgres providers terminate TLS but ship their
+ *      own CA chain).
+ *
+ * The relaxed `rejectUnauthorized: false` matches the rest of the
+ * codebase (`src/db/index.ts`) — the real CA enforcement happens at the
+ * provider edge / network layer.
+ */
+function decideSslOpt(url) {
+  const mode = (process.env.PGSSLMODE ?? "").toLowerCase();
+  if (mode === "disable") return false;
+  if (mode) return { rejectUnauthorized: false };
+
+  if (url) {
+    const m = /[?&]sslmode=([^&]+)/i.exec(url);
+    if (m) {
+      return m[1].toLowerCase() === "disable" ? false : { rejectUnauthorized: false };
+    }
+  }
+
+  const host = (
+    process.env.PGHOST ??
+    (url ? safeParseHost(url) : "") ??
+    ""
+  ).toLowerCase();
+  if (
+    host === "" ||
+    host === "localhost" ||
+    host === "::1" ||
+    host.startsWith("127.") ||
+    host.startsWith("10.") ||
+    host.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+  ) {
+    return false;
+  }
+  return { rejectUnauthorized: false };
+}
+
+function safeParseHost(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
 function makeClient() {
   // If DATABASE_URL is the only thing set, use it. Otherwise construct from PG*
   // (which is what the DO managed-DB API gives us in plaintext).
   const url = process.env.DATABASE_URL?.trim();
   const haveAnyPg = ["PGHOST", "PGUSER", "PGPASSWORD"].some((k) => process.env[k]);
+  const ssl = decideSslOpt(url);
 
   if (url && !haveAnyPg) {
-    return new Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
+    return new Client({ connectionString: url, ssl });
   }
-  return new Client({ ssl: { rejectUnauthorized: false } });
+  return new Client({ ssl });
 }
 
 async function ensureBookkeeping(c) {

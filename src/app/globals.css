@@ -63,16 +63,24 @@
   --text-secondary: #475569;
   --text-faint: #5c6570;
 
-  --accent-blue: #2563eb;
-  --accent-blue-hover: #1d4ed8;
+  /* Light-theme accent + semantic palette is tuned for WCAG AA contrast
+     (≥4.5:1) on the matching `*-soft-bg` backgrounds:
+       - #1d4ed8 on #dbeafe ≈ 5.46:1   (accent blue)
+       - #166534 on #dcfce7 ≈ 6.45:1   (success green)
+       - #92400e on #fef3c7 ≈ 6.35:1   (warning amber)
+       - #b91c1c on #fee2e2 ≈ 5.31:1   (danger red)
+     Don't lighten these without re-verifying against the a11y test in
+     `tests/e2e/a11y-console.spec.ts`. */
+  --accent-blue: #1d4ed8;
+  --accent-blue-hover: #1e40af;
   --accent-blue-soft-bg: #dbeafe;
   --accent-blue-muted: #3b82f6;
 
-  --success-green: #16a34a;
+  --success-green: #166534;
   --success-green-soft-bg: #dcfce7;
-  --warning-amber: #d97706;
+  --warning-amber: #92400e;
   --warning-amber-soft-bg: #fef3c7;
-  --danger-red: #dc2626;
+  --danger-red: #b91c1c;
   --danger-red-soft-bg: #fee2e2;
 
   --progress-track: #e2e8f0;
@@ -114,6 +122,22 @@ body {
   .bg-overlay-scrim {
     background: color-mix(in oklab, var(--text-primary) 16%, transparent);
   }
+}
+
+/* WCAG 1.4.1 — accent-blue inline links must be distinguishable from
+   surrounding text by something other than colour. Apply a permanent,
+   subtle underline globally so 40+ inline `<a class="text-accent-blue
+   hover:underline">` call sites become accessible without per-call-site
+   refactors. Hover deepens the underline for affordance. Buttons and
+   navigation chips that opt out can do so with `no-underline`. */
+a.text-accent-blue {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--accent-blue) 40%, transparent);
+}
+a.text-accent-blue:hover {
+  text-decoration-color: var(--accent-blue);
 }
 
 /* Long-form marketing / guides: readable inline code */

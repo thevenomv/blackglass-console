@@ -23,6 +23,11 @@ function e2eWebServerEnv(): NodeJS.ProcessEnv {
   const base = { ...process.env };
   base.NEXT_PUBLIC_APP_URL = e2eOrigin;
   base.NEXT_PUBLIC_USE_MOCK = process.env.PLAYWRIGHT_LIVE === "1" ? "false" : "true";
+  // Default the dev server to the enterprise plan so plan-gated surfaces
+  // (evidence export, scheduled scans, webhooks…) render their real UI
+  // for E2E. Tests that need to assert the upsell explicitly can set
+  // PLAYWRIGHT_PLAN=free.
+  base.BLACKGLASS_PLAN = process.env.PLAYWRIGHT_PLAN ?? "enterprise";
   if (process.env.PLAYWRIGHT_CLERK !== "1") {
     base.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "";
     base.CLERK_SECRET_KEY = "";

@@ -142,8 +142,11 @@ test.describe("BLACKGLASS console smoke", () => {
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");
     await page.keyboard.press(`${paletteModifier}+k`);
-    await page.getByPlaceholder("Search routes…").fill("hosts");
-    await page.getByRole("option").first().click();
+    await page
+      .getByPlaceholder("Search routes, hosts, drift filters…")
+      .fill("hosts");
+    // The first matching option for "hosts" is "Hosts inventory" (a route).
+    await page.getByRole("option", { name: /^Hosts inventory/ }).first().click();
     await expect(page).toHaveURL("/hosts");
   });
 
@@ -165,9 +168,19 @@ test.describe("BLACKGLASS console smoke", () => {
 
   test("evidence search filters bundles", async ({ page }) => {
     await page.goto("/evidence");
-    await page.getByRole("searchbox", { name: "Search evidence bundles" }).fill("host-07");
-    await expect(page.getByText("host-07-incident")).toBeVisible();
-    await expect(page.getByText("production-weekly")).not.toBeVisible();
+    // Wait for the static mock-mode fixture to load before filtering.
+    await expect(
+      page.getByRole("cell", { name: /Production weekly evidence/ }),
+    ).toBeVisible();
+    await page
+      .getByRole("searchbox", { name: "Search evidence bundles" })
+      .fill("host-07");
+    await expect(
+      page.getByRole("cell", { name: /host-07-incident/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("cell", { name: /Production weekly evidence/ }),
+    ).not.toBeVisible();
   });
 
   test("reports generate report modal opens and closes", async ({ page }) => {
@@ -178,14 +191,18 @@ test.describe("BLACKGLASS console smoke", () => {
     await expect(page.getByRole("dialog", { name: "Generate new report" })).not.toBeVisible();
   });
 
-  test("onboarding flow has 6 steps", async ({ page }) => {
+  test("onboarding wizard renders three real steps", async ({ page }) => {
     await page.goto("/onboarding");
-    // 6 step indicators visible
-    for (let i = 1; i <= 6; i++) {
+    // Three numbered step indicators: Connect host / Capture baseline / Run first scan.
+    for (let i = 1; i <= 3; i++) {
       await expect(page.getByText(String(i), { exact: true }).first()).toBeVisible();
     }
-    await page.getByRole("button", { name: "Continue" }).click();
-    await expect(page.getByText("What you unlock")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Connect your first host" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Get to your first drift signal"),
+    ).toBeVisible();
   });
 
   test("workspace accepts incident and host search params", async ({ page }) => {

@@ -22,14 +22,19 @@ export type ValueRecap = {
 
 function RiskGauge({ score, priority }: { score: number; priority: RiskPriority }) {
   const fill = (score / 10) * 100;
+  // WCAG AA-compliant on white panel background (≥4.5:1):
+  //   #b91c1c on #fff ≈ 5.3:1   (critical)
+  //   #c2410c on #fff ≈ 5.7:1   (high)
+  //   #1d4ed8 on #fff ≈ 5.5:1   (medium)
+  //   #4b5563 on #fff ≈ 7.5:1   (low / no-priority)
   const color =
     priority === "critical"
-      ? "#ef4444"
+      ? "#b91c1c"
       : priority === "high"
-        ? "#f97316"
+        ? "#c2410c"
         : priority === "medium"
-          ? "#3b82f6"
-          : "#6b7280";
+          ? "#1d4ed8"
+          : "#4b5563";
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative h-1.5 w-20 overflow-hidden rounded-full bg-border-subtle">
