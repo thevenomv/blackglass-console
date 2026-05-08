@@ -3,9 +3,23 @@ Risk policy classification — determines what level of automation is permitted.
 
 This is APPLICATION LOGIC, not prompt text.
 Safety classifications must be enforced in code, not delegated to the LLM.
+
+Strict tiering
+--------------
+When `BLACKGLASS_REMEDIATOR_STRICT_TIERING=true`, the classifier
+fails CLOSED for any category not on the explicit
+`KNOWN_AUTOMATABLE_CATEGORIES` list — unknowns get `MANUAL_ONLY`
+instead of the historical `SAFE_GUIDANCE_ONLY` fallback. Operators
+serving regulated customers should turn this on; the result is that
+adding a new `DriftCategory` enum value WITHOUT teaching the policy
+about it produces a manual-only recommendation instead of silently
+downgrading to "I'll explain it but not generate commands". The
+default is OFF for backwards-compat with existing deployments.
 """
 
 from __future__ import annotations
+
+import os
 
 from app.domain.enums import DriftCategory, DriftSeverity, RiskPolicyTier
 
@@ -75,6 +89,78 @@ SANDBOX_VERIFIABLE_CATEGORIES: frozenset[DriftCategory] = frozenset(
     ]
 )
 
+# Union of every category that the policy KNOWS about — i.e. has a
+# deliberate handling rule for. Used by strict tiering to decide whether
+# an unknown category should fall through to MANUAL_ONLY (fail-closed)
+# vs SAFE_GUIDANCE_ONLY (the historical default). Persistence is in the
+# list because it's caught by the severity-based fallthrough rules
+# below; OTHER is intentionally NOT in here — it's the "unknown bucket"
+# the strict mode targets.
+KNOWN_AUTOMATABLE_CATEGORIES: frozenset[DriftCategory] = frozenset(
+    [
+        DriftCategory.NETWORK_EXPOSURE,
+        DriftCategory.IDENTITY,
+        DriftCategory.PERSISTENCE,
+        DriftCategory.SSH,
+        DriftCategory.FIREWALL,
+        DriftCategory.PACKAGES,
+        DriftCategory.PRIVILEGE_ESCALATION,
+        DriftCategory.AUTHORIZED_KEYS,
+        DriftCategory.SYSTEMD,
+        DriftCategory.CRON,
+        DriftCategory.KERNEL,
+        DriftCategory.FILESYSTEM,
+    ]
+)
+
+
+def strict_tiering_enabled() -> bool:
+    """True when BLACKGLASS_REMEDIATOR_STRICT_TIERING is truthy."""
+    raw = os.environ.get("BLACKGLASS_REMEDIATOR_STRICT_TIERING", "").strip().lower()
+    return raw in {"1", "true", "yes"}
+
+
+# Per-category cap on the agent's reported confidence score (0..1).
+# Even when the LLM is sure of itself, anything in a category we
+# don't fully trust gets its score clamped — operators see the cap in
+# the UI as "Capped at 0.5 — category-policy ceiling". This is the
+# product surface of the policy: a high-confidence kernel fix isn't
+# automatable, period, and the score should reflect that.
+CATEGORY_CONFIDENCE_CAP: dict[DriftCategory, float] = {
+    DriftCategory.KERNEL: 0.30,
+    DriftCategory.OTHER: 0.40,
+    DriftCategory.PRIVILEGE_ESCALATION: 0.60,
+    DriftCategory.AUTHORIZED_KEYS: 0.70,
+    DriftCategory.IDENTITY: 0.70,
+    DriftCategory.SSH: 0.85,
+}
+
+
+def confidence_cap_for_category(category: DriftCategory) -> float:
+    """
+    Maximum confidence score (0..1) we'll surface for this category,
+    regardless of what the LLM reports. Anything not on the cap list
+    has no per-category ceiling (only the global tier-based gates
+    apply).
+    """
+    return CATEGORY_CONFIDENCE_CAP.get(category, 1.0)
+
+
+def apply_confidence_cap(category: DriftCategory, raw_confidence: float) -> tuple[float, bool]:
+    """
+    Clamp the LLM's reported confidence to the category ceiling.
+    Returns (effective_confidence, was_capped). The boolean lets the
+    UI display "Capped at X — category-policy ceiling".
+    """
+    if not 0.0 <= raw_confidence <= 1.0:
+        # Out-of-range scores are themselves a smell — clamp to 0 and
+        # mark as capped so the operator sees something is wrong.
+        return 0.0, True
+    cap = confidence_cap_for_category(category)
+    if raw_confidence > cap:
+        return cap, True
+    return raw_confidence, False
+
 
 def classify_policy_tier(
     category: DriftCategory,
@@ -85,6 +171,12 @@ def classify_policy_tier(
 
     Rules are evaluated in priority order — more restrictive wins.
     This function is the authoritative gatekeeper for automation level.
+
+    When `BLACKGLASS_REMEDIATOR_STRICT_TIERING=true`, categories not in
+    `KNOWN_AUTOMATABLE_CATEGORIES` (currently only `OTHER`) return
+    `MANUAL_ONLY` instead of `SAFE_GUIDANCE_ONLY`. That fails closed —
+    a future drift category we haven't taught the policy about will
+    refuse to generate commands until someone updates this file.
     """
     # 1. Manual-only: too dangerous/complex for any automation
     if category in MANUAL_ONLY_CATEGORIES:
@@ -105,6 +197,10 @@ def classify_policy_tier(
     # 5. Low-severity sandboxable: verify then still require approval
     if severity == DriftSeverity.LOW and category in SANDBOX_VERIFIABLE_CATEGORIES:
         return RiskPolicyTier.SANDBOX_VERIFIABLE
+
+    # 6. Strict tiering: unknown categories fail closed.
+    if strict_tiering_enabled() and category not in KNOWN_AUTOMATABLE_CATEGORIES:
+        return RiskPolicyTier.MANUAL_ONLY
 
     # Default: guidance only — safe fallback
     return RiskPolicyTier.SAFE_GUIDANCE_ONLY

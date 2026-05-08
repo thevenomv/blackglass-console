@@ -48,6 +48,14 @@ const FAQ = [
     q: "Is SSO available?",
     a: "SAML/OIDC single sign-on is available on the Enterprise plan. Contact us if your organisation requires SSO for a smaller seat count.",
   },
+  {
+    q: "Can I use my own KMS key (BYOK)?",
+    a: "Yes — Enterprise customers can wrap their workspace's data-encryption keys with their own AWS KMS key or HashiCorp Vault Transit key. Plaintext SSH credentials and other tenant secrets never touch the BLACKGLASS root key. Setup is a single Settings → Identity → Bring your own key form, and we round-trip-verify the key the moment you save it. Email us with your KMS Key ARN to enable.",
+  },
+  {
+    q: "Do you support air-gapped deployments?",
+    a: "Yes. Set BLACKGLASS_AIRGAPPED=true and every outbound integration (Slack, PagerDuty, Datadog, Resend, Sentry, …) short-circuits to a no-op log line. The Helm chart ships in a fully air-gapped configuration; the only outbound traffic is to the operator-supplied Postgres, Redis, and Spaces endpoints. /api/health/airgap?probe=true actively exercises the gate so you can prove it works in your network.",
+  },
 ];
 
 export default function PricingPage() {

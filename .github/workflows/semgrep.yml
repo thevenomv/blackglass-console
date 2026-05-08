@@ -1,0 +1,66 @@
+name: Semgrep SAST
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly Monday 06:00 UTC re-scan so CVE rule updates against the
+    # `r/owasp-top-ten` ruleset surface even on quiet weeks.
+    - cron: "0 6 * * 1"
+
+# Cancel in-flight runs when a new commit lands on the same PR.
+concurrency:
+  group: semgrep-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep (OWASP Top Ten + JS/TS quality)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write   # upload SARIF to GitHub code-scanning
+      pull-requests: read
+    container:
+      # Pinned version — bumping is a deliberate PR via Dependabot.
+      image: returntocorp/semgrep:1.96.0
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Semgrep (SARIF + console)
+        # `--config p/owasp-top-ten`   — common web vulns (XSS, injection, SSRF)
+        # `--config p/javascript`      — JS/TS quality + security best practices
+        # `--config p/typescript`      — typescript-specific rules
+        # `--config p/secrets`         — accidentally-committed credentials
+        # `--metrics off`              — don't phone home to r2c
+        # `--severity ERROR`           — only fail CI on ERROR-level findings
+        #                                (WARNING/INFO still appear in the SARIF
+        #                                 upload + code-scanning UI)
+        # `--exclude tests/`           — test fixtures intentionally trip
+        #                                some rules (mock secrets, hard-coded
+        #                                URLs); exclude to keep signal high.
+        run: |
+          semgrep scan \
+            --config p/owasp-top-ten \
+            --config p/javascript \
+            --config p/typescript \
+            --config p/secrets \
+            --severity ERROR \
+            --exclude "tests/" \
+            --exclude ".next/" \
+            --exclude "node_modules/" \
+            --metrics off \
+            --sarif --output semgrep.sarif \
+            || EXIT=$?; echo "::notice::Semgrep exit=${EXIT:-0}"; exit ${EXIT:-0}
+
+      - name: Upload SARIF to GitHub code-scanning
+        # Always run — even when semgrep fails — so the SARIF lands and
+        # findings appear in the Security tab.
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep

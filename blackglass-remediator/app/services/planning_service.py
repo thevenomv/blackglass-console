@@ -11,7 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.models import AgentInput
 from app.agent.remediation_agent import AgentError, RemediationAgent
-from app.agent.risk_policy import get_allowed_commands_for_policy
+from app.agent.risk_policy import (
+    apply_confidence_cap,
+    get_allowed_commands_for_policy,
+)
 from app.agent.tools import get_distribution_family
 from app.core.logging import get_logger
 from app.domain.enums import RecommendationStatus, RiskPolicyTier
@@ -67,6 +70,29 @@ class PlanningService:
         try:
             plan = await agent.plan(agent_input)
             duration_ms = int((time.monotonic() - t0) * 1000)
+
+            # Clamp the LLM's reported confidence to the per-category
+            # ceiling defined in risk_policy.CATEGORY_CONFIDENCE_CAP.
+            # Even when the model is sure of itself, certain categories
+            # (KERNEL, IDENTITY, SSH, …) must not show >X% confidence.
+            # The console UI surfaces the `confidence_capped` flag so
+            # operators see "Confidence 30% (capped)" rather than a
+            # silent score change.
+            raw_confidence = plan.confidence_score
+            capped_confidence, was_capped = apply_confidence_cap(
+                event.primary_category, raw_confidence
+            )
+            if was_capped:
+                plan.confidence_score = capped_confidence
+                # Persist the cap signal alongside the plan so the
+                # console can render the badge. Stored as a flag on the
+                # plan dict — model layer is intentionally permissive.
+                setattr(plan, "confidence_capped", True)
+                rec.append_audit(
+                    f"confidence_capped: raw={raw_confidence:.2f} -> "
+                    f"capped={capped_confidence:.2f} "
+                    f"(category={event.primary_category.value})"
+                )
 
             rec.plan = plan
             rec.append_audit(

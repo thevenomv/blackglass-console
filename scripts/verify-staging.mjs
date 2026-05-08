@@ -105,6 +105,39 @@ async function main() {
     pass(`GET /api/v1/hosts (${hosts.json.items.length} items)`);
   }
 
+  // Lab-health probe runs the same TCP+banner check that Settings →
+  // Operator → Sales-demo VM uses. Auth-gated on production, so we
+  // only count it as an active check if the response carries a body
+  // (i.e. someone exposed the route without auth or set VERIFY_LAB=1
+  // with a session cookie). The 401/403 path is treated as a pass —
+  // the route exists and is correctly gated.
+  const lab = await get("/api/admin/lab-health");
+  if (lab.fetchError) {
+    fail("GET /api/admin/lab-health", lab.fetchError);
+  } else if (lab.res.status === 401 || lab.res.status === 403) {
+    pass(`GET /api/admin/lab-health (auth guard active — HTTP ${lab.res.status})`);
+  } else if (!lab.res.ok) {
+    fail("GET /api/admin/lab-health", `HTTP ${lab.res.status}`);
+  } else if (lab.json?.configured && !lab.json.tcpReachable) {
+    // The endpoint says lab VM is configured but not reachable — that
+    // is exactly the kind of regression staging-smoke should catch
+    // before a sales call. Hard-fail so the deployment is flagged.
+    fail(
+      "GET /api/admin/lab-health",
+      `lab VM unreachable: ${(lab.json.warnings ?? []).join(" | ").slice(0, 200)}`,
+    );
+  } else if (lab.json?.configured && !lab.json.bannerLooksHealthy) {
+    fail(
+      "GET /api/admin/lab-health",
+      `lab VM TCP open but no SSH banner: ${(lab.json.warnings ?? []).join(" | ").slice(0, 200)}`,
+    );
+  } else {
+    const detail = lab.json?.configured
+      ? `${lab.json.hostName ?? lab.json.host}:${lab.json.port} healthy (${lab.json.latencyMs}ms)`
+      : "not configured (skipped)";
+    pass(`GET /api/admin/lab-health (${detail})`);
+  }
+
   const audit = await get("/api/v1/audit/events?limit=5");
   if (audit.fetchError) {
     fail("GET /api/v1/audit/events", audit.fetchError);

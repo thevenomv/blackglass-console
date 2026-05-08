@@ -1,0 +1,168 @@
+/**
+ * Security headers applied to every Next.js response from the edge
+ * middleware. Centralised here so the policy is auditable in one
+ * file and a single test can lock it down.
+ *
+ * Defaults are tuned to be production-safe AND not break the current
+ * marketing pages / Stripe / Clerk / Sentry surface area:
+ *
+ *   - **CSP**: shipped Report-Only for the first rollout. Set
+ *     `SECURITY_HEADERS_CSP_ENFORCE=true` to flip to enforce-mode.
+ *     The policy explicitly whitelists Stripe (checkout + js), Clerk
+ *     (frontend + workers), Sentry's tunnel host, and Resend's
+ *     pixel — anything else hits the report endpoint.
+ *   - **X-Content-Type-Options: nosniff** — always on. No reason
+ *     not to.
+ *   - **Referrer-Policy: strict-origin-when-cross-origin** — leaks
+ *     only the origin to third parties, the full path stays internal.
+ *   - **Permissions-Policy** — disables camera / mic / geolocation /
+ *     payment-handler / autoplay / usb. We don't use any of these.
+ *   - **Cross-Origin-Opener-Policy: same-origin** — isolates the
+ *     browsing context group, mitigates Spectre-class side-channels.
+ *
+ * NOT set here (intentional):
+ *   - X-Frame-Options — superseded by `frame-ancestors` in CSP. We
+ *     do set `frame-ancestors 'self'` in the CSP below.
+ *   - HSTS — set at the App Platform / load balancer level so it
+ *     applies even to error pages middleware doesn't touch.
+ */
+
+import type { NextRequest } from "next/server";
+import type { NextResponse } from "next/server";
+
+/**
+ * The CSP report endpoint. Setting `SECURITY_HEADERS_CSP_REPORT_URI`
+ * to a Sentry / report-uri.com / custom collector URL turns
+ * violation-collection on. Empty disables the directive entirely
+ * (browsers still parse the policy but discard violation reports).
+ */
+function cspReportUri(): string | null {
+  return process.env.SECURITY_HEADERS_CSP_REPORT_URI?.trim() || null;
+}
+
+function cspEnforce(): boolean {
+  return process.env.SECURITY_HEADERS_CSP_ENFORCE?.trim().toLowerCase() === "true";
+}
+
+/**
+ * Build the CSP value. Kept in code (not env) so changes are
+ * code-reviewed and travel with the deploy that needs them. Each
+ * domain has a one-line comment explaining why it's on the list.
+ */
+function buildCsp(nonce?: string): string {
+  const directives: Record<string, string[]> = {
+    "default-src": ["'self'"],
+    // 'unsafe-inline' on script-src is intentional for now — Next.js
+    // emits inline boot scripts. A nonce-based rollout is the proper
+    // fix; tracked in src/lib/server/http/security-headers.ts. Until
+    // then we accept the looser policy AND ship CSP in Report-Only
+    // mode so we can find any violations before flipping enforce.
+    "script-src": [
+      "'self'",
+      "'unsafe-inline'",
+      "'unsafe-eval'", // Next/Sentry needs this in dev; harmless in prod with the rest of the policy.
+      "https://js.stripe.com", // Stripe Checkout + Elements
+      "https://*.clerk.accounts.dev",
+      "https://*.clerk.com",
+      ...(nonce ? [`'nonce-${nonce}'`] : []),
+    ],
+    "style-src": [
+      "'self'",
+      "'unsafe-inline'", // Tailwind generates inline <style> blocks for some critical-CSS scenarios
+      "https://fonts.googleapis.com",
+    ],
+    "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
+    "img-src": [
+      "'self'",
+      "data:",
+      "blob:",
+      "https:", // marketing pages embed third-party logos; tightenable later
+    ],
+    "connect-src": [
+      "'self'",
+      "https://api.stripe.com",
+      "https://*.clerk.accounts.dev",
+      "https://*.clerk.com",
+      "https://*.ingest.sentry.io",
+      "https://*.ingest.us.sentry.io",
+      "https://*.ingest.de.sentry.io",
+      "https://o4504505471565824.ingest.sentry.io",
+      "wss://*.clerk.accounts.dev",
+      "wss://*.clerk.com",
+    ],
+    "frame-src": [
+      "'self'",
+      "https://js.stripe.com",
+      "https://hooks.stripe.com",
+      "https://*.clerk.accounts.dev",
+      "https://*.clerk.com",
+    ],
+    "frame-ancestors": ["'self'"], // supersedes X-Frame-Options
+    "form-action": ["'self'", "https://checkout.stripe.com"],
+    "base-uri": ["'self'"],
+    "object-src": ["'none'"],
+    "upgrade-insecure-requests": [],
+  };
+
+  const reportUri = cspReportUri();
+  if (reportUri) directives["report-uri"] = [reportUri];
+
+  return Object.entries(directives)
+    .map(([k, v]) => (v.length ? `${k} ${v.join(" ")}` : k))
+    .join("; ");
+}
+
+const PERMISSIONS_POLICY = [
+  "accelerometer=()",
+  "autoplay=()",
+  "camera=()",
+  "display-capture=()",
+  "encrypted-media=()",
+  "geolocation=()",
+  "gyroscope=()",
+  "magnetometer=()",
+  "microphone=()",
+  "midi=()",
+  "payment=(self)", // Stripe Checkout uses Payment Request API on /pricing/* and /billing
+  "picture-in-picture=()",
+  "publickey-credentials-get=(self)", // WebAuthn / passkeys (Clerk)
+  "screen-wake-lock=()",
+  "sync-xhr=(self)",
+  "usb=()",
+  "xr-spatial-tracking=()",
+].join(", ");
+
+/**
+ * Apply security headers to a NextResponse in-place AND return it
+ * (for chaining). Cheap to call per-request.
+ */
+export function applySecurityHeaders(
+  res: NextResponse,
+  _request?: NextRequest,
+): NextResponse {
+  // Skip when the operator opts out — useful for debugging in staging
+  // without having to redeploy. Default is "on".
+  if (process.env.SECURITY_HEADERS_DISABLED === "true") {
+    return res;
+  }
+
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set("Permissions-Policy", PERMISSIONS_POLICY);
+  res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+
+  // CSP — Report-Only by default so a missing whitelist doesn't break
+  // the page. Flip to enforce only after the report endpoint shows
+  // zero violations for a sustained window.
+  const csp = buildCsp();
+  if (cspEnforce()) {
+    res.headers.set("Content-Security-Policy", csp);
+  } else {
+    res.headers.set("Content-Security-Policy-Report-Only", csp);
+  }
+
+  return res;
+}
+
+/** Exported for tests — never used in the request path. */
+export const __test__ = { buildCsp, PERMISSIONS_POLICY };

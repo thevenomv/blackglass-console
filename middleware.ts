@@ -4,6 +4,7 @@ import type { NextFetchEvent } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { verifySession } from "@/lib/auth/session-signing";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
+import { applySecurityHeaders } from "@/lib/server/http/security-headers";
 
 const SESSION = "bg-session";
 
@@ -19,7 +20,7 @@ function withRequestId(request: NextRequest, requestId: string): NextResponse {
   fwdHeaders.set("x-request-id", requestId);
   const res = NextResponse.next({ request: { headers: fwdHeaders } });
   res.headers.set("x-request-id", requestId);
-  return res;
+  return applySecurityHeaders(res, request);
 }
 
 const clerkPublic = createRouteMatcher([
@@ -86,7 +87,7 @@ async function legacyMiddleware(request: NextRequest, requestId: string) {
     login.searchParams.set("redirected", "1");
     const res = NextResponse.redirect(login);
     res.headers.set("x-request-id", requestId);
-    return res;
+    return applySecurityHeaders(res, request);
   }
 
   const payload = await verifySession(token);
@@ -104,7 +105,7 @@ async function legacyMiddleware(request: NextRequest, requestId: string) {
       secure: process.env.NODE_ENV === "production",
     });
     res.headers.set("x-request-id", requestId);
-    return res;
+    return applySecurityHeaders(res, request);
   }
 
   return withRequestId(request, requestId);

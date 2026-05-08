@@ -39,6 +39,15 @@ export type EncryptedKey = {
   kmsProvider: string;
   /** Opaque KMS key reference (Vault key name, AWS key ID, etc.) */
   kmsKeyRef: string;
+  /**
+   * Tenant id whose customer KMS key wrapped this DEK, when BYOK was
+   * active at encrypt time. Null/absent on blobs wrapped by the global
+   * KMS — those decrypt through the global path regardless of any
+   * later BYOK rollout. Persisting the tenant on the blob is what
+   * makes BYOK opt-in safe for backfill: existing rows without this
+   * field continue to round-trip through the global KEK forever.
+   */
+  tenantId?: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -185,23 +194,106 @@ export function envelopeEncryptionEnabled(): boolean {
 }
 
 /**
+ * Resolve the BYOK config for a tenant if (and only if) the feature
+ * flag is on AND the tenant has an enabled row. Imported lazily so this
+ * module stays decoupled from the DB layer for unit tests / scripts
+ * that don't have a database connection.
+ */
+async function resolveTenantOverride(
+  workspaceId: string | undefined,
+): Promise<{ provider: "vault" | "awskms"; keyRef: string } | null> {
+  if (!workspaceId) return null;
+  // Lazy import — avoids dragging Drizzle / pg into bundles that only
+  // need symmetric AES (dev tools, etc.).
+  const { byokEnabled, loadTenantKmsConfig } = await import("./tenant-kms");
+  if (!byokEnabled()) return null;
+  const cfg = await loadTenantKmsConfig(workspaceId);
+  if (!cfg) return null;
+  return { provider: cfg.provider, keyRef: cfg.keyRef };
+}
+
+/**
+ * Wrap a DEK using a SPECIFIC keyRef (overriding env defaults). Used for
+ * BYOK Phase 2 — the tenant's customer KEK identity wins over the
+ * deployment's. We assume ambient credentials (IAM instance profile /
+ * Vault token) can talk to the customer KMS; per-tenant credential
+ * support is a Phase 2.5 follow-up tracked in tenant-kms.ts.
+ */
+async function wrapWithKeyRef(
+  provider: "vault" | "awskms",
+  dek: Buffer,
+  keyRef: string,
+): Promise<string> {
+  if (provider === "vault") {
+    const resp = (await vaultRequest(`transit/encrypt/${keyRef}`, "POST", {
+      plaintext: dek.toString("base64"),
+    })) as { data: { ciphertext: string } };
+    return resp.data.ciphertext;
+  }
+  // awskms
+  const { KMSClient, EncryptCommand } = await import(
+    /* webpackIgnore: true */ "@aws-sdk/client-kms" as string
+  );
+  const client = new KMSClient({});
+  const cmd = new EncryptCommand({ KeyId: keyRef, Plaintext: dek });
+  const resp = await client.send(cmd);
+  if (!resp.CiphertextBlob) throw new Error("AWS KMS encrypt returned no CiphertextBlob");
+  return Buffer.from(resp.CiphertextBlob).toString("base64");
+}
+
+async function unwrapWithKeyRef(
+  provider: "vault" | "awskms",
+  wrappedDek: string,
+  keyRef: string,
+): Promise<Buffer> {
+  if (provider === "vault") {
+    const resp = (await vaultRequest(`transit/decrypt/${keyRef}`, "POST", {
+      ciphertext: wrappedDek,
+    })) as { data: { plaintext: string } };
+    return Buffer.from(resp.data.plaintext, "base64");
+  }
+  // awskms — decrypt is identity-of-key-implicit, but we keep the keyRef
+  // around for symmetry with the vault path and for surface future
+  // GovCloud / restricted-API requirements.
+  const { KMSClient, DecryptCommand } = await import(
+    /* webpackIgnore: true */ "@aws-sdk/client-kms" as string
+  );
+  const client = new KMSClient({});
+  const cmd = new DecryptCommand({
+    CiphertextBlob: Buffer.from(wrappedDek, "base64"),
+    KeyId: keyRef,
+  });
+  const resp = await client.send(cmd);
+  if (!resp.Plaintext) throw new Error("AWS KMS decrypt returned no Plaintext");
+  return Buffer.from(resp.Plaintext);
+}
+
+/**
  * Encrypt an SSH private key PEM for storage.
  *
  * Returns an `EncryptedKey` that can be safely stored in Postgres.
  * When KMS_PROVIDER is "none", warns and returns the key base64-encoded
  * without encryption (suitable only for development).
+ *
+ * BYOK (Phase 2): when `workspaceId` is supplied, BYOK_ENABLED is on,
+ * AND the tenant has an enabled `saas_tenant_kms_keys` row, the DEK is
+ * wrapped by the customer's KEK instead of the deployment's. The
+ * tenant id is persisted on the blob so the matching decrypt path
+ * resolves the same config. Existing blobs (no `tenantId` field) keep
+ * decrypting through the global KEK forever — BYOK rollout never
+ * silently re-keys old material.
  */
 export async function encryptKey(
-  _workspaceId: string,
+  workspaceId: string,
   pemOrBuffer: string | Buffer,
 ): Promise<EncryptedKey> {
   const plaintext = Buffer.isBuffer(pemOrBuffer)
     ? pemOrBuffer
     : Buffer.from(pemOrBuffer, "utf8");
 
-  const provider = kmsProvider();
+  const globalProvider = kmsProvider();
 
-  if (provider === "none") {
+  if (globalProvider === "none") {
     console.warn(
       "[envelope] KMS_PROVIDER is not set — storing SSH key WITHOUT envelope encryption. " +
         "Set KMS_PROVIDER=local|vault|awskms in production.",
@@ -214,50 +306,107 @@ export async function encryptKey(
     };
   }
 
+  // BYOK override — wrap with the tenant's customer KEK if configured.
+  const tenantOverride = await resolveTenantOverride(workspaceId);
+
   // 1. Generate a fresh 256-bit DEK
   const dek = randomBytes(32);
 
   // 2. Encrypt key material with DEK
   const ciphertext = aesEncrypt(dek, plaintext);
 
-  // 3. Wrap the DEK with the KMS KEK
+  // 3. Wrap the DEK with the appropriate KEK
   let wrappedDek: string;
   let kmsKeyRef: string;
-  if (provider === "local") {
+  let providerForBlob: string;
+  let tenantOnBlob: string | null = null;
+
+  if (tenantOverride) {
+    wrappedDek = await wrapWithKeyRef(tenantOverride.provider, dek, tenantOverride.keyRef);
+    kmsKeyRef = tenantOverride.keyRef;
+    providerForBlob = tenantOverride.provider;
+    tenantOnBlob = workspaceId;
+  } else if (globalProvider === "local") {
     wrappedDek = await localWrapDek(dek);
     kmsKeyRef = localKmsKeyRef();
-  } else if (provider === "vault") {
+    providerForBlob = "local";
+  } else if (globalProvider === "vault") {
     wrappedDek = await vaultWrapDek(dek);
     kmsKeyRef = vaultTransitKeyName();
-  } else if (provider === "awskms") {
+    providerForBlob = "vault";
+  } else if (globalProvider === "awskms") {
     wrappedDek = await awsWrapDek(dek);
     kmsKeyRef = process.env.AWS_KMS_KEY_ID ?? "";
+    providerForBlob = "awskms";
   } else {
-    throw new Error(`Unknown KMS_PROVIDER: ${provider}. Use local, vault, or awskms.`);
+    throw new Error(`Unknown KMS_PROVIDER: ${globalProvider}. Use local, vault, or awskms.`);
   }
 
   // Zero-fill the DEK from memory immediately after wrapping
   dek.fill(0);
 
-  return { ciphertext, wrappedDek, kmsProvider: provider, kmsKeyRef };
+  return {
+    ciphertext,
+    wrappedDek,
+    kmsProvider: providerForBlob,
+    kmsKeyRef,
+    ...(tenantOnBlob ? { tenantId: tenantOnBlob } : {}),
+  };
 }
 
 /**
  * Decrypt an `EncryptedKey` back to a plaintext PEM Buffer.
  * The caller is responsible for zeroing the buffer when done.
+ *
+ * BYOK (Phase 2): when the blob carries a `tenantId`, the tenant's
+ * customer KEK is consulted via `loadTenantKmsConfig()` and the DEK is
+ * unwrapped against the customer's keyRef. If the tenant has since
+ * disabled or removed BYOK, this throws — refusing to silently fall
+ * back to the global KEK (which would never have wrapped this DEK in
+ * the first place, so the unwrap would also fail with a less obvious
+ * error). Operators see the failure and can re-enable BYOK or
+ * re-encrypt the credential explicitly.
  */
 export async function decryptKey(
   _workspaceId: string,
   encKey: EncryptedKey,
 ): Promise<Buffer> {
-  const { ciphertext, wrappedDek, kmsProvider: provider } = encKey;
+  const { ciphertext, wrappedDek, kmsProvider: provider, tenantId } = encKey;
 
   if (provider === "none") {
     return Buffer.from(ciphertext, "base64");
   }
 
   let dek: Buffer;
-  if (provider === "local") {
+
+  if (tenantId) {
+    if (provider !== "vault" && provider !== "awskms") {
+      throw new Error(
+        `Stored EncryptedKey has tenantId=${tenantId} but provider=${provider}; ` +
+          `BYOK only supports 'vault' or 'awskms'.`,
+      );
+    }
+    const { byokEnabled, loadTenantKmsConfig } = await import("./tenant-kms");
+    if (!byokEnabled()) {
+      throw new Error(
+        `EncryptedKey was wrapped by a tenant KEK (tenantId=${tenantId}) but ` +
+          `BYOK_ENABLED is now false. Re-enable BYOK to decrypt, or re-encrypt this credential.`,
+      );
+    }
+    const cfg = await loadTenantKmsConfig(tenantId);
+    if (!cfg) {
+      throw new Error(
+        `EncryptedKey was wrapped by a tenant KEK (tenantId=${tenantId}) but no enabled ` +
+          `saas_tenant_kms_keys row exists. Re-add the BYOK row or re-encrypt this credential.`,
+      );
+    }
+    if (cfg.provider !== provider) {
+      throw new Error(
+        `EncryptedKey provider (${provider}) doesn't match current tenant config (${cfg.provider}).`,
+      );
+    }
+    dek = await unwrapWithKeyRef(provider, wrappedDek, cfg.keyRef);
+  } else if (provider === "local") {
     dek = await localUnwrapDek(wrappedDek);
   } else if (provider === "vault") {
     dek = await vaultUnwrapDek(wrappedDek);

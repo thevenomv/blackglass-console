@@ -24,6 +24,13 @@ interface PlanCommand {
 interface PlanShape {
   summary?: string;
   confidence_score?: number;
+  /**
+   * Set by the remediator's `apply_confidence_cap()` when the LLM's
+   * raw score exceeded the per-category ceiling
+   * (CATEGORY_CONFIDENCE_CAP). Undefined on legacy plans, treated as
+   * "not capped" — the UI shows the cap badge only when this is true.
+   */
+  confidence_capped?: boolean;
   requires_human_approval?: boolean;
   commands?: PlanCommand[];
   verification_steps?: Array<{ command?: string; purpose?: string }>;
@@ -97,6 +104,43 @@ export function RemediationRecommendation({
     return typeof c === "number" ? Math.round(c * 100) : null;
   }, [recommendation?.plan?.confidence_score]);
 
+  /**
+   * Visual band for the confidence score. Thresholds are the same
+   * ones the remediator uses internally to decide which tier of
+   * suggestion to surface — see blackglass-remediator/app/agent/risk_policy.py.
+   *
+   *   ≥ 75 → green   ("auto-suggestable" if other gates allow)
+   *   50–74 → amber  ("operator review recommended")
+   *   < 50 → red    ("treat as guidance — likely needs manual investigation")
+   */
+  const confidenceBand = useMemo<{
+    label: string;
+    color: string;
+    explanation: string;
+  } | null>(() => {
+    if (confidencePct === null) return null;
+    if (confidencePct >= 75)
+      return {
+        label: "high",
+        color: "text-success",
+        explanation:
+          "High confidence — the remediator is sure of both the diagnosis and the proposed fix. Review and approve when ready.",
+      };
+    if (confidencePct >= 50)
+      return {
+        label: "medium",
+        color: "text-warning",
+        explanation:
+          "Medium confidence — the proposal is plausible but the remediator flagged uncertainty. Read each command before approving.",
+      };
+    return {
+      label: "low",
+      color: "text-danger",
+      explanation:
+        "Low confidence — treat the plan as guidance only. Investigate the drift manually before applying anything.",
+    };
+  }, [confidencePct]);
+
   async function decide(action: "approve" | "reject") {
     if (!recommendation || pending) return;
     setPending(action);
@@ -143,9 +187,27 @@ export function RemediationRecommendation({
           AI remediation proposal
         </p>
         <div className="flex items-center gap-2">
-          {confidencePct !== null && (
-            <span className="text-[11px] text-fg-faint">Confidence {confidencePct}%</span>
-          )}
+          {confidencePct !== null && confidenceBand ? (
+            <span
+              className={`inline-flex items-center gap-1 rounded border border-border-subtle px-2 py-0.5 text-[11px] font-semibold ${confidenceBand.color}`}
+              title={confidenceBand.explanation}
+            >
+              <span aria-hidden>●</span>
+              <span>
+                Confidence{" "}
+                <span className="font-mono">{confidencePct}%</span>
+              </span>
+              <span className="text-fg-faint">({confidenceBand.label})</span>
+              {recommendation.plan.confidence_capped ? (
+                <span
+                  className="ml-1 rounded bg-bg-elevated px-1 py-0 font-mono text-[10px] text-fg-muted"
+                  title="The LLM's raw score was clamped down to the per-category ceiling defined by the remediator's risk policy. See blackglass-remediator/app/agent/risk_policy.py → CATEGORY_CONFIDENCE_CAP."
+                >
+                  capped
+                </span>
+              ) : null}
+            </span>
+          ) : null}
           <Badge tone={statusTone(recommendation.status)}>{statusLabel(recommendation.status)}</Badge>
         </div>
       </div>
