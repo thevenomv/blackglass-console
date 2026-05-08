@@ -15,8 +15,12 @@
 
 import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
 import { digestEveryMs, digestInterval } from "@/lib/server/services/drift-digest-service";
+import { partitionMaintenanceEveryMs } from "@/lib/server/services/partition-maintenance-service";
 
-export type MaintenanceJobType = "retention-sweep" | "drift-digest";
+export type MaintenanceJobType =
+  | "retention-sweep"
+  | "drift-digest"
+  | "partition-maintenance";
 
 export interface MaintenanceJobPayload {
   type: MaintenanceJobType;
@@ -32,6 +36,9 @@ const REPEATABLE_JOB_ID = "retention-sweep";
 
 const DIGEST_REPEATABLE_JOB_NAME = "maintenance:drift-digest";
 const DIGEST_REPEATABLE_JOB_ID = "drift-digest";
+
+const PARTITION_REPEATABLE_JOB_NAME = "maintenance:partition-maintenance";
+const PARTITION_REPEATABLE_JOB_ID = "partition-maintenance";
 
 function retentionEveryMs(): number {
   const raw = process.env.RETENTION_SWEEP_HOURS?.trim();
@@ -127,4 +134,42 @@ export async function installDriftDigestRepeatable(): Promise<{
     },
   );
   return { installed: true, everyMs, interval };
+}
+
+/**
+ * Ensure exactly one partition-maintenance repeatable is registered.
+ * Cadence is `MAINTENANCE_PARTITION_EVERY_HOURS` (default 1h).
+ *
+ * Why hourly: a missed monthly partition causes inserts to land in
+ * the default partition (slow drops, blown query plans) or to fail
+ * outright if `drift_events_default` is missing — both are SEV-1 for
+ * drift detection. An hourly call to a function that's a no-op when
+ * partitions already exist is the cheapest way to guarantee we never
+ * cross a month boundary unprepared.
+ */
+export async function installPartitionMaintenanceRepeatable(): Promise<{
+  installed: boolean;
+  everyMs: number;
+}> {
+  const queue = await getMaintenanceQueue();
+  if (!queue) return { installed: false, everyMs: 0 };
+
+  const everyMs = partitionMaintenanceEveryMs();
+  const existing = await queue.getRepeatableJobs();
+  await Promise.all(
+    existing
+      .filter((j) => j.name === PARTITION_REPEATABLE_JOB_NAME)
+      .map((j) => queue.removeRepeatableByKey(j.key)),
+  );
+
+  await queue.add(
+    PARTITION_REPEATABLE_JOB_NAME,
+    { type: "partition-maintenance" },
+    {
+      repeat: { every: everyMs },
+      jobId: PARTITION_REPEATABLE_JOB_ID,
+    },
+  );
+
+  return { installed: true, everyMs };
 }

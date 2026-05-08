@@ -32,10 +32,12 @@ import type { MaintenanceJobPayload } from "@/lib/server/queue/maintenance-queue
 import {
   installRetentionRepeatable,
   installDriftDigestRepeatable,
+  installPartitionMaintenanceRepeatable,
 } from "@/lib/server/queue/maintenance-queue";
 import { runExportJob } from "@/lib/server/services/export-service";
 import { pruneAllTenants } from "@/lib/server/services/retention-service";
 import { runDriftDigest } from "@/lib/server/services/drift-digest-service";
+import { ensureUpcomingDriftPartitions } from "@/lib/server/services/partition-maintenance-service";
 import { logStructured } from "@/lib/server/log";
 
 const redisUrl = process.env.REDIS_QUEUE_URL?.trim();
@@ -180,6 +182,18 @@ const maintenanceWorker = new Worker<MaintenanceJobPayload>(
         });
         return;
       }
+      case "partition-maintenance": {
+        const startedAt = Date.now();
+        const result = await ensureUpcomingDriftPartitions();
+        logStructured("info", "partition_maintenance_completed", {
+          bullJobId: job.id,
+          createdCount: result.created.length,
+          existingCount: result.existing.length,
+          errorCount: Object.keys(result.errors).length,
+          elapsedMs: Date.now() - startedAt,
+        });
+        return;
+      }
       case "drift-digest": {
         const startedAt = Date.now();
         logStructured("info", "drift_digest_start", { bullJobId: job.id });
@@ -245,6 +259,20 @@ void installRetentionRepeatable()
   })
   .catch((err) =>
     logStructured("error", "retention_repeatable_install_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    }),
+  );
+
+void installPartitionMaintenanceRepeatable()
+  .then((res) => {
+    if (res.installed) {
+      logStructured("info", "partition_maintenance_repeatable_installed", {
+        everyMs: res.everyMs,
+      });
+    }
+  })
+  .catch((err) =>
+    logStructured("error", "partition_maintenance_repeatable_install_failed", {
       error: err instanceof Error ? err.message : String(err),
     }),
   );

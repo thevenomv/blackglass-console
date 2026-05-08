@@ -216,18 +216,62 @@ For the most common questions:
 
 ---
 
+## 10b. Security questionnaire mapping (drop-in answers)
+
+The table below maps the most-common SaaS security questionnaire
+headings to the mechanism BLACKGLASS uses, and to the file or doc a
+reviewer can read to verify the claim. Copy a row directly into your
+DPA / SOC-2 evidence bundle.
+
+| Questionnaire heading                | Mechanism                                                                        | Source of truth                                                                                                              |
+| ------------------------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Identity provider / SSO              | SAML SSO via Clerk Enterprise                                                    | `src/app/api/v1/settings/sso/route.ts`, [§1](#1-auth--iam)                                                                   |
+| User provisioning                    | SCIM 2.0 via Clerk Enterprise                                                    | `src/app/api/v1/settings/scim/route.ts`                                                                                      |
+| Multi-factor authentication          | Enforced via Clerk; per-org policy                                               | Clerk dashboard; [§1](#1-auth--iam)                                                                                          |
+| Role-based access control            | `SaasPermission`-keyed RBAC (`drift.read`, `drift.manage`, `audit.read`, …)      | `src/lib/saas/rbac.ts`                                                                                                       |
+| API authentication                   | API keys with prefix fingerprinting + bcrypt-hashed secret + rotation            | `src/lib/saas/api-key.ts`                                                                                                    |
+| Tenant isolation                     | `tenant_id` on every table + Postgres RLS + `withTenantRls` enforced in CI       | `tests/unit/rls-tenant-leak.test.ts` (CI-gated against fresh Postgres)                                                       |
+| Encryption at rest — DB              | DigitalOcean managed Postgres (provider-side AES-256)                            | DO managed-DB security overview                                                                                              |
+| Encryption at rest — object storage  | DigitalOcean Spaces (provider-side AES-256)                                      | DO Spaces security overview                                                                                                  |
+| Encryption at rest — secrets         | Envelope encryption (AES-256-GCM) for SSH creds; BYOK per-tenant KEK supported   | `src/lib/server/secrets/envelope.ts`, `src/lib/server/secrets/tenant-kms.ts`, [§3](#3-data-protection-in-transit--at-rest)   |
+| Encryption in transit                | TLS 1.2+ (1.3 preferred) on all endpoints; HSTS via security-headers middleware | `src/lib/server/http/security-headers.ts`                                                                                    |
+| Webhook authenticity                 | HMAC-SHA256 (`X-Blackglass-Signature: sha256=…`) with per-tenant signing keys + key-rotation header | `src/lib/server/outbound-webhook.ts`                                                                                         |
+| Inbound rate limiting                | Per-IP rate-limit on every public endpoint; per-tenant cap on POST `/api/v1/scans` | `src/lib/server/rate-limit.ts`                                                                                               |
+| Audit logging                        | `saas_audit_events` (tenant-scoped) for SSO, SCIM, API keys, scans, remediations, exports | `src/lib/saas/event-log.ts`, [§4](#4-logging--audit)                                                                         |
+| AI / agent governance                | 4-tier risk-policy gate + forbidden-command denylist + per-category confidence cap + sudo/SSH auto-escalation + HMAC Approval Token | `blackglass-remediator/docs/safety-model.md`, [§8](#8-ai--remediator-governance)                                             |
+| Vulnerability scanning (deps)        | Dependabot daily on Node + Python                                                | `.github/dependabot.yml`                                                                                                     |
+| Static application security testing | Semgrep `p/owasp-top-ten` + JS/TS + secrets, fails CI on ERROR                   | `.github/workflows/semgrep.yml`                                                                                              |
+| Dynamic application security testing | OWASP ZAP baseline against staging on every push to main                         | `.github/workflows/dast-zap-baseline.yml`                                                                                    |
+| Secret management                    | Doppler / DO env vars; nothing committed; air-gap mode disables outbound calls   | `.env.example`, `src/lib/server/airgap.ts`                                                                                   |
+| Backup & restore                     | Daily Postgres snapshot + weekly `pg_dump` to Spaces; documented restore-into-staging | `docs/runbooks/operations.md` § 3                                                                                            |
+| Disaster recovery / RTO              | Documented quarterly drill, target RTO ≤ 4 h, RPO ≤ 24 h                         | `docs/runbooks/operations.md` § 4                                                                                            |
+| Air-gapped operation                 | `BLACKGLASS_AIRGAPPED=true`; `/api/health/airgap?probe=true` self-test; Sentry & PostHog disabled in browser via `NEXT_PUBLIC_BLACKGLASS_AIRGAPPED` | `src/lib/server/airgap.ts`, `src/instrumentation-client.ts`                                                                  |
+| Security headers                     | CSP (Report-Only by default), X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP applied via middleware | `src/lib/server/http/security-headers.ts`                                                                                    |
+| Sub-processor list                   | Clerk, Stripe, Resend, DigitalOcean, Sentry (optional), PostHog (optional)       | [`docs/vendor-inventory.md`](./vendor-inventory.md)                                                                          |
+| Customer data export                 | Per-tenant data-export bundles (Spaces upload or inline JSON), audit-logged       | `src/lib/server/services/export-service.ts`, `src/app/api/v1/exports/route.ts`                                               |
+| Right to deletion                    | Tenant deletion via admin; cascades through `tenant_id` FKs and partition prune | `src/lib/saas/tenant-service.ts`                                                                                             |
+| Schema migration governance         | Hash-tracked Drizzle migrations + CI fresh-apply + `db:migrate:check` PR gate    | [§8a](#8a-schema-integrity--migration-governance)                                                                            |
+
+---
+
 ## 11. Things that are intentionally NOT done (and why)
 
 Transparency reduces back-and-forth in security review:
 
-- **No customer-managed encryption keys (CMEK / BYOK) yet.** Per-tenant
-  KMS is on the roadmap. Today, all DEKs are wrapped by the
-  configured KMS provider (`local` / Vault / AWS KMS) chosen by the
-  operator — there is no per-tenant KEK separation.
+- **Customer-managed encryption keys (CMEK / BYOK) — Enterprise tier.**
+  Per-tenant KEK is supported (AWS KMS or HashiCorp Vault) and routed
+  through `EncryptedKey.tenantId` so legacy global-KEK blobs continue
+  to round-trip safely. UI lives at Settings → Identity → Bring your
+  own key; backend in `src/lib/server/secrets/tenant-kms.ts`. The
+  global KMS (env-managed `local`, Vault, or AWS KMS) remains the
+  default for tenants that haven't opted in.
 - **WORM audit retention is opt-in.** `saas_audit_events` lives in
   Postgres and exports as deterministic JSONL (`npm run audit:verify-jsonl`)
   with an integrity digest, suitable for cold storage in S3 + Object
   Lock. We do not run an Object-Lock bucket on the customer's behalf.
+  DigitalOcean Spaces does not currently support S3 Object Lock —
+  customers requiring WORM evidence should mirror exports to an
+  AWS S3 bucket configured with Object Lock in Governance mode.
 - **DAST is scheduled, not gating.** A ZAP baseline workflow runs against
   staging on demand and on a weekly cron when `STAGING_URL` is set
   (`.github/workflows/dast-zap-baseline.yml`); failures don't block PRs

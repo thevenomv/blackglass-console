@@ -26,8 +26,25 @@ names, retry counts, backoff, and retention.
 | `blackglass-sandbox`         | Sandbox provision / seed-drift / cleanup (`sandbox-worker`)      | 5/3/10   | 5 s / 10 s / 30 s     | 2                    | 50 jobs            |
 | `blackglass-webhooks`        | Outbound webhook delivery (`ops-worker`)                         | 6        | 5 s base              | 8                    | 200 jobs (DLQ)     |
 | `blackglass-exports`         | Tenant data-export bundle assembly + Spaces upload (`ops-worker`)| 3        | 30 s base             | 2                    | 50 jobs            |
-| `blackglass-maintenance`     | Retention sweep, idempotency pruning, repeatable crons (`ops-worker`) | 1   | n/a                   | 1                    | 20 jobs            |
+| `blackglass-maintenance`     | Retention sweep + drift digest + partition maintenance + idempotency pruning (`ops-worker`) | 1   | n/a                   | 1                    | 20 jobs            |
 | _Reserved (no worker yet):_  | _`blackglass-reports`, `blackglass-evidence` — names defined in `queue/config.ts` for future async generation. PDF/evidence generation currently runs inline in the API handler._ | – | – | – | – |
+
+The maintenance queue multiplexes three repeatable jobs onto one
+worker. The full schedule is:
+
+| Sub-job (payload `type`)  | Cadence                                    | Env override                            | Source                                            |
+| ------------------------- | ------------------------------------------ | --------------------------------------- | ------------------------------------------------- |
+| `retention-sweep`         | every 24 h                                 | `RETENTION_SWEEP_HOURS`                 | `services/retention-service.ts`                   |
+| `drift-digest`            | every 24 h (Daily) / 168 h (Weekly) / off  | `DRIFT_DIGEST_INTERVAL` (deployment) + per-tenant `drift_digest_cadence='off'` opt-out | `services/drift-digest-service.ts` |
+| `partition-maintenance`   | every 1 h                                  | `MAINTENANCE_PARTITION_EVERY_HOURS`     | `services/partition-maintenance-service.ts`       |
+
+`partition-maintenance` calls
+`ensureUpcomingDriftPartitions()` which is idempotent — if the next
+two months of `drift_events` partitions already exist it's a no-op.
+Lookahead window is `MAINTENANCE_PARTITION_LOOKAHEAD_MONTHS` (default
+2). A failure on a single month doesn't abort the others (savepoint
+per month), so a transient race condition leaves the queue eventually
+self-healing on the next tick.
 
 ### Healthy steady state
 
@@ -129,10 +146,19 @@ HTTP status code, response body (first 1 KB).
 
 **Symptom:** Single-attempt jobs fail and don't retry (by design).
 
-**Triage:** Maintenance jobs run on a repeating schedule (every 5–60
-minutes), so a single failure self-heals on the next tick. **Page only
-if the same job class fails more than 3 ticks in a row** — that
-indicates a code bug, not a transient blip.
+**Triage:** Maintenance jobs run on a repeating schedule (every 1 h to
+24 h depending on sub-job), so a single failure self-heals on the next
+tick. **Page only if the same job class fails more than 3 ticks in a
+row** — that indicates a code bug, not a transient blip.
+
+`partition-maintenance` failures get **special priority** because a
+missed monthly partition causes inserts to land in
+`drift_events_default` (slow drops, broken query plans) or to fail
+outright if `drift_events_default` is missing. If you see
+`partition_maintenance_completed errorCount > 0` for two ticks in a
+row, drop everything and read the error column — the most common
+cause is missing CREATE permission on the role used by `withBypassRls`
+(e.g. someone tightened the role to `INSERT,UPDATE,DELETE` only).
 
 ---
 
