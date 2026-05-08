@@ -11,8 +11,68 @@ import {
   type ScanContext,
   type SshAuthConfig,
 } from "@/lib/server/secrets";
+import { getBaseline } from "@/lib/server/baseline-store";
 import type { CollectScanOptions, HostSnapshot } from "./types";
 import { allSshConfigs, runCollection } from "./ssh";
+
+/**
+ * When SSH pull fails (DigitalOcean App Platform → Droplet egress is
+ * silently blackholed by the DO network fabric, on-prem firewall blocks,
+ * etc.), look for a recent agent-pushed snapshot in the baseline store
+ * and use that instead. Window is bounded to avoid passing off a stale
+ * snapshot as "live" for a failed scan.
+ *
+ * Default 15 min — same as the lab-health probe. Tunable via env so
+ * air-gapped/daily-cadence customers don't trip a false fall-back.
+ */
+function getAgentFallbackWindowSeconds(): number {
+  const raw = process.env.COLLECTOR_AGENT_FALLBACK_WINDOW_SECONDS
+    ?? process.env.LAB_AGENT_FRESH_WINDOW_SECONDS;
+  if (!raw) return 15 * 60;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : 15 * 60;
+}
+
+/**
+ * Try to satisfy a "live collection" call from an agent-pushed snapshot
+ * sitting in the baseline store. Returns the snapshot when fresh enough,
+ * `null` otherwise. Never throws — failure here just means "no fallback
+ * available" so the caller surfaces the original SSH error.
+ */
+async function tryAgentFallback(
+  hostId: string,
+  scanId: string,
+): Promise<HostSnapshot | null> {
+  try {
+    const snapshot = await getBaseline(hostId);
+    if (!snapshot?.collectedAt) return null;
+    const collectedMs = Date.parse(snapshot.collectedAt);
+    if (!Number.isFinite(collectedMs)) return null;
+    const ageSeconds = Math.max(0, Math.round((Date.now() - collectedMs) / 1000));
+    if (ageSeconds > getAgentFallbackWindowSeconds()) {
+      logCollectorEvent("collector.agent_fallback.stale", {
+        scan_id: scanId,
+        host_id: hostId,
+        age_seconds: ageSeconds,
+        window_seconds: getAgentFallbackWindowSeconds(),
+      });
+      return null;
+    }
+    logCollectorEvent("collector.agent_fallback.hit", {
+      scan_id: scanId,
+      host_id: hostId,
+      age_seconds: ageSeconds,
+    });
+    return snapshot;
+  } catch (err) {
+    logCollectorEvent("collector.agent_fallback.error", {
+      scan_id: scanId,
+      host_id: hostId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
 
 function scanContext(opts?: CollectScanOptions): ScanContext {
   return {
@@ -71,6 +131,15 @@ async function collectAllSnapshotsWithAuth(
         host_id: cfg.hostId,
         error: errorMsg,
       });
+      // SSH pull failed — most often because DO App Platform's egress
+      // to user-owned Droplets is blackholed. Before surfacing the error,
+      // see if the push-agent left us a fresh snapshot we can use as a
+      // drop-in substitute (the agent uses the SAME bundle format and
+      // SAME parsers, so the resulting snapshot is byte-identical).
+      const fallback = await tryAgentFallback(cfg.hostId, ctx.scanId);
+      if (fallback) {
+        return { snapshot: fallback, hostId: cfg.hostId };
+      }
       return {
         hostId: cfg.hostId,
         error: errorMsg,
@@ -126,6 +195,20 @@ export async function collectSnapshot(opts?: CollectScanOptions): Promise<HostSn
       return snapshot;
     } catch (e) {
       clearTimeout(timer);
+      // Same agent fallback as collectAllSnapshotsWithAuth — see comment there.
+      const fallback = await tryAgentFallback(first.hostId, ctx.scanId);
+      if (fallback) {
+        logCollectorEvent("collector.collection.complete", {
+          scan_id: ctx.scanId,
+          reason: ctx.reason,
+          duration_ms: Date.now() - t0,
+          hosts_ok: 1,
+          hosts_failed: 0,
+          host_id: first.hostId,
+          fallback: "agent_push",
+        });
+        return fallback;
+      }
       logCollectorEvent("collector.collection.complete", {
         scan_id: ctx.scanId,
         reason: ctx.reason,

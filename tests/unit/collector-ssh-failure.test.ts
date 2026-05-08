@@ -17,6 +17,18 @@ vi.mock("net", () => ({
   },
 }));
 
+// Stub the baseline store so collect.ts's agent fallback path returns
+// "no snapshot" instantly and the test asserts on the SSH error, not on
+// a real Postgres / Spaces query (devs may have DATABASE_URL pointing
+// at prod in their shell — getBaseline would then hang the test).
+vi.mock("@/lib/server/baseline-store", () => ({
+  getBaseline: vi.fn(async () => undefined),
+  saveBaseline: vi.fn(async () => {}),
+  listBaselineHostIds: vi.fn(async () => [] as string[]),
+  hasBaseline: vi.fn(async () => false),
+  baselineStoreHealth: () => ({ kind: "memory" }),
+}));
+
 vi.mock("ssh2", () => {
   class FailingClient {
     private handlers: Record<string, ((...args: unknown[]) => void)[]> = {};
