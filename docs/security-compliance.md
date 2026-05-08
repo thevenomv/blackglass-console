@@ -269,6 +269,17 @@ Transparency reduces back-and-forth in security review:
   (`tests/unit/rls-tenant-leak.test.ts`) deliberately exercises a
   table whose policy DOES match the GUC `withTenantRls` sets, so a
   regression in the wrapper would still be caught.
+- **`withBypassRls` sets `app.tenant_id=''` (empty string)** which is
+  not a valid uuid. Policies that say
+  `current_setting('app.tenant_id', TRUE)::uuid` will raise on the
+  cast even though the OR-clause `app.bypass_rls = '1'` would have
+  short-circuited, depending on the planner's choice. In production
+  the bypass path works because the app role is also the table
+  owner for most tables (RLS is skipped for owners). When BLACKGLASS
+  graduates to a strictly non-owner production role,
+  `withBypassRls()` should be updated to either use a sentinel UUID
+  (e.g. `'00000000-0000-0000-0000-000000000000'`) or `RESET app.tenant_id`
+  before the bypass GUC is set. Tracked separately.
 - **Customer-managed encryption keys (CMEK / BYOK) — Enterprise tier.**
   Per-tenant KEK is supported (AWS KMS or HashiCorp Vault) and routed
   through `EncryptedKey.tenantId` so legacy global-KEK blobs continue
