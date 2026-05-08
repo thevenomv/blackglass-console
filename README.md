@@ -48,7 +48,8 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 
 ## Maintenance & upgrades
 
-- **Dependabot:** Weekly npm PRs — triage on GitHub (merge or close with rationale); **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Moderate **`postcss`** advisories via **`next/node_modules`** may persist until **Next** ships patched deps — avoid **`npm audit fix --force`**. DevDependency **`postcss`** stays on **^8.5.x** for direct toolchain use.
+- **Dependabot:** Weekly npm + GitHub Actions PRs — triage on GitHub (merge or close with rationale); **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Moderate **`postcss`** advisories via **`next/node_modules`** may persist until **Next** ships patched deps — avoid **`npm audit fix --force`**. DevDependency **`postcss`** stays on **^8.5.x** for direct toolchain use.
+- **Semgrep SAST:** [.github/workflows/semgrep.yml](.github/workflows/semgrep.yml) runs `p/owasp-top-ten` + `p/javascript` + `p/typescript` + `p/secrets` on every PR + weekly cron and uploads SARIF to GitHub code-scanning. ERROR-severity findings fail CI; WARNING/INFO surface in the Security tab only.
 - **SBOM artifact:** CI uploads `cyclonedx-sbom.json` from `npm run sbom` — diff across releases or feed into dependency review alongside Dependabot / Dependency review for transitive CVEs.
 - **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** flat preset); `next lint` is not used.
 - **SEO / discovery:** **`NEXT_PUBLIC_APP_URL`** feeds canonical/meta Open Graph (**no Twitter / social-account fields**); **`/sitemap.xml`** + **`/robots.txt`**; staging uses **`NEXT_PUBLIC_SITE_NOINDEX=true`** (see [.env.example](.env.example)).
@@ -57,7 +58,21 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 
 ## Architecture overview
 
-Multi-tenant SaaS console with **Clerk Enterprise** (SAML SSO, SCIM, MFA, RBAC) for auth, **Drizzle ORM + PostgreSQL** with **row-level security** for data, **Stripe** for billing (with reconciliation worker), **BullMQ** workers (`scan-worker`, `ops-worker`, `sandbox-worker`) backed by **Redis/Valkey**, **HMAC-signed** outbound webhooks with rotation, **envelope-encrypted** secrets (KMS providers: local / Vault / AWS KMS), an immutable **`saas_audit_events`** stream with JSONL export + integrity verification, **air-gapped mode** (`BLACKGLASS_AIRGAPPED`), and **DigitalOcean App Platform** for hosting (Helm chart available for self-hosted Kubernetes). See [docs/architecture-overview.md](docs/architecture-overview.md) for the full picture.
+Multi-tenant SaaS console with:
+
+- **Auth** — **Clerk Enterprise** (SAML SSO, SCIM, MFA, RBAC) with a legacy session fallback for self-hosted single-tenant deployments
+- **Data** — **Drizzle ORM + PostgreSQL** with **row-level security**; `withTenantRls` for app reads/writes, `withBypassRls` only in webhooks/migrations
+- **Billing** — **Stripe** subscriptions (`saas_subscriptions`) with idempotent webhook sync + a reconciliation worker
+- **Async** — **BullMQ** workers backed by **Redis/Valkey**: `scan-worker` (SSH + drift), `ops-worker` (webhooks + exports + scheduled drift digest), `sandbox-worker` (sandbox lifecycle)
+- **Outbound integrations** — **HMAC-signed** webhooks with key rotation; native dispatchers for Slack, PagerDuty, Datadog, Splunk, Sentinel, Linear, GitHub, AWS Security Hub
+- **Secrets at rest** — **envelope encryption** (AES-256-GCM DEK wrapped by a KMS-managed KEK); KMS providers: `local` / `vault` / `awskms`; **per-tenant BYOK** for Enterprise (`BYOK_ENABLED`) — see [src/lib/server/secrets/README.md](src/lib/server/secrets/README.md)
+- **Air-gapped mode** — `BLACKGLASS_AIRGAPPED=true` short-circuits every outbound call; `/api/health/airgap?probe=true` actively exercises the gate against fixed public/internal URLs
+- **AI remediator** — separate Python/FastAPI service ([blackglass-remediator/](blackglass-remediator/)) that proposes drift fixes, sandbox-verifies them, and surfaces them for human approval; risk-tier policy is **enforced in code, not prompts** ([blackglass-remediator/app/agent/risk_policy.py](blackglass-remediator/app/agent/risk_policy.py)) and per-category confidence ceilings clamp LLM scores before they reach the operator
+- **Audit** — immutable **`saas_audit_events`** stream with JSONL export + integrity verification (`audit:verify-jsonl`)
+- **Edge security** — security-headers middleware applies CSP (Report-Only by default; flip with `SECURITY_HEADERS_CSP_ENFORCE=true`), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `COOP` on every response — see [src/lib/server/http/security-headers.ts](src/lib/server/http/security-headers.ts)
+- **Deployment** — **DigitalOcean App Platform** for hosted; **Helm chart** ([deploy/helm/blackglass](deploy/helm/blackglass)) with opt-in `sandbox-worker` for self-hosted Kubernetes
+
+See [docs/architecture-overview.md](docs/architecture-overview.md) for the layer map and rules between layers, and [docs/security-compliance.md](docs/security-compliance.md) for the buyer-facing security mapping (RLS, encryption, audit, vendor inventory, DR).
 
 ### Key data-flow invariants
 
@@ -88,13 +103,16 @@ Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. De
 
 ## Operators
 
-- Deploy specs: [.do/](.do/) (see [.do/README.md](.do/README.md))
+- Deploy specs: [.do/](.do/) (see [.do/README.md](.do/README.md)) · Helm chart: [deploy/helm/blackglass](deploy/helm/blackglass)
 - Runbooks: [docs/operator-guide.md](docs/operator-guide.md), [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md)
 - Local Windows / OneDrive builds: [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)
 - First GitHub Actions runs (`gh workflow run`): [docs/github-actions-first-run.md](docs/github-actions-first-run.md)
-- Staging probe: [.github/workflows/staging-smoke.yml](.github/workflows/staging-smoke.yml) (secret **`STAGING_URL`** and/or **`staging_url_override`**; weekly cron when secret present)
+- Staging probe: [.github/workflows/staging-smoke.yml](.github/workflows/staging-smoke.yml) (secret **`STAGING_URL`** and/or **`staging_url_override`**; weekly cron when secret present) — also runs the lab-health check against `/api/admin/lab-health` and hard-fails when the demo VM is unreachable
 - ZAP passive DAST: [.github/workflows/dast-zap-baseline.yml](.github/workflows/dast-zap-baseline.yml) (optional **`target_url_override`**; **`fail_action`** off — review logs / ZAP report manually); rule tuning: [docs/zap-baseline-rules.md](docs/zap-baseline-rules.md)
-- Security / pen checklist: [docs/security-pentest-checklist.md](docs/security-pentest-checklist.md)
+- **Security & compliance** mapping (RLS, encryption, audit, DR, vendor list): [docs/security-compliance.md](docs/security-compliance.md) · Pen checklist: [docs/security-pentest-checklist.md](docs/security-pentest-checklist.md) · Vendor inventory: [docs/vendor-inventory.md](docs/vendor-inventory.md)
+- **Health endpoints** — `/api/health` (uptime), `/api/health/airgap?probe=true` (active air-gap self-test), `/api/admin/lab-health` (sales-demo VM TCP+SSH probe)
+- **BYOK (Bring Your Own Key)** — Enterprise per-tenant KMS, gated by `BYOK_ENABLED`. Schema + envelope routing + UI all shipped; see [src/lib/server/secrets/README.md](src/lib/server/secrets/README.md) for the three-phase rollout and the round-trip verifier
+- **Sales demo VM** (`blackglass-lab-01`): walkthrough script [docs/sales-demo-walkthrough.md](docs/sales-demo-walkthrough.md) · seed/reset drift: [scripts/lab/seed-drift.sh](scripts/lab/seed-drift.sh) / [scripts/lab/reset-drift.sh](scripts/lab/reset-drift.sh)
 - Access review cadence: [docs/access-review-playbook.md](docs/access-review-playbook.md)
 - Audit trail: [docs/audit-trail.md](docs/audit-trail.md) (legacy append + optional Postgres + SaaS `saas_audit_events`)
 - Scaling: collectors [docs/collector-fleet-scaling.md](docs/collector-fleet-scaling.md) · Redis rate-limit (multi-instance): [docs/rate-limit-redis-adrs.md](docs/rate-limit-redis-adrs.md) · Limits table: [docs/http-rate-limit-budgets.md](docs/http-rate-limit-budgets.md)
@@ -108,6 +126,7 @@ Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. De
 - Architecture spine: [docs/architecture-flow.md](docs/architecture-flow.md)
 - Architecture decisions log: [docs/architecture-decisions.md](docs/architecture-decisions.md)
 - Architecture overview (services + data flow): [docs/architecture-overview.md](docs/architecture-overview.md)
+- AI remediator safety model: [blackglass-remediator/docs/safety-model.md](blackglass-remediator/docs/safety-model.md)
 
 ## Product front door (marketing vs console vs demo)
 
