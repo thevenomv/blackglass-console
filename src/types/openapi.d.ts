@@ -305,7 +305,7 @@ export type paths = {
         put?: never;
         /**
          * Capture baselines for all configured collector hosts
-         * @description Collects SSH snapshots from every COLLECTOR_HOST_N in parallel. Saves each successful baseline; partial failures are listed under `failed`.
+         * @description Collects SSH snapshots from every COLLECTOR_HOST_N in parallel. Saves each successful baseline; partial failures are listed under `failed`. When a database is configured, the handler returns 202 and runs capture in the background so upstream proxies (e.g. Cloudflare) do not time out; poll GET /baselines/capture-jobs/{jobId} until `status` is succeeded or failed.
          */
         post: {
             parameters: {
@@ -316,7 +316,7 @@ export type paths = {
             };
             requestBody?: never;
             responses: {
-                /** @description At least one host captured successfully */
+                /** @description At least one host captured successfully (legacy sync mode without DATABASE_URL) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -343,6 +343,20 @@ export type paths = {
                         };
                     };
                 };
+                /** @description Capture job accepted — poll capture-jobs for completion */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            job_id: string;
+                            /** @enum {string} */
+                            status: "queued";
+                        };
+                    };
+                };
                 /** @description Every host failed collection */
                 502: {
                     headers: {
@@ -359,6 +373,89 @@ export type paths = {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/baselines/capture-jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Poll async baseline capture job status */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    jobId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Job state */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id?: string;
+                            /** @enum {string} */
+                            status?: "queued" | "running" | "succeeded" | "failed";
+                            captured?: Record<string, never>[];
+                            failed?: {
+                                hostId?: string;
+                                detail?: string;
+                            }[];
+                            error_detail?: string;
+                            /** Format: date-time */
+                            created_at?: string;
+                            /** Format: date-time */
+                            started_at?: string | null;
+                            /** Format: date-time */
+                            finished_at?: string | null;
+                        };
+                    };
+                };
+                /** @description Unauthenticated */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Job not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rate limit exceeded */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
