@@ -13,6 +13,7 @@ from app.agent.models import AgentInput
 from app.agent.remediation_agent import AgentError, RemediationAgent
 from app.agent.risk_policy import (
     apply_confidence_cap,
+    escalate_tier_for_commands,
     get_allowed_commands_for_policy,
 )
 from app.agent.tools import get_distribution_family
@@ -102,6 +103,31 @@ class PlanningService:
                 f"model={plan.model_name} "
                 f"duration_ms={duration_ms}"
             )
+
+            # Auto-escalate the tier when the agent proposed a command
+            # touching `sudo` / destructive `systemctl` / user-account
+            # mutations. The intent: even if (category, severity)
+            # resolved to SANDBOX_VERIFIABLE, an actual sudo command
+            # always requires explicit human approval.
+            command_strings = [
+                str(c.command) for c in plan.commands if getattr(c, "command", None)
+            ]
+            effective_tier, escalation_patterns = escalate_tier_for_commands(
+                tier, command_strings
+            )
+            if effective_tier != tier:
+                rec.append_audit(
+                    "tier_escalated: "
+                    f"{tier.value} -> {effective_tier.value} "
+                    f"due_to=[{','.join(escalation_patterns)}]"
+                )
+                rec.risk_policy_tier = effective_tier
+                tier = effective_tier
+                # Surface the override on the plan so the console can
+                # explain WHY this otherwise-sandboxable change needs
+                # an operator click.
+                setattr(plan, "tier_escalated_from_commands", True)
+                setattr(plan, "tier_escalation_patterns", list(escalation_patterns))
 
             # Move to awaiting_approval if guidance-only (no sandbox needed)
             if tier in (RiskPolicyTier.SAFE_GUIDANCE_ONLY, RiskPolicyTier.MANUAL_ONLY):

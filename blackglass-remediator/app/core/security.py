@@ -1,10 +1,15 @@
-"""Security utilities — webhook signature verification, API auth."""
+"""Security utilities — webhook signature verification, API auth, approval tokens."""
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
+import json
+import os
 import secrets
+import time
+from dataclasses import dataclass
 
 from fastapi import Header, HTTPException, Request, status
 
@@ -80,3 +85,153 @@ def sanitize_for_log(value: str, max_length: int = 200) -> str:
     """Truncate and strip control characters from strings before logging."""
     sanitized = "".join(c for c in value if c.isprintable() or c in "\n\t")
     return sanitized[:max_length] + ("…" if len(sanitized) > max_length else "")
+
+
+# ---------------------------------------------------------------------------
+# Approval Token verifier
+# ---------------------------------------------------------------------------
+#
+# Counterpart of src/lib/server/remediator/approval-token.ts in the
+# Console. The Console mints a short-lived HMAC-SHA256 token whenever
+# an operator clicks Approve / Reject, and the remediator verifies it
+# here BEFORE acting on the decision. This way, a leaked remediator
+# API key alone is insufficient to fabricate approvals — an attacker
+# would also need REMEDIATOR_APPROVAL_TOKEN_SECRET (which only the
+# Console deployment holds).
+#
+# Format: <payload_b64url>.<signature_b64url>
+#   payload   = base64url(JSON.stringify({rid, tid, dec, act, iat, exp}))
+#   signature = base64url(HMAC-SHA256(payload_b64url, secret))
+#
+# Enforcement is opt-in via REMEDIATOR_APPROVAL_TOKEN_SECRET — when the
+# env var is set the remediator REQUIRES a valid token; when unset it
+# falls back to legacy "trust the API key alone" mode for backwards
+# compat with existing deployments.
+
+
+@dataclass(frozen=True)
+class ApprovalTokenPayload:
+    rid: str  # recommendation id
+    tid: str  # tenant id
+    dec: str  # "approve" | "reject"
+    act: str  # actor id
+    iat: int  # issued-at, unix seconds
+    exp: int  # expiry, unix seconds
+
+
+def _approval_secret() -> str | None:
+    raw = os.environ.get("REMEDIATOR_APPROVAL_TOKEN_SECRET", "").strip()
+    if not raw:
+        return None
+    if len(raw) < 32:
+        # Mis-configuration — fail closed loudly so operators notice
+        # the typo / truncated copy-paste before it leaks into a
+        # production approval. The behavioural alternative (silently
+        # treating a too-short secret as "not configured") is worse.
+        raise RuntimeError(
+            "REMEDIATOR_APPROVAL_TOKEN_SECRET must be >=32 characters."
+        )
+    return raw
+
+
+def approval_token_enforcement_enabled() -> bool:
+    """True when the remediator REQUIRES signed approval tokens."""
+    return _approval_secret() is not None
+
+
+def _b64url_decode(s: str) -> bytes:
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+
+def verify_approval_token(
+    token: str,
+    *,
+    expected_recommendation_id: str,
+    expected_tenant_id: str,
+    expected_decision: str | None = None,
+) -> ApprovalTokenPayload:
+    """
+    Verify an approval token issued by the Console.
+
+    Raises HTTPException(401) on any failure WITHOUT revealing which
+    specific check failed in security-meaningful detail. Logs a
+    warning with the generic reason for ops debugging.
+    """
+    secret = _approval_secret()
+    if secret is None:
+        # Caller should check approval_token_enforcement_enabled()
+        # first — reaching here means we expected a token but the
+        # secret isn't configured.
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="approval_token_secret_not_configured",
+        )
+
+    if not isinstance(token, str) or "." not in token:
+        logger.warning("approval_token_rejected", reason="malformed")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+
+    payload_b64, _, sig_b64 = token.partition(".")
+    if not payload_b64 or not sig_b64:
+        logger.warning("approval_token_rejected", reason="malformed")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+
+    expected_sig = hmac.new(
+        secret.encode(), payload_b64.encode(), hashlib.sha256
+    ).digest()
+    try:
+        provided_sig = _b64url_decode(sig_b64)
+    except (ValueError, TypeError):
+        logger.warning("approval_token_rejected", reason="bad_signature_b64")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+
+    if len(provided_sig) != len(expected_sig) or not hmac.compare_digest(
+        provided_sig, expected_sig
+    ):
+        logger.warning("approval_token_rejected", reason="bad_signature")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+
+    try:
+        payload_raw = _b64url_decode(payload_b64).decode("utf-8")
+        payload_dict = json.loads(payload_raw)
+    except (ValueError, UnicodeDecodeError):
+        logger.warning("approval_token_rejected", reason="bad_payload")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+
+    try:
+        payload = ApprovalTokenPayload(
+            rid=str(payload_dict["rid"]),
+            tid=str(payload_dict["tid"]),
+            dec=str(payload_dict["dec"]),
+            act=str(payload_dict["act"]),
+            iat=int(payload_dict["iat"]),
+            exp=int(payload_dict["exp"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        logger.warning("approval_token_rejected", reason="bad_payload_shape")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+
+    now = int(time.time())
+    if payload.exp < now:
+        logger.warning("approval_token_rejected", reason="expired")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+    if payload.iat > now + 60:
+        logger.warning("approval_token_rejected", reason="iat_in_future")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+
+    if payload.dec not in ("approve", "reject"):
+        logger.warning("approval_token_rejected", reason="bad_decision")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+
+    if payload.rid != expected_recommendation_id:
+        logger.warning("approval_token_rejected", reason="recommendation_mismatch")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+    if payload.tid != expected_tenant_id:
+        logger.warning("approval_token_rejected", reason="tenant_mismatch")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+    if expected_decision and payload.dec != expected_decision:
+        logger.warning("approval_token_rejected", reason="decision_mismatch")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_approval_token")
+
+    return payload

@@ -1,6 +1,6 @@
 # Remediator safety model
 
-> Version: 1.0 · Last reviewed: 2026-05-07
+> Version: 1.1 · Last reviewed: 2026-05-08
 > Audience: security reviewers, buyers, on-call operators.
 
 This document is the **definitive statement** of how the BLACKGLASS Remediator
@@ -17,6 +17,102 @@ Read this before approving the remediator for use against any real fleet.
 > are blocked in code, not in the prompt.**
 
 If you only read one paragraph of this doc, that is it.
+
+---
+
+## End-to-end HITL flow
+
+```
+                ┌──────────────────────────────────────────────────────────┐
+                │ BLACKGLASS Console (Next.js)                             │
+                │                                                          │
+   drift event  │  scan-worker                                             │
+  ───────────►  │      │                                                   │
+                │      ▼                                                   │
+                │  drift_engine.ts                                         │
+                │      │                                                   │
+                │      ▼   POST /api/v1/remediations                       │
+                │  remediator HTTP client ─────────────┐                   │
+                └──────────────────────────────────────┼───────────────────┘
+                                                       │  HMAC webhook sig
+                                                       ▼
+                ┌──────────────────────────────────────────────────────────┐
+                │ Remediator (Python / FastAPI sidecar)                    │
+                │                                                          │
+                │  classify_policy_tier()  ◄── HARD-CODED (not in prompt)  │
+                │      │                                                   │
+                │      ▼                                                   │
+                │  RemediationAgent.plan()  ◄── LLM (Ollama, read-only)    │
+                │      │                                                   │
+                │      ▼                                                   │
+                │  apply_confidence_cap()  ◄── per-category ceiling        │
+                │      │                                                   │
+                │      ▼                                                   │
+                │  escalate_tier_for_commands()  ◄── sudo / sshd auto-up   │
+                │      │                                                   │
+                │      ▼                                                   │
+                │  is_command_forbidden()  ◄── DENY-LIST blocks plan       │
+                │      │                                                   │
+                │      ▼                                                   │
+                │  ┌── sandbox? ──┐                                        │
+                │  │   YES        │                                        │
+                │  ▼              │                                        │
+                │ ephemeral DO    │                                        │
+                │ droplet         │                                        │
+                │  │              │                                        │
+                │  ▼              ▼                                        │
+                │ verify pass ──► AWAITING_APPROVAL                        │
+                │                  │                                       │
+                └──────────────────┼───────────────────────────────────────┘
+                                   │  callback POST /api/v1/remediations
+                                   ▼
+                ┌──────────────────────────────────────────────────────────┐
+                │ BLACKGLASS Console — Drift detail UI                     │
+                │                                                          │
+                │  RemediationRecommendation.tsx                           │
+                │   ├─ confidence band (green/amber/red), capped badge     │
+                │   ├─ tier badge + "tier escalated from commands" hint    │
+                │   ├─ proposed commands (read-only)                       │
+                │   └─ Approve / Reject buttons                            │
+                │                                                          │
+                │      ▼ operator clicks Approve                           │
+                │                                                          │
+                │  POST /api/v1/remediations/{id}/approve                  │
+                │      │   1. requireSaasOrLegacyPermission(drift.manage)  │
+                │      │   2. setRemediationStatus(...) + audit            │
+                │      │   3. mint HMAC Approval Token                     │
+                │      ▼                                                   │
+                │  X-Blackglass-Approval-Token: <payload>.<sig>            │
+                └──────────────────┬───────────────────────────────────────┘
+                                   │  POST + HMAC webhook + Approval Token
+                                   ▼
+                ┌──────────────────────────────────────────────────────────┐
+                │ Remediator                                               │
+                │                                                          │
+                │  verify_approval_token(token,                            │
+                │      expected_recommendation_id, expected_tenant_id,     │
+                │      expected_decision="approve")                        │
+                │      │   401 on any mismatch (rid, tid, dec, exp, sig)   │
+                │      ▼                                                   │
+                │  ApprovalService.approve()                               │
+                │      │                                                   │
+                │      ▼                                                   │
+                │  audit row + status=APPROVED                             │
+                │                                                          │
+                │  ⚠  No further automated step. The console writes the    │
+                │     approval; an operator (or the customer's existing    │
+                │     change-management pipeline) is responsible for       │
+                │     actually executing the approved commands. The        │
+                │     remediator's promise is "AI reasons, humans          │
+                │     decide AND act."                                     │
+                └──────────────────────────────────────────────────────────┘
+```
+
+The two human gates (clicking Approve in the UI, then someone actually
+running the commands) plus the four code-enforced gates (tier
+classification, confidence cap, command escalation, forbidden-pattern
+denylist) plus the HMAC Approval Token are independently audit-able and
+can be reasoned about without reading any prompt text.
 
 ---
 
@@ -46,6 +142,22 @@ The decision tree (see `risk_policy.py::classify_policy_tier()`):
 5. **Low severity in sandboxable categories** is also sandbox-verified
    (the workflow then surfaces verified results to the operator).
 6. **Anything else** falls back to guidance only.
+
+### Auto-escalation when the agent proposes risky verbs
+
+The category-based tier is the *floor* — the actual commands the LLM
+proposed are inspected by `escalate_tier_for_commands()` in
+`risk_policy.py`. If any command contains `sudo `, `systemctl stop`,
+`systemctl disable`, `systemctl mask`, an SSH-service restart/reload,
+`usermod`, `passwd`, `groupmod`, or `visudo`, the tier is bumped from
+`sandbox_verifiable` to `approval_required`. The escalation is logged
+on the audit trail (`tier_escalated: sandbox_verifiable -> approval_required due_to=[sudo,...]`)
+and surfaced in the UI as an explanation for why an otherwise
+sandboxable change wants a human click.
+
+The point: "category" tells us how scary the *intent* is; the verb
+inspection tells us how scary the *implementation* is. Either signal
+can move the tier up; neither can move it down.
 
 ### Why blast radius is enforced in code
 
@@ -167,6 +279,66 @@ For **every** plan that reaches the console:
 
 ---
 
+## 5b. HMAC Approval Token (Console ↔ Remediator integrity)
+
+The Console and the Remediator are two independently-deployed
+services. The Remediator already verifies inbound webhooks with an
+`X-Blackglass-Signature` HMAC, but that protects only the *channel*,
+not the *intent* — a leaked Remediator API key could let an attacker
+fabricate "an operator approved plan X" without anybody clicking
+anything in the Console.
+
+To close that gap, the Console mints a short-lived HMAC-SHA256
+**Approval Token** every time an operator clicks Approve / Reject:
+
+```
+token   = <payload_b64url>.<signature_b64url>
+payload = JSON.stringify({
+  rid: <recommendation_id>,   // bound to one plan
+  tid: <tenant_id>,           // bound to one tenant
+  dec: "approve" | "reject",  // bound to a specific decision
+  act: <actor_user_id>,       // who clicked
+  iat: <unix_seconds>,
+  exp: <unix_seconds>         // default TTL = 5 minutes, max 1 hour
+})
+signature = HMAC-SHA256(payload_b64url, REMEDIATOR_APPROVAL_TOKEN_SECRET)
+```
+
+The token rides in the `X-Blackglass-Approval-Token` header on the
+forwarded webhook. The Remediator validates it via
+`app/core/security.py::verify_approval_token()` and rejects
+(HTTP 401) on any of:
+
+- bad signature, malformed payload, expired token
+- recommendation_id mismatch (token signed for a *different* plan)
+- tenant_id mismatch (token replayed across tenants)
+- decision mismatch (a `reject` token presented as an `approve`)
+
+Enforcement is opt-in via `REMEDIATOR_APPROVAL_TOKEN_SECRET` — when
+the env var is set on BOTH the Console and the Remediator, every
+approve/reject MUST carry a valid token; without the variable the
+Remediator falls back to legacy "trust the API key alone" mode for
+backwards compat.
+
+The format is deliberately NOT JWT — JWT's header/algorithm
+negotiation is the source of half the JWT CVEs. A two-field
+`payload.signature` with a fixed algorithm is simpler to audit.
+
+| Threat                                                          | Mitigation                                                                 |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Leaked Remediator API key                                       | Token is signed by Console secret; attacker also needs that secret.        |
+| Replay across tenants (token from tenant A used for tenant B)  | Token binds `tid`; verifier checks against the recommendation's tenant.    |
+| Replay across plans (token for plan X used for plan Y)          | Token binds `rid`; verifier checks against the URL's `recommendation_id`.  |
+| Decision flip (reject token presented as approve)               | Token binds `dec`; verifier checks against the route's expected decision.  |
+| Stale token used after revoked permission                       | TTL is 5 min by default. Set `ttlSeconds` lower for higher-risk tenants.   |
+
+See `src/lib/server/remediator/approval-token.ts` (Console minter) and
+`blackglass-remediator/app/core/security.py::verify_approval_token`
+(Remediator verifier). `tests/unit/approval-token.test.ts` exercises
+the full attack matrix.
+
+---
+
 ## 6. Audit trail (worked example)
 
 A real remediation flow generates this audit chain:
@@ -238,12 +410,17 @@ Buyers ask about each of these. The answer is "no, by design":
 
 | Concern                              | File                                                                |
 | ------------------------------------ | ------------------------------------------------------------------- |
-| Risk-tier classification             | `app/agent/risk_policy.py`                                          |
+| Risk-tier classification             | `app/agent/risk_policy.py::classify_policy_tier`                    |
+| Auto-escalation on dangerous verbs   | `app/agent/risk_policy.py::escalate_tier_for_commands`              |
+| Per-category confidence cap          | `app/agent/risk_policy.py::CATEGORY_CONFIDENCE_CAP`                 |
 | Forbidden-command registry           | `app/agent/risk_policy.py::FORBIDDEN_COMMAND_PATTERNS`              |
+| Strict-tiering fallback (env-flag)   | `app/agent/risk_policy.py::strict_tiering_enabled`                  |
 | Plan generation                      | `app/agent/planner.py`                                              |
 | Sandbox provisioning + teardown      | `app/sandbox/droplet.py`                                            |
 | Sandbox verification orchestration   | `app/sandbox/verifier.py`                                           |
 | Inbound webhook entry point          | `app/api/webhooks/blackglass.py`                                    |
+| Approval token verifier (Remediator) | `app/core/security.py::verify_approval_token`                       |
+| Approval token minter (Console)      | `src/lib/server/remediator/approval-token.ts`                       |
 | Outbound callback to BLACKGLASS      | `app/clients/blackglass.py`                                         |
 | Audit emit (BLACKGLASS side)         | `src/lib/server/audit-log.ts`                                       |
 | Approval UI                          | `src/app/(app)/drift/_components/RemediationRecommendation.tsx`     |

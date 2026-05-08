@@ -9,8 +9,11 @@ import pytest
 from app.agent.risk_policy import (
     apply_confidence_cap,
     classify_policy_tier,
+    command_requires_human_approval,
     confidence_cap_for_category,
+    escalate_tier_for_commands,
     is_command_forbidden,
+    plan_requires_human_approval,
     strict_tiering_enabled,
 )
 from app.domain.enums import DriftCategory, DriftSeverity, RiskPolicyTier
@@ -166,3 +169,96 @@ def test_confidence_cap_for_unknown_category_is_one() -> None:
     assert confidence_cap_for_category(DriftCategory.PACKAGES) == 1.0
     assert confidence_cap_for_category(DriftCategory.FIREWALL) == 1.0
     assert confidence_cap_for_category(DriftCategory.SYSTEMD) == 1.0
+
+
+# ---------------------------------------------------------------------------
+# Mandatory-approval pattern detection — sudo / destructive systemctl etc.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "command,should_require_approval",
+    [
+        # Sudo always escalates.
+        ("sudo apt-get install -y nginx", True),
+        ("sudo systemctl restart nginx", True),
+        # systemctl stop/disable/mask escalate.
+        ("systemctl stop firewalld", True),
+        ("systemctl disable telnet.socket", True),
+        ("systemctl mask cups", True),
+        # systemctl restart of SSH escalates (network-locking risk).
+        ("systemctl restart sshd", True),
+        ("systemctl restart ssh", True),
+        ("systemctl reload sshd", True),
+        ("service ssh restart", True),
+        # User/group mutations escalate.
+        ("usermod -aG sudo alice", True),
+        ("passwd alice", True),
+        ("visudo -f /etc/sudoers.d/foo", True),
+        # Read-only inspections do NOT escalate.
+        ("systemctl status nginx", False),
+        ("cat /etc/ssh/sshd_config", False),
+        ("apt list --installed", False),
+        ("ls -la /etc", False),
+        # Package installs without sudo do NOT escalate (sandbox-verifiable).
+        ("apt-get install -y nginx", False),
+    ],
+)
+def test_command_requires_human_approval(
+    command: str, should_require_approval: bool
+) -> None:
+    requires, _pattern = command_requires_human_approval(command)
+    assert requires == should_require_approval, command
+
+
+def test_plan_requires_human_approval_collects_patterns() -> None:
+    requires, patterns = plan_requires_human_approval(
+        [
+            "apt-get install -y nginx",  # no escalation
+            "sudo cp nginx.conf /etc/nginx/",  # sudo
+            "systemctl restart sshd",  # ssh restart
+        ]
+    )
+    assert requires is True
+    # Patterns are de-duplicated and sorted alphabetically.
+    assert "sudo" in " ".join(patterns)
+    assert any("ssh" in p for p in patterns)
+
+
+def test_escalate_tier_for_commands_promotes_sandbox_to_approval_required() -> None:
+    base = RiskPolicyTier.SANDBOX_VERIFIABLE
+    new_tier, patterns = escalate_tier_for_commands(
+        base, ["sudo apt-get install -y nginx"]
+    )
+    assert new_tier == RiskPolicyTier.APPROVAL_REQUIRED
+    assert any("sudo" in p for p in patterns)
+
+
+def test_escalate_tier_for_commands_leaves_already_strict_tiers_alone() -> None:
+    # APPROVAL_REQUIRED should pass through unchanged — already at the cap.
+    out_tier, _ = escalate_tier_for_commands(
+        RiskPolicyTier.APPROVAL_REQUIRED, ["sudo systemctl stop firewalld"]
+    )
+    assert out_tier == RiskPolicyTier.APPROVAL_REQUIRED
+    # MANUAL_ONLY same — escalation can't push past the cap.
+    out_tier2, _ = escalate_tier_for_commands(
+        RiskPolicyTier.MANUAL_ONLY, ["sudo whatever"]
+    )
+    assert out_tier2 == RiskPolicyTier.MANUAL_ONLY
+
+
+def test_escalate_tier_with_no_dangerous_commands_passes_through() -> None:
+    new_tier, patterns = escalate_tier_for_commands(
+        RiskPolicyTier.SANDBOX_VERIFIABLE,
+        ["apt-get install -y nginx", "systemctl status nginx"],
+    )
+    assert new_tier == RiskPolicyTier.SANDBOX_VERIFIABLE
+    assert patterns == []
+
+
+def test_escalate_tier_with_empty_command_list_passes_through() -> None:
+    new_tier, patterns = escalate_tier_for_commands(
+        RiskPolicyTier.SANDBOX_VERIFIABLE, []
+    )
+    assert new_tier == RiskPolicyTier.SANDBOX_VERIFIABLE
+    assert patterns == []

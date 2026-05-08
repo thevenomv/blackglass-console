@@ -220,6 +220,91 @@ def is_command_forbidden(command: str) -> tuple[bool, str | None]:
     return False, None
 
 
+# ---------------------------------------------------------------------------
+# Mandatory-approval pattern detection
+# ---------------------------------------------------------------------------
+#
+# Even when the category-based tier resolves to SANDBOX_VERIFIABLE, we
+# auto-escalate to APPROVAL_REQUIRED if any command in the plan touches
+# `sudo`, `systemctl stop`, `systemctl disable`, `systemctl mask`, or
+# `systemctl restart sshd|ssh`. These are the patterns where a wrong
+# call is significantly more destructive than the typical
+# package-install / chmod sandbox-verifiable case.
+#
+# This sits *alongside* `is_command_forbidden` (which BLOCKS commands
+# entirely) — the patterns here are commands we permit but escalate.
+
+MANDATORY_APPROVAL_PATTERNS: tuple[str, ...] = (
+    "sudo ",  # any sudo invocation
+    "systemctl stop ",
+    "systemctl disable ",
+    "systemctl mask ",
+    "systemctl restart ssh",  # captures both `ssh` and `sshd`
+    "systemctl restart sshd",
+    "systemctl reload ssh",
+    "systemctl reload sshd",
+    "service ssh ",
+    "service sshd ",
+    "passwd ",  # password modifications
+    "usermod ",  # user account modifications
+    "groupmod ",
+    "visudo ",
+)
+
+
+def command_requires_human_approval(command: str) -> tuple[bool, str | None]:
+    """
+    Returns (requires_approval, matched_pattern) for a single command.
+    Used by `plan_requires_human_approval` to compute the override.
+    """
+    cmd_lower = command.lower().strip()
+    for pattern in MANDATORY_APPROVAL_PATTERNS:
+        if pattern in cmd_lower:
+            return True, pattern
+    return False, None
+
+
+def plan_requires_human_approval(commands: list[str]) -> tuple[bool, list[str]]:
+    """
+    Returns (requires_approval, matched_patterns) for a full plan.
+
+    `matched_patterns` is the de-duplicated list of patterns that hit,
+    so the operator-facing audit message can list "sudo, systemctl stop"
+    rather than just "yes".
+    """
+    matched: set[str] = set()
+    for cmd in commands:
+        hit, pattern = command_requires_human_approval(cmd)
+        if hit and pattern is not None:
+            matched.add(pattern.strip())
+    return len(matched) > 0, sorted(matched)
+
+
+def escalate_tier_for_commands(
+    base_tier: RiskPolicyTier, commands: list[str]
+) -> tuple[RiskPolicyTier, list[str]]:
+    """
+    Compute the effective tier given the base (category+severity)
+    classification AND the commands the agent actually proposed.
+
+    The tier never moves DOWN — only up to APPROVAL_REQUIRED. So a
+    category that already resolved to APPROVAL_REQUIRED or MANUAL_ONLY
+    is returned unchanged. SAFE_GUIDANCE_ONLY also passes through —
+    no commands == nothing to escalate.
+
+    Returns (effective_tier, matched_patterns).
+    """
+    requires_approval, patterns = plan_requires_human_approval(commands)
+    if not requires_approval:
+        return base_tier, []
+    # Only SANDBOX_VERIFIABLE escalates upward — the others are either
+    # already at or above APPROVAL_REQUIRED, or are SAFE_GUIDANCE_ONLY
+    # (which by definition has no executable commands).
+    if base_tier == RiskPolicyTier.SANDBOX_VERIFIABLE:
+        return RiskPolicyTier.APPROVAL_REQUIRED, patterns
+    return base_tier, patterns
+
+
 def get_allowed_commands_for_policy(tier: RiskPolicyTier) -> list[str]:
     """Return guidance on which command types are allowed for this tier."""
     base = [
