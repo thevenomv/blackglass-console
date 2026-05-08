@@ -64,6 +64,39 @@ services:
         value: ""
         scope: RUN_TIME
         type: SECRET
+      # --- Push-ingest agent (alternative to SSH pull collector)
+      # When BLACKGLASS runs on DO App Platform, its egress traffic to
+      # other user-owned Droplets is silently blackholed by the DO network
+      # fabric — meaning the SSH pull collector cannot reach those hosts
+      # even when their firewall, sshd, and routing are healthy. The push
+      # agent (scripts/blackglass-agent.sh) inverts the flow: the host
+      # POSTs to /api/v1/ingest/agent over plain HTTPS through DO's load
+      # balancer, which works regardless of the egress restriction.
+      #
+      # Auth model:
+      #  - INGEST_API_KEY     — shared bearer secret (any agent may use it).
+      #  - INGEST_HOST_KEYS_JSON — JSON map {"hostId":"per-host-secret"}
+      #    PREFERRED — compromise of one host's key does not affect others.
+      #
+      # Set both as SECRET in the DO console after applying this spec.
+      - key: INGEST_API_KEY
+        value: ""
+        scope: RUN_TIME
+        type: SECRET
+      - key: INGEST_HOST_KEYS_JSON
+        value: ""
+        scope: RUN_TIME
+        type: SECRET
+      # Optional: override the hostId the lab-health probe checks for
+      # agent freshness. Defaults to "host-<COLLECTOR_HOST_1-with-dashes>".
+      - key: LAB_AGENT_HOST_ID
+        value: ""
+        scope: RUN_TIME
+      # Optional: how recent an agent ingest must be to count as "lab is
+      # healthy". Defaults to 900 (15 min — covers 3 missed 5-min runs).
+      - key: LAB_AGENT_FRESH_WINDOW_SECONDS
+        value: ""
+        scope: RUN_TIME
       # --- SSH Collector (optional — set to enable real telemetry collection)
       # COLLECTOR_HOST_1: IP or hostname of the target server (e.g. 165.227.229.48)
       - key: COLLECTOR_HOST_1

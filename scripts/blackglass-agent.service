@@ -1,0 +1,25 @@
+[Unit]
+Description=BLACKGLASS push-ingest agent (one-shot collection + POST to /api/v1/ingest/agent)
+Documentation=https://blackglasssec.com/docs/push-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/blackglass-agent.env
+ExecStart=/usr/local/bin/blackglass-agent.sh
+
+# Hardening — agent only needs to read system config + execute curl.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadOnlyPaths=/etc /usr /var
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM

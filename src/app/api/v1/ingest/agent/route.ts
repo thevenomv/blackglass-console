@@ -1,162 +1,207 @@
 /**
- * GET /api/v1/ingest/agent
+ * POST /api/v1/ingest/agent
  *
- * Serves the blackglass-agent.sh push-ingest script as a file download.
- * The script mirrors the SSH collector's BUNDLE_CMD checks and pushes the
- * collected JSON payload to POST /api/v1/ingest.
+ * Push-agent ingestion for hosts that BLACKGLASS cannot reach over SSH
+ * (DO App Platform → Droplet egress, air-gapped customers, hosts behind
+ * NAT/Tailscale, etc).
  *
- * Security:
- *   - Requires operator or admin role (legacy) or SaaS operator permission.
- *   - Script is embedded as a constant string — no filesystem reads at request time.
+ * Wire shape (this route):
+ *
+ *   { hostId, hostname, collectedAt, bundle }
+ *
+ * `bundle` is the raw stdout of the same `BUNDLE_CMD` script the SSH
+ * collector runs (sections separated by `=BGS:<key>` lines). The server
+ * runs the existing collector parsers on it so the resulting
+ * HostSnapshot is byte-identical to a snapshot collected via SSH —
+ * meaning every dashboard, drift engine, and evidence bundle works
+ * unchanged. No second code path to maintain.
+ *
+ * Auth: same Bearer model as the structured /api/v1/ingest:
+ *   - INGEST_API_KEY (shared)
+ *   - INGEST_HOST_KEYS_JSON {"hostId": "secret"} (per-host preferred)
+ *
+ * Tenant gating: if INGEST_SAAS_TENANT_ID is set, refuses the request
+ * when accepting it would breach the tenant's host allowance.
  */
 
-import { requireRole } from "@/lib/server/http/auth-guard";
-import { requireSaasOperationalMutation } from "@/lib/server/http/saas-access";
-import { canGenerateReportsForTenant } from "@/lib/saas/operations";
-import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
-import { jsonError } from "@/lib/server/http/json-error";
+import { z } from "zod";
+import {
+  parseAuthorizedKeys,
+  parseCron,
+  parseFileHashes,
+  parseFirewall,
+  parseHostsEntries,
+  parseInstalledPackages,
+  parseKernelModules,
+  parseListeners,
+  parseServices,
+  parseSshConfig,
+  parseSuidBinaries,
+  parseSudoers,
+  parseSudoersFiles,
+  parseSystemdUnitFiles,
+  parseUserCrontabs,
+  parseUsers,
+} from "@/lib/server/collector/parsers";
+import type { HostSnapshot } from "@/lib/server/collector";
+import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
+import { saveBaseline, listBaselineHostIds } from "@/lib/server/baseline-store";
+import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
+import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
+import { checkIngestRate } from "@/lib/server/rate-limit";
+import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
+import { withinHostAllowance } from "@/lib/saas/operations";
+import { getSubscriptionForTenant } from "@/lib/saas/tenant-service";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
+import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
+import { parseHostIngestKeys } from "@/lib/server/ingest-credentials";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-// The agent script — source of truth is scripts/blackglass-agent.sh.
-// Kept inline so the route works inside the Next.js runtime without fs access.
-const AGENT_SCRIPT = `#!/usr/bin/env bash
-# blackglass-agent.sh — BLACKGLASS push-ingest agent
-#
-# Collects security telemetry and pushes it to your BLACKGLASS instance.
-#
-# REQUIRED environment variables:
-#   BLACKGLASS_INGEST_URL   — e.g. https://blackglasssec.com/api/v1/ingest
-#   BLACKGLASS_API_KEY      — Bearer secret (INGEST_API_KEY on the server)
-#
-# OPTIONAL environment variables:
-#   BLACKGLASS_HOST_ID      — overrides auto-detected hostname
-#   BLACKGLASS_DRY_RUN      — set to "1" to print payload without sending
-#
-# Quick install:
-#   curl -sSL https://blackglasssec.com/api/v1/ingest/agent | sudo bash
-#
-# Install as hourly cron (root):
-#   echo "0 * * * * root BLACKGLASS_INGEST_URL=... BLACKGLASS_API_KEY=... /usr/local/bin/blackglass-agent.sh" \\
-#     | sudo tee /etc/cron.d/blackglass-agent
+/** Hard cap on raw bundle size — well above what `BUNDLE_CMD` produces on a busy host. */
+const MAX_BUNDLE_BYTES = 1_500_000;
 
-set -euo pipefail
+const AgentBundlePayloadSchema = z.object({
+  hostId: ResourceIdPathSchema,
+  hostname: z.string().min(1).max(253),
+  collectedAt: z.string().datetime(),
+  bundle: z.string().min(1).max(MAX_BUNDLE_BYTES),
+});
 
-: "\${BLACKGLASS_INGEST_URL:?BLACKGLASS_INGEST_URL must be set}"
-: "\${BLACKGLASS_API_KEY:?BLACKGLASS_API_KEY must be set}"
+const BUNDLE_SEP = "=BGS:" as const;
 
-BLACKGLASS_HOST_ID="\${BLACKGLASS_HOST_ID:-\$(hostname -f 2>/dev/null || hostname)}"
-BLACKGLASS_DRY_RUN="\${BLACKGLASS_DRY_RUN:-0}"
-
-collect_ss()         { ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || echo ""; }
-collect_passwd()     { awk -F: '$3>=1000 && $3<65534 {print $1 ":" $3}' /etc/passwd 2>/dev/null || echo ""; }
-collect_sudo()       { { getent group sudo 2>/dev/null || getent group wheel 2>/dev/null; } || echo ""; }
-collect_sudofiles()  { sudo ls /etc/sudoers.d/ 2>/dev/null || echo ""; }
-collect_cron()       { ls /etc/cron.d/ 2>/dev/null || echo ""; }
-collect_svc()        { timeout 10 systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null || echo ""; }
-collect_sshd()       { sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication|permitemptypasswords|x11forwarding|allowtcpforwarding|allowagentforwarding|maxauthtries|port )' || echo ""; }
-collect_ufw()        { sudo ufw status verbose 2>/dev/null || echo ""; }
-collect_authkeys()   { awk -F: '$7~/bash|sh$/{print $1 ":" $6}' /etc/passwd | while IFS=: read u h; do f="\$h/.ssh/authorized_keys"; [ -f "\$f" ] && awk -v u="\$u" '/^[^#]/{print u ":" $0}' "\$f"; done 2>/dev/null || echo ""; }
-collect_filehashes() { md5sum /etc/passwd /etc/shadow /etc/sudoers /etc/ssh/sshd_config /etc/hosts 2>/dev/null || echo ""; }
-collect_hosts()      { cat /etc/hosts 2>/dev/null || echo ""; }
-collect_lsmod()      { lsmod 2>/dev/null | awk 'NR>1{print $1}' | sort || echo ""; }
-collect_suid()       { timeout 20 find /usr /bin /sbin /tmp /var/tmp -perm /6000 -type f 2>/dev/null | sort || echo ""; }
-collect_usercron()   { ls /var/spool/cron/crontabs/ 2>/dev/null || echo ""; }
-
-json_str() {
-  local val
-  val=\$(printf '%s' "\$1" \\
-    | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g; s/'"$(printf '\\t')"'/\\\\t/g' \\
-    | awk '{printf "%s\\\\n", $0}')
-  printf '"%s"' "\${val%\\\\n}"
+/** Mirror of parseBundleOutput in src/lib/server/collector/ssh.ts (kept private there). */
+function parseBundleOutput(raw: string): Record<string, string> {
+  const sections: Record<string, string> = {};
+  const lines = raw.split("\n");
+  let key: string | null = null;
+  const buf: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith(BUNDLE_SEP)) {
+      if (key !== null) sections[key] = buf.join("\n").trimEnd();
+      key = line.slice(BUNDLE_SEP.length).trimEnd();
+      buf.length = 0;
+    } else if (key !== null) {
+      buf.push(line);
+    }
+  }
+  if (key !== null) sections[key] = buf.join("\n").trimEnd();
+  return sections;
 }
 
-TIMESTAMP=\$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-SS=\$(collect_ss)
-PASSWD=\$(collect_passwd)
-SUDO=\$(collect_sudo)
-SUDOFILES=\$(collect_sudofiles)
-CRON=\$(collect_cron)
-SVC=\$(collect_svc)
-SSHD=\$(collect_sshd)
-UFW=\$(collect_ufw)
-AUTHKEYS=\$(collect_authkeys)
-FILEHASHES=\$(collect_filehashes)
-HOSTS_FILE=\$(collect_hosts)
-LSMOD=\$(collect_lsmod)
-SUID=\$(collect_suid)
-USERCRON=\$(collect_usercron)
-
-PAYLOAD=\$(cat <<EOF
-{
-  "hostId": \$(json_str "\$BLACKGLASS_HOST_ID"),
-  "hostname": \$(json_str "\$BLACKGLASS_HOST_ID"),
-  "collectedAt": "\$TIMESTAMP",
-  "data": {
-    "ss": \$(json_str "\$SS"),
-    "passwd": \$(json_str "\$PASSWD"),
-    "sudo": \$(json_str "\$SUDO"),
-    "sudofiles": \$(json_str "\$SUDOFILES"),
-    "cron": \$(json_str "\$CRON"),
-    "svc": \$(json_str "\$SVC"),
-    "sshd": \$(json_str "\$SSHD"),
-    "ufw": \$(json_str "\$UFW"),
-    "authkeys": \$(json_str "\$AUTHKEYS"),
-    "filehashes": \$(json_str "\$FILEHASHES"),
-    "hosts": \$(json_str "\$HOSTS_FILE"),
-    "lsmod": \$(json_str "\$LSMOD"),
-    "suid": \$(json_str "\$SUID"),
-    "usercron": \$(json_str "\$USERCRON")
-  }
-}
-EOF
-)
-
-if [ "\$BLACKGLASS_DRY_RUN" = "1" ]; then
-  echo "[blackglass-agent] DRY RUN — payload:"
-  echo "\$PAYLOAD"
-  exit 0
-fi
-
-HTTP_STATUS=\$(curl -sSf \\
-  -X POST \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer \$BLACKGLASS_API_KEY" \\
-  --max-time 30 \\
-  -o /tmp/bgs-ingest-response.json \\
-  -w "%{http_code}" \\
-  "\$BLACKGLASS_INGEST_URL" \\
-  --data-raw "\$PAYLOAD") || true
-
-if [ "\$HTTP_STATUS" = "200" ] || [ "\$HTTP_STATUS" = "201" ]; then
-  echo "[blackglass-agent] ingest OK (HTTP \$HTTP_STATUS)"
-else
-  echo "[blackglass-agent] ingest FAILED (HTTP \$HTTP_STATUS)" >&2
-  cat /tmp/bgs-ingest-response.json >&2
-  exit 1
-fi
-`;
-
-export async function GET(request: Request) {
-  // Auth gate — operator or admin only
-  if (isClerkAuthEnabled()) {
-    const m = await requireSaasOperationalMutation("drift.manage", canGenerateReportsForTenant);
-    if (!m.ok) return m.response;
-  } else {
-    const guard = await requireRole(["operator", "admin"]);
-    if (!guard.ok) return guard.response;
+export async function POST(request: Request) {
+  const requestId = getOrCreateRequestId(request);
+  const apiKey = process.env.INGEST_API_KEY?.trim();
+  const hostKeyMap = parseHostIngestKeys();
+  if (!apiKey && Object.keys(hostKeyMap).length === 0) {
+    console.warn("[ingest/agent] INGEST_API_KEY / INGEST_HOST_KEYS_JSON not configured");
+    return jsonError(503, "not_configured", "Push ingestion is not configured on this instance", requestId);
   }
 
-  void request; // no body needed
+  const raw = await readJsonBodyOptional(request, requestId);
+  if (!raw.ok) return raw.response;
 
-  return new Response(AGENT_SCRIPT, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/x-shellscript; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="blackglass-agent.sh"',
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store",
-    },
+  const parsed = AgentBundlePayloadSchema.safeParse(raw.data);
+  if (!parsed.success) return zodErrorResponse(parsed.error, requestId);
+
+  const { hostId, hostname, collectedAt, bundle } = parsed.data;
+
+  const authHeader = request.headers.get("authorization") ?? "";
+  const providedKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+
+  const { timingSafeEqual } = await import("node:crypto");
+  const enc = (s: string) => Buffer.from(s, "utf8");
+  const matchKey = (expected: string) =>
+    providedKey.length === expected.length && timingSafeEqual(enc(providedKey), enc(expected));
+
+  const perHost = hostKeyMap[hostId];
+  let authed = false;
+  if (perHost) {
+    authed = matchKey(perHost);
+  } else if (apiKey) {
+    authed = matchKey(apiKey);
+  }
+
+  if (!authed) {
+    return jsonError(401, "unauthorized", "Invalid or missing Bearer token", requestId);
+  }
+
+  const ingestTenantId = process.env.INGEST_SAAS_TENANT_ID?.trim();
+  if (ingestTenantId) {
+    const { tryGetDb } = await import("@/db");
+    if (!tryGetDb()) {
+      return jsonError(503, "database_unavailable", "Tenant-scoped ingest requires DATABASE_URL", requestId);
+    }
+    const sub = await getSubscriptionForTenant(ingestTenantId);
+    if (!sub) {
+      return jsonError(403, "ingest_scope_invalid", "INGEST_SAAS_TENANT_ID does not match a tenant", requestId);
+    }
+    const baselineIds = await listBaselineHostIds();
+    const known = new Set(baselineIds);
+    const isNewHost = !known.has(hostId);
+    const gate = withinHostAllowance(sub, known.size, isNewHost ? 1 : 0);
+    if (!gate.ok) {
+      return jsonError(403, gate.code, gate.detail, requestId);
+    }
+  }
+
+  if (!(await checkIngestRate(hostId))) {
+    return jsonError(429, "rate_limited", `Ingest rate limit exceeded for host ${hostId}`, requestId);
+  }
+
+  const sections = parseBundleOutput(bundle);
+  const snapshot: HostSnapshot = {
+    hostId,
+    hostname,
+    collectedAt,
+    listeners: [
+      ...parseListeners(sections["ss"] ?? "", "tcp"),
+      ...parseListeners(sections["ssudp"] ?? "", "udp"),
+    ],
+    users: parseUsers(sections["passwd"] ?? ""),
+    sudoers: parseSudoers(sections["sudo"] ?? ""),
+    sudoersFiles: parseSudoersFiles(sections["sudofiles"] ?? ""),
+    cronEntries: parseCron(sections["cron"] ?? ""),
+    userCrontabs: parseUserCrontabs(sections["usercron"] ?? ""),
+    services: parseServices(sections["svc"] ?? ""),
+    ssh: parseSshConfig(sections["sshd"] ?? ""),
+    firewall: parseFirewall(sections["ufw"] ?? ""),
+    authorizedKeys: parseAuthorizedKeys(sections["authkeys"] ?? ""),
+    fileHashes: parseFileHashes(sections["filehashes"] ?? ""),
+    hostsEntries: parseHostsEntries(sections["hosts"] ?? ""),
+    kernelModules: parseKernelModules(sections["lsmod"] ?? ""),
+    suidBinaries: parseSuidBinaries(sections["suid"] ?? ""),
+    installedPackages: parseInstalledPackages(sections["pkgs"] ?? ""),
+    systemdUnitFiles: parseSystemdUnitFiles(sections["systemdunits"] ?? ""),
+  };
+
+  try {
+    await saveBaseline(snapshot);
+  } catch (err) {
+    console.error("[ingest/agent] saveBaseline failed for", hostId, err);
+    return jsonError(502, "store_error", "Snapshot could not be persisted. Check server logs.", requestId);
+  }
+
+  appendAudit({
+    action: AUDIT_ACTIONS.BASELINE_CAPTURE,
+    detail: `Push-agent (raw bundle) ingest — host=${hostId} hostname=${hostname} sections=${Object.keys(sections).length}`,
+    actor: hostId,
+    request_id: requestId,
   });
+
+  revalidateIntegritySurfaces();
+
+  return jsonWithRequestId(
+    {
+      ok: true,
+      hostId,
+      capturedAt: collectedAt,
+      sections: Object.keys(sections).length,
+      listeners: snapshot.listeners.length,
+      users: snapshot.users.length,
+      services: snapshot.services.length,
+    },
+    requestId,
+  );
 }

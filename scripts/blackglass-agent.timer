@@ -1,0 +1,17 @@
+[Unit]
+Description=Run BLACKGLASS push-ingest agent every 5 minutes
+Documentation=https://blackglasssec.com/docs/push-agent
+
+[Timer]
+# Run 30s after boot to avoid racing cloud-init, then every 5 minutes.
+# 5 minutes is the same cadence the App Platform pull-mode scanner used
+# (COLLECTOR_INTERVAL_MS default), so dashboards stay equally fresh.
+OnBootSec=30s
+OnUnitActiveSec=5min
+AccuracySec=15s
+RandomizedDelaySec=15s
+Persistent=true
+Unit=blackglass-agent.service
+
+[Install]
+WantedBy=timers.target

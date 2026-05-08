@@ -1,135 +1,192 @@
 #!/usr/bin/env bash
-# blackglass-agent.sh — BLACKGLASS push-ingest agent
+# blackglass-agent.sh — BLACKGLASS push-ingest agent (raw bundle mode)
 #
-# Collects the same security telemetry as the BLACKGLASS SSH collector and
-# pushes it to your BLACKGLASS instance via the /api/v1/ingest endpoint.
+# Runs the SAME 14-section collection script that the BLACKGLASS server-side SSH
+# collector runs over `ssh exec`, captures stdout, and POSTs it to
+# /api/v1/ingest/agent. The server runs the exact same parsers it would have
+# run on SSH-collected output, so the resulting HostSnapshot is byte-identical
+# — meaning every dashboard, drift engine, and evidence bundle works unchanged.
 #
-# REQUIRED environment variables:
-#   BLACKGLASS_INGEST_URL   — full URL, e.g. https://blackglasssec.com/api/v1/ingest
-#   BLACKGLASS_API_KEY      — shared Bearer secret (INGEST_API_KEY on the server)
+# Why push? DigitalOcean's App Platform silently blackholes egress to other
+# user-owned Droplets (both public + private VPC), so the SSH/pull model is not
+# viable for App-Platform-hosted BLACKGLASS instances scanning DO Droplets.
 #
-# OPTIONAL environment variables:
-#   BLACKGLASS_HOST_ID      — overrides auto-detected hostname as the host identifier
-#   BLACKGLASS_DRY_RUN      — set to "1" to print payload without sending
+# REQUIRED env (typically loaded from /etc/blackglass-agent.env):
+#   BLACKGLASS_INGEST_URL   — full URL, e.g. https://blackglasssec.com/api/v1/ingest/agent
+#   BLACKGLASS_API_KEY      — Bearer secret matching INGEST_API_KEY (or the per-host secret in INGEST_HOST_KEYS_JSON)
 #
-# Usage:
-#   curl -sSL https://blackglasssec.com/api/v1/ingest/agent | sudo bash
-#   # OR download and run:
-#   sudo bash blackglass-agent.sh
+# OPTIONAL env:
+#   BLACKGLASS_HOST_ID      — overrides the auto-derived hostId (default: "host-<ip-with-dashes>" or "host-<hostname>")
+#   BLACKGLASS_HOSTNAME     — overrides the displayed hostname (default: `hostname -f`)
+#   BLACKGLASS_DRY_RUN      — "1" to print payload + exit without sending
+#   BLACKGLASS_DEBUG        — "1" to print verbose timing + curl info
 #
-# Install as cron (every hour, root):
-#   echo "0 * * * * root BLACKGLASS_INGEST_URL=... BLACKGLASS_API_KEY=... /usr/local/bin/blackglass-agent.sh" \
-#     | sudo tee /etc/cron.d/blackglass-agent
+# One-shot install (typical):
+#   sudo curl -sSL https://raw.githubusercontent.com/<org>/<repo>/main/scripts/blackglass-agent.sh \
+#       -o /usr/local/bin/blackglass-agent.sh
+#   sudo chmod +x /usr/local/bin/blackglass-agent.sh
+#   sudo install -m 0600 /dev/stdin /etc/blackglass-agent.env <<EOF
+#   BLACKGLASS_INGEST_URL=https://blackglasssec.com/api/v1/ingest/agent
+#   BLACKGLASS_API_KEY=...
+#   BLACKGLASS_HOST_ID=host-<your-id>
+#   EOF
+#   # see scripts/blackglass-agent.service / .timer for the systemd units
 
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# Validate prerequisites
-# ---------------------------------------------------------------------------
 : "${BLACKGLASS_INGEST_URL:?BLACKGLASS_INGEST_URL must be set}"
 : "${BLACKGLASS_API_KEY:?BLACKGLASS_API_KEY must be set}"
 
-BLACKGLASS_HOST_ID="${BLACKGLASS_HOST_ID:-$(hostname -f 2>/dev/null || hostname)}"
+# Default hostId follows the same shape the SSH collector synthesises:
+# host-<ip-with-dots-as-dashes>. Falls back to hostname-derived id when no
+# default route is configured.
+default_host_id() {
+  local ip
+  ip=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -n1)
+  if [ -n "$ip" ]; then
+    printf 'host-%s' "${ip//./-}"
+  else
+    printf 'host-%s' "$(hostname | tr '.' '-')"
+  fi
+}
+
+BLACKGLASS_HOST_ID="${BLACKGLASS_HOST_ID:-$(default_host_id)}"
+BLACKGLASS_HOSTNAME="${BLACKGLASS_HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}"
 BLACKGLASS_DRY_RUN="${BLACKGLASS_DRY_RUN:-0}"
+BLACKGLASS_DEBUG="${BLACKGLASS_DEBUG:-0}"
+
+log() { printf '[blackglass-agent] %s\n' "$*"; }
+dbg() { [ "$BLACKGLASS_DEBUG" = "1" ] && printf '[blackglass-agent][debug] %s\n' "$*"; return 0; }
 
 # ---------------------------------------------------------------------------
-# Collect checks (mirrors BUNDLE_CMD in src/lib/server/collector/ssh.ts)
+# BUNDLE_CMD — IDENTICAL to BUNDLE_CMD in src/lib/server/collector/ssh.ts.
+# Keep both copies in sync; the server parser splits on `=BGS:<key>` lines.
 # ---------------------------------------------------------------------------
-
-collect_ss()         { ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || echo ""; }
-collect_passwd()     { awk -F: '$3>=1000 && $3<65534 {print $1 ":" $3}' /etc/passwd 2>/dev/null || echo ""; }
-collect_sudo()       { { getent group sudo 2>/dev/null || getent group wheel 2>/dev/null; } || echo ""; }
-collect_sudofiles()  { sudo ls /etc/sudoers.d/ 2>/dev/null || echo ""; }
-collect_cron()       { ls /etc/cron.d/ 2>/dev/null || echo ""; }
-collect_svc()        { timeout 10 systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null || echo ""; }
-collect_sshd()       { sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication|permitemptypasswords|x11forwarding|allowtcpforwarding|allowagentforwarding|maxauthtries|port )' || echo ""; }
-collect_ufw()        { sudo ufw status verbose 2>/dev/null || echo ""; }
-collect_authkeys()   { awk -F: '$7~/bash|sh$/{print $1 ":" $6}' /etc/passwd | while IFS=: read u h; do f="$h/.ssh/authorized_keys"; [ -f "$f" ] && awk -v u="$u" '/^[^#]/{print u ":" $0}' "$f"; done 2>/dev/null || echo ""; }
-collect_filehashes() { md5sum /etc/passwd /etc/shadow /etc/sudoers /etc/ssh/sshd_config /etc/hosts 2>/dev/null || echo ""; }
-collect_hosts()      { cat /etc/hosts 2>/dev/null || echo ""; }
-collect_lsmod()      { lsmod 2>/dev/null | awk 'NR>1{print $1}' | sort || echo ""; }
-collect_suid()       { timeout 20 find /usr /bin /sbin /tmp /var/tmp -perm /6000 -type f 2>/dev/null | sort || echo ""; }
-collect_usercron()   { ls /var/spool/cron/crontabs/ 2>/dev/null || echo ""; }
-
-# ---------------------------------------------------------------------------
-# JSON-encode a multiline string (escape backslash, quote, newline, tab, CR)
-# ---------------------------------------------------------------------------
-json_str() {
-  local val
-  val=$(printf '%s' "$1" \
-    | sed 's/\\/\\\\/g; s/"/\\"/g; s/'"$(printf '\t')"'/\\t/g' \
-    | awk '{printf "%s\\n", $0}')
-  printf '"%s"' "${val%\\n}"
-}
-
-# ---------------------------------------------------------------------------
-# Build JSON payload (matches IngestPayloadSchema)
-# ---------------------------------------------------------------------------
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-SS=$(collect_ss)
-PASSWD=$(collect_passwd)
-SUDO=$(collect_sudo)
-SUDOFILES=$(collect_sudofiles)
-CRON=$(collect_cron)
-SVC=$(collect_svc)
-SSHD=$(collect_sshd)
-UFW=$(collect_ufw)
-AUTHKEYS=$(collect_authkeys)
-FILEHASHES=$(collect_filehashes)
-HOSTS_FILE=$(collect_hosts)
-LSMOD=$(collect_lsmod)
-SUID=$(collect_suid)
-USERCRON=$(collect_usercron)
-
-PAYLOAD=$(cat <<EOF
-{
-  "hostId": $(json_str "$BLACKGLASS_HOST_ID"),
-  "hostname": $(json_str "$BLACKGLASS_HOST_ID"),
-  "collectedAt": "$TIMESTAMP",
-  "data": {
-    "ss": $(json_str "$SS"),
-    "passwd": $(json_str "$PASSWD"),
-    "sudo": $(json_str "$SUDO"),
-    "sudofiles": $(json_str "$SUDOFILES"),
-    "cron": $(json_str "$CRON"),
-    "svc": $(json_str "$SVC"),
-    "sshd": $(json_str "$SSHD"),
-    "ufw": $(json_str "$UFW"),
-    "authkeys": $(json_str "$AUTHKEYS"),
-    "filehashes": $(json_str "$FILEHASHES"),
-    "hosts": $(json_str "$HOSTS_FILE"),
-    "lsmod": $(json_str "$LSMOD"),
-    "suid": $(json_str "$SUID"),
-    "usercron": $(json_str "$USERCRON")
-  }
-}
-EOF
+BUNDLE_CMD=$(cat <<'BGSCMD'
+echo '=BGS:ss'
+ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null
+echo '=BGS:ssudp'
+ss -ulnp 2>/dev/null || netstat -ulnp 2>/dev/null
+echo '=BGS:passwd'
+awk -F: '$3>=1000 && $3<65534 {print $1 ":" $3}' /etc/passwd 2>/dev/null
+echo '=BGS:sudo'
+getent group sudo 2>/dev/null || getent group wheel 2>/dev/null
+echo '=BGS:sudofiles'
+sudo ls /etc/sudoers.d/ 2>/dev/null
+echo '=BGS:cron'
+ls /etc/cron.d/ 2>/dev/null
+echo '=BGS:svc'
+timeout 10 systemctl list-units --type=service --state=running --no-pager --plain 2>/dev/null
+echo '=BGS:sshd'
+sudo /usr/sbin/sshd -T 2>/dev/null | grep -iE '^(permitrootlogin|passwordauthentication|permitemptypasswords|x11forwarding|allowtcpforwarding|allowagentforwarding|maxauthtries|port )'
+echo '=BGS:ufw'
+sudo ufw status verbose 2>/dev/null
+echo '=BGS:authkeys'
+awk -F: '$7~/bash|sh$/{print $1 ":" $6}' /etc/passwd | while IFS=: read u h; do f="$h/.ssh/authorized_keys"; [ -f "$f" ] && awk -v u="$u" '/^[^#]/{print u ":" $0}' "$f"; done 2>/dev/null
+echo '=BGS:filehashes'
+md5sum /etc/passwd /etc/shadow /etc/sudoers /etc/ssh/sshd_config /etc/hosts 2>/dev/null
+echo '=BGS:hosts'
+cat /etc/hosts 2>/dev/null
+echo '=BGS:lsmod'
+lsmod 2>/dev/null | awk 'NR>1{print $1}' | sort
+echo '=BGS:suid'
+timeout 20 find /usr /bin /sbin /tmp /var/tmp -perm /6000 -type f 2>/dev/null | sort
+echo '=BGS:usercron'
+ls /var/spool/cron/crontabs/ 2>/dev/null
+echo '=BGS:pkgs'
+if command -v dpkg-query >/dev/null 2>&1; then dpkg -l 2>/dev/null | tail -n +6; elif command -v rpm >/dev/null 2>&1; then rpm -qa --qf '%{NAME}|%{VERSION}-%{RELEASE}\n' 2>/dev/null; fi
+echo '=BGS:systemdunits'
+find /etc/systemd/system -maxdepth 3 \( -type f -o -type l \) \( -name '*.service' -o -name '*.timer' -o -name '*.socket' -o -name '*.path' -o -name '*.mount' \) 2>/dev/null | sort
+BGSCMD
 )
 
 # ---------------------------------------------------------------------------
-# Send or dry-run
+# Collect bundle (60s hard ceiling, mirroring BUNDLE_EXEC_TIMEOUT_MS)
 # ---------------------------------------------------------------------------
+TS_START=$(date +%s)
+BUNDLE_FILE=$(mktemp -t bgs-bundle.XXXXXX)
+trap 'rm -f "$BUNDLE_FILE" "$PAYLOAD_FILE" "$RESPONSE_FILE" 2>/dev/null || true' EXIT
+
+if ! timeout 60 bash -c "$BUNDLE_CMD" >"$BUNDLE_FILE" 2>/dev/null; then
+  log "WARN: bundle script returned non-zero (continuing with partial output)"
+fi
+BUNDLE_BYTES=$(wc -c <"$BUNDLE_FILE" | tr -d ' ')
+dbg "collected ${BUNDLE_BYTES} bytes in $(( $(date +%s) - TS_START ))s"
+
+if [ "$BUNDLE_BYTES" -lt 100 ]; then
+  log "ERROR: bundle is suspiciously small (${BUNDLE_BYTES} bytes); aborting"
+  exit 2
+fi
+
+# ---------------------------------------------------------------------------
+# Build JSON payload. Use python3 for safe JSON encoding of the raw bundle
+# (it's the only stdlib-available reliable JSON encoder on a stock Ubuntu
+# Droplet — sed-based encoding is too fragile for arbitrary command output).
+# ---------------------------------------------------------------------------
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+PAYLOAD_FILE=$(mktemp -t bgs-payload.XXXXXX.json)
+
+if command -v python3 >/dev/null 2>&1; then
+  python3 - "$PAYLOAD_FILE" "$BUNDLE_FILE" "$BLACKGLASS_HOST_ID" "$BLACKGLASS_HOSTNAME" "$TIMESTAMP" <<'PY'
+import json, sys
+out, bundle_path, host_id, hostname, ts = sys.argv[1:6]
+with open(bundle_path, "r", encoding="utf-8", errors="replace") as f:
+    bundle = f.read()
+with open(out, "w", encoding="utf-8") as f:
+    json.dump({
+        "hostId": host_id,
+        "hostname": hostname,
+        "collectedAt": ts,
+        "bundle": bundle,
+    }, f)
+PY
+elif command -v jq >/dev/null 2>&1; then
+  jq -n \
+    --arg hostId "$BLACKGLASS_HOST_ID" \
+    --arg hostname "$BLACKGLASS_HOSTNAME" \
+    --arg collectedAt "$TIMESTAMP" \
+    --rawfile bundle "$BUNDLE_FILE" \
+    '{hostId:$hostId,hostname:$hostname,collectedAt:$collectedAt,bundle:$bundle}' \
+    >"$PAYLOAD_FILE"
+else
+  log "ERROR: neither python3 nor jq is installed; cannot encode JSON safely"
+  exit 3
+fi
+
+PAYLOAD_BYTES=$(wc -c <"$PAYLOAD_FILE" | tr -d ' ')
+dbg "encoded payload: ${PAYLOAD_BYTES} bytes"
+
 if [ "$BLACKGLASS_DRY_RUN" = "1" ]; then
-  echo "[blackglass-agent] DRY RUN — payload:"
-  echo "$PAYLOAD"
+  log "DRY RUN — payload (${PAYLOAD_BYTES} bytes):"
+  cat "$PAYLOAD_FILE"
+  echo
   exit 0
 fi
 
-HTTP_STATUS=$(curl -sSf \
+# ---------------------------------------------------------------------------
+# POST. --data-binary @file avoids argv-length limits and preserves bytes.
+# ---------------------------------------------------------------------------
+RESPONSE_FILE=$(mktemp -t bgs-response.XXXXXX.json)
+HTTP_STATUS=$(curl -sS \
   -X POST \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $BLACKGLASS_API_KEY" \
   --max-time 30 \
-  -o /tmp/bgs-ingest-response.json \
+  -o "$RESPONSE_FILE" \
   -w "%{http_code}" \
-  "$BLACKGLASS_INGEST_URL" \
-  --data-raw "$PAYLOAD") || true
+  --data-binary "@$PAYLOAD_FILE" \
+  "$BLACKGLASS_INGEST_URL") || HTTP_STATUS="000"
 
-if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
-  echo "[blackglass-agent] ingest OK (HTTP $HTTP_STATUS)"
-else
-  echo "[blackglass-agent] ingest FAILED (HTTP $HTTP_STATUS)" >&2
-  cat /tmp/bgs-ingest-response.json >&2
-  exit 1
-fi
+case "$HTTP_STATUS" in
+  200|201)
+    log "ingest OK (HTTP $HTTP_STATUS, host=$BLACKGLASS_HOST_ID, bundle=${BUNDLE_BYTES}B)"
+    [ "$BLACKGLASS_DEBUG" = "1" ] && cat "$RESPONSE_FILE" && echo
+    exit 0
+    ;;
+  *)
+    log "ERROR: ingest FAILED (HTTP $HTTP_STATUS, host=$BLACKGLASS_HOST_ID)"
+    cat "$RESPONSE_FILE" >&2
+    echo >&2
+    exit 1
+    ;;
+esac
