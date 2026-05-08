@@ -314,11 +314,21 @@ forwarded webhook. The Remediator validates it via
 - tenant_id mismatch (token replayed across tenants)
 - decision mismatch (a `reject` token presented as an `approve`)
 
-Enforcement is opt-in via `REMEDIATOR_APPROVAL_TOKEN_SECRET` — when
-the env var is set on BOTH the Console and the Remediator, every
-approve/reject MUST carry a valid token; without the variable the
-Remediator falls back to legacy "trust the API key alone" mode for
-backwards compat.
+**Enforcement is ON by default** as of 2026-05-08. Set
+`REMEDIATOR_APPROVAL_TOKEN_SECRET` (>= 32 chars) on BOTH the
+Console and the Remediator — they MUST share the same value — and
+every approve/reject will require a valid token.
+
+| `SECRET` set | `OPTIONAL` set | Behaviour                                                                                                                                  |
+| ------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| yes          | (any)          | Enforcement ON. Tokens required.                                                                                                           |
+| no           | yes            | Enforcement OFF — explicit legacy opt-out via `REMEDIATOR_APPROVAL_TOKEN_OPTIONAL=1`. Logs a warning at boot.                               |
+| no           | no             | Default ON. The first approve attempt returns HTTP 500 with `approval_token_secret_not_configured` so the operator notices the mis-config. |
+
+The default-on behaviour was a deliberate hardening — under the
+previous opt-in default an operator could believe they had signed-
+token enforcement when in fact the Console couldn't sign anything
+and the Remediator was silently trusting the API key alone.
 
 The format is deliberately NOT JWT — JWT's header/algorithm
 negotiation is the source of half the JWT CVEs. A two-field

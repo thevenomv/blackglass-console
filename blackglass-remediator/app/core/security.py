@@ -134,9 +134,51 @@ def _approval_secret() -> str | None:
     return raw
 
 
+def _approval_enforcement_optional() -> bool:
+    """
+    Operator escape hatch for legacy deployments that haven't
+    rolled out the shared secret yet. Set REMEDIATOR_APPROVAL_TOKEN_OPTIONAL=1
+    to fall back to the previous "trust the API key alone" mode.
+
+    Default is FALSE — enforcement is on by default for any new
+    deployment, because silent fall-back to "trust the API key"
+    would let an operator believe they had HITL signed-token
+    enforcement when they actually didn't (the original opt-in
+    behaviour was the footgun this defaults-on closes).
+    """
+    raw = os.environ.get("REMEDIATOR_APPROVAL_TOKEN_OPTIONAL", "").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
 def approval_token_enforcement_enabled() -> bool:
-    """True when the remediator REQUIRES signed approval tokens."""
-    return _approval_secret() is not None
+    """
+    True when the remediator REQUIRES signed approval tokens for
+    every approve / reject decision.
+
+    Behaviour matrix (env vars):
+
+      | SECRET set | OPTIONAL set | enforcement | rationale                       |
+      |------------|--------------|-------------|---------------------------------|
+      | yes        | -            | ON          | normal, intended path           |
+      | no         | yes          | OFF         | legacy opt-out (warned at boot) |
+      | no         | no           | RAISES      | mis-config; fail closed at boot |
+
+    The "raises" case happens lazily — verify_approval_token would
+    HTTP-500 on the first approve attempt with detail
+    `approval_token_secret_not_configured`, surfacing the mis-config
+    immediately rather than silently letting the API key alone be
+    trusted. Operators upgrading must either set the secret or
+    explicitly opt out.
+    """
+    secret = _approval_secret()
+    if secret is not None:
+        return True
+    if _approval_enforcement_optional():
+        return False
+    # Secret missing AND no opt-out — treat as enforcement ON so the
+    # next approve attempt surfaces a clear mis-config error rather
+    # than silently degrading.
+    return True
 
 
 def _b64url_decode(s: str) -> bytes:
