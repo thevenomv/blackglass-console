@@ -140,13 +140,38 @@ jobs:
           echo "$OUT" | grep -q "0 pending" || (echo "::error::Re-running migrations was not a no-op" && exit 1)
 
       # RLS tenant-leak guardrail — runs against the freshly-migrated
-      # Postgres above. Asserts that withTenantRls actually filters
-      # rows for tenant A vs tenant B and that cross-tenant
-      # UPDATE/DELETE attempts affect 0 rows. A failure here means
-      # row-level isolation is broken — SEV 1.
+      # Postgres above. We must NOT connect as the postgres superuser
+      # because superusers (and table owners) bypass RLS unconditionally
+      # — so the guardrail would silently pass against any policy.
+      # Create a dedicated role that mirrors the production app role
+      # (non-superuser, no BYPASSRLS), grant it the minimum needed,
+      # and run the test under it.
+      - name: Create non-superuser RLS test role
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: blackglass_test
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+            -- Drop and recreate so re-runs on the same DB are idempotent.
+            DROP ROLE IF EXISTS rls_test_app;
+            CREATE ROLE rls_test_app LOGIN PASSWORD 'rls_test_app'
+              NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+            GRANT USAGE ON SCHEMA public TO rls_test_app;
+            GRANT SELECT, INSERT, UPDATE, DELETE
+              ON ALL TABLES IN SCHEMA public TO rls_test_app;
+            GRANT USAGE, SELECT, UPDATE
+              ON ALL SEQUENCES IN SCHEMA public TO rls_test_app;
+            -- Ensure FORCE ROW LEVEL SECURITY in the test takes effect:
+            -- the role is non-superuser and non-BYPASSRLS, so the only
+            -- remaining bypass is "owner of the table" which the role
+            -- isn't (postgres still owns everything from the migration).
+          SQL
       - name: RLS tenant-leak guardrail
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/blackglass_test
+          DATABASE_URL: postgres://rls_test_app:rls_test_app@localhost:5432/blackglass_test
         run: npx vitest run tests/unit/rls-tenant-leak.test.ts --reporter=default
 
   helm-template:

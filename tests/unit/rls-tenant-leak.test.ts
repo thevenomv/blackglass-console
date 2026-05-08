@@ -30,15 +30,17 @@
  *   `app.current_tenant` — that's a known inconsistency tracked
  *   separately and outside the scope of this guardrail.
  *
- * Why we FORCE ROW LEVEL SECURITY in test setup:
+ * Why we connect as a non-superuser role:
  *
- *   By default, Postgres skips RLS for the table OWNER and
- *   superusers. CI runs as `postgres` (both owner AND superuser),
- *   so without `FORCE ROW LEVEL SECURITY` every row would be
- *   visible regardless of the policy. We force RLS on for the
- *   duration of the test and reset it in afterAll. This also
- *   models production correctly — operators are expected to grant
- *   the application a non-superuser, non-owner role.
+ *   By default, Postgres skips RLS for the table OWNER and for any
+ *   role with BYPASSRLS (which superusers always have). CI's default
+ *   `postgres` user is BOTH owner AND superuser — so connecting as
+ *   it would silently bypass every policy. The CI step
+ *   `Create non-superuser RLS test role` provisions an
+ *   `rls_test_app` LOGIN role with NOSUPERUSER + NOBYPASSRLS that
+ *   the test's DATABASE_URL points at; that role behaves the way
+ *   the production app role is supposed to behave (per
+ *   `docs/security-compliance.md` § 1).
  *
  * If this test fails, the application-level `withTenantRls` wrapper
  * is no longer the trust boundary it claims to be — that is a SEV-1
@@ -73,10 +75,6 @@ describeMaybe("RLS tenant isolation (live Postgres)", () => {
           (${tenantA}::uuid, ${`rls-test-${tenantA}`}, 'rls-test-A'),
           (${tenantB}::uuid, ${`rls-test-${tenantB}`}, 'rls-test-B')
       `);
-      // FORCE RLS so the postgres superuser running this test gets
-      // policies applied to it (default behaviour is to skip RLS
-      // for table owners and superusers).
-      await db.execute(sql`ALTER TABLE saas_evidence_bundles FORCE ROW LEVEL SECURITY`);
       await db.execute(sql`
         INSERT INTO saas_evidence_bundles (id, tenant_id, title, sha256, payload)
         VALUES
@@ -90,9 +88,8 @@ describeMaybe("RLS tenant isolation (live Postgres)", () => {
     if (!tenantA) return;
     const { withBypassRls } = await import("../../src/db");
     await withBypassRls(async (db) => {
-      // Reset FORCE so subsequent CI invocations / local runs aren't
-      // surprised by unexpected behaviour against the same database.
-      await db.execute(sql`ALTER TABLE saas_evidence_bundles NO FORCE ROW LEVEL SECURITY`);
+      // ON DELETE CASCADE on the FK takes care of any child rows
+      // (audit / evidence / etc.) that the test created.
       await db.execute(sql`DELETE FROM saas_tenants WHERE id IN (${tenantA}::uuid, ${tenantB}::uuid)`);
     });
   });
