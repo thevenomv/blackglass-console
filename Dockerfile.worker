@@ -4,7 +4,10 @@
 # DigitalOcean App Platform Worker component (no HTTP port, restarts on crash).
 #
 # Build & push:
-#   .\scripts\do-docker-push.ps1 -RegistryName <name> -BuildWorker
+#   docker build -f Dockerfile.worker -t <registry>/blackglass-worker:<tag> .
+#   docker push <registry>/blackglass-worker:<tag>
+#   (used by deploy/helm/blackglass for k8s; App Platform deploys via
+#    .do/app-git.production.yaml use the Git buildpack, not this image)
 #
 # Environment variables required at runtime (set in DO App Platform or Doppler):
 #   REDIS_QUEUE_URL        — Redis connection URL for BullMQ

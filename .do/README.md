@@ -2,12 +2,15 @@
 
 | File | Use when |
 |------|----------|
-| `app.yaml` | Deploy from DigitalOcean Container Registry (DOCR). Replace registry placeholders, then `doctl apps create --spec .do/app.yaml` (see header comments). |
-| `app-git.production.yaml` / `app-git.staging.yaml` | GitHub App–connected apps (deploy on push). Replace `OWNER/REPO` with your fork before applying. |
+| `app-git.production.yaml` / `app-git.staging.yaml` | GitHub App–connected apps (deploy on push). **This is the live deploy path.** Replace `OWNER/REPO` with your fork before applying. |
 | `app-current.yaml` | **Template** exported spec shape — replace placeholders; do not treat as your live secrets source. Prefer Doppler / DO dashboard for values. |
 | `app-create.phase1.json` | Bootstrap metadata referenced by `scripts/do_bootstrap_blackglass.py`. |
 
-Supporting scripts live under [`../scripts/`](../scripts/) (`do-prepare-app-spec.ps1`, `do-docker-push.ps1`, Python bootstrap).
+> The legacy `.do/app.yaml` (GitHub Container Registry deploy) and its
+> companion PowerShell helpers (`scripts/do-docker-push.ps1`,
+> `scripts/do-prepare-app-spec.ps1`) were removed in favour of the
+> Git-buildpack path. Container builds for k8s/Helm still use
+> `Dockerfile` and `Dockerfile.worker` directly.
 
 ## What runs on build
 
