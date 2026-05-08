@@ -119,6 +119,41 @@ services:
         type: SECRET
 
 # ---------------------------------------------------------------------------
+# Pre-deploy migration job
+#
+# Runs `npm run db:migrate` BEFORE the new web/worker images are promoted to
+# active. Prevents the class of "table does not exist" 500s that happen when
+# code is deployed but a Drizzle migration has not been applied yet.
+#
+# - kind: PRE_DEPLOY  → must succeed before the deploy is promoted
+# - DATABASE_URL must be set as a SECRET on this job (same value as the web
+#   service). Bind it via the DO console after applying this spec.
+# - The runner is column-level idempotent (see scripts/ops/apply-migrations.mjs)
+#   so re-running it on a deploy with no new migrations is a fast no-op.
+# ---------------------------------------------------------------------------
+jobs:
+  - name: db-migrate
+    kind: PRE_DEPLOY
+    github:
+      repo: thevenomv/blackglass-console
+      branch: main
+      deploy_on_push: true
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    source_dir: /
+    build_command: npm ci
+    run_command: npm run db:migrate
+    envs:
+      - key: DATABASE_URL
+        value: ""
+        scope: RUN_TIME
+        type: SECRET
+      - key: PGSSLMODE
+        value: no-verify
+        scope: RUN_TIME
+
+# ---------------------------------------------------------------------------
 # Scan worker — BullMQ consumer; decouples SSH fan-out from the web tier.
 # Activate after provisioning Redis (scripts/provision-do-redis.ps1) and
 # setting REDIS_QUEUE_URL above. Uses the same GitHub source as the web service

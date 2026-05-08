@@ -57,7 +57,13 @@ function listMigrationFiles() {
 }
 
 function loadMigration(name) {
-  const sql = fs.readFileSync(path.join(DRIZZLE_DIR, name), "utf8");
+  const raw = fs.readFileSync(path.join(DRIZZLE_DIR, name), "utf8");
+  // Normalise to LF so the same file produces the same bookkeeping hash on
+  // Windows (working trees with core.autocrlf=true) and on Linux build
+  // containers. Without this, devs can baseline locally with CRLF hashes,
+  // ship the spec, and the DO container thinks every migration is "new"
+  // because it sees the LF version. (This bit prod once; never again.)
+  const sql = raw.replace(/\r\n/g, "\n");
   const hash = crypto.createHash("sha256").update(sql).digest("hex");
   return { name, sql, hash };
 }
