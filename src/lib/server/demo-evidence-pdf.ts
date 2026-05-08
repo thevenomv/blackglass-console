@@ -5,6 +5,7 @@
 
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import type { DemoAuditRow, DemoDriftFinding, DemoHost, DemoRemediation } from "@/lib/demo/seed";
+import { winAnsi } from "@/lib/server/report-pdf";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
@@ -93,14 +94,14 @@ class PageManager {
     this.currentPage = this.doc.addPage([PAGE_W, PAGE_H]);
     this.pages.push(this.currentPage);
     this.y = PAGE_H - MARGIN;
-    this.currentPage.drawText("Blackglass · Sample data only · not for compliance submission", {
+    this.currentPage.drawText(winAnsi("Blackglass · Sample data only · not for compliance submission"), {
       x: MARGIN,
       y: 20,
       size: 7,
       font: this.fonts.regular,
       color: C_FAINT,
     });
-    this.currentPage.drawText(`Page ${this.pages.length}`, {
+    this.currentPage.drawText(winAnsi(`Page ${this.pages.length}`), {
       x: PAGE_W - MARGIN - 30,
       y: 20,
       size: 7,
@@ -124,7 +125,7 @@ class PageManager {
     } = {},
   ) {
     const { size = 10, font, color = C_BLACK, x = MARGIN, indent = 0 } = opts;
-    this.currentPage.drawText(text, {
+    this.currentPage.drawText(winAnsi(text), {
       x: x + indent,
       y: this.y,
       size,

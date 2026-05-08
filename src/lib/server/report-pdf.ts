@@ -12,6 +12,104 @@
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 
 // ---------------------------------------------------------------------------
+// WinAnsi sanitisation
+//
+// pdf-lib's StandardFonts (Helvetica, Courier, …) ship with the legacy
+// WinAnsi encoding (Windows-1252 + a small extension). Any codepoint outside
+// that table — common ones include the right-arrow → (U+2192), em-dash —
+// (U+2014), smart quotes “ ” ‘ ’, ellipsis …, bullet •, copy ©, etc. when
+// they happen to fall outside CP1252 — makes embedFont throw with
+// "WinAnsi cannot encode <char>" and aborts the entire render.
+//
+// We could embed a Unicode TTF and switch to subsetting, but that bloats
+// the bundle, adds a font-license review surface, and is overkill for the
+// glyphs operator/admin text actually contains. Instead, we collapse the
+// 30-or-so realistic offenders to ASCII fall-backs and then strip whatever
+// remains. This is a one-liner per drawText call site so it's cheap to
+// keep current and impossible to forget for new fields (PageManager.text
+// applies it; raw drawText calls go through `winAnsi(...)` first).
+// ---------------------------------------------------------------------------
+
+const WIN_ANSI_REPLACEMENTS: Record<string, string> = {
+  "\u2010": "-",   // hyphen
+  "\u2011": "-",   // non-breaking hyphen
+  "\u2012": "-",   // figure dash
+  "\u2013": "-",   // en dash
+  "\u2014": "--",  // em dash
+  "\u2015": "--",  // horizontal bar
+  "\u2018": "'",   // left single quote
+  "\u2019": "'",   // right single quote / apostrophe
+  "\u201A": ",",   // single low-9 quote
+  "\u201B": "'",   // single high-reversed quote
+  "\u201C": '"',   // left double quote
+  "\u201D": '"',   // right double quote
+  "\u201E": '"',   // double low-9 quote
+  "\u2020": "+",   // dagger
+  "\u2021": "++",  // double dagger
+  "\u2022": "*",   // bullet
+  "\u2023": ">",   // triangular bullet
+  "\u2024": ".",   // one-dot leader
+  "\u2025": "..",  // two-dot leader
+  "\u2026": "...", // ellipsis
+  "\u2032": "'",   // prime
+  "\u2033": '"',   // double prime
+  "\u2039": "<",   // single left-pointing angle quote
+  "\u203A": ">",   // single right-pointing angle quote
+  "\u2044": "/",   // fraction slash
+  "\u2190": "<-",  // leftwards arrow
+  "\u2191": "^",   // upwards arrow
+  "\u2192": "->",  // rightwards arrow ← THE BUG
+  "\u2193": "v",   // downwards arrow
+  "\u2194": "<->", // left-right arrow
+  "\u21D0": "<=",  // leftwards double arrow
+  "\u21D2": "=>",  // rightwards double arrow
+  "\u21D4": "<=>", // left-right double arrow
+  "\u2212": "-",   // minus sign
+  "\u2260": "!=",  // not equal
+  "\u2264": "<=",  // less or equal
+  "\u2265": ">=",  // greater or equal
+  "\u2713": "v",   // check mark
+  "\u2714": "v",   // heavy check mark
+  "\u2717": "x",   // ballot x
+  "\u2718": "x",   // heavy ballot x
+  "\u00A0": " ",   // non-breaking space → regular space (avoids weird CP1252 0xA0 quirks)
+};
+
+/** True for any codepoint pdf-lib's WinAnsi table can render unchanged. */
+function isWinAnsiSafe(cp: number): boolean {
+  // Printable ASCII + tab/lf/cr.
+  if (cp === 0x09 || cp === 0x0A || cp === 0x0D) return true;
+  if (cp >= 0x20 && cp <= 0x7E) return true;
+  // CP1252 high range — pdf-lib supports the full table including the
+  // 0x80–0x9F sub-range that's unassigned in true Latin-1.
+  if (cp >= 0xA0 && cp <= 0xFF) return true;
+  return false;
+}
+
+/** Sanitise an arbitrary string into something pdf-lib's WinAnsi fonts will draw. */
+export function winAnsi(input: string | null | undefined): string {
+  if (input == null) return "";
+  let out = "";
+  for (const ch of input) {
+    const replacement = WIN_ANSI_REPLACEMENTS[ch];
+    if (replacement !== undefined) {
+      out += replacement;
+      continue;
+    }
+    const cp = ch.codePointAt(0) ?? 0;
+    if (isWinAnsiSafe(cp)) {
+      out += ch;
+    } else {
+      // Last-resort placeholder — use "?" rather than "" so the operator can
+      // see something was elided. Kept to a single character to avoid
+      // breaking column layouts.
+      out += "?";
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Types mirroring the report JSON content
 // ---------------------------------------------------------------------------
 
@@ -138,14 +236,14 @@ class PageManager {
     this.pages.push(this.currentPage);
     this.y = PAGE_H - MARGIN;
     // Footer on every page
-    this.currentPage.drawText("Blackglass · Confidential · Not for distribution", {
+    this.currentPage.drawText(winAnsi("Blackglass · Confidential · Not for distribution"), {
       x: MARGIN,
       y: 20,
       size: 7,
       font: this.fonts.regular,
       color: C_FAINT,
     });
-    this.currentPage.drawText(`Page ${this.pages.length}`, {
+    this.currentPage.drawText(winAnsi(`Page ${this.pages.length}`), {
       x: PAGE_W - MARGIN - 30,
       y: 20,
       size: 7,
@@ -168,7 +266,7 @@ class PageManager {
       indent = 0,
     }: { size?: number; font?: PDFFont; color?: typeof C_BLACK; x?: number; indent?: number } = {},
   ) {
-    this.currentPage.drawText(text, {
+    this.currentPage.drawText(winAnsi(text), {
       x: x + indent,
       y: this.y,
       size,
@@ -292,7 +390,7 @@ export async function generateReportPdf(contentJson: string): Promise<Uint8Array
       pm.text((ev.category ?? "—").slice(0, 14), { size: 8, color: C_MUTED, x: MARGIN + 55 });
 
       for (let i = 0; i < titleLines.length; i++) {
-        pm.currentPage.drawText(titleLines[i]!, {
+        pm.currentPage.drawText(winAnsi(titleLines[i]!), {
           x: MARGIN + 145,
           y: pm.y - i * LINE_SM,
           size: 9,
@@ -341,7 +439,7 @@ export async function generateReportPdf(contentJson: string): Promise<Uint8Array
       pm.text((a.actor ?? "—").slice(0, 14), { size: 8, color: C_MUTED, x: MARGIN + 145 });
 
       for (let i = 0; i < detailLines.length; i++) {
-        pm.currentPage.drawText(detailLines[i]!, {
+        pm.currentPage.drawText(winAnsi(detailLines[i]!), {
           x: MARGIN + 225,
           y: pm.y - i * LINE_SM,
           size: 8,
