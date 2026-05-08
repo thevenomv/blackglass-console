@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/incompatible-library -- TanStack Virtual's useVirtualizer is intentionally skipped by the React Compiler */
 import type { HostRecord } from "@/data/mock/types";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -10,6 +11,7 @@ import { RunScanButton } from "@/app/(app)/dashboard/_components/RunScanButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HostTrustPill } from "@/components/ui/HostTrustPill";
 import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
+import { useToast } from "@/components/ui/Toast";
 
 type Filter = "all" | "aligned" | "drift" | "needs_review";
 
@@ -40,13 +42,55 @@ export function HostsView({
   atCap?: boolean;
   hostCap?: number | null;
 }) {
+  const router = useRouter();
+  const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Local hide-list lets the row vanish instantly while the server cache
+  // revalidates — Next's `router.refresh()` repopulates from the source of
+  // truth on the next tick. This avoids a one-second "row still there"
+  // flicker after a successful delete.
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
   const parentRef = useRef<HTMLDivElement>(null);
+
+  const handleDelete = async (host: HostRecord) => {
+    const confirmed = window.confirm(
+      `Delete host "${host.hostname}" (${host.id})?\n\n` +
+        `This forgets its baseline, drift events, and any matching scan ` +
+        `registration. If a push-agent later re-ingests for this host, ` +
+        `a fresh baseline will be bootstrapped automatically.\n\n` +
+        `This cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setDeletingId(host.id);
+    try {
+      const res = await fetch(`/api/v1/hosts/${encodeURIComponent(host.id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok && res.status !== 204) {
+        const body = (await res.json().catch(() => ({}))) as { detail?: string; message?: string };
+        toast(body.detail ?? body.message ?? `Could not delete host (HTTP ${res.status}).`, "danger");
+        return;
+      }
+      toast(`${host.hostname} deleted.`, "success");
+      setHiddenIds((prev) => {
+        const next = new Set(prev);
+        next.add(host.id);
+        return next;
+      });
+      router.refresh();
+    } catch {
+      toast("Delete failed — network error.", "danger");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return hosts.filter((h) => {
+      if (hiddenIds.has(h.id)) return false;
       const matchesQuery =
         q.length === 0 ||
         h.id.toLowerCase().includes(q) ||
@@ -62,7 +106,7 @@ export function HostsView({
               : h.trust === "needs_review" || h.trust === "critical";
       return matchesQuery && matchesFilter;
     });
-  }, [hosts, query, filter]);
+  }, [hosts, query, filter, hiddenIds]);
 
   const useVirtual = filtered.length > VIRTUAL_THRESHOLD;
 
@@ -147,7 +191,7 @@ export function HostsView({
             <div className="w-36 font-medium">Posture</div>
             <div className="w-20 text-right font-medium">Ready</div>
             <div className="min-w-0 flex-1 px-4 font-medium">Last scan</div>
-            <div className="w-16 text-right font-medium">
+            <div className="w-44 text-right font-medium">
               <span className="sr-only">Actions</span>
             </div>
           </div>
@@ -186,13 +230,22 @@ export function HostsView({
                       <div className="min-w-0 flex-1 px-4 text-fg-muted">
                         {formatScan(h.lastScanAt)} UTC
                       </div>
-                      <div className="w-16 text-right">
+                      <div className="flex w-44 items-center justify-end gap-3">
                         <Link
                           href={`/hosts/${h.id}`}
                           className="text-xs font-semibold text-accent-blue hover:underline"
                         >
                           Open
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(h)}
+                          disabled={deletingId === h.id}
+                          aria-label={`Delete host ${h.hostname}`}
+                          className="rounded-md border border-danger/40 bg-danger-soft/15 px-2.5 py-1 text-xs font-semibold text-danger transition-colors hover:bg-danger-soft/30 disabled:opacity-50"
+                        >
+                          {deletingId === h.id ? "Deleting…" : "Delete"}
+                        </button>
                       </div>
                     </div>
                   );
@@ -219,13 +272,22 @@ export function HostsView({
                   <div className="min-w-0 flex-1 px-4 text-fg-muted">
                     {formatScan(h.lastScanAt)} UTC
                   </div>
-                  <div className="w-16 text-right">
+                  <div className="flex w-44 items-center justify-end gap-3">
                     <Link
                       href={`/hosts/${h.id}`}
                       className="text-xs font-semibold text-accent-blue hover:underline"
                     >
                       Open
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(h)}
+                      disabled={deletingId === h.id}
+                      aria-label={`Delete host ${h.hostname}`}
+                      className="rounded-md border border-danger/40 bg-danger-soft/15 px-2.5 py-1 text-xs font-semibold text-danger transition-colors hover:bg-danger-soft/30 disabled:opacity-50"
+                    >
+                      {deletingId === h.id ? "Deleting…" : "Delete"}
+                    </button>
                   </div>
                 </div>
               ))

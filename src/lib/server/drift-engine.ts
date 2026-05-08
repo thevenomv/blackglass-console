@@ -73,6 +73,30 @@ export function storeDriftEvents(hostId: string, events: DriftEvent[]): void {
   }
 }
 
+/**
+ * Forget a host's drift events: removes the in-memory entry, persists the
+ * change to disk if DRIFT_EVENTS_PATH is set, and (when DATABASE_URL is
+ * set) drops the Postgres row so cross-process workers also see the
+ * deletion. Resolves to true if anything was actually removed in either
+ * tier; idempotent on repeat calls.
+ */
+export async function deleteDriftEvents(hostId: string): Promise<boolean> {
+  const memRemoved = eventStore().delete(hostId);
+  if (memRemoved) persist();
+
+  let pgRemoved = false;
+  if (process.env.DATABASE_URL?.trim()) {
+    try {
+      const { PostgresDriftEventsRepository: repo } = await import("./store/driftevents-pg");
+      pgRemoved = await repo.delete(hostId);
+    } catch (err) {
+      console.error("[drift-engine] Postgres delete failed:", err);
+    }
+  }
+
+  return memRemoved || pgRemoved;
+}
+
 export function getDriftEvents(hostId?: string): DriftEvent[] {
   const store = eventStore();
   if (hostId) return store.get(hostId) ?? [];

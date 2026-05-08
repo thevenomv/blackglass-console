@@ -26,6 +26,16 @@ export async function hasBaseline(hostId: string): Promise<boolean> {
   return getBaselineRepository().has(hostId);
 }
 
+/**
+ * Forget a host: removes its pinned baseline. Resolves to `true` when
+ * something was actually removed (idempotent — `false` if nothing was
+ * there). Drift events and any saas_collector_hosts row are NOT touched
+ * here; the DELETE /api/v1/hosts/[id] route owns the full cascade.
+ */
+export async function deleteBaseline(hostId: string): Promise<boolean> {
+  return getBaselineRepository().delete(hostId);
+}
+
 /** Synchronous health snapshot — safe to call in server component render. */
 export function baselineStoreHealth() {
   return getBaselineRepository().health();

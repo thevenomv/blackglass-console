@@ -254,12 +254,14 @@ describe("/api/v1/ingest/agent", () => {
     expect(saveBaselineMock).not.toHaveBeenCalled();
     // Drift pipeline must run.
     expect(processHostSnapshotDriftMock).toHaveBeenCalledTimes(1);
-    const args = processHostSnapshotDriftMock.mock.calls[0]?.[0] as {
-      origin: string;
-      jobId: string;
-      snapshot: { hostId: string };
-      baseline: { hostId: string };
-    };
+    const args = (processHostSnapshotDriftMock.mock.calls[0] as unknown as [
+      {
+        origin: string;
+        jobId: string;
+        snapshot: { hostId: string };
+        baseline: { hostId: string };
+      },
+    ])[0];
     expect(args.origin).toBe("agent-push");
     expect(args.snapshot.hostId).toBe("host-127-0-0-1");
     expect(args.baseline.hostId).toBe("host-127-0-0-1");

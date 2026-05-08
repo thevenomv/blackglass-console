@@ -5,10 +5,11 @@ import { Card } from "@/components/ui/Card";
 import { HostTrustPill } from "@/components/ui/HostTrustPill";
 import { ProgressRow } from "@/components/ui/ProgressBar";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/ui/Toast";
 import type { HostDetail } from "@/data/mock/types";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -37,6 +38,8 @@ function formatTs(iso: string) {
 export function HostDetailView({ detail }: { detail: HostDetail }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const [deleting, setDeleting] = useState(false);
   const rawTab = searchParams.get("tab") as TabId | null;
   const tab: TabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : "overview";
 
@@ -48,6 +51,41 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
     },
     [router, searchParams],
   );
+
+  const handleDelete = useCallback(async () => {
+    const confirmed = window.confirm(
+      `Delete host "${detail.hostname}" (${detail.id})?\n\n` +
+        `This forgets its baseline, drift events, and any matching scan ` +
+        `registration. If a push-agent later re-ingests for this host, ` +
+        `a fresh baseline will be bootstrapped automatically.\n\n` +
+        `This cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/v1/hosts/${encodeURIComponent(detail.id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok && res.status !== 204) {
+        const body = (await res.json().catch(() => ({}))) as {
+          detail?: string;
+          message?: string;
+        };
+        toast(
+          body.detail ?? body.message ?? `Could not delete host (HTTP ${res.status}).`,
+          "danger",
+        );
+        return;
+      }
+      toast(`${detail.hostname} deleted.`, "success");
+      router.push("/hosts");
+      router.refresh();
+    } catch {
+      toast("Delete failed — network error.", "danger");
+    } finally {
+      setDeleting(false);
+    }
+  }, [detail.hostname, detail.id, router, toast]);
 
   const nextActions = [
     {
@@ -94,6 +132,15 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
               Compare to baseline
             </Button>
           </Link>
+          <Button
+            type="button"
+            variant="danger"
+            disabled={deleting}
+            onClick={() => void handleDelete()}
+            title="Forget this host: delete its baseline, drift events, and any scan registration. Cannot be undone."
+          >
+            {deleting ? "Deleting…" : "Delete host"}
+          </Button>
         </div>
       </header>
 

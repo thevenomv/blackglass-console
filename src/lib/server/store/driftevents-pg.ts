@@ -90,6 +90,16 @@ export const PostgresDriftEventsRepository = {
     return res.rows[0]?.exists ?? false;
   },
 
+  /** Forget a host: drop its drift_events row. Idempotent. */
+  async delete(hostId: string): Promise<boolean> {
+    const pool = await getPool();
+    const res = await pool.query(
+      "DELETE FROM blackglass_drift_events WHERE host_id = $1",
+      [hostId],
+    );
+    return (res.rowCount ?? 0) > 0;
+  },
+
   /**
    * Per-day severity buckets for the last N days.
    *

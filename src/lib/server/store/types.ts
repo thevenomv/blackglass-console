@@ -35,6 +35,13 @@ export interface BaselineRepository {
   get(hostId: string): Promise<HostSnapshot | undefined>;
   listHostIds(): Promise<string[]>;
   has(hostId: string): Promise<boolean>;
+  /**
+   * Forget a host: removes its pinned baseline. Resolves to `true` when a
+   * baseline was actually removed, `false` when there was nothing to remove
+   * (idempotent). Caller is responsible for cleaning up drift events,
+   * collector_host rows, etc.
+   */
+  delete(hostId: string): Promise<boolean>;
   health(): BaselineStoreHealth;
 }
 

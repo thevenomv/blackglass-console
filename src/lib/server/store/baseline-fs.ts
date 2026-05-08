@@ -40,6 +40,12 @@ export class FilesystemBaselineRepository implements BaselineRepository {
   async listHostIds() { return [...this.map.keys()]; }
   async has(hostId: string) { return this.map.has(hostId); }
 
+  async delete(hostId: string): Promise<boolean> {
+    const removed = this.map.delete(hostId);
+    if (removed) this.saveToFile();
+    return removed;
+  }
+
   health(): BaselineStoreHealth {
     try {
       const dir = path.dirname(this.filePath);

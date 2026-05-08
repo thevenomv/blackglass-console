@@ -37,6 +37,9 @@ export const AUDIT_ACTIONS = {
   // Drift
   DRIFT_VIEWED: "drift.viewed",
 
+  // Host lifecycle
+  HOST_DELETED: "host.deleted",
+
   // Reports
   REPORT_QUEUED: "report.queued",
   REPORT_GENERATED: "report.generated",

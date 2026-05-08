@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
@@ -84,6 +85,27 @@ export class SpacesBaselineRepository implements BaselineRepository {
 
   async has(hostId: string): Promise<boolean> {
     return (await this.get(hostId)) !== undefined;
+  }
+
+  /**
+   * S3 / Spaces DeleteObject is idempotent — it returns 204 even when the
+   * key doesn't exist. To preserve our `Promise<boolean>` semantics
+   * (was-something-actually-removed) we cheaply HEAD via `get()` first.
+   * The extra request is acceptable on a host-deletion path that runs
+   * once per user click and lets the audit log distinguish "removed" vs
+   * "no-op idempotent retry".
+   */
+  async delete(hostId: string): Promise<boolean> {
+    const existed = await this.get(hostId).then((s) => s !== undefined).catch(() => false);
+    try {
+      await this.client.send(
+        new DeleteObjectCommand({ Bucket: this.bucket, Key: this.keyFor(hostId) }),
+      );
+    } catch (err) {
+      console.error("[baseline-store/spaces] Failed to delete:", err);
+      throw new StoreError("unavailable", "Spaces delete failed", err);
+    }
+    return existed;
   }
 
   health(): BaselineStoreHealth {

@@ -15,5 +15,6 @@ export class MemoryBaselineRepository implements BaselineRepository {
   async get(hostId: string) { return store().get(hostId); }
   async listHostIds() { return [...store().keys()]; }
   async has(hostId: string) { return store().has(hostId); }
+  async delete(hostId: string) { return store().delete(hostId); }
   health(): BaselineStoreHealth { return { adapter: "memory", configured: false, writable: null }; }
 }

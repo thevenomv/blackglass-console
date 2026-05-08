@@ -100,6 +100,19 @@ export class PostgresBaselineRepository implements BaselineRepository {
     }
   }
 
+  async delete(hostId: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        "DELETE FROM blackglass_baselines WHERE host_id = $1",
+        [hostId],
+      );
+      return (res.rowCount ?? 0) > 0;
+    } catch (err) {
+      console.error("[baseline-store/pg] Failed to delete:", err);
+      throw new StoreError("unavailable", "Postgres delete failed", err);
+    }
+  }
+
   health(): BaselineStoreHealth {
     return { adapter: "postgres", configured: true, writable: null };
   }
