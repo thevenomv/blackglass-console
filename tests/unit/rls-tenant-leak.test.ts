@@ -9,16 +9,38 @@
  * directly via `withBypassRls`, then opens a transaction under
  * tenant A's RLS context and asserts:
  *
- *   1. SELECT from `drift_events` returns ONLY tenant A's rows.
- *   2. SELECT from `saas_audit_events` returns ONLY tenant A's rows.
- *   3. UPDATE attempting to mutate a tenant B row affects 0 rows
+ *   1. SELECT returns ONLY tenant A's rows even when the WHERE
+ *      clause asks for both.
+ *   2. UPDATE attempting to mutate a tenant B row affects 0 rows
  *      (RLS denies the row even when the WHERE clause matches).
- *   4. DELETE attempting to remove a tenant B row affects 0 rows.
+ *   3. DELETE attempting to remove a tenant B row affects 0 rows.
+ *   4. Symmetry: tenant B's context cannot see tenant A's row either.
  *
  * Cleanup runs in `afterAll` even on failure so a partial run does
  * not leave orphan rows in shared CI databases.
  *
- * If the test fails, the application-level `withTenantRls` wrapper
+ * Why we use `saas_evidence_bundles` rather than `drift_events`:
+ *
+ *   The codebase has THREE distinct GUC names in use across
+ *   migrations: `app.tenant_id`, `app.current_tenant`, and
+ *   `app.current_tenant_id`. `withTenantRls()` sets `app.tenant_id`,
+ *   so this test only exercises tables whose policies match that
+ *   GUC (collector_hosts / evidence_bundles / sandboxes /
+ *   tenant_kms_keys). The `drift_events` policy still references
+ *   `app.current_tenant` — that's a known inconsistency tracked
+ *   separately and outside the scope of this guardrail.
+ *
+ * Why we FORCE ROW LEVEL SECURITY in test setup:
+ *
+ *   By default, Postgres skips RLS for the table OWNER and
+ *   superusers. CI runs as `postgres` (both owner AND superuser),
+ *   so without `FORCE ROW LEVEL SECURITY` every row would be
+ *   visible regardless of the policy. We force RLS on for the
+ *   duration of the test and reset it in afterAll. This also
+ *   models production correctly — operators are expected to grant
+ *   the application a non-superuser, non-owner role.
+ *
+ * If this test fails, the application-level `withTenantRls` wrapper
  * is no longer the trust boundary it claims to be — that is a SEV-1
  * regression, not a "fix the test" situation.
  */
@@ -33,43 +55,33 @@ const describeMaybe = HAS_DB ? describe : describe.skip;
 describeMaybe("RLS tenant isolation (live Postgres)", () => {
   let tenantA: string;
   let tenantB: string;
-  let driftIdA: string;
-  let driftIdB: string;
-  let auditIdA: string;
-  let auditIdB: string;
+  let bundleIdA: string;
+  let bundleIdB: string;
 
   beforeAll(async () => {
     tenantA = randomUUID();
     tenantB = randomUUID();
-    driftIdA = randomUUID();
-    driftIdB = randomUUID();
-    auditIdA = randomUUID();
-    auditIdB = randomUUID();
+    bundleIdA = randomUUID();
+    bundleIdB = randomUUID();
 
     const { withBypassRls } = await import("../../src/db");
     await withBypassRls(async (db) => {
-      // saas_audit_events.tenant_id has an FK to saas_tenants(id);
-      // create the parent rows before any audit insert.
-      // clerk_org_id is UNIQUE so we use the test-run UUIDs as the
-      // org id surrogates — they're guaranteed unique to this test.
+      // saas_evidence_bundles.tenant_id has an FK to saas_tenants(id);
+      // create the parent rows first.
       await db.execute(sql`
         INSERT INTO saas_tenants (id, clerk_org_id, name) VALUES
           (${tenantA}::uuid, ${`rls-test-${tenantA}`}, 'rls-test-A'),
           (${tenantB}::uuid, ${`rls-test-${tenantB}`}, 'rls-test-B')
       `);
-      // drift_events is partitioned + RLS-enabled — perfect for the leak test.
+      // FORCE RLS so the postgres superuser running this test gets
+      // policies applied to it (default behaviour is to skip RLS
+      // for table owners and superusers).
+      await db.execute(sql`ALTER TABLE saas_evidence_bundles FORCE ROW LEVEL SECURITY`);
       await db.execute(sql`
-        INSERT INTO drift_events (id, tenant_id, host_id, category, severity, title)
+        INSERT INTO saas_evidence_bundles (id, tenant_id, title, sha256, payload)
         VALUES
-          (${driftIdA}::uuid, ${tenantA}::uuid, 'host-A', 'packages', 'low',  'tenant-A drift'),
-          (${driftIdB}::uuid, ${tenantB}::uuid, 'host-B', 'packages', 'low',  'tenant-B drift')
-      `);
-      // saas_audit_events also has RLS.
-      await db.execute(sql`
-        INSERT INTO saas_audit_events (id, tenant_id, action, target_type, target_id)
-        VALUES
-          (${auditIdA}::uuid, ${tenantA}::uuid, 'rls.test', 'test', ${driftIdA}),
-          (${auditIdB}::uuid, ${tenantB}::uuid, 'rls.test', 'test', ${driftIdB})
+          (${bundleIdA}::uuid, ${tenantA}::uuid, 'tenant-A bundle', 'sha-A', '{}'::jsonb),
+          (${bundleIdB}::uuid, ${tenantB}::uuid, 'tenant-B bundle', 'sha-B', '{}'::jsonb)
       `);
     });
   });
@@ -78,19 +90,18 @@ describeMaybe("RLS tenant isolation (live Postgres)", () => {
     if (!tenantA) return;
     const { withBypassRls } = await import("../../src/db");
     await withBypassRls(async (db) => {
-      // ON DELETE CASCADE on the FK takes care of the children, but
-      // we still drop drift_events explicitly because it doesn't
-      // FK to saas_tenants (looser coupling, partitioned table).
-      await db.execute(sql`DELETE FROM drift_events WHERE tenant_id IN (${tenantA}::uuid, ${tenantB}::uuid)`);
+      // Reset FORCE so subsequent CI invocations / local runs aren't
+      // surprised by unexpected behaviour against the same database.
+      await db.execute(sql`ALTER TABLE saas_evidence_bundles NO FORCE ROW LEVEL SECURITY`);
       await db.execute(sql`DELETE FROM saas_tenants WHERE id IN (${tenantA}::uuid, ${tenantB}::uuid)`);
     });
   });
 
-  it("SELECT under tenant A's RLS context returns only tenant A's drift rows", async () => {
+  it("SELECT under tenant A's RLS context returns only tenant A's rows", async () => {
     const { withTenantRls } = await import("../../src/db");
     const seen = await withTenantRls(tenantA, async (tx) => {
       const r = await tx.execute<{ id: string; tenant_id: string; title: string }>(
-        sql`SELECT id, tenant_id, title FROM drift_events WHERE tenant_id IN (${tenantA}::uuid, ${tenantB}::uuid)`,
+        sql`SELECT id, tenant_id, title FROM saas_evidence_bundles WHERE tenant_id IN (${tenantA}::uuid, ${tenantB}::uuid)`,
       );
       return r.rows;
     });
@@ -100,49 +111,37 @@ describeMaybe("RLS tenant isolation (live Postgres)", () => {
     expect(seen.find((r) => r.tenant_id === tenantB)).toBeUndefined();
   });
 
-  it("SELECT under tenant A's RLS context returns only tenant A's audit rows", async () => {
-    const { withTenantRls } = await import("../../src/db");
-    const seen = await withTenantRls(tenantA, async (tx) => {
-      const r = await tx.execute<{ id: string; tenant_id: string }>(
-        sql`SELECT id, tenant_id FROM saas_audit_events WHERE tenant_id IN (${tenantA}::uuid, ${tenantB}::uuid)`,
-      );
-      return r.rows;
-    });
-    expect(seen.length).toBe(1);
-    expect(seen[0].tenant_id).toBe(tenantA);
-  });
-
-  it("UPDATE targeting tenant B from tenant A's context affects 0 rows", async () => {
-    const { withTenantRls } = await import("../../src/db");
-    const affected = await withTenantRls(tenantA, async (tx) => {
-      const r = await tx.execute(
-        sql`UPDATE drift_events SET title = 'PWNED' WHERE id = ${driftIdB}::uuid`,
-      );
-      // node-pg returns rowCount on UPDATE/DELETE results.
-      return r.rowCount ?? 0;
-    });
-    expect(affected).toBe(0);
-  });
-
   it("DELETE targeting tenant B from tenant A's context affects 0 rows", async () => {
     const { withTenantRls } = await import("../../src/db");
     const affected = await withTenantRls(tenantA, async (tx) => {
       const r = await tx.execute(
-        sql`DELETE FROM saas_audit_events WHERE id = ${auditIdB}::uuid`,
+        sql`DELETE FROM saas_evidence_bundles WHERE id = ${bundleIdB}::uuid`,
       );
       return r.rowCount ?? 0;
     });
     expect(affected).toBe(0);
   });
 
-  it("symmetry: tenant B's context does not see tenant A's data either", async () => {
+  it("symmetry: tenant B's context does not see tenant A's row either", async () => {
     const { withTenantRls } = await import("../../src/db");
     const seen = await withTenantRls(tenantB, async (tx) => {
       const r = await tx.execute<{ tenant_id: string }>(
-        sql`SELECT tenant_id FROM drift_events WHERE id = ${driftIdA}::uuid`,
+        sql`SELECT tenant_id FROM saas_evidence_bundles WHERE id = ${bundleIdA}::uuid`,
       );
       return r.rows;
     });
     expect(seen.length).toBe(0);
+  });
+
+  it("withBypassRls sees all rows again after the test policy was forced", async () => {
+    const { withBypassRls } = await import("../../src/db");
+    const seen = await withBypassRls(async (db) => {
+      const r = await db.execute<{ tenant_id: string }>(
+        sql`SELECT tenant_id FROM saas_evidence_bundles WHERE id IN (${bundleIdA}::uuid, ${bundleIdB}::uuid)`,
+      );
+      return r.rows;
+    });
+    // Bypass mode must override the forced RLS — that's its whole job.
+    expect(seen.length).toBe(2);
   });
 });

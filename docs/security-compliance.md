@@ -258,6 +258,17 @@ DPA / SOC-2 evidence bundle.
 
 Transparency reduces back-and-forth in security review:
 
+- **Three different RLS GUC names exist across migrations** —
+  `app.tenant_id`, `app.current_tenant`, `app.current_tenant_id`.
+  `withTenantRls()` sets `app.tenant_id`, so policies referencing
+  the other two names (notably `drift_events` from migration 0003)
+  are not effectively enforced at the DB layer; isolation for those
+  tables relies on application-level WHERE clauses and the per-row
+  `tenant_id` column instead. A consolidating migration is on the
+  backlog. The CI tenant-leak guardrail
+  (`tests/unit/rls-tenant-leak.test.ts`) deliberately exercises a
+  table whose policy DOES match the GUC `withTenantRls` sets, so a
+  regression in the wrapper would still be caught.
 - **Customer-managed encryption keys (CMEK / BYOK) — Enterprise tier.**
   Per-tenant KEK is supported (AWS KMS or HashiCorp Vault) and routed
   through `EncryptedKey.tenantId` so legacy global-KEK blobs continue
