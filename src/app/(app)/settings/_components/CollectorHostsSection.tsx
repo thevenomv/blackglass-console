@@ -50,10 +50,18 @@ export function CollectorHostsSection() {
         ok: boolean;
         summary: string;
         durationMs: number;
+        mode: "ssh-pull" | "agent-push" | "agent-push-and-ssh" | "down";
         stages: {
           tcp: { ok: boolean; durationMs: number; error?: string };
           ssh: { ok: boolean; durationMs: number; error?: string };
           exec: { ok: boolean; durationMs: number; error?: string; stdout?: string; stderr?: string };
+          agent: {
+            ok: boolean;
+            hostId: string;
+            lastSeenAt: string | null;
+            ageSeconds: number | null;
+            fresh: boolean;
+          };
         };
       }
   >(null);
@@ -287,10 +295,18 @@ export function CollectorHostsSection() {
         ok: boolean;
         summary: string;
         durationMs: number;
+        mode: "ssh-pull" | "agent-push" | "agent-push-and-ssh" | "down";
         stages: {
           tcp: { ok: boolean; durationMs: number; error?: string };
           ssh: { ok: boolean; durationMs: number; error?: string };
           exec: { ok: boolean; durationMs: number; error?: string; stdout?: string; stderr?: string };
+          agent: {
+            ok: boolean;
+            hostId: string;
+            lastSeenAt: string | null;
+            ageSeconds: number | null;
+            fresh: boolean;
+          };
         };
       };
       setTestResult({
@@ -298,6 +314,7 @@ export function CollectorHostsSection() {
         ok: data.ok,
         summary: data.summary,
         durationMs: data.durationMs,
+        mode: data.mode,
         stages: data.stages,
       });
       toastRef.current(data.summary, data.ok ? "success" : "warning");
@@ -757,6 +774,9 @@ export function CollectorHostsSection() {
                       ({testResult.durationMs}ms)
                     </span>
                   </p>
+                  <p className="mt-1 text-[11px] text-fg-faint">
+                    mode: <span className="font-mono text-fg-muted">{testResult.mode}</span>
+                  </p>
                   <ul className="mt-1.5 space-y-0.5 font-mono text-[11px] text-fg-faint">
                     <li>
                       TCP {testResult.stages.tcp.ok ? "✓" : "✗"} {testResult.stages.tcp.durationMs}ms
@@ -769,6 +789,12 @@ export function CollectorHostsSection() {
                     <li>
                       exec {testResult.stages.exec.ok ? "✓" : "✗"} {testResult.stages.exec.durationMs}ms
                       {testResult.stages.exec.error ? ` — ${testResult.stages.exec.error}` : ""}
+                    </li>
+                    <li>
+                      agent {testResult.stages.agent.fresh ? "✓" : "✗"}
+                      {testResult.stages.agent.lastSeenAt
+                        ? ` — last ingest ${testResult.stages.agent.ageSeconds}s ago (hostId=${testResult.stages.agent.hostId})`
+                        : ` — no baseline snapshot for hostId=${testResult.stages.agent.hostId}`}
                     </li>
                   </ul>
                   {testResult.stages.exec.stdout ? (

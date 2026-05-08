@@ -152,7 +152,10 @@ describe("/api/v1/ingest/agent", () => {
     expect(body.sections).toBeGreaterThanOrEqual(15);
 
     expect(saveBaselineMock).toHaveBeenCalledTimes(1);
-    const snapshot = saveBaselineMock.mock.calls[0][0] as {
+    // saveBaselineMock is typed as `() => Promise<void>` (no args declared on
+    // the vi.hoisted stub), so mock.calls is a tuple of `[]`. Round-trip via
+    // unknown to inspect the actual snapshot object the route handed us.
+    const snapshot = (saveBaselineMock.mock.calls[0] as unknown as [unknown])[0] as {
       hostId: string;
       listeners: Array<{ port: number; process?: string }>;
       users: Array<{ username: string }>;

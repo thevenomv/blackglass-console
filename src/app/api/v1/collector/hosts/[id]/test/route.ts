@@ -8,6 +8,14 @@
  *
  * Hard-capped at 20 s wall-clock so a hung host can't block the request
  * worker. Audit-logged like every other host mutation.
+ *
+ * Push-agent fallback: if the live SSH probe fails BUT a baseline-store
+ * snapshot for this host was recorded within AGENT_FRESH_WINDOW_SECONDS,
+ * the test is reported as `ok: true` with a "push-mode" summary. This is
+ * the supported topology when BLACKGLASS runs on DO App Platform (its
+ * egress to other user-owned Droplets is silently blackholed by the DO
+ * network fabric, so SSH pull cannot work no matter how the firewall
+ * is configured).
  */
 
 import type { ConnectConfig } from "ssh2";
@@ -20,7 +28,51 @@ import { and, eq } from "drizzle-orm";
 import { emitSaasAudit } from "@/lib/saas/event-log";
 import { canRunScansForTenant } from "@/lib/saas/operations";
 import { runWithCollectorCredential, type SshAuthConfig } from "@/lib/server/secrets";
+import { getBaseline } from "@/lib/server/baseline-store";
 import * as net from "node:net";
+
+/** 15 minutes by default — same window the lab-health probe uses. */
+function getAgentFreshWindowSeconds(): number {
+  const raw = process.env.LAB_AGENT_FRESH_WINDOW_SECONDS;
+  if (!raw) return 15 * 60;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : 15 * 60;
+}
+
+/** Mirrors buildSshConfig's hostId synthesis: "host-<ip-with-dashes>". */
+function deriveAgentHostId(hostname: string): string {
+  return `host-${hostname.replace(/\./g, "-")}`;
+}
+
+async function probeAgentFreshness(hostname: string): Promise<{
+  hostId: string;
+  lastSeenAt: string | null;
+  ageSeconds: number | null;
+  fresh: boolean;
+}> {
+  const hostId = deriveAgentHostId(hostname);
+  try {
+    const snapshot = await getBaseline(hostId);
+    if (!snapshot?.collectedAt) {
+      return { hostId, lastSeenAt: null, ageSeconds: null, fresh: false };
+    }
+    const collectedMs = Date.parse(snapshot.collectedAt);
+    if (!Number.isFinite(collectedMs)) {
+      return { hostId, lastSeenAt: snapshot.collectedAt, ageSeconds: null, fresh: false };
+    }
+    const ageSeconds = Math.max(0, Math.round((Date.now() - collectedMs) / 1000));
+    return {
+      hostId,
+      lastSeenAt: snapshot.collectedAt,
+      ageSeconds,
+      fresh: ageSeconds <= getAgentFreshWindowSeconds(),
+    };
+  } catch {
+    // Baseline store may be unconfigured (memory adapter on a fresh
+    // App Platform deploy) — treat as "no agent signal" rather than 500.
+    return { hostId, lastSeenAt: null, ageSeconds: null, fresh: false };
+  }
+}
 
 export const dynamic = "force-dynamic";
 
@@ -103,10 +155,19 @@ async function runOneShot(
 interface TestResult {
   ok: boolean;
   durationMs: number;
+  /** Which signal made this host healthy ("ssh-pull" or "agent-push"); "down" when neither worked. */
+  mode: "ssh-pull" | "agent-push" | "agent-push-and-ssh" | "down";
   stages: {
     tcp: { ok: boolean; durationMs: number; error?: string };
     ssh: { ok: boolean; durationMs: number; error?: string };
     exec: { ok: boolean; durationMs: number; error?: string; stdout?: string; stderr?: string };
+    agent: {
+      ok: boolean;
+      hostId: string;
+      lastSeenAt: string | null;
+      ageSeconds: number | null;
+      fresh: boolean;
+    };
   };
   /** A short human-readable summary for the toast. */
   summary: string;
@@ -133,13 +194,28 @@ export async function POST(request: Request, { params }: Params) {
   const result: TestResult = {
     ok: false,
     durationMs: 0,
+    mode: "down",
     stages: {
       tcp: { ok: false, durationMs: 0 },
       ssh: { ok: false, durationMs: 0 },
       exec: { ok: false, durationMs: 0 },
+      agent: {
+        ok: false,
+        hostId: deriveAgentHostId(host.hostname),
+        lastSeenAt: null,
+        ageSeconds: null,
+        fresh: false,
+      },
     },
     summary: "",
   };
+
+  // Stage 0: agent freshness — independent of the SSH probe; we always
+  // report it so the operator can see "TCP failed BUT agent is healthy"
+  // when the host is actually fine and the SSH probe is just being eaten
+  // by the DO App Platform → Droplet egress restriction.
+  const agent = await probeAgentFreshness(host.hostname);
+  result.stages.agent = { ok: agent.fresh, ...agent };
 
   // Stage 1: TCP
   const tcpStart = Date.now();
@@ -153,7 +229,22 @@ export async function POST(request: Request, { params }: Params) {
       error: err instanceof Error ? err.message : String(err),
     };
     result.durationMs = Date.now() - overallStart;
-    result.summary = "TCP probe failed — check the IP / port / network firewall.";
+    if (agent.fresh) {
+      // SSH pull is broken but the push-agent on the host is healthy —
+      // that's a fully valid topology. Report success.
+      result.ok = true;
+      result.mode = "agent-push";
+      result.summary =
+        `Push-agent reported ${agent.ageSeconds}s ago — host is healthy in agent-push mode. ` +
+        `(SSH probe failed; if BLACKGLASS runs on DO App Platform this is expected — egress to ` +
+        `user-owned Droplets is blackholed by the DO network fabric. Use the push-agent instead.)`;
+    } else {
+      result.mode = "down";
+      result.summary = agent.lastSeenAt
+        ? `TCP probe failed AND last push-agent ingest was ${agent.ageSeconds}s ago (stale). ` +
+          `Check the host's network firewall AND the blackglass-agent.timer status on the host.`
+        : "TCP probe failed — check the IP / port / network firewall, OR install the push-agent (scripts/blackglass-agent.sh) on the host.";
+    }
     await emitTestAudit(ctx.tenant.id, ctx.userId, host.id, host.hostname, result);
     return jsonWithRequestId(result, requestId);
   }
@@ -209,12 +300,31 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   result.durationMs = Date.now() - overallStart;
-  result.ok = result.stages.tcp.ok && result.stages.ssh.ok && result.stages.exec.ok;
-  result.summary = result.ok
-    ? "Connection healthy — collector ready to scan this host."
-    : !result.stages.ssh.ok
-      ? "SSH handshake failed — check credentials and the host's authorized_keys."
-      : "Command exec failed — connection succeeded but `whoami` returned an error.";
+  const sshFullyHealthy =
+    result.stages.tcp.ok && result.stages.ssh.ok && result.stages.exec.ok;
+  result.ok = sshFullyHealthy || agent.fresh;
+  result.mode = sshFullyHealthy && agent.fresh
+    ? "agent-push-and-ssh"
+    : sshFullyHealthy
+      ? "ssh-pull"
+      : agent.fresh
+        ? "agent-push"
+        : "down";
+  if (sshFullyHealthy && agent.fresh) {
+    result.summary =
+      `Connection healthy — both SSH pull and push-agent are working ` +
+      `(agent reported ${agent.ageSeconds}s ago).`;
+  } else if (sshFullyHealthy) {
+    result.summary = "Connection healthy — collector ready to scan this host.";
+  } else if (agent.fresh) {
+    result.summary =
+      `Push-agent reported ${agent.ageSeconds}s ago — host is healthy in agent-push mode. ` +
+      `(SSH path is broken: ${result.stages.ssh.ok ? result.stages.exec.error ?? "exec failed" : result.stages.ssh.error ?? "handshake failed"}.)`;
+  } else if (!result.stages.ssh.ok) {
+    result.summary = "SSH handshake failed — check credentials and the host's authorized_keys.";
+  } else {
+    result.summary = "Command exec failed — connection succeeded but `whoami` returned an error.";
+  }
 
   await emitTestAudit(ctx.tenant.id, ctx.userId, host.id, host.hostname, result);
   return jsonWithRequestId(result, requestId);
@@ -236,10 +346,13 @@ async function emitTestAudit(
     metadata: {
       hostname,
       ok: result.ok,
+      mode: result.mode,
       durationMs: result.durationMs,
       tcp: result.stages.tcp.ok,
       ssh: result.stages.ssh.ok,
       exec: result.stages.exec.ok,
+      agentFresh: result.stages.agent.fresh,
+      agentAgeSeconds: result.stages.agent.ageSeconds,
     },
   });
 }
