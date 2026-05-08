@@ -79,9 +79,19 @@ export default function SecurityPage() {
       {/* Header */}
       <p className="mb-2 font-mono text-xs uppercase tracking-widest text-fg-faint">Security</p>
       <h1 className="mb-4 text-3xl font-bold text-fg-primary">Security overview</h1>
-      <p className="mb-12 max-w-2xl text-base text-fg-muted">
+      <p className="max-w-2xl text-base text-fg-muted">
         BLACKGLASS is a configuration-integrity product. This page describes what it does to
         improve your security posture — and how we protect the data you entrust to us.
+      </p>
+      <p className="mb-12 mt-3 max-w-2xl text-xs text-fg-faint">
+        Last reviewed 2026-05-08 · Looking for procurement evidence? See the{" "}
+        <Link
+          href="https://github.com/thevenomv/blackglass-console/blob/main/docs/security-compliance.md#10b-security-questionnaire-mapping-drop-in-answers"
+          className="text-accent-blue hover:underline"
+        >
+          questionnaire mapping table
+        </Link>{" "}
+        — 24 rows of common questions answered with mechanism and source file.
       </p>
 
       <div className="space-y-14">
@@ -183,6 +193,88 @@ export default function SecurityPage() {
           </div>
         </section>
 
+        {/* Section 1b — Agentic AI safety (the remediator) */}
+        <section aria-labelledby="ai-safety">
+          <SectionHeading>
+            <span id="ai-safety">Agentic AI safety</span>
+          </SectionHeading>
+
+          <div className="rounded-lg border border-border-subtle bg-bg-panel/60 px-5 py-4 mb-6">
+            <p className="text-sm font-semibold text-fg-primary">
+              The remediator never runs AI-generated commands directly on production.
+            </p>
+            <Prose>
+              BLACKGLASS includes an LLM-driven remediator that proposes plans for
+              detected drift. It is the most-asked-about component in security review
+              — so the safety contract is uncompromising and enforced in code, not in
+              the prompt.
+            </Prose>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <DomainCard title="4-tier risk policy">
+              Every drift event is classified by category + severity into one of:
+              guidance-only, sandbox-verifiable, approval-required, or manual-only.
+              Classification is application logic — the LLM cannot see, override, or
+              argue with the tier assignment.
+            </DomainCard>
+
+            <DomainCard title="Auto-escalation on dangerous verbs">
+              Even when category resolves to sandbox-verifiable, any plan that
+              contains <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">sudo</code>,{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">systemctl stop|disable|mask</code>,
+              SSH service restart, or user/group mutation is auto-promoted to
+              approval-required. Tier never moves down.
+            </DomainCard>
+
+            <DomainCard title="Forbidden-command registry">
+              Hard-coded denylist blocks{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">rm -rf /</code>,{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">curl | bash</code>,
+              firewall takedown, sudoers truncation, SSH service stop, SELinux
+              disable, and every variant in between. Plans containing any pattern are
+              rejected wholesale — no &quot;sanitisation&quot; gymnastics.
+            </DomainCard>
+
+            <DomainCard title="Sandbox verification">
+              Plans permitted to run are executed in an ephemeral DigitalOcean
+              droplet outside the customer&apos;s network — no SSH access to
+              production, no production credentials, destroyed within 10 minutes.
+              Failed verification means the plan never reaches the operator.
+            </DomainCard>
+
+            <DomainCard title="HMAC Approval Token (default-on)">
+              When the operator clicks Approve in the Console, an HMAC-SHA256 token
+              binding{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">
+                {`{recommendation_id, tenant_id, decision, exp}`}
+              </code>{" "}
+              is signed and forwarded to the Remediator. The Remediator verifies the
+              token before recording the approval. A leaked Remediator API key alone
+              is insufficient to fabricate approvals.
+            </DomainCard>
+
+            <DomainCard title="Per-category confidence caps">
+              The LLM&apos;s self-reported confidence score is clamped to a
+              per-category ceiling — kernel ≤ 30%, identity ≤ 70%, SSH ≤ 85%, etc.
+              Capped scores surface in the UI with a visible badge so operators see
+              &quot;Confidence 30% (capped)&quot; rather than a silent score change.
+            </DomainCard>
+          </div>
+
+          <p className="mt-4 text-xs text-fg-faint">
+            Full remediator safety model is in the open source —{" "}
+            <Link
+              href="https://github.com/thevenomv/blackglass-console/blob/main/blackglass-remediator/docs/safety-model.md"
+              className="text-accent-blue hover:underline"
+            >
+              safety-model.md
+            </Link>{" "}
+            includes the end-to-end HITL flow diagram and the threat-mitigation
+            matrix for the Approval Token.
+          </p>
+        </section>
+
         {/* Section 2 — How we protect your data */}
         <section aria-labelledby="data-protection">
           <SectionHeading>
@@ -252,9 +344,38 @@ export default function SecurityPage() {
             <DomainCard title="Air-gapped mode">
               Setting{" "}
               <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">BLACKGLASS_AIRGAPPED=true</code>{" "}
-              disables outbound calls to public services (Stripe, Sentry, telemetry) and makes
-              modules fail fast rather than hang. Designed for regulated, on-premise, and
-              classified deployments — including the self-hosted Helm chart.
+              disables outbound calls to public services (Stripe, Sentry, telemetry,
+              PostHog) on both backend AND browser. Modules fail fast rather than
+              hang. The matching{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">/api/health/airgap?probe=true</code>{" "}
+              endpoint actively self-tests the gate. Designed for regulated,
+              on-premise, and classified deployments — including the self-hosted
+              Helm chart.
+            </DomainCard>
+
+            <DomainCard title="Bring your own key (BYOK)">
+              Enterprise tenants can wrap their own data-encryption keys with a
+              tenant-specific KEK in AWS KMS or HashiCorp Vault. The wrapped DEK
+              embeds the tenant id so legacy global-KEK blobs continue to round-trip
+              safely after rollout. Configured under Settings → Identity → Bring
+              your own key with a one-click round-trip verification flow.
+            </DomainCard>
+
+            <DomainCard title="HTTP security headers">
+              Every response carries CSP (Report-Only by default), strict
+              X-Content-Type-Options, Referrer-Policy, Permissions-Policy disabling
+              camera / mic / geolocation, and Cross-Origin-Opener-Policy. The CSP
+              whitelist is narrow — Stripe, Clerk, Sentry, plus self.
+            </DomainCard>
+
+            <DomainCard title="SAST + dependency scanning in CI">
+              Semgrep with{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">p/owasp-top-ten</code>,{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">p/javascript</code>,{" "}
+              <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">p/typescript</code>,
+              and a secrets ruleset runs on every push and weekly cron — fails CI
+              on ERROR-severity findings, uploads SARIF to GitHub code-scanning.
+              Dependabot watches both the Node and Python stacks daily.
             </DomainCard>
 
             <DomainCard title="Platform hardening and CI">
