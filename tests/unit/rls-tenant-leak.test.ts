@@ -48,6 +48,15 @@ describeMaybe("RLS tenant isolation (live Postgres)", () => {
 
     const { withBypassRls } = await import("../../src/db");
     await withBypassRls(async (db) => {
+      // saas_audit_events.tenant_id has an FK to saas_tenants(id);
+      // create the parent rows before any audit insert.
+      // clerk_org_id is UNIQUE so we use the test-run UUIDs as the
+      // org id surrogates — they're guaranteed unique to this test.
+      await db.execute(sql`
+        INSERT INTO saas_tenants (id, clerk_org_id, name) VALUES
+          (${tenantA}::uuid, ${`rls-test-${tenantA}`}, 'rls-test-A'),
+          (${tenantB}::uuid, ${`rls-test-${tenantB}`}, 'rls-test-B')
+      `);
       // drift_events is partitioned + RLS-enabled — perfect for the leak test.
       await db.execute(sql`
         INSERT INTO drift_events (id, tenant_id, host_id, category, severity, title)
@@ -69,8 +78,11 @@ describeMaybe("RLS tenant isolation (live Postgres)", () => {
     if (!tenantA) return;
     const { withBypassRls } = await import("../../src/db");
     await withBypassRls(async (db) => {
+      // ON DELETE CASCADE on the FK takes care of the children, but
+      // we still drop drift_events explicitly because it doesn't
+      // FK to saas_tenants (looser coupling, partitioned table).
       await db.execute(sql`DELETE FROM drift_events WHERE tenant_id IN (${tenantA}::uuid, ${tenantB}::uuid)`);
-      await db.execute(sql`DELETE FROM saas_audit_events WHERE tenant_id IN (${tenantA}::uuid, ${tenantB}::uuid)`);
+      await db.execute(sql`DELETE FROM saas_tenants WHERE id IN (${tenantA}::uuid, ${tenantB}::uuid)`);
     });
   });
 
