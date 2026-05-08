@@ -45,7 +45,9 @@ import {
 } from "@/lib/server/collector/parsers";
 import type { HostSnapshot } from "@/lib/server/collector";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
-import { saveBaseline, listBaselineHostIds } from "@/lib/server/baseline-store";
+import { getBaseline, saveBaseline, listBaselineHostIds } from "@/lib/server/baseline-store";
+import { storeDriftEvents } from "@/lib/server/drift-engine";
+import { processHostSnapshotDrift } from "@/lib/server/services/scan-drift-job";
 import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { checkIngestRate } from "@/lib/server/rate-limit";
@@ -176,16 +178,53 @@ export async function POST(request: Request) {
     systemdUnitFiles: parseSystemdUnitFiles(sections["systemdunits"] ?? ""),
   };
 
+  // Drift-detection model for push-agent ingest:
+  //
+  //   1. First-ever push for a host  → no baseline yet, so this snapshot
+  //      becomes the bootstrap baseline (audit: BASELINE_CAPTURE). Drift
+  //      events are explicitly cleared so the host shows up "healthy".
+  //
+  //   2. Subsequent pushes           → diff against the pinned baseline
+  //      via the same pipeline scan-drift-job uses (computeDrift +
+  //      tenant policies + mute rules + alerts + outbound webhooks).
+  //      The baseline is NOT overwritten — only the explicit "Capture
+  //      baseline" UI action repins it. This is what makes drift events
+  //      stick across pushes instead of vanishing on the next cycle.
+  //
+  // The baseline itself is also kept in the baseline store as a
+  // side-effect of (1) so the SSH-failure agent fallback in
+  // collect.ts continues to find a snapshot to fall through to.
+  let bootstrap = false;
+  let driftCount = 0;
+  let totalEvents = 0;
   try {
-    await saveBaseline(snapshot);
+    const existing = await getBaseline(hostId);
+    if (!existing) {
+      await saveBaseline(snapshot);
+      storeDriftEvents(hostId, []);
+      bootstrap = true;
+    } else {
+      const tenantId = process.env.INGEST_SAAS_TENANT_ID?.trim() || undefined;
+      const result = await processHostSnapshotDrift({
+        snapshot,
+        baseline: existing,
+        tenantId,
+        jobId: `agent-${hostId}-${Date.now()}`,
+        origin: "agent-push",
+      });
+      driftCount = result.driftCount;
+      totalEvents = result.events.length;
+    }
   } catch (err) {
-    console.error("[ingest/agent] saveBaseline failed for", hostId, err);
-    return jsonError(502, "store_error", "Snapshot could not be persisted. Check server logs.", requestId);
+    console.error("[ingest/agent] drift pipeline failed for", hostId, err);
+    return jsonError(502, "store_error", "Snapshot could not be processed. Check server logs.", requestId);
   }
 
   appendAudit({
-    action: AUDIT_ACTIONS.BASELINE_CAPTURE,
-    detail: `Push-agent (raw bundle) ingest — host=${hostId} hostname=${hostname} sections=${Object.keys(sections).length}`,
+    action: bootstrap ? AUDIT_ACTIONS.BASELINE_CAPTURE : AUDIT_ACTIONS.SCAN_COMPLETED,
+    detail: bootstrap
+      ? `Push-agent bootstrap baseline — host=${hostId} hostname=${hostname} sections=${Object.keys(sections).length}`
+      : `Push-agent ingest — host=${hostId} hostname=${hostname} drift=${driftCount} totalEvents=${totalEvents}`,
     actor: hostId,
     request_id: requestId,
   });
@@ -201,6 +240,8 @@ export async function POST(request: Request) {
       listeners: snapshot.listeners.length,
       users: snapshot.users.length,
       services: snapshot.services.length,
+      bootstrap,
+      driftEvents: totalEvents,
     },
     requestId,
   );

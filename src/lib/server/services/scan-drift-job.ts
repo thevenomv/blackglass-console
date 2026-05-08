@@ -92,6 +92,67 @@ async function evaluateTenantPolicies(
   }
 }
 
+/**
+ * Drift pipeline for a single (already-collected) snapshot. Used by both
+ * the SSH-scan path (`executeDriftScanJob` below) AND the push-agent
+ * ingest path (`/api/v1/ingest/agent`) so they share the exact same
+ * policy / mute / alert / webhook semantics — drift detection works the
+ * same way regardless of how the snapshot got into the system.
+ *
+ * Returns the events stored for the host. Caller is responsible for any
+ * audit logging it wants to layer on top.
+ */
+export async function processHostSnapshotDrift(args: {
+  snapshot: HostSnapshot;
+  baseline: HostSnapshot;
+  tenantId?: string;
+  jobId: string;
+  origin: "scan" | "agent-push";
+}): Promise<{ events: DriftEvent[]; driftCount: number; policyCount: number }> {
+  const { snapshot: current, baseline, tenantId, jobId, origin } = args;
+
+  const driftEvents = computeDrift(baseline, current);
+  const policyEvents = tenantId
+    ? await evaluateTenantPolicies(tenantId, current)
+    : [];
+  let events = [...driftEvents, ...policyEvents];
+
+  if (tenantId) {
+    try {
+      const mutes = await listActiveMutesForWorker(tenantId);
+      if (mutes.length > 0) events = applyMutes(events, mutes);
+    } catch (err) {
+      console.error(`[drift-pipeline:${origin}] mute load failed:`, err);
+    }
+  }
+
+  storeDriftEvents(current.hostId, events);
+
+  const highEvents = events.filter(
+    (e) => e.severity === "high" && e.lifecycle !== "accepted_risk",
+  );
+  if (highEvents.length > 0) {
+    void alertDriftEmail(jobId, current.hostname, highEvents, tenantId);
+  }
+
+  const dispatchableEvents = events.filter((e) => e.lifecycle !== "accepted_risk");
+  if (dispatchableEvents.length > 0) {
+    void dispatchDriftWebhook({
+      scanId: jobId,
+      ...(tenantId ? { tenantId } : {}),
+      hostId: current.hostId,
+      hostname: current.hostname,
+      events: dispatchableEvents,
+    });
+  }
+
+  return {
+    events,
+    driftCount: driftEvents.length,
+    policyCount: policyEvents.length,
+  };
+}
+
 async function alertDriftEmail(
   jobId: string,
   hostname: string,
@@ -146,50 +207,17 @@ export async function executeDriftScanJob(
         continue;
       }
 
-      const driftEvents = computeDrift(baseline, current);
-      const policyEvents = collectOpts.tenantId
-        ? await evaluateTenantPolicies(collectOpts.tenantId, current)
-        : [];
-      let events = [...driftEvents, ...policyEvents];
-
-      // Apply tenant snooze/mute rules — matched events are kept but flipped
-      // to lifecycle:"accepted_risk" so they stop alerting while remaining
-      // in the audit trail.
-      if (collectOpts.tenantId) {
-        try {
-          const mutes = await listActiveMutesForWorker(collectOpts.tenantId);
-          if (mutes.length > 0) events = applyMutes(events, mutes);
-        } catch (err) {
-          console.error("[scan-drift-job] mute load failed:", err);
-        }
-      }
+      const { events, driftCount, policyCount } = await processHostSnapshotDrift({
+        snapshot: current,
+        baseline,
+        tenantId: collectOpts.tenantId,
+        jobId,
+        origin: "scan",
+      });
       console.log(
-        `[scan-drift-job] hostId=${current.hostId} drift=${driftEvents.length} policy=${policyEvents.length} events: ${events.map((e) => e.title).join(", ") || "(none)"}`,
+        `[scan-drift-job] hostId=${current.hostId} drift=${driftCount} policy=${policyCount} events: ${events.map((e) => e.title).join(", ") || "(none)"}`,
       );
-      storeDriftEvents(current.hostId, events);
       totalDrift += events.length;
-
-      // Email alert for high-severity findings (non-blocking).  Muted
-      // findings (lifecycle === "accepted_risk") are excluded from alerting
-      // but kept in the audit trail.
-      const highEvents = events.filter(
-        (e) => e.severity === "high" && e.lifecycle !== "accepted_risk",
-      );
-      if (highEvents.length > 0) {
-        void alertDriftEmail(jobId, current.hostname, highEvents, collectOpts.tenantId);
-      }
-
-      // Fire outbound webhooks for non-muted findings (non-blocking).
-      const dispatchableEvents = events.filter((e) => e.lifecycle !== "accepted_risk");
-      if (dispatchableEvents.length > 0) {
-        void dispatchDriftWebhook({
-          scanId: jobId,
-          ...(collectOpts.tenantId ? { tenantId: collectOpts.tenantId } : {}),
-          hostId: current.hostId,
-          hostname: current.hostname,
-          events: dispatchableEvents,
-        });
-      }
 
       appendAudit({
         action: AUDIT_ACTIONS.SCAN_COMPLETED,

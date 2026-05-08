@@ -9,26 +9,45 @@
  *     collector uses, so the persisted HostSnapshot is byte-identical.
  *   - 503 when no auth secret is configured.
  *   - 401 on bad token.
- *   - 200 + saveBaseline() called with a structured snapshot on success.
+ *   - First push for a host (no baseline yet) → bootstrap baseline,
+ *     drift events cleared, audit BASELINE_CAPTURE.
+ *   - Subsequent push (baseline exists) → does NOT overwrite baseline,
+ *     runs the shared drift pipeline, audit SCAN_COMPLETED. This is the
+ *     fix for the "agent push never produces drift" bug.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const saveBaselineMock = vi.hoisted(() => vi.fn(async () => {}));
+const getBaselineMock = vi.hoisted(() => vi.fn(async () => undefined as unknown));
 const listBaselineHostIdsMock = vi.hoisted(() => vi.fn(async () => [] as string[]));
+const storeDriftEventsMock = vi.hoisted(() => vi.fn());
+const processHostSnapshotDriftMock = vi.hoisted(() =>
+  vi.fn(async () => ({ events: [] as unknown[], driftCount: 0, policyCount: 0 })),
+);
 const checkIngestRateMock = vi.hoisted(() => vi.fn(async () => true));
 const appendAuditMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/server/baseline-store", () => ({
   saveBaseline: saveBaselineMock,
+  getBaseline: getBaselineMock,
   listBaselineHostIds: listBaselineHostIdsMock,
+}));
+vi.mock("@/lib/server/drift-engine", () => ({
+  storeDriftEvents: storeDriftEventsMock,
+}));
+vi.mock("@/lib/server/services/scan-drift-job", () => ({
+  processHostSnapshotDrift: processHostSnapshotDriftMock,
 }));
 vi.mock("@/lib/server/rate-limit", () => ({
   checkIngestRate: checkIngestRateMock,
 }));
 vi.mock("@/lib/server/audit-log", () => ({
   appendAudit: appendAuditMock,
-  AUDIT_ACTIONS: { BASELINE_CAPTURE: "baseline_capture" },
+  AUDIT_ACTIONS: {
+    BASELINE_CAPTURE: "baseline_capture",
+    SCAN_COMPLETED: "scan_completed",
+  },
 }));
 vi.mock("@/lib/server/integrity-revalidate", () => ({
   revalidateIntegritySurfaces: vi.fn(),
@@ -40,8 +59,17 @@ const ORIGINAL_HOST_KEYS = process.env.INGEST_HOST_KEYS_JSON;
 beforeEach(() => {
   saveBaselineMock.mockReset();
   saveBaselineMock.mockResolvedValue(undefined);
+  getBaselineMock.mockReset();
+  getBaselineMock.mockResolvedValue(undefined);
   listBaselineHostIdsMock.mockReset();
   listBaselineHostIdsMock.mockResolvedValue([]);
+  storeDriftEventsMock.mockReset();
+  processHostSnapshotDriftMock.mockReset();
+  processHostSnapshotDriftMock.mockResolvedValue({
+    events: [],
+    driftCount: 0,
+    policyCount: 0,
+  });
   checkIngestRateMock.mockReset();
   checkIngestRateMock.mockResolvedValue(true);
   appendAuditMock.mockReset();
@@ -138,8 +166,9 @@ describe("/api/v1/ingest/agent", () => {
     expect(saveBaselineMock).not.toHaveBeenCalled();
   });
 
-  it("accepts a valid bundle, parses it, and persists a structured HostSnapshot", async () => {
+  it("first push for a host: bootstraps baseline, clears drift, audits BASELINE_CAPTURE", async () => {
     process.env.INGEST_API_KEY = "correct-secret-1234567890";
+    getBaselineMock.mockResolvedValueOnce(undefined);
     const res = await call(makePayload(), {
       "content-type": "application/json",
       authorization: "Bearer correct-secret-1234567890",
@@ -149,12 +178,14 @@ describe("/api/v1/ingest/agent", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.ok).toBe(true);
     expect(body.hostId).toBe("host-127-0-0-1");
+    expect(body.bootstrap).toBe(true);
+    expect(body.driftEvents).toBe(0);
     expect(body.sections).toBeGreaterThanOrEqual(15);
 
     expect(saveBaselineMock).toHaveBeenCalledTimes(1);
-    // saveBaselineMock is typed as `() => Promise<void>` (no args declared on
-    // the vi.hoisted stub), so mock.calls is a tuple of `[]`. Round-trip via
-    // unknown to inspect the actual snapshot object the route handed us.
+    expect(storeDriftEventsMock).toHaveBeenCalledWith("host-127-0-0-1", []);
+    expect(processHostSnapshotDriftMock).not.toHaveBeenCalled();
+
     const snapshot = (saveBaselineMock.mock.calls[0] as unknown as [unknown])[0] as {
       hostId: string;
       listeners: Array<{ port: number; process?: string }>;
@@ -169,6 +200,75 @@ describe("/api/v1/ingest/agent", () => {
     expect(snapshot.ssh.permitRootLogin).toBe("no");
     expect(snapshot.ssh.passwordAuthentication).toBe("no");
     expect(snapshot.firewall.active).toBe(true);
+
+    expect(appendAuditMock).toHaveBeenCalledTimes(1);
+    expect(appendAuditMock.mock.calls[0]?.[0]).toMatchObject({
+      action: "baseline_capture",
+    });
+  });
+
+  it("subsequent push: leaves baseline untouched, runs drift pipeline, audits SCAN_COMPLETED", async () => {
+    process.env.INGEST_API_KEY = "correct-secret-1234567890";
+    getBaselineMock.mockResolvedValueOnce({
+      hostId: "host-127-0-0-1",
+      hostname: "lab-test",
+      collectedAt: "2026-05-01T00:00:00Z",
+      listeners: [],
+      users: [],
+      sudoers: [],
+      sudoersFiles: [],
+      cronEntries: [],
+      userCrontabs: [],
+      services: [],
+      ssh: { permitRootLogin: "no", passwordAuthentication: "no" },
+      firewall: { active: true, rules: [] },
+      authorizedKeys: [],
+      fileHashes: [],
+      hostsEntries: [],
+      kernelModules: [],
+      suidBinaries: [],
+      installedPackages: [],
+      systemdUnitFiles: [],
+    });
+    processHostSnapshotDriftMock.mockResolvedValueOnce({
+      events: [
+        { id: "e1", title: "new listener", severity: "high" },
+        { id: "e2", title: "sudoers drift", severity: "medium" },
+      ] as unknown[],
+      driftCount: 2,
+      policyCount: 0,
+    });
+
+    const res = await call(makePayload(), {
+      "content-type": "application/json",
+      authorization: "Bearer correct-secret-1234567890",
+    });
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.ok).toBe(true);
+    expect(body.bootstrap).toBe(false);
+    expect(body.driftEvents).toBe(2);
+
+    // The fix: baseline must NOT be overwritten on a normal push.
+    expect(saveBaselineMock).not.toHaveBeenCalled();
+    // Drift pipeline must run.
+    expect(processHostSnapshotDriftMock).toHaveBeenCalledTimes(1);
+    const args = processHostSnapshotDriftMock.mock.calls[0]?.[0] as {
+      origin: string;
+      jobId: string;
+      snapshot: { hostId: string };
+      baseline: { hostId: string };
+    };
+    expect(args.origin).toBe("agent-push");
+    expect(args.snapshot.hostId).toBe("host-127-0-0-1");
+    expect(args.baseline.hostId).toBe("host-127-0-0-1");
+    expect(args.jobId.startsWith("agent-host-127-0-0-1-")).toBe(true);
+
+    expect(appendAuditMock).toHaveBeenCalledTimes(1);
+    expect(appendAuditMock.mock.calls[0]?.[0]).toMatchObject({
+      action: "scan_completed",
+    });
   });
 
   it("prefers per-host keys over the shared INGEST_API_KEY when configured", async () => {
