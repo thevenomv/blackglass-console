@@ -36,16 +36,22 @@ export function PublicFooter() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Legal</p>
             <ul className="mt-2 space-y-1.5">
+              <li><Link href="/privacy" className="hover:text-fg-primary">Legal &amp; privacy</Link></li>
               <li><Link href="/terms" className="hover:text-fg-primary">Terms</Link></li>
-              <li><Link href="/privacy" className="hover:text-fg-primary">Privacy</Link></li>
-              <li><Link href="/dpa" className="hover:text-fg-primary">Data processing</Link></li>
+              <li><Link href="/dpa" className="hover:text-fg-primary">Data processing (DPA)</Link></li>
             </ul>
           </div>
         </div>
       </div>
-      <p className="mx-auto mt-10 max-w-6xl px-4 text-xs text-fg-faint">
-        © {new Date().getFullYear()} Obsidian Dynamics Limited
-      </p>
+      <div className="mx-auto mt-10 max-w-6xl space-y-1 px-4 text-xs leading-relaxed text-fg-faint">
+        <p>
+          © {new Date().getFullYear()} Obsidian Dynamics Limited (Co. No. 16663833). UK ICO registration{" "}
+          <span className="whitespace-nowrap">ZC141175</span>.
+        </p>
+        <p>
+          Registered office: Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset BH16 6FA.
+        </p>
+      </div>
     </footer>
   );
 }

@@ -148,11 +148,26 @@ export const saasEvidenceBundles = pgTable("saas_evidence_bundles", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Async baseline capture job — see POST /api/v1/baselines (202) and capture-jobs GET. */
+export const saasBaselineCaptureJobs = pgTable("saas_baseline_capture_jobs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  /** Null for legacy (non-Clerk) deployments; RLS allows access only in bypass mode. */
+  tenantId: uuid("tenant_id").references(() => saasTenants.id, { onDelete: "cascade" }),
+  status: text("status").notNull(),
+  requestId: text("request_id"),
+  result: jsonb("result").$type<Record<string, unknown> | null>(),
+  errorDetail: text("error_detail"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
+
 export type SaasTenant = typeof saasTenants.$inferSelect;
 export type SaasSubscription = typeof saasSubscriptions.$inferSelect;
 export type SaasTenantMembership = typeof saasTenantMemberships.$inferSelect;
 export type SaasCollectorHost = typeof saasCollectorHosts.$inferSelect;
 export type SaasEvidenceBundle = typeof saasEvidenceBundles.$inferSelect;
+export type SaasBaselineCaptureJob = typeof saasBaselineCaptureJobs.$inferSelect;
 
 /**
  * Per-tenant SSH private key store — envelope-encrypted at rest via envelope.ts.

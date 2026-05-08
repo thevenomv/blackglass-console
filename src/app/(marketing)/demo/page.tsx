@@ -19,49 +19,48 @@ export default function DemoOverviewPage() {
   const openDrift = DEMO_DRIFT.filter((d) => d.lifecycle === "new").length;
   const fails = DEMO_HOSTS.filter((h) => h.sshHardening === "fail").length;
 
+  const actionClass =
+    "inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-card border border-border-default bg-bg-panel px-4 py-2 text-sm font-medium text-fg-primary transition-colors hover:bg-bg-elevated";
+  const quietClass =
+    "inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-card border border-border-subtle bg-bg-panel px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:bg-bg-elevated hover:text-fg-primary";
+
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-fg-primary">At a glance</h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            Sample health indicators for a fictional Linux fleet — for illustration only.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <DemoGateButton actionLabel="Run fleet scan">Run scan</DemoGateButton>
-          <DemoGateButton actionLabel="Capture baseline">Capture baseline</DemoGateButton>
-          <a
-            href="/api/public/demo-evidence"
-            download
-            className="rounded-card border border-border-default bg-bg-panel px-4 py-2 text-sm font-medium text-fg-primary transition-colors hover:bg-bg-elevated"
-          >
-            Download sample evidence (PDF)
-          </a>
-          <a
-            href="/api/public/demo-evidence?format=json"
-            download
-            className="rounded-card border border-border-subtle bg-bg-panel px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:bg-bg-elevated hover:text-fg-primary"
-          >
-            JSON (integrations)
-          </a>
-          <a
-            href="/api/public/demo-report"
-            download
-            className="rounded-card border border-border-default bg-bg-panel px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:bg-bg-elevated hover:text-fg-primary"
-          >
-            Sample report (PDF)
-          </a>
-          <a
-            href="/api/public/demo-report?format=json"
-            download
-            className="rounded-card border border-border-subtle bg-bg-panel px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:bg-bg-elevated hover:text-fg-primary"
-          >
-            Report JSON
-          </a>
-          <TrialSignupLink className="rounded-card bg-accent-blue px-4 py-2 text-sm font-semibold text-white hover:bg-accent-blue-hover">
-            Start free trial
-          </TrialSignupLink>
+      <div className="rounded-card border border-border-subtle bg-bg-panel/50 p-5 sm:p-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 max-w-xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-blue">Blackglass</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-fg-primary">At a glance</h1>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Sample health indicators for a fictional Linux fleet — for illustration only. Nothing here connects to
+              your infrastructure.
+            </p>
+          </div>
+          <div className="flex w-full flex-col gap-3 lg:max-w-xl lg:items-end">
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              <DemoGateButton actionLabel="Run fleet scan">Run scan</DemoGateButton>
+              <DemoGateButton actionLabel="Capture baseline">Capture baseline</DemoGateButton>
+            </div>
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              <a href="/api/public/demo-evidence" download className={actionClass}>
+                Integrity evidence package (PDF)
+              </a>
+              <a href="/api/public/demo-evidence?format=json" download className={quietClass}>
+                Evidence JSON
+              </a>
+              <a href="/api/public/demo-report" download className={quietClass}>
+                Sample report (PDF)
+              </a>
+              <a href="/api/public/demo-report?format=json" download className={quietClass}>
+                Report JSON
+              </a>
+            </div>
+            <div className="flex w-full lg:justify-end">
+              <TrialSignupLink className="inline-flex min-h-10 w-full items-center justify-center whitespace-nowrap rounded-card bg-accent-blue px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-blue-hover sm:w-auto">
+                Start free trial
+              </TrialSignupLink>
+            </div>
+          </div>
         </div>
       </div>
 

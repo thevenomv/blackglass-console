@@ -86,8 +86,8 @@ export function SampleDataSection({ collectorConfigured }: { collectorConfigured
 
   return (
     <section className="space-y-3 rounded-card border border-border-default bg-bg-panel p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-fg-primary">Sample data</h2>
           <p className="mt-1 text-sm text-fg-muted">
             Show a pre-built demo fleet (8 hosts, mixed drift, sample evidence)
@@ -105,6 +105,7 @@ export function SampleDataSection({ collectorConfigured }: { collectorConfigured
           variant={enabled ? "secondary" : "primary"}
           onClick={() => void handleToggle(!enabled)}
           disabled={submitting}
+          className="w-full shrink-0 whitespace-nowrap sm:w-auto"
         >
           {submitting ? "Saving…" : enabled ? "Disable sample data" : "Enable sample data"}
         </Button>

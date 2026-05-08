@@ -6,7 +6,7 @@ import { useDemoWorkspace } from "@/components/demo/DemoWorkspaceContext";
 export function DemoGateButton({
   children,
   actionLabel,
-  className = "rounded-card border border-border-default bg-bg-panel px-3 py-2 text-sm font-medium text-fg-primary hover:bg-bg-elevated",
+  className = "inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-card border border-border-default bg-bg-panel px-4 py-2 text-sm font-medium text-fg-primary transition-colors hover:bg-bg-elevated",
 }: {
   children: React.ReactNode;
   actionLabel: string;

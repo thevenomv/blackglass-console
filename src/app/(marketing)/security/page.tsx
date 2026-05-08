@@ -429,13 +429,16 @@ export default function SecurityPage() {
             </a>
           </span>
           <span>·</span>
-          <Link href="/privacy" className="text-accent-blue hover:underline">Privacy policy</Link>
+          <Link href="/privacy" className="text-accent-blue hover:underline">Legal &amp; privacy</Link>
           <span>·</span>
           <Link href="/terms" className="text-accent-blue hover:underline">Terms</Link>
           <span>·</span>
           <Link href="/dpa" className="text-accent-blue hover:underline">DPA</Link>
           <span>·</span>
-          <span>© {new Date().getFullYear()} Obsidian Dynamics Limited (Co. No. 16663833)</span>
+          <span>
+            © {new Date().getFullYear()} Obsidian Dynamics Limited (Co. No. 16663833) · ICO{" "}
+            <span className="whitespace-nowrap">ZC141175</span>
+          </span>
         </div>
       </div>
     </main>

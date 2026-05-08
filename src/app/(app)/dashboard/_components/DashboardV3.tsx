@@ -8,7 +8,6 @@ import { CaptureBaselineButton } from "@/app/(app)/baselines/_components/Capture
 import { RunScanButton } from "./RunScanButton";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { ComplianceScoreTile } from "./ComplianceScoreTile";
-import { ShowcaseOpsTile } from "./ShowcaseOpsTile";
 import { Card } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { ProgressRow } from "@/components/ui/ProgressBar";
@@ -268,8 +267,6 @@ export function DashboardV3({
         highRiskDrift={fleet.highRiskDrift}
         readyHosts={fleet.readyHosts}
       />
-
-      <ShowcaseOpsTile />
 
       <Card title="Findings trend — last 7 days">
         <DriftTrendChart />

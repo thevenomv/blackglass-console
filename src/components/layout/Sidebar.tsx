@@ -170,14 +170,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <div className="mt-3 border-t border-border-subtle pt-3 text-[10px] text-fg-faint">
           <p className="mb-1.5 font-semibold uppercase tracking-widest">Legal</p>
           <div className="flex flex-col gap-1">
+            <Link href="/privacy" className="text-fg-muted hover:text-fg-primary hover:underline">
+              Legal &amp; privacy
+            </Link>
             <Link href="/terms" className="text-fg-muted hover:text-fg-primary hover:underline">
               Terms
             </Link>
-            <Link href="/privacy" className="text-fg-muted hover:text-fg-primary hover:underline">
-              Privacy
-            </Link>
             <Link href="/dpa" className="text-fg-muted hover:text-fg-primary hover:underline">
-              Data processing
+              Data processing (DPA)
             </Link>
           </div>
         </div>

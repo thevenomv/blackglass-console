@@ -4,9 +4,8 @@
  * Baselines are used by the drift engine during subsequent scans.
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { collectorConfigured, configuredHostCount } from "@/lib/server/collector";
-import { captureBaselinesFromFleet } from "@/lib/server/services/baseline-capture";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { checkBaselinesRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
@@ -25,9 +24,17 @@ import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { applySaasSentryContext } from "@/lib/observability/sentry-saas";
 import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 import type { TenantAuthContext } from "@/lib/saas/auth-context";
+import {
+  baselineAsyncJobsEnabled,
+  captureBaselinesSyncLegacy,
+  createQueuedBaselineJob,
+  executeBaselineCaptureJob,
+} from "@/lib/server/services/baseline-capture-async";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+/** Allows `after()` baseline jobs to finish SSH collection on platforms that honor this (e.g. Vercel). */
+export const maxDuration = 120;
 
 async function enrolledHostCount(): Promise<number> {
   if (collectorConfigured()) return configuredHostCount();
@@ -73,20 +80,29 @@ export async function POST(request: Request) {
     );
   }
 
-  // Hard cap: respond before any upstream proxy (e.g. Cloudflare) kills the connection.
-  // 30s keeps total response time (auth overhead ~2-5s + collection ~25s) well under CF's
-  // minimum plan timeout of 60s.  Previously 55s was too close to CF's threshold.
-  const ROUTE_TIMEOUT_MS = 30_000;
-  const outcomeRaw = await Promise.race([
-    captureBaselinesFromFleet({ tenantId: saasCtx?.tenant.id }),
-    new Promise<{ kind: "timeout" }>((resolve) =>
-      setTimeout(() => resolve({ kind: "timeout" }), ROUTE_TIMEOUT_MS),
-    ),
-  ]);
-  if (outcomeRaw.kind === "timeout") {
-    return jsonError(504, "capture_timeout", "Baseline capture did not complete in time. Check that collector hosts are reachable via SSH and retry.", requestId);
+  if (baselineAsyncJobsEnabled()) {
+    const jobTenantId = saasCtx?.tenant.id ?? null;
+    const jobId = await createQueuedBaselineJob({ tenantId: jobTenantId, requestId });
+    const workspaceTenantId = saasCtx?.tenant.id ?? null;
+    const auditorUserId = saasCtx?.userId ?? null;
+    after(() =>
+      executeBaselineCaptureJob(jobId, { workspaceTenantId, auditorUserId, requestId }),
+    );
+    return NextResponse.json(
+      { job_id: jobId, status: "queued" },
+      { status: 202, headers: { "x-request-id": requestId } },
+    );
   }
-  const outcome = outcomeRaw;
+
+  const outcome = await captureBaselinesSyncLegacy(saasCtx?.tenant.id);
+  if (outcome.kind === "collection_failed" && outcome.detail === "capture_timeout") {
+    return jsonError(
+      504,
+      "capture_timeout",
+      "Baseline capture did not complete in time. Check that collector hosts are reachable via SSH and retry.",
+      requestId,
+    );
+  }
   switch (outcome.kind) {
     case "collection_failed":
       if (saasCtx) {

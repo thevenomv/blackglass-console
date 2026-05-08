@@ -36,6 +36,23 @@ function reportAgeWarning(generatedAt: string): boolean {
   }
 }
 
+function filenameFromContentDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].replace(/["']/g, "").trim());
+    } catch {
+      /* fall through */
+    }
+  }
+  const quoted = /filename="([^"]+)"/i.exec(header);
+  if (quoted) return quoted[1].trim();
+  const plain = /filename=([^;\s]+)/i.exec(header);
+  if (plain) return plain[1].replace(/["']/g, "").trim();
+  return fallback;
+}
+
 function NewReportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { toast } = useToast();
   const trapRef = useFocusTrap(true, onClose);
@@ -140,6 +157,7 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [newReportOpen, setNewReportOpen] = useState(false);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     fetch("/api/v1/reports")
@@ -166,6 +184,39 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
     if (status === "generating") return <Badge tone="warning">Generating</Badge>;
     return <Badge tone="danger">Failed</Badge>;
   }
+
+  const downloadReportFile = async (r: ReportRecord) => {
+    const safe = `${r.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase().slice(0, 60) || "report"}-${r.id.slice(0, 8)}.${r.format === "pdf" ? "pdf" : "bin"}`;
+    setDownloadingId(r.id);
+    try {
+      const res = await fetch(`/api/v1/reports/${r.id}/file`, {
+        credentials: "same-origin",
+        headers: { Accept: "*/*" },
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { detail?: string; error?: string };
+        toast(err.detail ?? err.error ?? `Download failed (HTTP ${res.status}).`, "danger");
+        return;
+      }
+      const buf = await res.arrayBuffer();
+      const mime = res.headers.get("Content-Type")?.split(";")[0]?.trim() || "application/octet-stream";
+      const blob = new Blob([buf], { type: mime });
+      const name = filenameFromContentDisposition(res.headers.get("Content-Disposition"), safe);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast("Could not download report — check your connection and try again.", "danger");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
@@ -258,13 +309,14 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
                   <td className="px-4 py-3">{statusBadge(r.status)}</td>
                   <td className="px-4 py-3 text-right">
                     {r.status === "ready" ? (
-                      <a
-                        href={`/api/v1/reports/${r.id}/file`}
-                        download
-                        className="text-xs font-semibold text-accent-blue hover:underline"
+                      <button
+                        type="button"
+                        disabled={downloadingId === r.id}
+                        className="text-xs font-semibold text-accent-blue hover:underline disabled:opacity-50"
+                        onClick={() => void downloadReportFile(r)}
                       >
-                        Download
-                      </a>
+                        {downloadingId === r.id ? "Preparing…" : "Download"}
+                      </button>
                     ) : r.status === "generating" ? (
                       <span className="text-xs text-fg-faint">Queued…</span>
                     ) : (

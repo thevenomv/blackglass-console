@@ -12,6 +12,10 @@ This runbook answers two recurring questions:
 If you are paging in for the first time, jump to § 5 (One-page on-call
 checklist) at the bottom.
 
+**Personal data breach or suspected breach:** use
+[`data-breach-response.md`](./data-breach-response.md) (ICO notification,
+customer comms, subprocessor escalation).
+
 ---
 
 ## 1. Queues — what's normal, what's degraded
@@ -26,7 +30,7 @@ names, retry counts, backoff, and retention.
 | `blackglass-sandbox`         | Sandbox provision / seed-drift / cleanup (`sandbox-worker`)      | 5/3/10   | 5 s / 10 s / 30 s     | 2                    | 50 jobs            |
 | `blackglass-webhooks`        | Outbound webhook delivery (`ops-worker`)                         | 6        | 5 s base              | 8                    | 200 jobs (DLQ)     |
 | `blackglass-exports`         | Tenant data-export bundle assembly + Spaces upload (`ops-worker`)| 3        | 30 s base             | 2                    | 50 jobs            |
-| `blackglass-maintenance`     | Retention sweep + drift digest + partition maintenance + idempotency pruning (`ops-worker`) | 1   | n/a                   | 1                    | 20 jobs            |
+| `blackglass-maintenance`     | Retention sweep + drift digest + partition maintenance + idempotency pruning (`ops-worker`); retention sweep also **expires stuck `saas_baseline_capture_jobs`** (queued ~45m / running ~6h) | 1   | n/a                   | 1                    | 20 jobs            |
 | _Reserved (no worker yet):_  | _`blackglass-reports`, `blackglass-evidence` — names defined in `queue/config.ts` for future async generation. PDF/evidence generation currently runs inline in the API handler._ | – | – | – | – |
 
 The maintenance queue multiplexes three repeatable jobs onto one

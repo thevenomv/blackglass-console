@@ -211,13 +211,32 @@ export async function generateReportPdf(contentJson: string): Promise<Uint8Array
   // Cover page
   // -----------------------------------------------------------------------
 
-  pm.y = PAGE_H - 80;
+  pm.currentPage.drawRectangle({
+    x: 0,
+    y: PAGE_H - 6,
+    width: PAGE_W,
+    height: 6,
+    color: C_BRAND,
+  });
+  pm.y = PAGE_H - 56;
 
-  // Logo / brand wordmark
-  pm.text("Blackglass", { size: 22, font: bold, color: C_BRAND });
-  pm.advance(LINE_LG);
-  pm.text("Linux Server Integrity Report", { size: 16, font: bold, color: C_BLACK });
-  pm.advance(LINE_MD + 4);
+  pm.text("Blackglass", { size: 30, font: bold, color: C_BRAND });
+  pm.currentPage.drawRectangle({
+    x: MARGIN,
+    y: pm.y - 5,
+    width: 216,
+    height: 3.5,
+    color: C_BRAND,
+  });
+  pm.advance(LINE_LG + 8);
+  pm.text("Linux server integrity report", { size: 16, font: bold, color: C_BLACK });
+  pm.advance(LINE_SM + 4);
+  pm.text("Confidential — share only with people cleared for this workspace.", {
+    size: 9,
+    font: regular,
+    color: C_MUTED,
+  });
+  pm.advance(LINE_MD + 10);
 
   hRule(pm.currentPage, pm.y);
   pm.advance(LINE_MD);

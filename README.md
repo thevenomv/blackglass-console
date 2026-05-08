@@ -48,6 +48,14 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 
 **DigitalOcean App Platform:** deploy builds use `npm ci` and `next build` only; rely on this repo’s GitHub Actions for `lint`. ESLint on DO builders is a common source of flaky or persistent failures if you add it to `build_command` — see [.do/README.md](.do/README.md#eslint-and-app-platform).
 
+## Release & operations
+
+1. **`npm run verify:stage0`** before pushing substantive changes (or merge only when CI is green).
+2. **Database:** apply migrations against target Postgres — `npm run db:migrate` (see `drizzle/*.sql`).
+3. **Workers:** with **Redis**, run **ops-worker** alongside the web app (retention, webhooks, exports; also expires stuck async baseline capture jobs).
+4. **Smoke (prod):** baseline capture, report PDF download, legal links from the console.
+5. **Compliance cadence & incidents:** [docs/compliance/review-cadence.md](docs/compliance/review-cadence.md), [docs/runbooks/data-breach-response.md](docs/runbooks/data-breach-response.md), [docs/runbooks/operations.md](docs/runbooks/operations.md).
+
 ## Maintenance & upgrades
 
 - **Dependabot:** Weekly npm + GitHub Actions PRs — triage on GitHub (merge or close with rationale); **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Moderate **`postcss`** advisories via **`next/node_modules`** may persist until **Next** ships patched deps — avoid **`npm audit fix --force`**. DevDependency **`postcss`** stays on **^8.5.x** for direct toolchain use.

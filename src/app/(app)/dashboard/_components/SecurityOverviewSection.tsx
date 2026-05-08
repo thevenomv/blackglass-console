@@ -286,9 +286,12 @@ export function SecurityOverviewSection() {
           <span className="text-fg-faint">·</span>
           <Link href="/terms" className="text-accent-blue hover:underline">Terms</Link>
           <span className="text-fg-faint">·</span>
-          <Link href="/privacy" className="text-accent-blue hover:underline">Privacy</Link>
+          <Link href="/privacy" className="text-accent-blue hover:underline">Legal &amp; privacy</Link>
           <span className="text-fg-faint">·</span>
-          <span>© {new Date().getFullYear()} Obsidian Dynamics Limited (Co. No. 16663833)</span>
+          <span>
+            © {new Date().getFullYear()} Obsidian Dynamics Limited (Co. No. 16663833) · ICO{" "}
+            <span className="whitespace-nowrap">ZC141175</span>
+          </span>
         </div>
 
       </div>

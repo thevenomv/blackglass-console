@@ -188,9 +188,12 @@ paths:
       description: >
         Collects SSH snapshots from every COLLECTOR_HOST_N in parallel. Saves each
         successful baseline; partial failures are listed under `failed`.
+        When a database is configured, the handler returns 202 and runs capture in
+        the background so upstream proxies (e.g. Cloudflare) do not time out;
+        poll GET /baselines/capture-jobs/{jobId} until `status` is succeeded or failed.
       responses:
         "200":
-          description: At least one host captured successfully
+          description: At least one host captured successfully (legacy sync mode without DATABASE_URL)
           content:
             application/json:
               schema:
@@ -221,10 +224,60 @@ paths:
                       properties:
                         hostId: { type: string }
                         detail: { type: string }
+        "202":
+          description: Capture job accepted — poll capture-jobs for completion
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job_id, status]
+                properties:
+                  job_id: { type: string, format: uuid }
+                  status: { type: string, enum: [queued] }
         "502":
           description: Every host failed collection
         "503":
           description: Collector not configured (missing COLLECTOR_HOST_1 or SSH_PRIVATE_KEY)
+
+  /baselines/capture-jobs/{jobId}:
+    get:
+      tags: [Baselines]
+      summary: Poll async baseline capture job status
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Job state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  status:
+                    type: string
+                    enum: [queued, running, succeeded, failed]
+                  captured: { type: array, items: { type: object } }
+                  failed:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        hostId: { type: string }
+                        detail: { type: string }
+                  error_detail: { type: string }
+                  created_at: { type: string, format: date-time }
+                  started_at: { type: string, format: date-time, nullable: true }
+                  finished_at: { type: string, format: date-time, nullable: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: Job not found }
+        "429": { description: Rate limit exceeded }
 
   /hosts/{hostId}:
     get:

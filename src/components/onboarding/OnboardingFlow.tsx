@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { runBaselineCaptureFromBrowser } from "@/lib/client/baseline-capture";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -301,23 +302,15 @@ function CaptureBaselineStep({ onNext }: { onNext: () => void }) {
     const startedAt = Date.now();
     setState({ kind: "running", startedAt });
     try {
-      const res = await fetch("/api/v1/baselines", { method: "POST" });
-      const body = (await res.json().catch(() => ({}))) as {
-        captured?: Array<{ hostId: string }>;
-        failed?: Array<{ hostId: string; error: string }>;
-        detail?: string;
-      };
-      if (!res.ok) {
-        setState({
-          kind: "error",
-          detail: body.detail ?? `Server returned ${res.status}`,
-        });
+      const result = await runBaselineCaptureFromBrowser();
+      if (!result.ok) {
+        setState({ kind: "error", detail: result.detail });
         return;
       }
       setState({
         kind: "done",
-        capturedHosts: body.captured?.length ?? 0,
-        failedHosts: body.failed?.length ?? 0,
+        capturedHosts: result.captured,
+        failedHosts: result.failed,
         elapsedMs: Date.now() - startedAt,
       });
     } catch (err) {

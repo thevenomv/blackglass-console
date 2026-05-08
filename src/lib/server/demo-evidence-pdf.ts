@@ -159,17 +159,35 @@ export async function generateDemoEvidencePdf(input: DemoEvidencePdfInput): Prom
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const pm = new PageManager(doc, { regular, bold });
 
-  pm.y = PAGE_H - 72;
-  pm.text("Blackglass", { size: 22, font: bold, color: C_BRAND });
-  pm.advance(LINE_LG);
-  pm.text("Sample integrity evidence package", { size: 16, font: bold, color: C_BLACK });
-  pm.advance(LINE_MD + 4);
+  pm.currentPage.drawRectangle({
+    x: 0,
+    y: PAGE_H - 6,
+    width: PAGE_W,
+    height: 6,
+    color: C_BRAND,
+  });
+  pm.y = PAGE_H - 56;
+
+  pm.text("Blackglass", { size: 30, font: bold, color: C_BRAND });
+  pm.currentPage.drawRectangle({
+    x: MARGIN,
+    y: pm.y - 5,
+    width: 216,
+    height: 3.5,
+    color: C_BRAND,
+  });
+  pm.advance(LINE_LG + 8);
+  pm.text("Integrity evidence", { size: 15, font: bold, color: C_BLACK });
+  pm.advance(LINE_SM + 2);
+  pm.text("Sample pack · fictional fleet data", { size: 11, font: regular, color: C_MUTED });
+  pm.advance(LINE_MD + 8);
   hRule(pm.currentPage, pm.y);
   pm.advance(LINE_MD);
 
   pm.text("This document summarises fictional fleet data for evaluation only.", {
     size: 9,
     color: C_MUTED,
+    font: regular,
   });
   pm.advance(LINE_SM + 2);
 

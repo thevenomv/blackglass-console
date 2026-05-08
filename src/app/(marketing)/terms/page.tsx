@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Terms of Service · Blackglass by Obsidian Dynamics",
   description:
-    "Terms of Service for Blackglass, a product of Obsidian Dynamics Limited (Co. No. 16663833).",
+    "Terms of Service for Blackglass, a product of Obsidian Dynamics Limited (Co. No. 16663833). ICO registration ZC141175.",
 };
 
 const EFFECTIVE = "2 May 2026";
@@ -23,8 +23,9 @@ export default function TermsPage() {
           Blackglass is provided by{" "}
           <strong className="text-fg-primary">Obsidian Dynamics Limited</strong>, a company
           registered in England &amp; Wales (Company Number{" "}
-          <strong className="text-fg-primary">16663833</strong>), with its registered office in
-          England &amp; Wales. Our website is{" "}
+          <strong className="text-fg-primary">16663833</strong>), with its registered office at
+          Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset BH16 6FA, United Kingdom.
+          Our website is{" "}
           <ExternalLink href="https://obsidiandynamics.co.uk">obsidiandynamics.co.uk</ExternalLink>.
           Contact us at{" "}
           <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
@@ -106,7 +107,7 @@ export default function TermsPage() {
         <p>
           Our collection and use of personal data is described in our{" "}
           <Link href="/privacy" className="text-accent-blue hover:underline">
-            Privacy Policy
+            Legal &amp; privacy
           </Link>
           . Blackglass collects only configuration metadata required to compute drift — not file
           contents, environment variables, or secrets. You retain ownership of all host data
@@ -160,7 +161,7 @@ export default function TermsPage() {
           Service. On termination, your right to access the Service ends immediately. We will
           retain and then delete your data in accordance with our{" "}
           <Link href="/privacy" className="text-accent-blue hover:underline">
-            Privacy Policy
+            Legal &amp; privacy
           </Link>
           .
         </p>
@@ -193,7 +194,7 @@ export default function TermsPage() {
       </Section>
 
       <div className="mt-14 flex flex-wrap gap-4 border-t border-border-subtle pt-6 text-xs text-fg-faint">
-        <Link href="/privacy" className="text-accent-blue hover:underline">Privacy Policy</Link>
+        <Link href="/privacy" className="text-accent-blue hover:underline">Legal &amp; privacy</Link>
         <Link href="/dpa" className="text-accent-blue hover:underline">Data Processing Addendum</Link>
         <Link href="/pricing" className="text-accent-blue hover:underline">Pricing</Link>
         <Link href="/dashboard" className="text-accent-blue hover:underline">Back to console</Link>

@@ -26,6 +26,9 @@ import { getReportContent, listReports } from "@/lib/server/report-store";
 import { generateReportPdf } from "@/lib/server/report-pdf";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+/** Large drift histories can make pdf-lib synthesis slow; avoid premature serverless termination. */
+export const maxDuration = 120;
 
 function jsonErr(status: number, code: string, detail: string, extra?: Record<string, unknown>) {
   return NextResponse.json(

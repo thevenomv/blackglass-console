@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Privacy Policy · Blackglass by Obsidian Dynamics",
   description:
-    "Privacy Policy for Blackglass, a product of Obsidian Dynamics Limited (Co. No. 16663833). UK GDPR compliant.",
+    "Privacy Policy for Blackglass, a product of Obsidian Dynamics Limited (Co. No. 16663833). ICO registration ZC141175. UK GDPR compliant.",
 };
 
 const EFFECTIVE = "2 May 2026";
@@ -24,6 +24,16 @@ export default function PrivacyPage() {
           &ldquo;us&rdquo;, &ldquo;our&rdquo;) is the data controller for personal data processed
           in connection with Blackglass. We are registered in England &amp; Wales under Company
           Number <strong className="text-fg-primary">16663833</strong>.
+        </p>
+        <p>
+          Registered office: Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset{" "}
+          <span className="whitespace-nowrap">BH16 6FA</span>, United Kingdom.
+        </p>
+        <p>
+          UK data protection registration (ICO):{" "}
+          <strong className="text-fg-primary">ZC141175</strong>. You can verify our entry on the
+          Information Commissioner&rsquo;s Office register at{" "}
+          <ExternalLink href="https://ico.org.uk">ico.org.uk</ExternalLink>.
         </p>
         <p>
           Contact:{" "}
@@ -101,6 +111,12 @@ export default function PrivacyPage() {
         <p className="mt-2">
           We do not sell your personal data to third parties.
         </p>
+        <p className="mt-2">
+          If we add a new sub-processor or materially change how an existing one processes personal
+          data, we will update this page, advance the effective date where appropriate, and notify
+          active account contacts by email and/or an in-console notice before the change takes
+          effect (or as soon as reasonably practicable if we are legally required to act sooner).
+        </p>
       </Section>
 
       <Section title="6. Data retention">
@@ -141,9 +157,10 @@ export default function PrivacyPage() {
       <Section title="8. Cookies and tracking">
         <p>
           Blackglass uses only technically necessary cookies (session authentication). We do not use
-          advertising or cross-site tracking cookies. Error monitoring via Sentry may collect
-          anonymised session replay data (on error only) to diagnose faults; this can be disabled
-          on request.
+          advertising or cross-site tracking cookies. If we introduce non-essential cookies or
+          similar technologies in future, we will obtain consent where UK law requires before they
+          are set. Error monitoring via Sentry may collect anonymised session replay data (on error
+          only) to diagnose faults; this can be disabled on request.
         </p>
       </Section>
 
@@ -176,9 +193,10 @@ export default function PrivacyPage() {
 
       <Section title="11. Changes to this policy">
         <p>
-          We may update this Privacy Policy. Material changes will be notified by email or in-app
-          notice. The effective date at the top of this page will always reflect the current
-          version.
+          We review this Privacy Policy at least annually and whenever our processing activities or
+          sub-processors change materially. We may update this page between reviews for clarity or
+          legal compliance. Material changes will be notified by email or in-app notice. The
+          effective date at the top of this page will always reflect the current version.
         </p>
       </Section>
 
@@ -200,10 +218,17 @@ export default function PrivacyPage() {
             jamie@obsidiandynamics.co.uk
           </a>
           <br />
-          Obsidian Dynamics Limited, registered in England &amp; Wales, Co. No. 16663833
-          <br />
-          Supervisory authority: Information Commissioner&rsquo;s Office (ICO),{" "}
-          <ExternalLink href="https://ico.org.uk">ico.org.uk</ExternalLink>
+          <span className="mt-2 block">
+            Obsidian Dynamics Limited, registered in England &amp; Wales, Co. No. 16663833
+            <br />
+            Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset BH16 6FA, United Kingdom
+            <br />
+            ICO registration reference: ZC141175
+          </span>
+          <span className="mt-2 block">
+            Supervisory authority: Information Commissioner&rsquo;s Office (ICO),{" "}
+            <ExternalLink href="https://ico.org.uk">ico.org.uk</ExternalLink>
+          </span>
         </p>
       </Section>
 

@@ -39,7 +39,6 @@ import { AutoScanSection } from "./_components/AutoScanSection";
 import { PoliciesSection } from "./_components/PoliciesSection";
 import { ApiKeysSection } from "./_components/ApiKeysSection";
 import { RuntimeHealthSection } from "./_components/RuntimeHealthSection";
-import { LabHealthSection } from "./_components/LabHealthSection";
 import { ByokSection } from "./_components/ByokSection";
 import { DriftDigestSection } from "./_components/DriftDigestSection";
 import { WebhookDeliveryLog } from "./_components/WebhookDeliveryLog";
@@ -282,12 +281,6 @@ export default async function SettingsPage() {
                   description="Live rate-limit bucket sizes and BullMQ queue depth — same data the ops alerts use."
                 >
                   <RuntimeHealthSection />
-                </Card>
-                <Card
-                  title="Sales-demo VM health"
-                  description="Pre-flight check for the long-lived demo VM (blackglass-lab-01). Probe before prospect calls to catch firewall regressions / sshd outages early."
-                >
-                  <LabHealthSection />
                 </Card>
                 <Card
                   title="Data export"

@@ -40,7 +40,9 @@ export default function DpaPage() {
       <Section title="2. Roles">
         <p>
           Where this DPA applies, you are the <strong className="text-fg-primary">data controller</strong>{" "}
-          and Obsidian Dynamics Limited (Company No. 16663833) is the{" "}
+          and Obsidian Dynamics Limited (Company No. 16663833; registered office: Lytchett House,
+          13 Freeland Park, Wareham Road, Poole, Dorset BH16 6FA, United Kingdom; ICO registration
+          ZC141175) is the{" "}
           <strong className="text-fg-primary">data processor</strong>, processing personal data only on
           your documented instructions as described in the Service and these terms, unless UK law
           requires otherwise (in which case we will inform you unless prohibited).
@@ -146,7 +148,9 @@ export default function DpaPage() {
           <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
             jamie@obsidiandynamics.co.uk
           </a>
-          .
+          . Each party should retain a copy of any countersigned DPA or order form (including
+          version or effective date) with its contract records for the life of the agreement and any
+          applicable statutory retention period.
         </p>
       </Section>
 
@@ -155,7 +159,7 @@ export default function DpaPage() {
           Terms of Service
         </Link>
         <Link href="/privacy" className="text-accent-blue hover:underline">
-          Privacy Policy
+          Legal &amp; privacy
         </Link>
         <Link href="/pricing" className="text-accent-blue hover:underline">
           Pricing

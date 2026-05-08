@@ -38,6 +38,7 @@ import { runExportJob } from "@/lib/server/services/export-service";
 import { pruneAllTenants } from "@/lib/server/services/retention-service";
 import { runDriftDigest } from "@/lib/server/services/drift-digest-service";
 import { ensureUpcomingDriftPartitions } from "@/lib/server/services/partition-maintenance-service";
+import { expireStaleBaselineCaptureJobs } from "@/lib/server/services/baseline-capture-async";
 import { logStructured } from "@/lib/server/log";
 
 const redisUrl = process.env.REDIS_QUEUE_URL?.trim();
@@ -175,9 +176,11 @@ const maintenanceWorker = new Worker<MaintenanceJobPayload>(
             tenantsWithErrors: 0,
           },
         );
+        const baselineStale = await expireStaleBaselineCaptureJobs();
         logStructured("info", "retention_sweep_completed", {
           bullJobId: job.id,
           ...totals,
+          baselineStaleJobs: baselineStale.markedFailed,
           elapsedMs: Date.now() - startedAt,
         });
         return;

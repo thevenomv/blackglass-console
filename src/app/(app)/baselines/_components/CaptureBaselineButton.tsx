@@ -5,6 +5,7 @@ import { useState } from "react";
 import { PermissionGate } from "@/components/auth/SessionProvider";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { runBaselineCaptureFromBrowser } from "@/lib/client/baseline-capture";
 
 function Spinner() {
   return (
@@ -29,31 +30,28 @@ export function CaptureBaselineButton({
   const run = async () => {
     setBusy(true);
     try {
-      const res = await fetch("/api/v1/baselines", {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: "{}",
-        signal: AbortSignal.timeout(38_000),
-      });
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        detail?: string;
-        captured?: unknown[];
-      };
-      if (res.status === 503 && body.error === "collector_not_configured") {
-        toast(body.detail ?? "Collector is not configured.", "warning");
+      const result = await runBaselineCaptureFromBrowser();
+      if (!result.ok) {
+        if (result.detail.includes("Collector is not configured") || result.detail.includes("COLLECTOR_HOST")) {
+          toast(result.detail, "warning");
+        } else {
+          toast(result.detail, "danger");
+        }
         return;
       }
-      if (!res.ok) {
-        toast(body.detail ?? body.error ?? `Baseline capture failed (HTTP ${res.status}).`, "danger");
-        return;
-      }
-      const n = Array.isArray(body.captured) ? body.captured.length : 0;
-      toast(n ? `Baseline captured for ${n} host(s).` : "Baseline capture completed.", "success");
+      const n = result.captured;
+      const f = result.failed;
+      toast(
+        n
+          ? f
+            ? `Baseline captured for ${n} host(s); ${f} host(s) reported errors.`
+            : `Baseline captured for ${n} host(s).`
+          : "Baseline capture completed.",
+        "success",
+      );
       router.refresh();
-    } catch (err) {
-      const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
-      toast(isTimeout ? "Baseline capture timed out — check collector host connectivity." : "Network error while capturing baseline.", "danger");
+    } catch {
+      toast("Network error while capturing baseline.", "danger");
     } finally {
       setBusy(false);
     }
