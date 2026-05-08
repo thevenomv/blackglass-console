@@ -35,6 +35,17 @@ type QueueResponse = {
   queues?: Record<string, QueueStat | { error: string }>;
 };
 
+type PartitionHealthResponse = {
+  db_configured: boolean;
+  generatedAt: string;
+  lookaheadMonths?: number;
+  healthy?: boolean;
+  present?: string[];
+  missing?: string[];
+  defaultPartitionExists?: boolean;
+  error?: string;
+};
+
 function isQueueStat(v: QueueStat | { error: string }): v is QueueStat {
   return typeof (v as QueueStat).waiting === "number";
 }
@@ -61,21 +72,34 @@ const WARM_THRESHOLD = 50;
 export function RuntimeHealthSection() {
   const [rate, setRate] = useState<RateResponse | null>(null);
   const [queues, setQueues] = useState<QueueResponse | null>(null);
+  const [partitions, setPartitions] = useState<PartitionHealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchOnce = useCallback(async () => {
     try {
-      const [r1, r2] = await Promise.all([
+      const [r1, r2, r3] = await Promise.all([
         fetch("/api/admin/rate-limits", { cache: "no-store" }),
         fetch("/api/admin/queues", { cache: "no-store" }),
+        fetch("/api/admin/partition-health", { cache: "no-store" }),
       ]);
-      if (r1.status === 403 || r2.status === 403) {
+      if (r1.status === 403 || r2.status === 403 || r3.status === 403) {
         setError("Owner / admin role required.");
         return;
       }
       setRate(r1.ok ? ((await r1.json()) as RateResponse) : null);
       setQueues(r2.ok ? ((await r2.json()) as QueueResponse) : null);
+      // partition-health may legitimately return 500 with an `error`
+      // body when the DB is reachable but a query failed — surface it
+      // rather than swallowing.
+      if (r3.ok) {
+        setPartitions((await r3.json()) as PartitionHealthResponse);
+      } else if (r3.status === 500) {
+        const body = (await r3.json().catch(() => null)) as PartitionHealthResponse | null;
+        setPartitions(body ?? null);
+      } else {
+        setPartitions(null);
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -115,7 +139,20 @@ export function RuntimeHealthSection() {
     : [];
   const visibleKeys = sortedKeys.slice(0, MAX_BUCKETS_VISIBLE);
   const hiddenCount = Math.max(0, sortedKeys.length - visibleKeys.length);
-  const lastRefreshed = rate?.generatedAt ?? queues?.generatedAt ?? null;
+  const lastRefreshed =
+    rate?.generatedAt ?? queues?.generatedAt ?? partitions?.generatedAt ?? null;
+
+  // Partition health summary — pre-computed so the JSX stays tidy.
+  const partitionHealthy = partitions?.healthy === true;
+  const partitionStatusLabel = !partitions
+    ? "No data."
+    : partitions.db_configured === false
+    ? "DATABASE_URL not configured."
+    : partitions.error
+    ? `Error: ${partitions.error}`
+    : partitionHealthy
+    ? `Healthy — next ${partitions.lookaheadMonths ?? "?"} month(s) of partitions present.`
+    : `MISSING ${partitions.missing?.length ?? 0} partition(s) in lookahead window.`;
 
   return (
     <div className="space-y-4">
@@ -193,6 +230,42 @@ export function RuntimeHealthSection() {
           ) : (
             <p className="mt-2 text-xs text-fg-faint">No data.</p>
           )}
+        </div>
+
+        <div className="rounded border border-border-subtle bg-bg-panel-elevated p-3 md:col-span-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+              drift_events partition lookahead
+            </p>
+            {partitions ? (
+              <span
+                className={
+                  partitionHealthy
+                    ? "rounded bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success"
+                    : "rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning"
+                }
+              >
+                {partitionHealthy ? "OK" : "ATTENTION"}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1 text-xs text-fg-muted">{partitionStatusLabel}</p>
+          {partitions?.missing && partitions.missing.length > 0 ? (
+            <p className="mt-2 font-mono text-[11px] text-warning">
+              missing: {partitions.missing.join(", ")}
+            </p>
+          ) : null}
+          {partitions?.present && partitions.present.length > 0 ? (
+            <p className="mt-1 font-mono text-[11px] text-fg-faint">
+              present: {partitions.present.join(", ")}
+            </p>
+          ) : null}
+          {partitions?.defaultPartitionExists === false ? (
+            <p className="mt-2 text-[11px] text-error">
+              ⚠ drift_events_default partition is missing — inserts in
+              uncovered months will FAIL outright.
+            </p>
+          ) : null}
         </div>
 
         <div className="rounded border border-border-subtle bg-bg-panel-elevated p-3">
