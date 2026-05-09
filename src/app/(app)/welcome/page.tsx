@@ -76,7 +76,7 @@ export default function WelcomePage() {
     {
       label: "Baseline persistence",
       done: baseline.configured && baseline.writable !== false,
-      cta: { href: "/settings", text: "View runtime health" },
+      cta: { href: "/settings?tab=operator", text: "View runtime health" },
       detail:
         baseline.configured && baseline.writable !== false
           ? "Durable storage is connected — snapshots survive restarts."

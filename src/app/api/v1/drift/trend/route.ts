@@ -59,14 +59,22 @@ async function tenantHostIds(tenantId: string): Promise<string[]> {
   return Array.from(ids);
 }
 
-async function buildTrend(days: number, hostIds?: string[]): Promise<TrendDay[]> {
-  if (!process.env.DATABASE_URL?.trim()) return [];
+async function buildTrend(
+  days: number,
+  hostIds?: string[],
+): Promise<{ days: TrendDay[]; degraded: boolean }> {
+  if (!process.env.DATABASE_URL?.trim()) {
+    return { days: [], degraded: false };
+  }
   let buckets: Array<{ ymd: string; severity: string; count: number }>;
   try {
     buckets = await PostgresDriftEventsRepository.trendByDay(days, hostIds);
   } catch (err) {
+    // Surface as `degraded: true` so the UI can render an explicit
+    // "trend unavailable" state instead of silently showing zeros
+    // (which previously read as "no findings detected").
     console.error("[drift/trend] query failed:", err);
-    return [];
+    return { days: [], degraded: true };
   }
 
   const byDay = new Map<string, { high: number; medium: number; low: number }>();
@@ -86,7 +94,7 @@ async function buildTrend(days: number, hostIds?: string[]): Promise<TrendDay[]>
     const counts = byDay.get(ymd) ?? { high: 0, medium: 0, low: 0 };
     result.push({ ymd, label, ...counts, total: counts.high + counts.medium + counts.low });
   }
-  return result;
+  return { days: result, degraded: false };
 }
 
 export async function GET(request: Request) {
@@ -108,6 +116,6 @@ export async function GET(request: Request) {
   const days = Number.isFinite(rawDays) && rawDays >= 1 && rawDays <= 30 ? rawDays : 7;
 
   const hostIds = access.mode === "saas" ? await tenantHostIds(access.ctx.tenant.id) : undefined;
-  const trendDays = await buildTrend(days, hostIds);
-  return NextResponse.json({ days: trendDays });
+  const trend = await buildTrend(days, hostIds);
+  return NextResponse.json({ days: trend.days, degraded: trend.degraded });
 }

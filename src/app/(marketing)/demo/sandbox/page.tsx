@@ -175,7 +175,7 @@ export default function SandboxWalkthroughPage() {
             Book a live demo →
           </Link>
           <Link
-            href="/login"
+            href="/sign-up"
             className="inline-flex items-center gap-1.5 rounded-card border border-border-default bg-bg-panel px-5 py-2.5 text-sm font-medium text-fg-primary transition-colors hover:bg-bg-elevated"
           >
             Start free trial

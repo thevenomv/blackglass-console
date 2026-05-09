@@ -25,6 +25,7 @@ interface TrendDay {
 
 interface TrendResponse {
   days: TrendDay[];
+  degraded?: boolean;
 }
 
 const CHART_HEIGHT_PX = 160;
@@ -37,6 +38,7 @@ function severityColor(s: "high" | "medium" | "low"): string {
 
 export function DriftTrendChart() {
   const [days, setDays] = useState<TrendDay[]>([]);
+  const [degraded, setDegraded] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Standard fetch-on-mount with spinner — Compiler rule prefers
@@ -46,9 +48,21 @@ export function DriftTrendChart() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetch("/api/v1/drift/trend")
-      .then((r) => r.json())
-      .then((d: TrendResponse) => setDays(d.days ?? []))
-      .catch(() => setDays([]))
+      .then(async (r) => {
+        if (!r.ok) {
+          setDegraded(true);
+          return { days: [], degraded: true } satisfies TrendResponse;
+        }
+        return (await r.json()) as TrendResponse;
+      })
+      .then((d) => {
+        setDays(d.days ?? []);
+        setDegraded(Boolean(d.degraded));
+      })
+      .catch(() => {
+        setDays([]);
+        setDegraded(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -61,6 +75,14 @@ export function DriftTrendChart() {
         className="w-full animate-pulse rounded bg-bg-elevated"
         style={{ height: CHART_HEIGHT_PX }}
       />
+    );
+  }
+
+  if (degraded) {
+    return (
+      <p className="text-xs text-warning">
+        Trend data unavailable — drift store query failed. Refresh in a minute.
+      </p>
     );
   }
 

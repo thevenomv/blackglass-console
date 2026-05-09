@@ -39,7 +39,10 @@ export function OperatorHealthReadout() {
             ) : (
               <span>
                 Not configured — see{" "}
-                <a href="/settings#collector-hosts" className="text-accent-blue hover:underline">
+                <a
+                  href="/settings?tab=collectors"
+                  className="text-accent-blue hover:underline"
+                >
                   Collector hosts
                 </a>{" "}
                 below for setup instructions, or email{" "}

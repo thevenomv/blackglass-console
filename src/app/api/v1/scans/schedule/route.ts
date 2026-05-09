@@ -83,8 +83,20 @@ export async function PUT(request: Request) {
   try {
     await setAutoScanSchedule(tenantKeyForAccess(access), parsed.data);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return jsonError(500, "schedule_update_failed", msg, requestId);
+    // Log full error server-side so operators can see the BullMQ /
+    // Redis stack, but return a stable, generic detail to the client
+    // — exception strings often contain connection URIs, tenant ids,
+    // or other internal context we don't want leaking into the UI.
+    console.error(
+      "[scans/schedule] setAutoScanSchedule failed:",
+      err instanceof Error ? err.stack ?? err.message : err,
+    );
+    return jsonError(
+      500,
+      "schedule_update_failed",
+      "Could not update the scan schedule. Check console logs.",
+      requestId,
+    );
   }
 
   return NextResponse.json({ ok: true, schedule: parsed.data, requestId });

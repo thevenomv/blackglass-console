@@ -196,7 +196,7 @@ export function DriftEventsView({
     if (selectedIds.size === 0) return;
     setBulkActing(true);
     try {
-      await fetch("/api/v1/audit/events", {
+      const res = await fetch("/api/v1/audit/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -204,10 +204,15 @@ export function DriftEventsView({
           detail: `Triaged ${selectedIds.size} finding(s): ${[...selectedIds].join(", ")}`,
         }),
       });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { detail?: string; error?: string };
+        throw new Error(body.detail ?? body.error ?? `HTTP ${res.status}`);
+      }
       toast(`${selectedIds.size} finding${selectedIds.size === 1 ? "" : "s"} marked as triaged.`, "success");
       setSelectedIds(new Set());
-    } catch {
-      toast("Bulk triage failed — try again.", "danger");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "network error";
+      toast(`Bulk triage failed: ${msg}`, "danger");
     } finally {
       setBulkActing(false);
     }
@@ -217,7 +222,7 @@ export function DriftEventsView({
     if (selectedIds.size === 0) return;
     setBulkActing(true);
     try {
-      await fetch("/api/v1/audit/events", {
+      const res = await fetch("/api/v1/audit/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -225,10 +230,15 @@ export function DriftEventsView({
           detail: `Risk accepted for ${selectedIds.size} finding(s): ${[...selectedIds].join(", ")}`,
         }),
       });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { detail?: string; error?: string };
+        throw new Error(body.detail ?? body.error ?? `HTTP ${res.status}`);
+      }
       toast(`Risk accepted for ${selectedIds.size} finding${selectedIds.size === 1 ? "" : "s"}.`, "warning");
       setSelectedIds(new Set());
-    } catch {
-      toast("Bulk action failed — try again.", "danger");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "network error";
+      toast(`Bulk action failed: ${msg}`, "danger");
     } finally {
       setBulkActing(false);
     }
@@ -244,8 +254,12 @@ export function DriftEventsView({
         body: JSON.stringify({ eventIds: [...selectedIds] }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { message?: string };
-        throw new Error(err.message ?? `Server error ${res.status}`);
+        const err = (await res.json().catch(() => ({}))) as {
+          detail?: string;
+          error?: string;
+          message?: string;
+        };
+        throw new Error(err.detail ?? err.error ?? err.message ?? `Server error ${res.status}`);
       }
       const data = await res.json() as { accepted?: number };
       toast(

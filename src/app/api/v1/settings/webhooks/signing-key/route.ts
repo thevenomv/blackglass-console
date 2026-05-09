@@ -76,8 +76,18 @@ export async function POST(request: Request) {
   try {
     result = await rotateTenantSigningKey(access.ctx.tenant.id);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "rotation_failed";
-    return jsonError(500, "rotation_failed", message, requestId);
+    // Don't echo the underlying error — rotation can leak DB / KMS
+    // internals. Operators get the full stack in the server log.
+    console.error(
+      "[webhooks/signing-key] rotation failed:",
+      err instanceof Error ? err.stack ?? err.message : err,
+    );
+    return jsonError(
+      500,
+      "rotation_failed",
+      "Webhook signing key rotation failed. Check console logs.",
+      requestId,
+    );
   }
 
   // Audit the rotation, NOT the key itself. Even the fingerprint stays out

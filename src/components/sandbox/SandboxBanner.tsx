@@ -73,8 +73,14 @@ export function SandboxBanner() {
     fetch("/api/v1/sandbox", { method: "POST" })
       .then(async (res) => {
         if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          setError(body.message ?? "Failed to provision sandbox");
+          const body = (await res.json().catch(() => ({}))) as {
+            detail?: string;
+            error?: string;
+            message?: string;
+          };
+          setError(
+            body.detail ?? body.error ?? body.message ?? "Failed to provision sandbox",
+          );
           setProvisioning(false);
           return;
         }

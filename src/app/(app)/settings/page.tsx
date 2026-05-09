@@ -155,14 +155,19 @@ export default async function SettingsPage() {
                 description="Long-lived bearer token your push agent presents when streaming snapshots from CI."
               >
                 <SettingsRotateRow />
-                <div className="flex items-center gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-3 pt-1">
                   <a
-                    href="/api/v1/ingest/agent"
-                    download="blackglass-agent.sh"
+                    href="/install-agent.sh"
                     className="inline-flex h-8 items-center gap-1.5 rounded-card border border-border-default bg-bg-panel px-3 text-xs font-medium text-fg-primary transition-colors hover:bg-bg-elevated"
                   >
-                    Download push agent (blackglass-agent.sh)
+                    View installer (one-line script)
                   </a>
+                  <span className="text-xs text-fg-faint">
+                    Pipe-to-bash:{" "}
+                    <code className="font-mono">
+                      curl -fsSL .../install-agent.sh | sudo BLACKGLASS_KEY=&lt;key&gt; bash
+                    </code>
+                  </span>
                 </div>
               </Card>
             </SettingsPanel>

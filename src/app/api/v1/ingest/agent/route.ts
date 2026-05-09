@@ -308,10 +308,18 @@ export async function POST(request: Request) {
       totalEvents = result.events.length;
     }
   } catch (err) {
-    console.error("[ingest/agent] drift pipeline failed for", hostId, err);
+    // Full stack stays in the server log. The agent / wizard get a
+    // stable detail without the underlying exception text — leaking
+    // it can dump connection URIs, tenant ids, or stack frames into
+    // an unauthenticated agent response body.
+    console.error(
+      "[ingest/agent] drift pipeline failed for",
+      hostId,
+      err instanceof Error ? err.stack ?? err.message : err,
+    );
     const e = onboardingError(
       "drift_pipeline_failed",
-      `Snapshot accepted but drift pipeline failed: ${err instanceof Error ? err.message : String(err)}`,
+      "Snapshot was accepted but the drift pipeline failed. The next push (in ~5 minutes) will retry.",
     );
     return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
   }

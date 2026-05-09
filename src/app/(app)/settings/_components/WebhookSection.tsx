@@ -18,16 +18,28 @@ export function WebhookSection() {
     setTesting(true);
     setLastTestResult(null);
     try {
-      await fetch("/api/v1/webhooks/test", {
+      const res = await fetch("/api/v1/webhooks/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as {
+          detail?: string;
+          error?: string;
+          message?: string;
+        };
+        const detail = body.detail ?? body.message ?? body.error ?? `HTTP ${res.status}`;
+        setLastTestResult("fail");
+        toast(`Delivery failed: ${detail}`, "danger");
+        return;
+      }
       setLastTestResult("ok");
       toast("Test event delivered — check your endpoint logs.", "success");
-    } catch {
+    } catch (err) {
       setLastTestResult("fail");
-      toast("Delivery failed — verify the URL and retry.", "danger");
+      const detail = err instanceof Error ? err.message : "network error";
+      toast(`Delivery failed: ${detail}`, "danger");
     } finally {
       setTesting(false);
     }
