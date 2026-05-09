@@ -93,7 +93,12 @@ async function sendEmail({ to, subject, html, text, idempotencyKey }) {
 }
 
 // ── minimal HTML templates (inline, no TS build dependency) ──────────────────
-const COMPANY = "Blackglass Security Ltd · 13 Freeland Park, Wareham Road, Poole, Dorset, BH16 6FA, United Kingdom";
+// Keep this string in sync with src/lib/email/templates/base.ts
+// (COMPANY_FOOTER_LINE) — duplicated here only because this script is a
+// standalone .mjs with no TS import path to the templates package.
+const COMPANY =
+  "Blackglass is a product of Obsidian Dynamics Limited (Co. No. 16663833) · " +
+  "Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset BH16 6FA, United Kingdom";
 
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 

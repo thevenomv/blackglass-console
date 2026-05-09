@@ -11,7 +11,7 @@
  *   unsubscribeUrl — required for GDPR marketing consent; omit for transactional
  */
 
-import { baseLayout, h1, p, ctaButton, small, escHtml } from "./base";
+import { baseLayout, h1, p, ctaButton, small, escHtml, COMPANY_FOOTER_LINE } from "./base";
 
 export interface WelcomeEmailOptions {
   firstName: string;
@@ -66,6 +66,6 @@ During the trial you can:
 Questions? Reply to this email or book a walkthrough: ${consoleUrl}/book
 
 ---
-Blackglass Security Ltd · 13 Freeland Park, Wareham Road, Poole, Dorset, BH16 6FA, United Kingdom
+${COMPANY_FOOTER_LINE}
 `;
 }

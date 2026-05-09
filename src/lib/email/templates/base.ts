@@ -7,10 +7,26 @@
  *
  * Every template renders via `baseLayout({ subject, preheader, body })`.
  * The footer always includes the registered company address for GDPR / CAN-SPAM compliance.
+ *
+ * IMPORTANT — entity vs brand: the legal entity is "Obsidian Dynamics
+ * Limited" (Companies House 16663833). "Blackglass" is the trading name
+ * for this product. CAN-SPAM and the UK GDPR/PECR both require the
+ * legal entity to be identifiable in commercial email, so the footer
+ * names both. Do NOT change the legal entity here without checking
+ * Companies House — getting this wrong could be enforceable.
  */
 
-const COMPANY_ADDRESS =
-  "Blackglass Security Ltd · 13 Freeland Park, Wareham Road, Poole, Dorset, BH16 6FA, United Kingdom";
+/**
+ * Footer line shown in every templated email — names both the trading
+ * brand AND the legal entity, then the registered office. Exported so
+ * the matching plain-text variants in welcome.ts / trial-*.ts can use
+ * the same string verbatim instead of drifting out of sync.
+ */
+export const COMPANY_FOOTER_LINE =
+  "Blackglass is a product of Obsidian Dynamics Limited (Co. No. 16663833) · " +
+  "Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset BH16 6FA, United Kingdom";
+
+const COMPANY_ADDRESS = COMPANY_FOOTER_LINE;
 
 export interface BaseLayoutOptions {
   subject: string;

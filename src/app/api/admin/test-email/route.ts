@@ -1,7 +1,7 @@
 /**
  * POST /api/admin/test-email
  *
- * Fires every transactional email template — or a single named one —
+ * Fires every transactional email template â€” or a single named one â€”
  * to a target inbox so an operator can validate Resend is configured,
  * the From domain is authenticated (SPF/DKIM/DMARC), templates render
  * cleanly across mail clients, and the messages don't land in spam.
@@ -72,6 +72,19 @@ function consoleUrl(): string {
   );
 }
 
+/**
+ * Fixture data threaded into the test renders. Centralised so we only
+ * have to update branding in one place. Keep the orgName tagged with
+ * "(test)" so a recipient never mistakes a probe for a real customer
+ * email â€” and use `.invalid` (RFC 2606) for example hostnames so they
+ * can never accidentally resolve.
+ */
+const TEST_FIXTURE = {
+  firstName: "Jamie",
+  orgName: "Obsidian Dynamics (test)",
+  hostname: "demo-host-01.test.invalid",
+} as const;
+
 interface SendOne {
   template: string;
   ok: boolean;
@@ -85,16 +98,16 @@ async function sendWelcome(to: string): Promise<SendOne> {
     const url = consoleUrl();
     const r = await sendEmail({
       to,
-      subject: "[Blackglass] Test send — Welcome email",
+      subject: "[Blackglass] Test send â€” Welcome email",
       html: welcomeEmailHtml({
-        firstName: "Jamie",
-        orgName: "Acme Security",
+        firstName: TEST_FIXTURE.firstName,
+        orgName: TEST_FIXTURE.orgName,
         consoleUrl: url,
         trialDays: 14,
       }),
       text: welcomeEmailText({
-        firstName: "Jamie",
-        orgName: "Acme Security",
+        firstName: TEST_FIXTURE.firstName,
+        orgName: TEST_FIXTURE.orgName,
         consoleUrl: url,
         trialDays: 14,
       }),
@@ -109,9 +122,9 @@ async function sendDriftAlert(to: string): Promise<SendOne> {
   try {
     const r = await sendEmail({
       to,
-      subject: "[Blackglass] Test send — High-severity drift alert",
+      subject: "[Blackglass] Test send â€” High-severity drift alert",
       html: driftAlertHtml({
-        hostname: "web-prod-7.acme.io",
+        hostname: TEST_FIXTURE.hostname,
         jobId: "scan-test-0001",
         appUrl: consoleUrl(),
         findings: [
@@ -121,7 +134,7 @@ async function sendDriftAlert(to: string): Promise<SendOne> {
         ],
       }),
       text: driftAlertText({
-        hostname: "web-prod-7.acme.io",
+        hostname: TEST_FIXTURE.hostname,
         jobId: "scan-test-0001",
         appUrl: consoleUrl(),
         findings: [
@@ -143,9 +156,9 @@ async function sendDriftDigest(to: string): Promise<SendOne> {
     const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const r = await sendEmail({
       to,
-      subject: "[Blackglass] Test send — Findings digest (last 7 days)",
+      subject: "[Blackglass] Test send â€” Findings digest (last 7 days)",
       html: driftDigestHtml({
-        workspaceName: "Acme Security",
+        workspaceName: TEST_FIXTURE.orgName,
         appUrl: consoleUrl(),
         windowLabel: "last 7 days",
         windowStartIso: start.toISOString(),
@@ -159,7 +172,7 @@ async function sendDriftDigest(to: string): Promise<SendOne> {
         affectedHosts: 8,
       }),
       text: driftDigestText({
-        workspaceName: "Acme Security",
+        workspaceName: TEST_FIXTURE.orgName,
         appUrl: consoleUrl(),
         windowLabel: "last 7 days",
         windowStartIso: start.toISOString(),
@@ -184,17 +197,17 @@ async function sendTrialExpiring(to: string): Promise<SendOne> {
     const url = consoleUrl();
     const r = await sendEmail({
       to,
-      subject: "[Blackglass] Test send — Trial expiring (3 days left)",
+      subject: "[Blackglass] Test send â€” Trial expiring (3 days left)",
       html: trialExpiringEmailHtml({
-        firstName: "Jamie",
-        orgName: "Acme Security",
+        firstName: TEST_FIXTURE.firstName,
+        orgName: TEST_FIXTURE.orgName,
         daysLeft: 3,
         consoleUrl: url,
         checkoutUrl: `${url}/pricing`,
       }),
       text: trialExpiringEmailText({
-        firstName: "Jamie",
-        orgName: "Acme Security",
+        firstName: TEST_FIXTURE.firstName,
+        orgName: TEST_FIXTURE.orgName,
         daysLeft: 3,
         consoleUrl: url,
         checkoutUrl: `${url}/pricing`,
@@ -211,16 +224,16 @@ async function sendTrialExpired(to: string): Promise<SendOne> {
     const url = consoleUrl();
     const r = await sendEmail({
       to,
-      subject: "[Blackglass] Test send — Trial expired",
+      subject: "[Blackglass] Test send â€” Trial expired",
       html: trialExpiredEmailHtml({
-        firstName: "Jamie",
-        orgName: "Acme Security",
+        firstName: TEST_FIXTURE.firstName,
+        orgName: TEST_FIXTURE.orgName,
         consoleUrl: url,
         checkoutUrl: `${url}/pricing`,
       }),
       text: trialExpiredEmailText({
-        firstName: "Jamie",
-        orgName: "Acme Security",
+        firstName: TEST_FIXTURE.firstName,
+        orgName: TEST_FIXTURE.orgName,
         consoleUrl: url,
         checkoutUrl: `${url}/pricing`,
       }),
@@ -234,7 +247,7 @@ async function sendTrialExpired(to: string): Promise<SendOne> {
 export async function POST(request: Request) {
   const requestId = getOrCreateRequestId(request);
 
-  // Reuse the contact-sales bucket — same envelope (3 per 10 min) is a
+  // Reuse the contact-sales bucket â€” same envelope (3 per 10 min) is a
   // sane cap for "operator clicks send-test button" velocity.
   if (!(await checkContactSalesRate(clientIp(request)))) {
     return jsonError(
@@ -283,7 +296,7 @@ export async function POST(request: Request) {
 
   let results: SendOne[];
   if (template === "all") {
-    // Sequential, not parallel — gives Resend a clear per-message
+    // Sequential, not parallel â€” gives Resend a clear per-message
     // attribution in their dashboard and avoids triggering their
     // burst rate limit on a fresh API key.
     results = [];

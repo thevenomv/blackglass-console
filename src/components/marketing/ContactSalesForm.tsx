@@ -161,7 +161,7 @@ export function ContactSalesForm() {
           maxLength={200}
           autoComplete="organization"
           className={inputClass}
-          placeholder="Acme Industries"
+          placeholder="Your company name"
         />
       </Field>
 

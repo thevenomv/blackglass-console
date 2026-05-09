@@ -93,7 +93,7 @@ async function main() {
   // sign in but sees no workspace.
   //
   //   DATABASE_URL=... node scripts/blackglassctl.mjs provision-tenant \
-  //     --clerk-org=org_abc123 --name="Acme Corp"
+  //     --clerk-org=org_abc123 --name="Your Workspace Name"
   // -------------------------------------------------------------------------
   if (cmd === "provision-tenant") {
     const clerkOrg = arg("--clerk-org");

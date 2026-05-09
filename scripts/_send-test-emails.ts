@@ -1,12 +1,12 @@
 /**
- * Inner worker for scripts/send-test-emails.mjs — invoked through tsx.
+ * Inner worker for scripts/send-test-emails.mjs â€” invoked through tsx.
  *
  * Imports the templates (which only use relative imports) but calls
  * Resend directly so we don't have to wire @/ aliases for tsx in
  * scripts/. Self-contained on purpose: this is a deployment-readiness
  * probe, not an application path.
  *
- * Don't invoke this directly — use `node scripts/send-test-emails.mjs`.
+ * Don't invoke this directly â€” use `node scripts/send-test-emails.mjs`.
  */
 import process from "node:process";
 import { Resend } from "resend";
@@ -44,6 +44,16 @@ const FROM = process.env.EMAIL_FROM ?? "Blackglass <noreply@blackglasssec.com>";
 const consoleUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://blackglasssec.com").replace(/\/+$/, "");
 const resend = new Resend(RESEND_API_KEY);
 
+// Centralised fixture for test renders. The "(test)" suffix on
+// orgName makes it instantly clear to the recipient that this isn't a
+// real customer notification, and we use `.invalid` for example
+// hostnames (RFC 2606) so they can't accidentally resolve.
+const TEST = {
+  firstName: "Jamie",
+  orgName: "Obsidian Dynamics (test)",
+  hostname: "demo-host-01.test.invalid",
+} as const;
+
 interface Result {
   template: string;
   ok: boolean;
@@ -66,9 +76,9 @@ async function send(subject: string, html: string, text: string): Promise<{ id?:
 const senders: Record<string, () => Promise<{ id?: string }>> = {
   welcome: () =>
     send(
-      "[Blackglass] Test send — Welcome email",
-      welcomeEmailHtml({ firstName: "Jamie", orgName: "Acme Security", consoleUrl, trialDays: 14 }),
-      welcomeEmailText({ firstName: "Jamie", orgName: "Acme Security", consoleUrl, trialDays: 14 }),
+      "[Blackglass] Test send â€” Welcome email",
+      welcomeEmailHtml({ firstName: TEST.firstName, orgName: TEST.orgName, consoleUrl, trialDays: 14 }),
+      welcomeEmailText({ firstName: TEST.firstName, orgName: TEST.orgName, consoleUrl, trialDays: 14 }),
     ),
   "drift-alert": () => {
     const findings = [
@@ -77,16 +87,16 @@ const senders: Record<string, () => Promise<{ id?: string }>> = {
       { title: "Disabled UFW firewall", category: "hardening", severity: "high" },
     ];
     return send(
-      "[Blackglass] Test send — High-severity drift alert",
-      driftAlertHtml({ hostname: "web-prod-7.acme.io", jobId: "scan-test-0001", appUrl: consoleUrl, findings }),
-      driftAlertText({ hostname: "web-prod-7.acme.io", jobId: "scan-test-0001", appUrl: consoleUrl, findings }),
+      "[Blackglass] Test send â€” High-severity drift alert",
+      driftAlertHtml({ hostname: TEST.hostname, jobId: "scan-test-0001", appUrl: consoleUrl, findings }),
+      driftAlertText({ hostname: TEST.hostname, jobId: "scan-test-0001", appUrl: consoleUrl, findings }),
     );
   },
   "drift-digest": () => {
     const now = new Date();
     const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const opts = {
-      workspaceName: "Acme Security",
+      workspaceName: TEST.orgName,
       appUrl: consoleUrl,
       windowLabel: "last 7 days",
       windowStartIso: start.toISOString(),
@@ -100,34 +110,34 @@ const senders: Record<string, () => Promise<{ id?: string }>> = {
       affectedHosts: 8,
     };
     return send(
-      "[Blackglass] Test send — Findings digest (last 7 days)",
+      "[Blackglass] Test send â€” Findings digest (last 7 days)",
       driftDigestHtml(opts),
       driftDigestText(opts),
     );
   },
   "trial-expiring": () => {
     const opts = {
-      firstName: "Jamie",
-      orgName: "Acme Security",
+      firstName: TEST.firstName,
+      orgName: TEST.orgName,
       daysLeft: 3,
       consoleUrl,
       checkoutUrl: `${consoleUrl}/pricing`,
     };
     return send(
-      "[Blackglass] Test send — Trial expiring (3 days left)",
+      "[Blackglass] Test send â€” Trial expiring (3 days left)",
       trialExpiringEmailHtml(opts),
       trialExpiringEmailText(opts),
     );
   },
   "trial-expired": () => {
     const opts = {
-      firstName: "Jamie",
-      orgName: "Acme Security",
+      firstName: TEST.firstName,
+      orgName: TEST.orgName,
       consoleUrl,
       checkoutUrl: `${consoleUrl}/pricing`,
     };
     return send(
-      "[Blackglass] Test send — Trial expired",
+      "[Blackglass] Test send â€” Trial expired",
       trialExpiredEmailHtml(opts),
       trialExpiredEmailText(opts),
     );
