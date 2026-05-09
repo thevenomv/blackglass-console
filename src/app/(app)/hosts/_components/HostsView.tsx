@@ -12,26 +12,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { HostTrustPill } from "@/components/ui/HostTrustPill";
 import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 import { useToast } from "@/components/ui/Toast";
+import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 
 type Filter = "all" | "aligned" | "drift" | "needs_review";
 
 /** Below this count, render rows directly so SSR/hydration always shows data (virtualizer needs a mounted scroll parent). */
 const VIRTUAL_THRESHOLD = 48;
-
-function formatScan(iso: string | null | undefined): string {
-  if (!iso) return "Never";
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return "—";
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "UTC",
-    }).format(d);
-  } catch {
-    return iso;
-  }
-}
 
 export function HostsView({
   hosts,
@@ -209,17 +195,16 @@ export function HostsView({
   });
 
   const chips: { id: Filter; label: string }[] = [
-    { id: "all", label: "All hosts" },
+    { id: "all", label: "All" },
     { id: "aligned", label: "Healthy" },
     { id: "drift", label: "Changed" },
     { id: "needs_review", label: "Needs review" },
   ];
 
   return (
-    <div className="flex flex-col gap-6 px-6 pb-10 pt-6">
+    <div className="flex flex-col gap-5 px-6 pb-10 pt-6">
       <PageHeader
         title="Hosts"
-        subtitle="Servers you monitor, their health, and quick links when something needs a look."
         breadcrumbs={[
           { href: "/dashboard", label: "Dashboard" },
           { href: "/hosts", label: "Hosts" },
@@ -234,17 +219,15 @@ export function HostsView({
         />
       )}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <label className="block max-w-md flex-1 text-xs text-fg-faint">
-          Search hosts
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="hostname, id, or OS"
-            className="mt-1 w-full rounded-card border border-border-default bg-bg-panel px-3 py-2 text-sm text-fg-primary outline-none ring-accent-blue placeholder:text-fg-faint focus:ring-2"
-          />
-        </label>
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Host filters">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search hosts…"
+          aria-label="Search hosts by hostname, id, or OS"
+          className="w-full max-w-md rounded-card border border-border-default bg-bg-panel px-3 py-2 text-sm text-fg-primary outline-none ring-accent-blue placeholder:text-fg-faint focus:ring-2"
+        />
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Host filters">
           {chips.map((c) => (
             <button
               key={c.id}
@@ -252,10 +235,10 @@ export function HostsView({
               role="tab"
               aria-selected={filter === c.id}
               onClick={() => setFilter(c.id)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                 filter === c.id
                   ? "border-accent-blue bg-accent-blue-soft text-accent-blue"
-                  : "border-border-default text-fg-muted hover:border-border-subtle hover:text-fg-primary"
+                  : "border-border-subtle text-fg-muted hover:border-border-default hover:text-fg-primary"
               }`}
             >
               {c.label}
@@ -309,7 +292,7 @@ export function HostsView({
           aria-label="Hosts inventory"
           className="overflow-hidden rounded-card border border-border-default bg-bg-panel"
         >
-          <div className="flex items-center border-b border-border-subtle px-4 py-3 text-xs uppercase tracking-wide text-fg-faint">
+          <div className="flex items-center border-b border-border-subtle px-4 py-2.5 text-[11px] uppercase tracking-wide text-fg-faint">
             <div className="w-7 shrink-0">
               <input
                 type="checkbox"
@@ -325,9 +308,9 @@ export function HostsView({
             </div>
             <div className="min-w-0 flex-[1.4] font-medium">Host</div>
             <div className="w-36 font-medium">Posture</div>
-            <div className="w-20 text-right font-medium">Ready</div>
+            <div className="w-16 text-right font-medium">Ready</div>
             <div className="min-w-0 flex-1 px-4 font-medium">Last scan</div>
-            <div className="w-44 text-right font-medium">
+            <div className="w-24 text-right font-medium">
               <span className="sr-only">Actions</span>
             </div>
           </div>
@@ -343,120 +326,123 @@ export function HostsView({
               >
                 {rowVirtualizer.getVirtualItems().map((vi) => {
                   const h = filtered[vi.index];
-                  const stripe = vi.index % 2 === 1 ? "bg-bg-elevated/45" : "";
-                  const checked = selectedIds.has(h.id);
                   return (
                     <div
                       key={h.id}
-                      className={`absolute left-0 top-0 flex w-full items-center border-b border-border-subtle px-4 py-3 text-sm hover:bg-bg-elevated ${
-                        checked ? "bg-accent-blue-soft/15" : stripe
-                      }`}
+                      className="absolute left-0 top-0 w-full"
                       style={{
                         height: `${vi.size}px`,
                         transform: `translateY(${vi.start}px)`,
                       }}
                     >
-                      <div className="w-7 shrink-0">
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${h.hostname}`}
-                          checked={checked}
-                          onChange={() => toggleSelected(h.id)}
-                          disabled={bulkDeleting || deletingId === h.id}
-                          className="h-3.5 w-3.5 cursor-pointer accent-accent-blue"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-[1.4]">
-                        <p className="font-mono text-fg-primary">{h.id}</p>
-                        <p className="truncate text-xs text-fg-faint">{h.os}</p>
-                      </div>
-                      <div className="w-36">
-                        <HostTrustPill trust={h.trust} />
-                      </div>
-                      <div className="w-20 tabular-nums text-right text-fg-muted">
-                        {h.readinessScore}%
-                      </div>
-                      <div className="min-w-0 flex-1 px-4 text-fg-muted">
-                        {h.lastScanAt ? `${formatScan(h.lastScanAt)} UTC` : "Never"}
-                      </div>
-                      <div className="flex w-44 items-center justify-end gap-3">
-                        <Link
-                          href={`/hosts/${h.id}`}
-                          className="text-xs font-semibold text-accent-blue hover:underline"
-                        >
-                          Open
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => void handleDelete(h)}
-                          disabled={deletingId === h.id}
-                          aria-label={`Delete host ${h.hostname}`}
-                          className="rounded-md border border-danger/40 bg-danger-soft/15 px-2.5 py-1 text-xs font-semibold text-danger transition-colors hover:bg-danger-soft/30 disabled:opacity-50"
-                        >
-                          {deletingId === h.id ? "Deleting…" : "Delete"}
-                        </button>
-                      </div>
+                      <HostRow
+                        host={h}
+                        checked={selectedIds.has(h.id)}
+                        deleting={deletingId === h.id}
+                        bulkDeleting={bulkDeleting}
+                        onToggle={() => toggleSelected(h.id)}
+                        onDelete={() => void handleDelete(h)}
+                      />
                     </div>
                   );
                 })}
               </div>
             ) : (
-              filtered.map((h, rowIdx) => {
-                const checked = selectedIds.has(h.id);
-                return (
-                <div
+              filtered.map((h) => (
+                <HostRow
                   key={h.id}
-                  className={`flex w-full items-center border-b border-border-subtle px-4 py-3 text-sm hover:bg-bg-elevated ${
-                    checked ? "bg-accent-blue-soft/15" : rowIdx % 2 === 1 ? "bg-bg-elevated/45" : ""
-                  }`}
-                >
-                  <div className="w-7 shrink-0">
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${h.hostname}`}
-                      checked={checked}
-                      onChange={() => toggleSelected(h.id)}
-                      disabled={bulkDeleting || deletingId === h.id}
-                      className="h-3.5 w-3.5 cursor-pointer accent-accent-blue"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-[1.4]">
-                    <p className="font-mono text-fg-primary">{h.id}</p>
-                    <p className="truncate text-xs text-fg-faint">{h.os}</p>
-                  </div>
-                  <div className="w-36">
-                    <HostTrustPill trust={h.trust} />
-                  </div>
-                  <div className="w-20 tabular-nums text-right text-fg-muted">
-                    {h.readinessScore}%
-                  </div>
-                  <div className="min-w-0 flex-1 px-4 text-fg-muted">
-                    {h.lastScanAt ? `${formatScan(h.lastScanAt)} UTC` : "Never"}
-                  </div>
-                  <div className="flex w-44 items-center justify-end gap-3">
-                    <Link
-                      href={`/hosts/${h.id}`}
-                      className="text-xs font-semibold text-accent-blue hover:underline"
-                    >
-                      Open
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(h)}
-                      disabled={deletingId === h.id}
-                      aria-label={`Delete host ${h.hostname}`}
-                      className="rounded-md border border-danger/40 bg-danger-soft/15 px-2.5 py-1 text-xs font-semibold text-danger transition-colors hover:bg-danger-soft/30 disabled:opacity-50"
-                    >
-                      {deletingId === h.id ? "Deleting…" : "Delete"}
-                    </button>
-                  </div>
-                </div>
-                );
-              })
+                  host={h}
+                  checked={selectedIds.has(h.id)}
+                  deleting={deletingId === h.id}
+                  bulkDeleting={bulkDeleting}
+                  onToggle={() => toggleSelected(h.id)}
+                  onDelete={() => void handleDelete(h)}
+                />
+              ))
             )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Single inventory row. Pulled out so the virtualized and non-virtualized
+ * branches share one definition — keeps the "less is more" UX consistent
+ * across both rendering paths.
+ *
+ * UX notes:
+ *  - The host id is itself the navigation link; we no longer ship a separate
+ *    "Open" column, which removes ~50% of the per-row visual noise.
+ *  - The delete button stays always-visible (operators previously complained
+ *    that delete was buried), but it's a low-weight ghost so it doesn't
+ *    dominate the row.
+ *  - No zebra striping; row hover and selected-state tinting are enough to
+ *    keep rows distinct.
+ */
+function HostRow({
+  host,
+  checked,
+  deleting,
+  bulkDeleting,
+  onToggle,
+  onDelete,
+}: {
+  host: HostRecord;
+  checked: boolean;
+  deleting: boolean;
+  bulkDeleting: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      className={`group flex w-full items-center border-b border-border-subtle px-4 py-3 text-sm transition-colors hover:bg-bg-elevated ${
+        checked ? "bg-accent-blue-soft/10" : ""
+      }`}
+    >
+      <div className="w-7 shrink-0">
+        <input
+          type="checkbox"
+          aria-label={`Select ${host.hostname}`}
+          checked={checked}
+          onChange={onToggle}
+          disabled={bulkDeleting || deleting}
+          className="h-3.5 w-3.5 cursor-pointer accent-accent-blue"
+        />
+      </div>
+      <div className="min-w-0 flex-[1.4]">
+        <Link
+          href={`/hosts/${host.id}`}
+          className="font-mono text-fg-primary hover:text-accent-blue hover:underline"
+        >
+          {host.id}
+        </Link>
+        <p className="truncate text-xs text-fg-faint">{host.os}</p>
+      </div>
+      <div className="w-36">
+        <HostTrustPill trust={host.trust} />
+      </div>
+      <div className="w-16 tabular-nums text-right text-fg-muted">{host.readinessScore}%</div>
+      <div
+        className="min-w-0 flex-1 px-4 text-fg-muted"
+        title={host.lastScanAt ? formatAbsoluteUtc(host.lastScanAt) : "No scan signal yet"}
+      >
+        {host.lastScanAt ? formatRelativeTime(host.lastScanAt) : "Never"}
+      </div>
+      <div className="flex w-24 items-center justify-end">
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={deleting}
+          aria-label={`Delete host ${host.hostname}`}
+          title="Forget this host (baseline + drift events). Cannot be undone."
+          className="rounded-md px-2 py-1 text-xs font-medium text-fg-faint transition-colors hover:bg-danger-soft/30 hover:text-danger disabled:opacity-50"
+        >
+          {deleting ? "Deleting…" : "Delete"}
+        </button>
+      </div>
     </div>
   );
 }

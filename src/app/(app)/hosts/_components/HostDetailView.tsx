@@ -5,11 +5,13 @@ import { Card } from "@/components/ui/Card";
 import { HostTrustPill } from "@/components/ui/HostTrustPill";
 import { ProgressRow } from "@/components/ui/ProgressBar";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useToast } from "@/components/ui/Toast";
 import type { HostDetail } from "@/data/mock/types";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
+import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -22,18 +24,6 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
-
-function formatTs(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "medium",
-      timeZone: "UTC",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
 
 export function HostDetailView({ detail }: { detail: HostDetail }) {
   const router = useRouter();
@@ -96,55 +86,52 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
       label: "Open drift queue",
       href: `/drift`,
     },
-    {
-      label: "Schedule privileged re-scan",
-      href: "/settings",
-    },
   ] as const;
 
   return (
-    <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
-      <nav className="text-xs text-fg-faint">
-        <Link href="/hosts" className="hover:text-fg-muted">
-          Hosts
-        </Link>
-        <span className="px-2 text-fg-faint">/</span>
-        <span className="font-mono text-fg-muted">{detail.id}</span>
-      </nav>
+    <div className="flex flex-col gap-5 px-6 pb-12 pt-6">
+      <PageHeader
+        title={detail.id}
+        breadcrumbs={[
+          { href: "/hosts", label: "Hosts" },
+          { href: `/hosts/${detail.id}`, label: detail.id },
+        ]}
+        actions={
+          <>
+            <Button type="button">Re-scan</Button>
+            <Link href={`/baselines?host=${detail.id}`}>
+              <Button variant="secondary" type="button">
+                Compare baseline
+              </Button>
+            </Link>
+            <EvidenceExportModal triggerLabel="Export bundle" />
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => void handleDelete()}
+              title="Forget this host: delete its baseline, drift events, and any scan registration. Cannot be undone."
+              className="rounded-md px-2.5 py-1.5 text-sm font-medium text-fg-faint transition-colors hover:bg-danger-soft/30 hover:text-danger disabled:opacity-50"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          </>
+        }
+      />
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-mono text-xl font-semibold text-fg-primary">{detail.id}</h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            {detail.os} · baseline{" "}
-            <span className="font-mono text-fg-primary">{detail.baselineLabel}</span>
-          </p>
-          <p className="mt-1 text-xs text-fg-faint">
-            Last scan {detail.lastScanAt ? `${formatTs(detail.lastScanAt)} UTC` : "Never"}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <HostTrustPill trust={detail.trust} />
-          <EvidenceExportModal triggerLabel="Export integrity snapshot" />
-          <Button type="button">Re-scan</Button>
-          <Link href={`/baselines?host=${detail.id}`}>
-            <Button variant="secondary" type="button">
-              Compare to baseline
-            </Button>
-          </Link>
-          <Button
-            type="button"
-            variant="danger"
-            disabled={deleting}
-            onClick={() => void handleDelete()}
-            title="Forget this host: delete its baseline, drift events, and any scan registration. Cannot be undone."
-          >
-            {deleting ? "Deleting…" : "Delete host"}
-          </Button>
-        </div>
-      </header>
+      <div className="-mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fg-muted">
+        <HostTrustPill trust={detail.trust} />
+        <span>{detail.os}</span>
+        <span aria-hidden className="text-fg-faint">·</span>
+        <span>
+          baseline <span className="font-mono text-fg-primary">{detail.baselineLabel}</span>
+        </span>
+        <span aria-hidden className="text-fg-faint">·</span>
+        <span title={detail.lastScanAt ? formatAbsoluteUtc(detail.lastScanAt) : undefined}>
+          last scan {detail.lastScanAt ? formatRelativeTime(detail.lastScanAt) : "Never"}
+        </span>
+      </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-border-subtle">
+      <div className="flex flex-wrap gap-1 border-b border-border-subtle">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -152,7 +139,7 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`border-b-2 px-3 pb-3 pt-1 text-sm transition-colors ${
+            className={`border-b-2 px-3 pb-2.5 pt-1 text-sm transition-colors ${
               tab === t.id
                 ? "border-accent-blue text-fg-primary"
                 : "border-transparent text-fg-muted hover:text-fg-primary"
@@ -184,10 +171,6 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
                 value={detail.integrityBars.evidenceCompleteness}
               />
             </div>
-            <p className="mt-4 text-xs leading-relaxed text-fg-faint">
-              Percentages reflect how much signal remains open versus the approved baseline — not
-              abstract performance scores.
-            </p>
           </Card>
 
           <Card title="Next actions">
@@ -200,9 +183,6 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-xs text-fg-faint">
-              Use exports for incident folders; diff view anchors remediation discussions.
-            </p>
           </Card>
 
           <Card title="Drift concentration" className="lg:col-span-3">
@@ -383,10 +363,7 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
 
       {tab === "evidence" && (
         <Card title="Evidence readiness">
-          <p className="text-sm text-fg-muted">
-            These artifacts roll into an integrity bundle for auditors or incident leads.
-          </p>
-          <ul className="mt-4 space-y-2 text-sm text-fg-primary">
+          <ul className="space-y-2 text-sm text-fg-primary">
             <li className="flex items-center justify-between rounded-md border border-border-subtle px-3 py-2">
               Listener enumeration snapshot
               <span className="text-xs font-medium text-success">Captured</span>
@@ -404,7 +381,7 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
               <span className="text-xs font-medium text-danger">Missing</span>
             </li>
           </ul>
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-5 flex flex-wrap gap-2">
             <EvidenceExportModal triggerLabel="Prepare bundle" />
           </div>
         </Card>
@@ -417,7 +394,9 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
               <li key={`${e.at}-${e.label}`} className="relative">
                 <span className="absolute -left-[21px] mt-1 h-2.5 w-2.5 rounded-full bg-accent-blue" />
                 <p className="text-sm font-medium text-fg-primary">{e.label}</p>
-                <p className="text-xs text-fg-faint">{formatTs(e.at)} UTC</p>
+                <p className="text-xs text-fg-faint" title={formatAbsoluteUtc(e.at)}>
+                  {formatRelativeTime(e.at)}
+                </p>
                 <p className="mt-1 text-sm text-fg-muted">{e.detail}</p>
               </li>
             ))}
