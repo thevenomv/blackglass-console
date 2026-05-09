@@ -10,10 +10,12 @@ import { OnboardingChecklist } from "./OnboardingChecklist";
 import { ComplianceScoreTile } from "./ComplianceScoreTile";
 import { Card } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { ProgressRow } from "@/components/ui/ProgressBar";
 import { SecurityOverviewSection } from "./SecurityOverviewSection";
 import { ValueRecapBanner, type ValueRecap } from "@/components/dashboard/ValueRecapBanner";
 import { DriftTrendChart } from "@/components/dashboard/DriftTrendChart";
+import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -48,21 +50,6 @@ const KPI_DELTAS: Record<
     evidenceBundles: { label: "+12 from last month", positive: true },
   },
 };
-
-function formatUtc(iso: string | null | undefined) {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return "—";
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "UTC",
-    }).format(d);
-  } catch {
-    return iso;
-  }
-}
 
 function trustTone(trust: HostTrust): Tone {
   if (trust === "critical" || trust === "drift") return "danger";
@@ -129,41 +116,38 @@ export function DashboardV3({
   }
 
   return (
-    <div className="flex flex-col gap-6 px-6 pb-8 pt-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-fg-primary">Fleet dashboard</h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            Production hosts · findings, readiness, and what to look at first.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {showDemoKpiDeltas ? (
-            <div
-              role="group"
-              aria-label="Time range"
-              className="flex rounded-card border border-border-default bg-bg-base"
-            >
-              {(["24h", "7d", "30d"] as TimeRange[]).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setTimeRange(r)}
-                  className={`px-3 py-1.5 text-xs font-medium transition-colors first:rounded-l-card last:rounded-r-card ${
-                    timeRange === r
-                      ? "bg-accent-blue text-white"
-                      : "text-fg-muted hover:text-fg-primary"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {collectorOn ? <CaptureBaselineButton /> : null}
-          <RunScanButton />
-        </div>
-      </header>
+    <div className="flex flex-col gap-5 px-6 pb-8 pt-6">
+      <PageHeader
+        title="Fleet"
+        actions={
+          <>
+            {showDemoKpiDeltas ? (
+              <div
+                role="group"
+                aria-label="Time range"
+                className="flex rounded-card border border-border-default bg-bg-base"
+              >
+                {(["24h", "7d", "30d"] as TimeRange[]).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setTimeRange(r)}
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors first:rounded-l-card last:rounded-r-card ${
+                      timeRange === r
+                        ? "bg-accent-blue text-white"
+                        : "text-fg-muted hover:text-fg-primary"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {collectorOn ? <CaptureBaselineButton /> : null}
+            <RunScanButton />
+          </>
+        }
+      />
 
       {liveMode && onboardingState ? (
         <OnboardingChecklist
@@ -316,8 +300,11 @@ export function DashboardV3({
           </div>
           <div className="rounded-md border border-border-subtle bg-bg-panel px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Fleet heartbeat</p>
-            <p className="mt-2 text-sm tabular-nums text-fg-primary">
-              {formatUtc(fleet.coverage.lastFleetHeartbeatAt)} UTC
+            <p
+              className="mt-2 text-sm tabular-nums text-fg-primary"
+              title={formatAbsoluteUtc(fleet.coverage.lastFleetHeartbeatAt)}
+            >
+              {formatRelativeTime(fleet.coverage.lastFleetHeartbeatAt)}
             </p>
           </div>
           <div className="rounded-md border border-border-subtle bg-bg-panel px-4 py-3 sm:col-span-2 lg:col-span-1">
@@ -332,8 +319,10 @@ export function DashboardV3({
                       {s.hostId}
                     </Link>{" "}
                     <span className="text-fg-muted">{s.slice}</span>
-                    <span className="text-fg-faint"> · since </span>
-                    <span className="text-fg-muted">{formatUtc(s.staleSince)}</span>
+                    <span className="text-fg-faint"> · </span>
+                    <span className="text-fg-muted" title={formatAbsoluteUtc(s.staleSince)}>
+                      {formatRelativeTime(s.staleSince)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -342,96 +331,42 @@ export function DashboardV3({
         </div>
       </Card>
 
-      <Card title="Fleet overview">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="min-w-0 flex-1 space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={liveMode ? postureTone : "success"}>
-                {liveMode ? postureLabel : "Healthy"}
-              </Badge>
-            </div>
-            <ul className="space-y-1 text-sm text-fg-muted">
-              {fleet.fleetBullets.length === 0 ? (
-                <li>No fleet summary lines yet.</li>
-              ) : (
-                fleet.fleetBullets.map((line) => <li key={line}>{line}</li>)
-              )}
-            </ul>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Notable items</p>
-              {fleet.notableEvents.length === 0 ? (
-                <p className="mt-2 text-sm text-fg-muted">No open items in the latest window.</p>
-              ) : (
-                <ul className="mt-2 space-y-2 text-[13px] text-fg-primary">
-                  {fleet.notableEvents.map((ev) => (
-                    <li key={`${ev.hostId}-${ev.slug}`}>
-                      <Link
-                        className="text-accent-blue hover:underline"
-                        href={`/hosts/${ev.hostId}?finding=${ev.slug}`}
-                      >
-                        {ev.hostId}
-                      </Link>{" "}
-                      {ev.label}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-          <div className="w-full shrink-0 lg:w-56">
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">Activity index (7 days)</p>
-            {fleet.driftVolumeByDay.length === 0 ? (
-              <p className="mt-3 text-sm text-fg-muted">
-                No historical trend yet — run scans on separate days to build a picture.
-              </p>
+      <Card
+        title="Fleet overview"
+        action={
+          <Badge tone={liveMode ? postureTone : "success"}>
+            {liveMode ? postureLabel : "Healthy"}
+          </Badge>
+        }
+      >
+        <div className="space-y-4">
+          <ul className="space-y-1 text-sm text-fg-muted">
+            {fleet.fleetBullets.length === 0 ? (
+              <li>No fleet summary lines yet.</li>
             ) : (
-              <>
-                <p id="drift-chart-summary" className="sr-only">
-                  Bar chart of daily finding activity for the last six days. Values are listed in the
-                  data table below for screen readers.
-                </p>
-                <div
-                  className="mt-3 flex h-28 items-end justify-between gap-2"
-                  role="img"
-                  aria-labelledby="drift-chart-summary"
-                >
-                  {fleet.driftVolumeByDay.map((b, i) => (
-                    <div
-                      key={`${b.day}-${i}`}
-                      className="flex flex-1 flex-col items-center gap-2"
+              fleet.fleetBullets.map((line) => <li key={line}>{line}</li>)
+            )}
+          </ul>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">
+              Notable items
+            </p>
+            {fleet.notableEvents.length === 0 ? (
+              <p className="mt-2 text-sm text-fg-muted">No open items in the latest window.</p>
+            ) : (
+              <ul className="mt-2 space-y-2 text-[13px] text-fg-primary">
+                {fleet.notableEvents.map((ev) => (
+                  <li key={`${ev.hostId}-${ev.slug}`}>
+                    <Link
+                      className="text-accent-blue hover:underline"
+                      href={`/hosts/${ev.hostId}?finding=${ev.slug}`}
                     >
-                      <div
-                        className="drift-volume-bar w-full max-w-[28px] rounded-sm bg-accent-blue/25 transition-colors hover:bg-accent-blue/45"
-                        style={{
-                          // Always render at least a 4px stub so empty days
-                          // remain visually anchored; otherwise the chart
-                          // looks like floating labels.
-                          height: `max(4px, ${b.valuePct}%)`,
-                        }}
-                        title={`${b.day}: activity ${b.valuePct}%`}
-                      />
-                      <span className="text-[10px] text-fg-faint">{b.day}</span>
-                    </div>
-                  ))}
-                </div>
-                <table className="sr-only">
-                  <caption>Finding activity index by day</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Day label</th>
-                      <th scope="col">Index (%)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fleet.driftVolumeByDay.map((b) => (
-                      <tr key={b.day}>
-                        <td>{b.day}</td>
-                        <td>{b.valuePct}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
+                      {ev.hostId}
+                    </Link>{" "}
+                    {ev.label}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -444,10 +379,7 @@ export function DashboardV3({
         >
           {liveMode ? (
             <>
-              <p className="text-sm text-fg-muted">
-                Open items are grouped by type — review urgent ones first.
-              </p>
-              <p className="mt-4 text-xs font-medium uppercase tracking-wide text-fg-faint">
+              <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">
                 Top types ({fleet.highRiskDrift > 0 ? "urgent · new" : "new items"})
               </p>
               {driftCategories.length === 0 ? (
@@ -475,11 +407,9 @@ export function DashboardV3({
             </>
           ) : (
             <>
-              <p className="text-sm text-fg-muted">
-                New listeners, privileged-user deltas and persistence entries are the strongest fleet
-                signals.
+              <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">
+                Top classes
               </p>
-              <p className="mt-4 text-xs font-medium uppercase tracking-wide text-fg-faint">Top classes</p>
               <ul className="mt-2 space-y-2 text-sm text-fg-primary">
                 <li className="border-l-2 border-accent-blue pl-3">Network exposure</li>
                 <li className="border-l-2 border-border-default pl-3">Identity drift</li>
@@ -521,8 +451,7 @@ export function DashboardV3({
               <li>
                 <Link href="/evidence" className="text-accent-blue hover:underline">
                   Export an evidence bundle
-                </Link>{" "}
-                for auditors if needed
+                </Link>
               </li>
             </ol>
           ) : (
@@ -537,8 +466,7 @@ export function DashboardV3({
               <li>
                 <Link href="/evidence" className="text-accent-blue hover:underline">
                   Export evidence bundle
-                </Link>{" "}
-                for security review
+                </Link>
               </li>
             </ol>
           )}
@@ -559,10 +487,6 @@ export function DashboardV3({
                   Open host
                 </Link>
               </div>
-              <p className="mb-4 text-xs text-fg-faint">
-                Investigation readiness — higher values indicate more divergence from baseline in each
-                lane.
-              </p>
               <div className="grid gap-4 md:grid-cols-2">
                 <ProgressRow label="Network listeners" value={72} />
                 <ProgressRow label="User / group drift" value={88} />
@@ -590,9 +514,6 @@ export function DashboardV3({
                   </Link>
                 </div>
               </div>
-              <p className="mb-4 text-xs text-fg-faint">
-                Readiness score from the latest scan — higher is closer to baseline alignment.
-              </p>
               <ProgressRow label="Fleet readiness score" value={spotlightHost.readinessScore} />
             </>
           ) : null}

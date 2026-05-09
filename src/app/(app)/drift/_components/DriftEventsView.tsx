@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RunScanButton } from "@/app/(app)/dashboard/_components/RunScanButton";
 import { useToast } from "@/components/ui/Toast";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DriftInvestigationDrawer } from "./DriftInvestigationDrawer";
@@ -14,6 +13,7 @@ import { SavedDriftViews } from "./SavedDriftViews";
 import { BaselineSuggestionsCard } from "./BaselineSuggestionsCard";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 
 const VIRTUAL_THRESHOLD = 48;
 
@@ -24,18 +24,6 @@ const ALL_LIFECYCLES: FindingLifecycle[] = [
   "remediated",
   "verified",
 ];
-
-function formatDetected(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "UTC",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
 
 function lifecycleTone(l: FindingLifecycle): "neutral" | "warning" | "success" | "accent" {
   if (l === "new") return "neutral";
@@ -59,19 +47,20 @@ function lifecycleShort(l: FindingLifecycle) {
 function DriftTableRow({
   e,
   selected,
-  rowIndex,
   onSelect,
   onOpen,
 }: {
   e: DriftEvent;
   selected: boolean;
-  rowIndex: number;
   onSelect: (id: string, checked: boolean) => void;
   onOpen: (id: string) => void;
 }) {
-  const zebra = rowIndex % 2 === 1 ? "bg-bg-elevated/45" : "";
   return (
-    <div className={`flex w-full cursor-pointer items-center border-b border-border-subtle px-4 py-3 text-sm hover:bg-bg-elevated ${zebra}`}>
+    <div
+      className={`flex w-full cursor-pointer items-center border-b border-border-subtle px-4 py-3 text-sm transition-colors hover:bg-bg-elevated ${
+        selected ? "bg-accent-blue-soft/10" : ""
+      }`}
+    >
       <div className="mr-3 shrink-0">
         <input
           type="checkbox"
@@ -98,9 +87,14 @@ function DriftTableRow({
           }
         }}
       >
-        <div className="min-w-0 flex-[1.05] text-fg-muted">{formatDetected(e.detectedAt)} UTC</div>
+        <div
+          className="min-w-0 flex-[0.85] text-fg-muted"
+          title={formatAbsoluteUtc(e.detectedAt)}
+        >
+          {formatRelativeTime(e.detectedAt)}
+        </div>
         <div className="w-24 shrink-0 font-mono text-fg-primary">{e.hostId}</div>
-        <div className="min-w-0 flex-1 truncate px-2 text-fg-muted">{e.title}</div>
+        <div className="min-w-0 flex-1 truncate px-2 text-fg-primary">{e.title}</div>
         <div className="w-20 shrink-0">
           <Badge
             tone={
@@ -114,21 +108,9 @@ function DriftTableRow({
             {e.severity}
           </Badge>
         </div>
-        <div className="w-36 shrink-0 pr-2">
+        <div className="w-32 shrink-0 pr-2">
           <Badge tone={lifecycleTone(e.lifecycle)}>{lifecycleShort(e.lifecycle)}</Badge>
         </div>
-      </div>
-      <div className="w-14 shrink-0 text-right">
-        <button
-          type="button"
-          className="text-xs font-semibold text-accent-blue underline-offset-2 hover:underline"
-          onClick={(ev) => {
-            ev.stopPropagation();
-            onOpen(e.id);
-          }}
-        >
-          Open
-        </button>
       </div>
     </div>
   );
@@ -292,10 +274,9 @@ export function DriftEventsView({
 
   return (
     <>
-      <div className="flex flex-col gap-6 px-6 pb-10 pt-6">
+      <div className="flex flex-col gap-5 px-6 pb-10 pt-6">
         <PageHeader
           title="Findings"
-          subtitle="Changes compared with your trusted snapshot — open any row for context and next steps."
           breadcrumbs={[
             { href: "/dashboard", label: "Dashboard" },
             { href: "/drift", label: "Findings" },
@@ -303,25 +284,6 @@ export function DriftEventsView({
           actions={<RunScanButton />}
         />
         <BaselineSuggestionsCard />
-
-        <nav
-          aria-label="Integrity workflow shortcuts"
-          className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted"
-        >
-          <Link href="/baselines" className="font-medium text-accent-blue hover:underline">
-            Baselines
-          </Link>
-          <span aria-hidden className="text-fg-faint">
-            →
-          </span>
-          <span className="font-medium text-fg-primary">Finding triage</span>
-          <span aria-hidden className="text-fg-faint">
-            →
-          </span>
-          <Link href="/evidence" className="font-medium text-accent-blue hover:underline">
-            Evidence export
-          </Link>
-        </nav>
 
         <div
           className="rounded-card border border-border-subtle bg-bg-panel/70 px-4 py-3"
@@ -464,7 +426,7 @@ export function DriftEventsView({
               </button>
             </div>
           ) : null}
-          <div className="flex border-b border-border-subtle px-4 py-3 text-xs uppercase tracking-wide text-fg-faint">
+          <div className="flex border-b border-border-subtle px-4 py-2.5 text-[11px] uppercase tracking-wide text-fg-faint">
             <div className="mr-3 shrink-0">
               <input
                 type="checkbox"
@@ -477,12 +439,11 @@ export function DriftEventsView({
                 className="h-4 w-4 cursor-pointer accent-[var(--accent-blue)]"
               />
             </div>
-            <div className="min-w-0 flex-[1.05] font-medium">Detection time</div>
+            <div className="min-w-0 flex-[0.85] font-medium">Detected</div>
             <div className="w-24 shrink-0 font-medium">Host</div>
             <div className="min-w-0 flex-1 px-2 font-medium">Title</div>
             <div className="w-20 shrink-0 font-medium">Severity</div>
-            <div className="w-36 shrink-0 font-medium">Lifecycle</div>
-            <div className="w-14 shrink-0 text-right font-medium"> </div>
+            <div className="w-32 shrink-0 font-medium">Lifecycle</div>
           </div>
           <div
             ref={parentRef}
@@ -518,7 +479,6 @@ export function DriftEventsView({
                     >
                       <DriftTableRow
                         e={e}
-                        rowIndex={vi.index}
                         selected={selectedIds.has(e.id)}
                         onSelect={toggleSelect}
                         onOpen={openEvent}
@@ -528,11 +488,10 @@ export function DriftEventsView({
                 })}
               </div>
             ) : (
-              filtered.map((e, i) => (
+              filtered.map((e) => (
                 <DriftTableRow
                   key={e.id}
                   e={e}
-                  rowIndex={i}
                   selected={selectedIds.has(e.id)}
                   onSelect={toggleSelect}
                   onOpen={openEvent}
@@ -541,32 +500,11 @@ export function DriftEventsView({
             )}
           </div>
         </div>
-
-        <p className="text-xs text-fg-faint">
-          Saved views use URL query params (<span className="font-mono">severity</span>,{" "}
-          <span className="font-mono">lifecycle</span>, <span className="font-mono">host</span>,{" "}
-          <span className="font-mono">event</span>) — mirror future{" "}
-          <span className="font-mono">GET /hosts/:id/drift</span> filters.
-        </p>
-
-        <CardHint />
       </div>
 
       {selected ? (
         <DriftInvestigationDrawer event={selected} backHref={driftDrawerBack} />
       ) : null}
     </>
-  );
-}
-
-function CardHint() {
-  return (
-    <div className="rounded-card border border-border-subtle bg-bg-panel/60 px-4 py-3 text-sm text-fg-muted">
-      Need fleet context? Cross-check recommended actions on the{" "}
-      <Link href="/dashboard" className="text-accent-blue underline underline-offset-2 hover:underline">
-        fleet dashboard
-      </Link>
-      .
-    </div>
   );
 }
