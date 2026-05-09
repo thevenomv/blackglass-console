@@ -6,6 +6,7 @@ import type { Tone } from "@/components/ui/Badge";
 import { Badge } from "@/components/ui/Badge";
 import { CaptureBaselineButton } from "@/app/(app)/baselines/_components/CaptureBaselineButton";
 import { RunScanButton } from "./RunScanButton";
+import { SnapshotFreshnessPill } from "./SnapshotFreshnessPill";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { ComplianceScoreTile } from "./ComplianceScoreTile";
 import { Card } from "@/components/ui/Card";
@@ -82,6 +83,7 @@ export function DashboardV3({
   valueRecap,
   onboardingState,
   policyFailureHostCount = 0,
+  latestSignalAt = null,
 }: {
   fleet: FleetSnapshot;
   showDemoKpiDeltas: boolean;
@@ -96,6 +98,14 @@ export function DashboardV3({
     baselineCaptured: boolean;
     scanRun: boolean;
   };
+  /**
+   * ISO timestamp of the most recent agent push or scan landing across
+   * the fleet. Drives the inline freshness pill next to the "Run scan"
+   * button so users see at a glance how stale the data is — and why
+   * "Run scan" might wait briefly for a fresh push when the agent is
+   * the only telemetry path.
+   */
+  latestSignalAt?: string | null;
   /**
    * Number of `policy_failure` synthetic drift events currently
    * unresolved in the fleet. > 0 means the policy engine could not
@@ -263,6 +273,9 @@ export function DashboardV3({
               </div>
             ) : null}
             {collectorOn ? <CaptureBaselineButton /> : null}
+            {collectorOn && latestSignalAt ? (
+              <SnapshotFreshnessPill latestSignalAt={latestSignalAt} />
+            ) : null}
             <RunScanButton />
           </>
         }

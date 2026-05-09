@@ -216,7 +216,7 @@ export async function GET(request: Request) {
   }
 
   // 2. Quota — surface as a blocking stage so the wizard tells the user
-  //    they need to upgrade or delete a host BEFORE they wait 5 minutes
+  //    they need to upgrade or delete a host BEFORE they wait a minute
   //    for a push that the agent route will then 403 anyway.
   if (ingestTenantId) {
     try {

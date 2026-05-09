@@ -214,7 +214,7 @@ export async function POST(request: Request) {
   // Tombstone check — refuse re-bootstrap for hosts an operator just
   // deleted from the dashboard. Without this guard, a still-running
   // push-agent on the deleted host would re-create the baseline within
-  // the next 5-minute timer cycle and the host would silently come
+  // the next ~60-second timer cycle and the host would silently come
   // back. 410 Gone is the canonical "the resource is intentionally
   // not here" status; agent retry logic should treat this as a stop
   // signal and the host operator either uninstalls the agent or asks
@@ -366,7 +366,7 @@ export async function POST(request: Request) {
     });
     const e = onboardingError(
       "drift_pipeline_failed",
-      "Snapshot was accepted but the drift pipeline failed. The next push (in ~5 minutes) will retry.",
+      "Snapshot was accepted but the drift pipeline failed. The next push (in ~60 seconds) will retry.",
     );
     return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
   }

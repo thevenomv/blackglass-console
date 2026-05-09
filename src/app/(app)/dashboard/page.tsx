@@ -34,6 +34,7 @@ async function DashboardDeferred() {
     scanRun: boolean;
   };
   let policyFailureHostCount = 0;
+  let latestSignalAt: string | null = null;
 
   try {
     const page = await fetchFleetPageData();
@@ -63,11 +64,27 @@ async function DashboardDeferred() {
       fleetRiskPriority: riskPriorityFromScore(riskScore),
     };
 
-    let sh = (collectorOn ? pickSpotlightHost(await loadHosts()) : null) ?? null;
+    const collectorHostsForFreshness = collectorOn ? await loadHosts() : [];
+    let sh = (collectorOn ? pickSpotlightHost(collectorHostsForFreshness) : null) ?? null;
     if (liveMode && !sh) {
       sh = pickSpotlightHost((await fetchHosts()).items);
     }
     spotlightHost = sh;
+
+    // Compute the freshest "we heard from somewhere" timestamp across
+    // the collector-known fleet. Drives the snapshot-age pill next to
+    // the Run scan button — see SnapshotFreshnessPill.tsx for why it
+    // exists. We only set this when the collector is on; in pure
+    // sample-data mode the timestamps are mock and would mislead.
+    if (collectorOn && collectorHostsForFreshness.length > 0) {
+      let latestMs = 0;
+      for (const h of collectorHostsForFreshness) {
+        if (!h.lastScanAt) continue;
+        const t = Date.parse(h.lastScanAt);
+        if (Number.isFinite(t) && t > latestMs) latestMs = t;
+      }
+      if (latestMs > 0) latestSignalAt = new Date(latestMs).toISOString();
+    }
 
     const derived = liveMode
       ? deriveDriftCardsFromEvents(driftEvents, spotlightHost)
@@ -122,6 +139,7 @@ async function DashboardDeferred() {
       valueRecap={valueRecap}
       onboardingState={onboardingState}
       policyFailureHostCount={policyFailureHostCount}
+      latestSignalAt={latestSignalAt}
     />
   );
 }

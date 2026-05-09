@@ -160,7 +160,7 @@ export async function DELETE(
   }
 
   // Tombstone the host so a still-running push-agent can't immediately
-  // resurrect it on the next 5-minute timer cycle. Default 24h TTL,
+  // resurrect it on the next ~60-second timer cycle. Default 24h TTL,
   // configurable via HOST_TOMBSTONE_TTL_HOURS. Best-effort — never fails
   // the cascade because the cascade itself is the source of truth.
   let tombstoneExpiresAt: string | null = null;

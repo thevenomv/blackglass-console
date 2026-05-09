@@ -1,15 +1,28 @@
 [Unit]
-Description=Run BLACKGLASS push-ingest agent every 5 minutes
+Description=Run BLACKGLASS push-ingest agent every 60 seconds
 Documentation=https://blackglasssec.com/docs/push-agent
 
 [Timer]
-# Run 30s after boot to avoid racing cloud-init, then every 5 minutes.
-# 5 minutes is the same cadence the App Platform pull-mode scanner used
-# (COLLECTOR_INTERVAL_MS default), so dashboards stay equally fresh.
+# Run 30s after boot to avoid racing cloud-init, then every 60 seconds.
+#
+# Why 60s (was 5min): "Run scan" in the UI uses the most recent agent
+# push when SSH egress is unavailable (DO App Platform → Droplet, NAT,
+# air-gap). With a 5-minute cadence, drift the user just introduced
+# wasn't visible until the next push fired — the dashboard reported
+# 100% baseline alignment even though the host had clearly drifted.
+# 60s is short enough that ad-hoc "Run scan" almost always lands
+# fresh data (the server-side scan job will additionally wait up to
+# COLLECTOR_AGENT_FRESH_WAIT_MS for a brand-new push), and the
+# bandwidth/CPU cost of a single ~50KB POST per minute per host is
+# trivial.
+#
+# AccuracySec is small so the 60s cadence isn't smeared by systemd's
+# default 1-minute accuracy bucket. RandomizedDelaySec keeps a fleet
+# of agents from synchronising into a thundering herd.
 OnBootSec=30s
-OnUnitActiveSec=5min
-AccuracySec=15s
-RandomizedDelaySec=15s
+OnUnitActiveSec=60s
+AccuracySec=5s
+RandomizedDelaySec=10s
 Persistent=true
 Unit=blackglass-agent.service
 

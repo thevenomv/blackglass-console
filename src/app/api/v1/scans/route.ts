@@ -1,5 +1,5 @@
 import { configuredCollectorHostIds } from "@/lib/server/collector-env";
-import { enqueueScan } from "@/lib/server/scan-jobs";
+import { enqueueScan, markScanReal } from "@/lib/server/scan-jobs";
 import { checkScanPostRate, checkScanPostRateForTenant, clientIp } from "@/lib/server/rate-limit";
 import { collectorConfigured } from "@/lib/server/collector";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
@@ -85,17 +85,25 @@ export async function POST(request: Request) {
   }
 
   const job = enqueueScan(host_ids.length ? host_ids : ["fleet"]);
+  // Capture click time BEFORE we kick off any async work. The
+  // collector uses this to decide "is the cached agent snapshot
+  // newer than this click?" — anything older might not reflect the
+  // drift the user just introduced, so the SSH-fail fallback waits
+  // briefly for a fresh push before computing drift.
+  const scanStartedAt = Date.now();
   const collectOpts =
     host_ids.length > 0
       ? {
           scanId: job.id,
           reason: "drift_scan" as const,
           hostIds: host_ids,
+          scanStartedAt,
           ...(access.mode === "saas" ? { tenantId: access.ctx.tenant.id } : {}),
         }
       : {
           scanId: job.id,
           reason: "drift_scan" as const,
+          scanStartedAt,
           ...(access.mode === "saas" ? { tenantId: access.ctx.tenant.id } : {}),
         };
 
@@ -112,6 +120,14 @@ export async function POST(request: Request) {
   const collectorReady = collectorConfigured();
   console.log(`[scans-route] jobId=${job.id} collectorReady=${collectorReady} mode=${access.mode}`);
   if (collectorReady) {
+    // Mark the job as a "real" scan BEFORE dispatch so the projection
+    // never synthesises a premature "succeeded" status while the SSH
+    // collector is still working (the SSH fall-back-to-agent path can
+    // legitimately take 15-90s; the previous 3.5s elapsed-time
+    // shortcut caused the dashboard to refresh before drift events
+    // were stored, so the user always saw "100% aligned" even after
+    // introducing real drift).
+    markScanReal(job.id);
     // Prefer BullMQ queue when REDIS_QUEUE_URL is set — the worker runs in a
     // separate process so SSH fan-out doesn't block the Next.js event loop.
     // Falls back to in-process execution for Stage 0/1 deployments.

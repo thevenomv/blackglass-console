@@ -37,7 +37,7 @@ export const ONBOARDING_TIPS: OnboardingTip[] = [
     code: "rate_limited",
     title: "Too many pushes for this host",
     remedy:
-      "The agent's 5-minute systemd timer is the right cadence — disable any extra cron jobs or test loops, then wait one minute and retry.",
+      "The agent's 60-second systemd timer is the right cadence — disable any extra cron jobs or test loops, then wait a minute and retry.",
   },
   {
     code: "bundle_truncated",
@@ -61,7 +61,7 @@ export const ONBOARDING_TIPS: OnboardingTip[] = [
     code: "drift_pipeline_failed",
     title: "Snapshot accepted, drift pipeline failed",
     remedy:
-      "Usually a transient database or storage outage. The next push (in ~5 minutes) will retry automatically.",
+      "Usually a transient database or storage outage. The next push (in ~60 seconds) will retry automatically.",
   },
   {
     code: "ingest_not_configured",

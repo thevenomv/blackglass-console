@@ -23,7 +23,7 @@
  * Design notes
  * ------------
  *  - In-process (not Redis / not Postgres). The agent re-pushes every
- *    ~5 minutes, so a deploy / restart self-heals within one cycle.
+ *    ~60 seconds, so a deploy / restart self-heals within one cycle.
  *    Multi-instance App Platform setups are fine: each instance builds
  *    its own cache as it sees pushes, and any instance can satisfy a
  *    fallback once it has cached.

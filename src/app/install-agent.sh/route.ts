@@ -19,7 +19,7 @@
  *   4. Writes `/etc/blackglass-agent.env` (mode 0600) with the user's
  *      API key, the console ingest URL (derived from the request host
  *      so we don't hard-code a domain), and a default hostId.
- *   5. Installs + enables the systemd service + 5-min timer (or falls
+ *   5. Installs + enables the systemd service + 60-second timer (or falls
  *      back to cron when systemd isn't available).
  *   6. Runs ONE push synchronously and parses the response so we can
  *      report a specific success or failure, not just "good luck".
@@ -285,13 +285,13 @@ LockPersonality=true
 EOF
   cat > /etc/systemd/system/blackglass-agent.timer <<'EOF'
 [Unit]
-Description=Run BLACKGLASS push-ingest agent every 5 minutes
+Description=Run BLACKGLASS push-ingest agent every 60 seconds
 
 [Timer]
 OnBootSec=30s
-OnUnitActiveSec=5min
-AccuracySec=15s
-RandomizedDelaySec=15s
+OnUnitActiveSec=60s
+AccuracySec=5s
+RandomizedDelaySec=10s
 Persistent=true
 Unit=blackglass-agent.service
 
@@ -300,11 +300,12 @@ WantedBy=timers.target
 EOF
   systemctl daemon-reload
   systemctl enable --now blackglass-agent.timer >/dev/null 2>&1 || warn "systemctl enable failed"
-  info "Systemd timer enabled (every 5 minutes)."
+  info "Systemd timer enabled (every 60 seconds)."
 else
-  step "systemd not detected; installing cron job (every 5 minutes)..."
+  # Cron's minimum granularity is 1 minute — match the systemd path.
+  step "systemd not detected; installing cron job (every minute)..."
   ( crontab -l 2>/dev/null | grep -v 'blackglass-agent\\.sh' ; \
-    printf '*/5 * * * * /usr/local/bin/blackglass-agent.sh >> /var/log/blackglass-agent.log 2>&1\\n' \
+    printf '* * * * * /usr/local/bin/blackglass-agent.sh >> /var/log/blackglass-agent.log 2>&1\\n' \
   ) | crontab -
 fi
 
@@ -321,7 +322,7 @@ if RESPONSE=$(/usr/local/bin/blackglass-agent.sh 2>&1); then
   info "DONE."
   info "Host ID:        $HOST_ID"
   info "Console URL:    $HOST_URL"
-  info "Next snapshot:  $(date -u -d '+5 minutes' '+%Y-%m-%d %H:%M:%S UTC' 2>/dev/null || echo 'in ~5 minutes')"
+  info "Next snapshot:  $(date -u -d '+1 minute' '+%Y-%m-%d %H:%M:%S UTC' 2>/dev/null || echo 'in ~60 seconds')"
   echo
   info "Open the wizard to capture your baseline:"
   info "  $CONSOLE_URL/onboarding"

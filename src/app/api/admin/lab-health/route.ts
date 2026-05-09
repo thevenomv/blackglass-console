@@ -75,7 +75,7 @@ type LabHealth = {
 };
 
 /**
- * 15 minutes — agent runs every 5min via the bundled systemd timer, so
+ * 15 minutes — agent runs every 60s via the bundled systemd timer, so
  * three consecutive missed runs still counts as "fresh enough to demo on".
  * Tunable via env so air-gapped customers running daily ingests don't
  * trip false alarms. Read at request time (not module-load) so tests

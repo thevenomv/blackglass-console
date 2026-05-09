@@ -8,6 +8,23 @@ export type ScanJobRecord = {
   id: string;
   createdAt: number;
   hostIds: string[];
+  /**
+   * "real" once a collector (in-process or BullMQ worker) has been
+   * dispatched for this job. "mock" until then — used by sample-data /
+   * collector-not-configured paths where no real drift computation
+   * happens. Distinguishing the two prevents the elapsed-time
+   * projection from synthesising "succeeded" while a real scan is
+   * still in flight (the SSH path can take 15-30s to fall back to the
+   * agent cache; the previous 3.5s projection lied about completion
+   * and caused the dashboard to refresh BEFORE drift events landed).
+   */
+  kind?: "mock" | "real";
+  /**
+   * Optional progress signal published by the collector while it works
+   * (e.g. "waiting_for_fresh_agent_push"). Surfaced in the UI so users
+   * understand why the scan is taking longer than a few seconds.
+   */
+  progressDetail?: string;
   /** Actual terminal status when real collection is used */
   resolvedStatus?: "succeeded" | "failed";
   resolvedAt?: number;
@@ -223,6 +240,33 @@ export function resolveScan(
   publishScanResultToRedis(rec);
 }
 
+/**
+ * Mark this job as a real scan. Called by the scans route as soon as
+ * `executeDriftScanJob` is dispatched (or queued to BullMQ). After this
+ * point the elapsed-time projection won't fake a "succeeded" status —
+ * only the actual `resolveScan` call from the collector will.
+ */
+export function markScanReal(id: string): void {
+  const rec = jobs().get(id);
+  if (!rec) return;
+  rec.kind = "real";
+  persist();
+}
+
+/**
+ * Update the in-flight progress detail for a real scan (e.g. "waiting
+ * for fresh agent push"). Surfaced to the polling client via
+ * `projectScanJob`. Has no effect once `resolveScan` has been called.
+ */
+export function updateScanProgress(id: string, detail: string): void {
+  const rec = jobs().get(id);
+  if (!rec || rec.resolvedStatus) return;
+  rec.progressDetail = detail;
+  // We don't persist progress updates — they're transient and the next
+  // resolveScan() will overwrite anyway. Skipping the disk write keeps
+  // hot-loop progress publishers cheap.
+}
+
 export function getScanRecord(id: string): ScanJobRecord | undefined {
   return jobs().get(id);
 }
@@ -293,10 +337,26 @@ export function projectScanJob(rec: ScanJobRecord): {
           : "Merging snapshot · computing drift…";
   }
 
-  if (elapsed > 3500) {
+  // Synthesised completion is ONLY safe in mock / sample-data mode where
+  // no real collector ever calls resolveScan(). For real scans we wait
+  // for the actual resolveScan() call from `executeDriftScanJob` —
+  // otherwise the client thinks the scan finished before drift events
+  // are stored, refreshes the dashboard with stale data, and stops
+  // polling (so the real result never surfaces). See
+  // src/components/providers/ScanJobsProvider.tsx for the polling loop.
+  if (rec.kind !== "real" && elapsed > 3500) {
     status = "succeeded";
     progress = 100;
     detail = "Snapshot merged · drift engine idle";
+  }
+
+  // Real scans cap at 99% running with whatever live detail the
+  // collector last published. This makes long-running flows
+  // (SSH-fail → wait for fresh agent push) understandable: the user
+  // sees "Waiting for next agent push (3m left)..." instead of a
+  // mysterious silent stall.
+  if (rec.kind === "real" && status === "running" && rec.progressDetail) {
+    detail = rec.progressDetail;
   }
 
   return {

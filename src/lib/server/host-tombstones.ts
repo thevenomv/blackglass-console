@@ -5,7 +5,7 @@
  * a tombstone here. The agent ingest path consults `isHostTombstoned()`
  * before bootstrapping a fresh baseline, so a still-running push-agent
  * on the deleted host doesn't silently resurrect the host inside the
- * 5-minute timer cycle.
+ * ~60-second timer cycle.
  *
  * Storage:
  *   - When `DATABASE_URL` is set (production / SaaS): rows live in

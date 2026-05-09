@@ -58,7 +58,7 @@ const REMEDIES: Record<OnboardingErrorCode, { remedy: string; status: number }> 
   rate_limited: {
     status: 429,
     remedy:
-      "Too many ingests for this host in a short window. The agent's 5-minute systemd timer is the right cadence — disable any extra cron jobs or test loops.",
+      "Too many ingests for this host in a short window. The agent's 60-second systemd timer is the right cadence — disable any extra cron jobs or test loops.",
   },
   bundle_truncated: {
     status: 422,

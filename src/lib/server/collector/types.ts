@@ -9,6 +9,18 @@ export type CollectScanOptions = {
   tenantId?: string;
   /** Credential label or UUID override — forwarded to ScanContext.credentialRef. */
   credentialRef?: string;
+  /**
+   * Wall-clock ms when the user clicked "Run scan". Used by the
+   * SSH-fail agent-cache fallback to decide whether the cached
+   * snapshot was captured BEFORE the click (potentially stale —
+   * doesn't reflect drift the user just introduced) and so should
+   * wait for a fresher push to arrive.
+   *
+   * When omitted, the fallback uses the freshest snapshot available
+   * without waiting (legacy behaviour, retained for non-interactive
+   * callers like cron-driven scheduled scans).
+   */
+  scanStartedAt?: number;
 };
 
 export type ListeningPort = {
