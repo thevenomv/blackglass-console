@@ -21,6 +21,7 @@ import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { loadHosts } from "@/lib/server/inventory";
 import { deleteBaseline, getBaseline } from "@/lib/server/baseline-store";
 import { deleteDriftEvents } from "@/lib/server/drift-engine";
+import { createTombstone, getTombstoneTtlHours } from "@/lib/server/host-tombstones";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
 import { withTenantRls, schema } from "@/db";
 import { and, eq } from "drizzle-orm";
@@ -156,6 +157,23 @@ export async function DELETE(
     return jsonError(404, "host_not_found");
   }
 
+  // Tombstone the host so a still-running push-agent can't immediately
+  // resurrect it on the next 5-minute timer cycle. Default 24h TTL,
+  // configurable via HOST_TOMBSTONE_TTL_HOURS. Best-effort — never fails
+  // the cascade because the cascade itself is the source of truth.
+  let tombstoneExpiresAt: string | null = null;
+  try {
+    const tombstone = await createTombstone({
+      hostId,
+      tenantId: tenantId ?? null,
+      hostname,
+      deletedBy: actorUserId ?? null,
+    });
+    tombstoneExpiresAt = tombstone.expiresAt;
+  } catch (err) {
+    console.error("[hosts/delete] tombstone write failed:", err);
+  }
+
   // Tenant-aware audit (SaaS) + global audit log so single-tenant operators
   // get the same paper trail.
   if (tenantId && actorUserId) {
@@ -170,12 +188,14 @@ export async function DELETE(
         baselineRemoved,
         driftRemoved,
         collectorRowsRemoved,
+        tombstoneExpiresAt,
+        tombstoneTtlHours: getTombstoneTtlHours(),
       },
     });
   }
   appendAudit({
     action: AUDIT_ACTIONS.HOST_DELETED,
-    detail: `Host deleted — id=${hostId} hostname=${hostname} baseline=${baselineRemoved} drift=${driftRemoved} collector_rows=${collectorRowsRemoved}`,
+    detail: `Host deleted — id=${hostId} hostname=${hostname} baseline=${baselineRemoved} drift=${driftRemoved} collector_rows=${collectorRowsRemoved} tombstone_until=${tombstoneExpiresAt ?? "n/a"}`,
     actor: actorUserId ?? "operator",
   });
 

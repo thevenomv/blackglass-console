@@ -148,6 +148,24 @@ export const saasEvidenceBundles = pgTable("saas_evidence_bundles", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * Host tombstones — short-lived "do not re-bootstrap" markers written when
+ * an operator deletes a host. The agent ingest path consults this table and
+ * returns 410 Gone for tombstoned host_ids until `expiresAt` passes (or the
+ * tombstone is explicitly cleared). Default TTL is HOST_TOMBSTONE_TTL_HOURS
+ * (24h). See drizzle/0018_host_tombstones.sql for index/RLS DDL.
+ */
+export const saasHostTombstones = pgTable("saas_host_tombstones", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  /** Null tenant_id is reserved for legacy single-tenant ingest. */
+  tenantId: uuid("tenant_id").references(() => saasTenants.id, { onDelete: "cascade" }),
+  hostId: text("host_id").notNull(),
+  hostname: text("hostname"),
+  deletedBy: text("deleted_by"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
 /** Async baseline capture job — see POST /api/v1/baselines (202) and capture-jobs GET. */
 export const saasBaselineCaptureJobs = pgTable("saas_baseline_capture_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -168,6 +186,7 @@ export type SaasTenantMembership = typeof saasTenantMemberships.$inferSelect;
 export type SaasCollectorHost = typeof saasCollectorHosts.$inferSelect;
 export type SaasEvidenceBundle = typeof saasEvidenceBundles.$inferSelect;
 export type SaasBaselineCaptureJob = typeof saasBaselineCaptureJobs.$inferSelect;
+export type SaasHostTombstone = typeof saasHostTombstones.$inferSelect;
 
 /**
  * Per-tenant SSH private key store — envelope-encrypted at rest via envelope.ts.

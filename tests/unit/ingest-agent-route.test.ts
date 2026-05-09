@@ -27,6 +27,9 @@ const processHostSnapshotDriftMock = vi.hoisted(() =>
 );
 const checkIngestRateMock = vi.hoisted(() => vi.fn(async () => true));
 const appendAuditMock = vi.hoisted(() => vi.fn());
+const isHostTombstonedMock = vi.hoisted(() =>
+  vi.fn<(hostId: string, tenantId: string | null) => Promise<unknown>>(async () => null),
+);
 
 vi.mock("@/lib/server/baseline-store", () => ({
   saveBaseline: saveBaselineMock,
@@ -52,6 +55,9 @@ vi.mock("@/lib/server/audit-log", () => ({
 vi.mock("@/lib/server/integrity-revalidate", () => ({
   revalidateIntegritySurfaces: vi.fn(),
 }));
+vi.mock("@/lib/server/host-tombstones", () => ({
+  isHostTombstoned: isHostTombstonedMock,
+}));
 
 const ORIGINAL_API_KEY = process.env.INGEST_API_KEY;
 const ORIGINAL_HOST_KEYS = process.env.INGEST_HOST_KEYS_JSON;
@@ -73,6 +79,8 @@ beforeEach(() => {
   checkIngestRateMock.mockReset();
   checkIngestRateMock.mockResolvedValue(true);
   appendAuditMock.mockReset();
+  isHostTombstonedMock.mockReset();
+  isHostTombstonedMock.mockResolvedValue(null);
   if (ORIGINAL_API_KEY === undefined) delete process.env.INGEST_API_KEY;
   else process.env.INGEST_API_KEY = ORIGINAL_API_KEY;
   if (ORIGINAL_HOST_KEYS === undefined) delete process.env.INGEST_HOST_KEYS_JSON;
@@ -301,6 +309,31 @@ describe("/api/v1/ingest/agent", () => {
       authorization: "Bearer correct-secret-1234567890",
     });
     expect(res.status).toBe(429);
+  });
+
+  it("returns 410 Gone when the host is tombstoned (resurrection guard)", async () => {
+    process.env.INGEST_API_KEY = "correct-secret-1234567890";
+    isHostTombstonedMock.mockResolvedValueOnce({
+      hostId: "host-127-0-0-1",
+      tenantId: null,
+      hostname: "demo.example.com",
+      deletedBy: "user-x",
+      expiresAt: "2026-05-10T12:00:00.000Z",
+    });
+
+    const res = await call(makePayload(), {
+      "content-type": "application/json",
+      authorization: "Bearer correct-secret-1234567890",
+    });
+    expect(res.status).toBe(410);
+
+    // Critical: the cascade must NOT touch baseline / drift / audit when
+    // the tombstone fires. That's what protects the operator's "delete
+    // host" action from being undone by a still-running agent.
+    expect(saveBaselineMock).not.toHaveBeenCalled();
+    expect(processHostSnapshotDriftMock).not.toHaveBeenCalled();
+    expect(storeDriftEventsMock).not.toHaveBeenCalled();
+    expect(appendAuditMock).not.toHaveBeenCalled();
   });
 
   it("rejects malformed payloads with 400", async () => {

@@ -172,6 +172,10 @@ jobs:
       - name: RLS tenant-leak guardrail
         env:
           DATABASE_URL: postgres://rls_test_app:rls_test_app@localhost:5432/blackglass_test
+          # Explicit opt-in — the test refuses to talk to a DATABASE_URL
+          # without this flag set, so dev shells with prod DATABASE_URL
+          # exported don't accidentally hang the suite.
+          RUN_LIVE_DB_TESTS: "1"
         run: npx vitest run tests/unit/rls-tenant-leak.test.ts --reporter=default
 
   helm-template:

@@ -1,9 +1,17 @@
 /**
  * RLS tenant-leak guardrail (live Postgres).
  *
- * Skips when DATABASE_URL is not set — runs in CI's `migrations`
- * job (which spins up a fresh Postgres) and locally when an operator
- * exports a dev DATABASE_URL.
+ * Skips unless BOTH `DATABASE_URL` AND `RUN_LIVE_DB_TESTS=1` are set.
+ * The explicit opt-in matters because operators frequently keep
+ * `DATABASE_URL` exported in their shell to run drizzle migrations
+ * against the production DB (with IP whitelist gating). Without the
+ * opt-in, vitest would inherit that URL and the `beforeAll` hook
+ * would hang waiting on a TCP handshake to a DB the dev machine
+ * isn't currently allowed to reach — failing the entire suite with
+ * an opaque "Hook timed out in 10000ms" error.
+ *
+ * CI's `migrations` job sets both vars and spins up a fresh
+ * Postgres so this guardrail still gates merges.
  *
  * The test creates two synthetic tenants, inserts data for both
  * directly via `withBypassRls`, then opens a transaction under
@@ -52,7 +60,8 @@ import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 const HAS_DB = (process.env.DATABASE_URL ?? "").trim().length > 0;
-const describeMaybe = HAS_DB ? describe : describe.skip;
+const OPTED_IN = (process.env.RUN_LIVE_DB_TESTS ?? "").trim() === "1";
+const describeMaybe = HAS_DB && OPTED_IN ? describe : describe.skip;
 
 describeMaybe("RLS tenant isolation (live Postgres)", () => {
   let tenantA: string;

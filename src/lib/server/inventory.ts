@@ -87,12 +87,31 @@ async function buildRealHosts(): Promise<HostRecord[]> {
       const score = Math.max(0, 100 - high * READINESS_PENALTY_HIGH - (any - high) * READINESS_PENALTY_ANY);
       const baseline = await getBaseline(hostId);
 
+      // lastScanAt = newest of (baseline capture, most recent drift event).
+      // The previous version always returned `Date.now()` which made every
+      // host look freshly scanned even if its agent hadn't pushed in days
+      // — masking stale-host problems. Drift events are emitted on every
+      // agent push (the drift pipeline persists them), so when present
+      // they're the most accurate "we heard from this host" signal. When
+      // there are no drift events (host is fully aligned), fall back to
+      // the baseline capture timestamp.
+      const baselineTs = baseline?.collectedAt;
+      const newestEventTs = events
+        .map((e) => e.detectedAt)
+        .filter((ts): ts is string => Boolean(ts))
+        .sort()
+        .at(-1);
+      const candidates = [baselineTs, newestEventTs].filter(
+        (ts): ts is string => Boolean(ts),
+      );
+      const lastScanAt = candidates.length > 0 ? candidates.sort().at(-1)! : null;
+
       return {
         id: hostId,
         hostname: baseline?.hostname ?? hostId,
         os: "Linux",
         trust,
-        lastScanAt: new Date().toISOString(),
+        lastScanAt,
         baselineAligned: trust === "aligned",
         readinessScore: score,
       };

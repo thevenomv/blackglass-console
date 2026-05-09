@@ -25,6 +25,10 @@ type AuthResult =
 const deleteBaselineMock = vi.hoisted(() => vi.fn<(id: string) => Promise<boolean>>());
 const getBaselineMock = vi.hoisted(() => vi.fn<(id: string) => Promise<unknown>>());
 const deleteDriftEventsMock = vi.hoisted(() => vi.fn<(id: string) => Promise<boolean>>());
+const createTombstoneMock = vi.hoisted(() =>
+  vi.fn<(args: unknown) => Promise<{ expiresAt: string }>>(),
+);
+const getTombstoneTtlHoursMock = vi.hoisted(() => vi.fn<() => number>());
 const requireRoleMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<AuthResult>>());
 const requireSaasStepUpMutationMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<AuthResult>>(),
@@ -44,6 +48,10 @@ vi.mock("@/lib/server/baseline-store", () => ({
 }));
 vi.mock("@/lib/server/drift-engine", () => ({
   deleteDriftEvents: deleteDriftEventsMock,
+}));
+vi.mock("@/lib/server/host-tombstones", () => ({
+  createTombstone: createTombstoneMock,
+  getTombstoneTtlHours: getTombstoneTtlHoursMock,
 }));
 vi.mock("@/lib/server/http/auth-guard", () => ({
   requireRole: requireRoleMock,
@@ -110,6 +118,8 @@ beforeEach(() => {
   revalidateIntegritySurfacesMock.mockReset();
   loadHostsMock.mockReset().mockResolvedValue([]);
   withTenantRlsMock.mockReset().mockResolvedValue([]);
+  createTombstoneMock.mockReset().mockResolvedValue({ expiresAt: "2026-05-10T12:00:00.000Z" });
+  getTombstoneTtlHoursMock.mockReset().mockReturnValue(24);
 });
 
 async function callDelete(id: string): Promise<Response> {
@@ -161,6 +171,32 @@ describe("DELETE /api/v1/hosts/:id", () => {
     expect(emitSaasAuditMock).not.toHaveBeenCalled();
     // Legacy path → no tenant DB cleanup.
     expect(withTenantRlsMock).not.toHaveBeenCalled();
+    // Tombstone fired with correct host_id and the legacy null tenant slot.
+    expect(createTombstoneMock).toHaveBeenCalledTimes(1);
+    const tombstoneArg = (createTombstoneMock.mock.calls[0] as unknown as [Record<string, unknown>])[0];
+    expect(tombstoneArg).toMatchObject({
+      hostId: "host-167-99-59-55",
+      tenantId: null,
+      hostname: "demo-host.example.com",
+    });
+  });
+
+  it("never fails the cascade when the tombstone write throws", async () => {
+    getBaselineMock.mockResolvedValueOnce({ hostname: "demo-host.example.com" });
+    deleteBaselineMock.mockResolvedValueOnce(true);
+    deleteDriftEventsMock.mockResolvedValueOnce(false);
+    createTombstoneMock.mockRejectedValueOnce(new Error("pg pool dead"));
+
+    const res = await callDelete("host-1-2-3-4");
+
+    expect(res.status).toBe(204);
+    expect(appendAuditMock).toHaveBeenCalledTimes(1);
+    // Audit message records that the tombstone is missing so operators
+    // can spot it in the log.
+    const auditCall = (appendAuditMock.mock.calls[0] as unknown as [Record<string, unknown>])[0];
+    expect(auditCall).toMatchObject({
+      detail: expect.stringContaining("tombstone_until=n/a") as unknown,
+    });
   });
 
   it("returns 204 even when only drift events existed (no baseline)", async () => {

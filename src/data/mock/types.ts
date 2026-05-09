@@ -7,7 +7,14 @@ export type HostRecord = {
   hostname: string;
   os: string;
   trust: HostTrust;
-  lastScanAt: string;
+  /**
+   * ISO timestamp of the most recent signal we received about this host
+   * (max of baseline capture vs newest drift event timestamp). Null when
+   * there is no signal at all — the UI renders this as "—" rather than
+   * faking "scanned just now" the way the legacy `new Date().toISOString()`
+   * placeholder did.
+   */
+  lastScanAt: string | null;
   baselineAligned: boolean;
   readinessScore: number;
 };

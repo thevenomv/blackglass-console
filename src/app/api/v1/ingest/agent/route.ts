@@ -57,6 +57,7 @@ import { getSubscriptionForTenant } from "@/lib/saas/tenant-service";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 import { parseHostIngestKeys } from "@/lib/server/ingest-credentials";
+import { isHostTombstoned } from "@/lib/server/host-tombstones";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -150,6 +151,24 @@ export async function POST(request: Request) {
 
   if (!(await checkIngestRate(hostId))) {
     return jsonError(429, "rate_limited", `Ingest rate limit exceeded for host ${hostId}`, requestId);
+  }
+
+  // Tombstone check — refuse re-bootstrap for hosts an operator just
+  // deleted from the dashboard. Without this guard, a still-running
+  // push-agent on the deleted host would re-create the baseline within
+  // the next 5-minute timer cycle and the host would silently come
+  // back. 410 Gone is the canonical "the resource is intentionally
+  // not here" status; agent retry logic should treat this as a stop
+  // signal and the host operator either uninstalls the agent or asks
+  // an admin to clear the tombstone.
+  const tombstone = await isHostTombstoned(hostId, ingestTenantId ?? null);
+  if (tombstone) {
+    return jsonError(
+      410,
+      "host_tombstoned",
+      `Host ${hostId} was deleted; ignoring agent push until ${tombstone.expiresAt}.`,
+      requestId,
+    );
   }
 
   const sections = parseBundleOutput(bundle);

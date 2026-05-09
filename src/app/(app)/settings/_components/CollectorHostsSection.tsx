@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type CollectorHost = {
@@ -135,16 +136,32 @@ export function CollectorHostsSection() {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // "Stop scanning" — unschedules SSH pulls but PRESERVES baseline + drift
+  // history. The new Hosts → Delete host action is the right call when the
+  // operator wants the host gone from inventory entirely (and the agent
+  // tombstoned for 24h to prevent immediate resurrection). We changed the
+  // label from "Remove" → "Stop scanning" + added the inline note above
+  // because the legacy label was a footgun: operators expected full delete.
+  // ---------------------------------------------------------------------------
   const handleDelete = async (id: string, hostname: string) => {
-    if (!window.confirm(`Remove ${hostname} from your collector fleet?`)) return;
+    if (
+      !window.confirm(
+        `Stop scanning ${hostname}?\n\n` +
+          `This unschedules SSH-pull scans against this host but PRESERVES ` +
+          `its captured baseline and drift history. Use Hosts → Delete host ` +
+          `if you want to forget the host completely.`,
+      )
+    )
+      return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/v1/collector/hosts/${id}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) throw new Error(String(res.status));
-      toastRef.current(`${hostname} removed.`, "success");
+      toastRef.current(`Stopped scanning ${hostname}.`, "success");
       setHosts((h) => h.filter((x) => x.id !== id));
     } catch {
-      toastRef.current("Could not remove host.", "danger");
+      toastRef.current("Could not stop scanning host.", "danger");
     } finally {
       setDeleting(null);
     }
@@ -377,7 +394,10 @@ export function CollectorHostsSection() {
     if (
       action === "remove" &&
       !window.confirm(
-        `Remove ${ids.length} host${ids.length === 1 ? "" : "s"} from your collector fleet? This cannot be undone.`,
+        `Stop scanning ${ids.length} host${ids.length === 1 ? "" : "s"}?\n\n` +
+          `This unschedules SSH-pull scans for the selected hosts but ` +
+          `PRESERVES their captured baseline and drift history. Use ` +
+          `Hosts → Delete host to forget hosts entirely.`,
       )
     ) {
       return;
@@ -416,6 +436,9 @@ export function CollectorHostsSection() {
       );
       setHosts((prev) => prev.filter((h) => !removedIds.has(h.id)));
       setSelectedIds(new Set());
+      // Note: legacy `action === "remove"` value name is preserved to avoid
+      // a churn rename across the bulk-action branch; the user-facing copy
+      // below now uses "stopped scanning" for accuracy.
     } else {
       const enabledNext = action === "enable";
       const updatedIds = new Set(
@@ -428,18 +451,18 @@ export function CollectorHostsSection() {
       );
     }
 
+    const verb =
+      action === "remove" ? "stopped scanning" : action === "enable" ? "enabled" : "disabled";
     if (failed === 0) {
       toastRef.current(
-        `${ok} host${ok === 1 ? "" : "s"} ${
-          action === "remove" ? "removed" : action === "enable" ? "enabled" : "disabled"
-        }.`,
+        `${ok} host${ok === 1 ? "" : "s"} ${verb}.`,
         "success",
       );
     } else if (ok === 0) {
-      toastRef.current(`Bulk ${action} failed for all ${failed} hosts.`, "danger");
+      toastRef.current(`Bulk ${verb} failed for all ${failed} hosts.`, "danger");
     } else {
       toastRef.current(
-        `${ok} ${action}d, ${failed} failed. Affected hosts kept selected for retry.`,
+        `${ok} ${verb}, ${failed} failed. Affected hosts kept selected for retry.`,
         "warning",
       );
       // Keep failed ids in the selection so the operator can retry without
@@ -494,6 +517,17 @@ export function CollectorHostsSection() {
         <p className="text-sm text-fg-muted">
           Add each server you want Blackglass to monitor via SSH. You&apos;ll need the
           server&apos;s IP address and an SSH key pair as the login credential.
+        </p>
+        <p className="mt-1.5 text-xs text-fg-faint">
+          <span className="font-medium text-fg-muted">Note:</span> &quot;Stop scanning&quot;
+          here only unschedules SSH-pull scans — captured baseline and drift history
+          are kept. To forget a host completely (and tombstone it for{" "}
+          <span className="font-mono">HOST_TOMBSTONE_TTL_HOURS</span> so a still-running
+          push-agent can&apos;t resurrect it), use{" "}
+          <Link href="/hosts" className="font-medium text-accent-blue hover:underline">
+            Hosts → Delete host
+          </Link>
+          .
         </p>
         <details className="mt-2 rounded-card border border-border-subtle bg-bg-elevated text-xs text-fg-muted">
           <summary className="cursor-pointer select-none px-3 py-2.5 text-sm font-medium text-fg-primary">
@@ -675,10 +709,11 @@ export function CollectorHostsSection() {
                   className="text-xs"
                   disabled={bulkActionRunning !== null}
                   onClick={() => void runBulk("remove")}
+                  title="Unschedule SSH-pull scans for the selected hosts. Baseline and drift history are preserved — use Hosts → Delete host for the full forget cascade."
                 >
                   {bulkActionRunning === "remove"
-                    ? "Removing…"
-                    : `Remove (${effectiveSelectedIds.size})`}
+                    ? "Stopping…"
+                    : `Stop scanning (${effectiveSelectedIds.size})`}
                 </Button>
                 <button
                   type="button"
@@ -754,8 +789,9 @@ export function CollectorHostsSection() {
                     disabled={deleting === host.id}
                     onClick={() => handleDelete(host.id, host.hostname)}
                     className="text-xs"
+                    title="Unschedule SSH-pull scans for this host. Baseline and drift history are preserved — use Hosts → Delete host for the full forget cascade."
                   >
-                    {deleting === host.id ? "Removing…" : "Remove"}
+                    {deleting === host.id ? "Stopping…" : "Stop scanning"}
                   </Button>
                 </div>
               </div>

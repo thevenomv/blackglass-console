@@ -120,7 +120,7 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
             <span className="font-mono text-fg-primary">{detail.baselineLabel}</span>
           </p>
           <p className="mt-1 text-xs text-fg-faint">
-            Last scan {formatTs(detail.lastScanAt)} UTC
+            Last scan {detail.lastScanAt ? `${formatTs(detail.lastScanAt)} UTC` : "Never"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

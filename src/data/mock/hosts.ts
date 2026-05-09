@@ -216,7 +216,11 @@ function buildFallbackDetail(id: string): HostDetail | undefined {
     },
     timeline: [
       {
-        at: base.lastScanAt,
+        // Mock-only fixture — guard against the new nullable lastScanAt
+        // by falling back to "now" so the rendered timeline always has a
+        // valid timestamp. The real loadHostDetail() builds the timeline
+        // from baseline.collectedAt + drift events instead.
+        at: base.lastScanAt ?? new Date().toISOString(),
         label: "Scan completed",
         detail: "No high-risk drift detected",
       },
