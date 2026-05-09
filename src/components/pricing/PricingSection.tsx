@@ -313,7 +313,14 @@ function TierCard({ tier, billingCycle }: { tier: PricingTier; billingCycle: Bil
 // Add-ons row
 // ---------------------------------------------------------------------------
 
-function AddOnsRow() {
+function AddOnsRow({ billingCycle }: { billingCycle: BillingCycle }) {
+  // Annual = 10× monthly (two months free) — same ratio as the
+  // base plan tiers so the toggle behaves consistently. Keep the
+  // numbers aligned with ADD_ONS in src/lib/saas/plans.ts.
+  const isAnnual = billingCycle === "annual";
+  const headline = isAnnual ? "$990" : "$99";
+  const cadence = isAnnual ? "/ year" : "/ month";
+
   return (
     <div className="mt-12 rounded-card border border-border-subtle bg-bg-panel px-6 py-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -324,21 +331,42 @@ function AddOnsRow() {
           Available on Growth and Scale · included on Business and Enterprise
         </p>
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
         <div>
           <p className="text-base font-semibold text-fg-primary">Remediator (HITL AI)</p>
           <p className="mt-1 text-sm leading-relaxed text-fg-muted">
             Auto-generated remediation plans, sandbox-verified, surfaced for human approval with
             full audit trail. Never runs AI-generated commands directly on your hosts.
           </p>
+          <p className="mt-1 text-xs text-fg-faint">
+            Includes 100 approved actions/{isAnnual ? "year" : "month"} · $0.10 per extra action
+          </p>
         </div>
         <div className="text-sm sm:text-right">
           <p className="text-2xl font-bold text-fg-primary">
-            $99<span className="text-sm font-normal text-fg-muted">/ month</span>
+            {headline}
+            <span className="text-sm font-normal text-fg-muted">{cadence}</span>
           </p>
-          <p className="text-xs text-fg-faint">
-            Includes 100 approved actions/mo · $0.10 per extra action
-          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:items-end">
+            {/* CheckoutButton handles both unauthenticated (Stripe link)
+                and authenticated callers — server adds the line item to
+                the same subscription either way via the addons[] field. */}
+            <CheckoutButton
+              className="inline-flex items-center justify-center rounded-md border border-accent-blue bg-accent-blue/10 px-4 py-2 text-sm font-medium text-accent-blue transition hover:bg-accent-blue/20"
+              planCode="growth"
+              billingCycle={billingCycle}
+              addons={["remediator"]}
+            >
+              Buy Remediator with Growth
+            </CheckoutButton>
+            <p className="text-[11px] text-fg-faint">
+              Already on Growth/Scale?{" "}
+              <Link href="/settings/billing" className="text-accent-blue hover:underline">
+                Manage billing
+              </Link>
+              {" "}to add Remediator to your existing subscription.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -428,7 +456,7 @@ export default function PricingSection() {
         </div>
 
         {/* Add-ons row */}
-        <AddOnsRow />
+        <AddOnsRow billingCycle={billingCycle} />
 
         {/* Bottom note */}
         <div className="mt-12 rounded-card border border-border-subtle bg-bg-panel px-8 py-5 text-center">

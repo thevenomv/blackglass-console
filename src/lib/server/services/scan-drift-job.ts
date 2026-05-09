@@ -37,6 +37,79 @@ async function alertSlack(text: string, tenantId: string | undefined): Promise<v
   }
 }
 
+/**
+ * Drift-specific Slack notification — sent alongside the email alert
+ * whenever a scan turns up at least one high-severity finding for a
+ * host. Format follows Slack's `text` + `blocks` pattern so it
+ * renders as a card in modern clients but still falls back to plain
+ * text in mobile / legacy ones.
+ *
+ * Why a separate helper from `alertSlack(text)`: callers want
+ * structured drift output without each one re-implementing the
+ * "title / fields / button" layout, and the Slack `blocks` payload
+ * is verbose enough that inlining it everywhere would be noisy.
+ */
+async function alertDriftSlack(args: {
+  jobId: string;
+  hostname: string;
+  hostId: string;
+  highEvents: DriftEvent[];
+  tenantId: string | undefined;
+}): Promise<void> {
+  const { jobId, hostname, hostId, highEvents, tenantId } = args;
+  if (highEvents.length === 0) return;
+  const routing = await getTenantNotifications(tenantId);
+  const url = routing.slackWebhookUrl;
+  if (!url) return;
+
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "https://app.blackglasssec.com";
+  const hostUrl = `${appUrl.replace(/\/$/, "")}/hosts/${encodeURIComponent(hostId)}`;
+
+  // Cap the bulleted findings list at 5 — Slack will truncate larger
+  // payloads and anything beyond five is just noise; the link to the
+  // host page surfaces the full set.
+  const bulletList = highEvents.slice(0, 5).map((e) => `• *${e.title}* — ${e.category}`).join("\n");
+  const overflow = highEvents.length > 5 ? `\n…and ${highEvents.length - 5} more` : "";
+
+  const headline =
+    `:rotating_light: *${highEvents.length} high-severity finding${highEvents.length === 1 ? "" : "s"} on ${hostname}*`;
+
+  // text is the fallback; blocks render the rich card. Slack stops at
+  // ~50 blocks per message — we use 4, well within budget.
+  const payload = {
+    text: `${headline}\n${bulletList}${overflow}\n${hostUrl}`,
+    blocks: [
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: headline },
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: bulletList + overflow },
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `Scan \`${jobId.slice(0, 8)}\`` },
+          { type: "mrkdwn", text: `<${hostUrl}|Open host in Blackglass →>` },
+        ],
+      },
+      { type: "divider" },
+    ],
+  };
+
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error("[scan-drift-job] Slack drift alert failed:", err);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Email alerting — fire-and-forget; no-op when ALERT_EMAIL_TO is unset
 // ---------------------------------------------------------------------------
@@ -175,6 +248,16 @@ export async function processHostSnapshotDrift(args: {
   );
   if (highEvents.length > 0) {
     void alertDriftEmail(jobId, current.hostname, highEvents, tenantId);
+    // Slack mirrors the email — same gating (high-severity only,
+    // accepted-risk excluded), per-tenant routing, fire-and-forget.
+    // No-op when the tenant hasn't set a Slack webhook.
+    void alertDriftSlack({
+      jobId,
+      hostname: current.hostname,
+      hostId: current.hostId,
+      highEvents,
+      tenantId,
+    });
   }
 
   const dispatchableEvents = events.filter((e) => e.lifecycle !== "accepted_risk");

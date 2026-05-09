@@ -5,6 +5,19 @@ export const metadata: Metadata = {
   title: "Contact Sales · Blackglass",
   description:
     "Tell us about your fleet and how you'd like to use Blackglass. We typically reply within one business day.",
+  openGraph: {
+    title: "Contact Sales · Blackglass",
+    description:
+      "Tell us about your fleet and how you'd like to use Blackglass. We typically reply within one business day.",
+    type: "website",
+    siteName: "Blackglass",
+  },
+  twitter: {
+    card: "summary",
+    title: "Contact Sales · Blackglass",
+    description:
+      "Tell us about your fleet and how you'd like to use Blackglass. We typically reply within one business day.",
+  },
 };
 
 export default function ContactSalesPage() {

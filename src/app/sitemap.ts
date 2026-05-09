@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { siteOrigin, siteShouldNoindex } from "@/lib/site";
 
-/** Public marketing, use-case, guide, and legal pages only. Console routes are NOT indexed. */
+/** Public marketing, use-case, guide, docs, and legal pages only. Console routes are NOT indexed. */
 const PATHS = [
   // Core marketing
   "/",
@@ -10,10 +10,12 @@ const PATHS = [
   "/security",
   "/demo",
   "/book",
+  "/contact-sales",
   // Legal
   "/privacy",
   "/terms",
   "/dpa",
+  "/subprocessors",
   // Pricing flow
   "/pricing/success",
   // Use-case pages
@@ -22,8 +24,13 @@ const PATHS = [
   "/use-cases/ssh-configuration-audit",
   "/use-cases/linux-hardening-monitoring",
   "/use-cases/cis-benchmark-monitoring",
-  // Guides
+  // Guides + docs
   "/guides/how-to-detect-unauthorized-linux-config-changes",
+  "/docs/snapshot-freshness",
+  "/docs/api",
+  // Trust + freshness
+  "/changelog",
+  "/status",
 ] as const;
 
 const PRIORITY: Record<string, number> = {
@@ -31,14 +38,20 @@ const PRIORITY: Record<string, number> = {
   "/product": 0.9,
   "/pricing": 0.9,
   "/demo": 0.85,
+  "/contact-sales": 0.85,
   "/security": 0.7,
   "/book": 0.7,
+  "/changelog": 0.7,
+  "/status": 0.6,
   "/use-cases": 0.8,
   "/use-cases/linux-configuration-drift-detection": 0.8,
   "/use-cases/ssh-configuration-audit": 0.8,
   "/use-cases/linux-hardening-monitoring": 0.8,
   "/use-cases/cis-benchmark-monitoring": 0.75,
   "/guides/how-to-detect-unauthorized-linux-config-changes": 0.75,
+  "/docs/snapshot-freshness": 0.7,
+  "/docs/api": 0.7,
+  "/subprocessors": 0.5,
 };
 
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -12,6 +12,12 @@ export const metadata: Metadata = {
     type: "article",
     siteName: "Blackglass",
   },
+  twitter: {
+    card: "summary",
+    title: "Snapshot freshness · Blackglass docs",
+    description:
+      "How Blackglass keeps host snapshots fresh and how the SSH-fail fallback waits for the next push-agent snapshot.",
+  },
 };
 
 export default function SnapshotFreshnessDocsPage() {

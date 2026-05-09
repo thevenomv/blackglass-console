@@ -10,9 +10,23 @@ interface CheckoutButtonProps {
   planCode?: string;
   /** "monthly" (default) or "annual" — selects the matching Stripe price. */
   billingCycle?: "monthly" | "annual";
+  /**
+   * Add-on codes to bundle into the same Stripe subscription as the
+   * base plan (currently only "remediator" is supported). Passing
+   * an add-on means the customer pays one combined invoice instead
+   * of going through a second checkout. Ignored values are silently
+   * dropped server-side, so a stale frontend can't break checkout.
+   */
+  addons?: ReadonlyArray<"remediator">;
 }
 
-export default function CheckoutButton({ className, children, planCode, billingCycle }: CheckoutButtonProps) {
+export default function CheckoutButton({
+  className,
+  children,
+  planCode,
+  billingCycle,
+  addons,
+}: CheckoutButtonProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
@@ -22,9 +36,10 @@ export default function CheckoutButton({ className, children, planCode, billingC
     setErrorCode(null);
     setErrorDetail(null);
     try {
-      const reqPayload: Record<string, string> = {};
+      const reqPayload: Record<string, unknown> = {};
       if (planCode) reqPayload.planCode = planCode;
       if (billingCycle) reqPayload.billingCycle = billingCycle;
+      if (addons && addons.length > 0) reqPayload.addons = addons;
       const body =
         Object.keys(reqPayload).length > 0 ? JSON.stringify(reqPayload) : undefined;
       const res = await fetch("/api/checkout", {

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useSession } from "@/components/auth/SessionProvider";
 import { signOut } from "@/app/(auth)/login/actions";
+import { SystemHealthBadge } from "./SystemHealthBadge";
 
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 
@@ -167,6 +168,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </form>
           </div>
         )}
+        <div className="mt-3 border-t border-border-subtle pt-3">
+          <SystemHealthBadge />
+        </div>
         <div className="mt-3 border-t border-border-subtle pt-3 text-[10px] text-fg-faint">
           <p className="mb-1.5 font-semibold uppercase tracking-widest">Legal</p>
           <div className="flex flex-col gap-1">

@@ -5,6 +5,19 @@ export const metadata: Metadata = {
   title: "Changelog · Blackglass",
   description:
     "What's new in Blackglass — recent releases, security fixes, and product polish.",
+  openGraph: {
+    title: "Changelog · Blackglass",
+    description:
+      "What's new in Blackglass — recent releases, security fixes, and product polish.",
+    type: "article",
+    siteName: "Blackglass",
+  },
+  twitter: {
+    card: "summary",
+    title: "Changelog · Blackglass",
+    description:
+      "What's new in Blackglass — recent releases, security fixes, and product polish.",
+  },
 };
 
 /**

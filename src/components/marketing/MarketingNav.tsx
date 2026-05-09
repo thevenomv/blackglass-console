@@ -14,12 +14,12 @@ export function MarketingNav() {
   const signUp = clerkOn ? "/sign-up" : "/login";
 
   const links = [
-    { href: "/", label: "Home" },
     { href: "/product", label: "Product" },
     { href: "/use-cases", label: "Use Cases" },
     { href: "/pricing", label: "Pricing" },
     { href: "/security", label: "Security" },
     { href: "/demo", label: "Demo" },
+    { href: "/changelog", label: "Changelog" },
   ] as const;
 
   return (

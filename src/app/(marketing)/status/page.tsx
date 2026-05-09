@@ -5,6 +5,19 @@ export const metadata: Metadata = {
   title: "System status · Blackglass",
   description:
     "Live status of Blackglass console, API, database, queue, and object store. Updated every 30 seconds.",
+  openGraph: {
+    title: "System status · Blackglass",
+    description:
+      "Live status of Blackglass console, API, database, queue, and object store. Updated every 30 seconds.",
+    type: "website",
+    siteName: "Blackglass",
+  },
+  twitter: {
+    card: "summary",
+    title: "System status · Blackglass",
+    description:
+      "Live status of Blackglass console, API, database, queue, and object store.",
+  },
 };
 
 export default function StatusPage() {

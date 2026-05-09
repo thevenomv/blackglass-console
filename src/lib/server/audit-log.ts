@@ -58,6 +58,8 @@ export const AUDIT_ACTIONS = {
   KEY_ROTATED: "settings.key_rotated",
   WEBHOOK_TEST_SENT: "settings.webhook_test_sent",
   WEBHOOK_SIGNING_KEY_ROTATED: "settings.webhook_signing_key_rotated",
+  SETTINGS_UPDATED: "settings.updated",
+  DRIFT_DIGEST_SENT: "settings.drift_digest_sent",
 
   // Lead intake
   CONTACT_SALES_LEAD: "marketing.contact_sales_lead",

@@ -41,13 +41,29 @@ export async function POST(request: Request) {
   // operator setup.
   let planCode = "starter";
   let billingCycle: "monthly" | "annual" = "monthly";
+  // Add-ons are recurring line items appended to the same subscription
+  // so the customer pays one combined invoice. Only validated codes
+  // are accepted; anything else is silently dropped (vs erroring) so
+  // a stale frontend can't break checkout entirely.
+  let addons: ReadonlyArray<"remediator"> = [];
   try {
-    const body = (await request.json()) as { planCode?: string; billingCycle?: string };
+    const body = (await request.json()) as {
+      planCode?: string;
+      billingCycle?: string;
+      addons?: unknown;
+    };
     if (body?.planCode && ["starter", "growth", "scale", "business"].includes(body.planCode)) {
       planCode = body.planCode;
     }
     if (body?.billingCycle === "annual" || body?.billingCycle === "monthly") {
       billingCycle = body.billingCycle;
+    }
+    if (Array.isArray(body?.addons)) {
+      const valid = body.addons.filter(
+        (a): a is "remediator" => a === "remediator",
+      );
+      // De-dupe — Stripe rejects line_items with duplicate price IDs.
+      addons = Array.from(new Set(valid));
     }
   } catch {
     // No body or non-JSON body — use defaults.
@@ -88,7 +104,21 @@ export async function POST(request: Request) {
   const interval: "month" | "year" = billingCycle === "annual" ? "year" : "month";
   const amount = billingCycle === "annual" ? fallback.monthlyAmount * 10 : fallback.monthlyAmount;
 
-  const lineItems = priceId
+  // Stripe types the union — keep it explicit so adding price_data fallbacks below
+  // for add-ons keeps type-checking.
+  type LineItem =
+    | { price: string; quantity: number }
+    | {
+        price_data: {
+          currency: string;
+          product_data: { name: string; description: string; images: string[] };
+          unit_amount: number;
+          recurring: { interval: "month" | "year" };
+        };
+        quantity: number;
+      };
+
+  const lineItems: LineItem[] = priceId
     ? [{ price: priceId, quantity: 1 }]
     : [
         {
@@ -106,10 +136,51 @@ export async function POST(request: Request) {
         },
       ];
 
+  // Append add-on line items so the customer can buy Remediator at the
+  // same time as their plan. Each add-on resolves an env var first
+  // (real Stripe price), with a price_data fallback for fresh
+  // deployments. Amounts mirror ADD_ONS in src/lib/saas/plans.ts.
+  const ADDON_CONFIG = {
+    remediator: {
+      monthlyEnv: process.env.STRIPE_REMEDIATOR_PRICE_ID?.trim() || undefined,
+      annualEnv: process.env.STRIPE_REMEDIATOR_ANNUAL_PRICE_ID?.trim() || undefined,
+      name: "Blackglass Remediator (HITL AI)",
+      description: "100 included remediation actions/month, $0.10 per extra",
+      monthlyAmount: 9_900,
+    },
+  } as const;
+
+  for (const addon of addons) {
+    const cfg = ADDON_CONFIG[addon];
+    const addonPriceId = billingCycle === "annual" ? cfg.annualEnv : cfg.monthlyEnv;
+    if (addonPriceId) {
+      lineItems.push({ price: addonPriceId, quantity: 1 });
+    } else {
+      const addonAmount =
+        billingCycle === "annual" ? cfg.monthlyAmount * 10 : cfg.monthlyAmount;
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `${cfg.name}${billingCycle === "annual" ? " (annual)" : ""}`,
+            description: cfg.description,
+            images: [],
+          },
+          unit_amount: addonAmount,
+          recurring: { interval },
+        },
+        quantity: 1,
+      });
+    }
+  }
+
   let sessionMetadata: Record<string, string> = {
     plan: planCode,
     billing_cycle: billingCycle,
     source: "blackglass_checkout",
+    // Comma-separated so the webhook can fan out add-on entitlements
+    // (Remediator unlock) without re-parsing line items from Stripe.
+    addons: addons.join(","),
   };
   if (isClerkAuthEnabled()) {
     const { orgId } = await auth();

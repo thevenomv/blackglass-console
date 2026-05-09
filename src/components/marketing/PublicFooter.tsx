@@ -3,12 +3,18 @@ import Link from "next/link";
 export function PublicFooter() {
   return (
     <footer className="border-t border-border-default bg-bg-panel py-12 text-sm text-fg-muted">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-3">
-        <div>
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="lg:col-span-1">
           <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Blackglass</p>
           <p className="mt-2 max-w-sm">
             Friendly visibility into Linux configuration changes — with snapshots you trust, alerts that
             make sense, and reports you can share.
+          </p>
+          <p className="mt-4 flex items-center gap-2 text-xs text-fg-faint">
+            <Link href="/status" className="inline-flex items-center gap-1.5 hover:text-fg-primary">
+              <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-success" />
+              All systems operational
+            </Link>
           </p>
         </div>
         <div>
@@ -21,16 +27,26 @@ export function PublicFooter() {
             <li><Link href="/guides/how-to-detect-unauthorized-linux-config-changes" className="hover:text-fg-primary">Guide: detect config changes</Link></li>
           </ul>
         </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Platform</p>
+          <ul className="mt-2 space-y-1.5">
+            <li><Link href="/product" className="hover:text-fg-primary">Product</Link></li>
+            <li><Link href="/pricing" className="hover:text-fg-primary">Pricing</Link></li>
+            <li><Link href="/demo" className="hover:text-fg-primary">Demo</Link></li>
+            <li><Link href="/contact-sales" className="hover:text-fg-primary">Contact sales</Link></li>
+            <li><Link href="/book" className="hover:text-fg-primary">Book walkthrough</Link></li>
+            <li><Link href="/security" className="hover:text-fg-primary">Security</Link></li>
+            <li><Link href="/dashboard" className="hover:text-fg-primary">Console</Link></li>
+          </ul>
+        </div>
         <div className="space-y-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Platform</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Resources</p>
             <ul className="mt-2 space-y-1.5">
-              <li><Link href="/product" className="hover:text-fg-primary">Product</Link></li>
-              <li><Link href="/pricing" className="hover:text-fg-primary">Pricing</Link></li>
-              <li><Link href="/demo" className="hover:text-fg-primary">Demo</Link></li>
-              <li><Link href="/book" className="hover:text-fg-primary">Book walkthrough</Link></li>
-              <li><Link href="/security" className="hover:text-fg-primary">Security</Link></li>
-              <li><Link href="/dashboard" className="hover:text-fg-primary">Console</Link></li>
+              <li><Link href="/changelog" className="hover:text-fg-primary">Changelog</Link></li>
+              <li><Link href="/docs/snapshot-freshness" className="hover:text-fg-primary">Snapshot freshness</Link></li>
+              <li><Link href="/docs/api" className="hover:text-fg-primary">API docs &amp; examples</Link></li>
+              <li><Link href="/status" className="hover:text-fg-primary">System status</Link></li>
             </ul>
           </div>
           <div>
@@ -39,6 +55,7 @@ export function PublicFooter() {
               <li><Link href="/privacy" className="hover:text-fg-primary">Legal &amp; privacy</Link></li>
               <li><Link href="/terms" className="hover:text-fg-primary">Terms</Link></li>
               <li><Link href="/dpa" className="hover:text-fg-primary">Data processing (DPA)</Link></li>
+              <li><Link href="/subprocessors" className="hover:text-fg-primary">Subprocessors</Link></li>
             </ul>
           </div>
         </div>
