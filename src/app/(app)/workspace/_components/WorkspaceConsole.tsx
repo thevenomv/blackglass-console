@@ -4,24 +4,13 @@ import type { TimelineEntry } from "@/data/mock/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import Link from "next/link";
 import { useState } from "react";
+import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 
 const DEFAULT_TASKS = [
   "Confirm listener owner + change ticket linkage",
   "Reconcile nftables default policy vs baseline",
   "Attach evidence bundle export to case folder",
 ];
-
-function formatAt(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "UTC",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
 
 export function WorkspaceConsole({
   incidentId,
@@ -35,15 +24,27 @@ export function WorkspaceConsole({
   const [done, setDone] = useState<Record<number, boolean>>({});
 
   return (
-    <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
+    <div className="flex flex-col gap-5 px-6 pb-12 pt-6">
       <PageHeader
-        title="Incident workspace"
-        subtitle={`${incidentId}${hostId ? ` · scoped host ${hostId}` : ""} — coordination surface for operators.`}
+        title="Workspace"
         breadcrumbs={[
           { href: "/dashboard", label: "Dashboard" },
-          { href: `/workspace?incident=${encodeURIComponent(incidentId)}&host=${encodeURIComponent(hostId)}`, label: "Workspace" },
+          {
+            href: `/workspace?incident=${encodeURIComponent(incidentId)}&host=${encodeURIComponent(hostId)}`,
+            label: "Workspace",
+          },
         ]}
       />
+
+      <p className="-mt-1 text-sm text-fg-muted">
+        <span className="font-mono text-fg-primary">{incidentId}</span>
+        {hostId ? (
+          <>
+            {" "}
+            · scoped host <span className="font-mono text-fg-primary">{hostId}</span>
+          </>
+        ) : null}
+      </p>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <section className="space-y-4 rounded-card border border-border-default bg-bg-panel p-5">
@@ -99,7 +100,12 @@ export function WorkspaceConsole({
         <ul className="mt-4 space-y-4 border-l-2 border-border-default pl-4">
           {timeline.map((e) => (
             <li key={`${e.at}-${e.label}`} className="text-sm">
-              <p className="text-[12px] tabular-nums text-fg-faint">{formatAt(e.at)} UTC</p>
+              <p
+                className="text-[12px] tabular-nums text-fg-faint"
+                title={formatAbsoluteUtc(e.at)}
+              >
+                {formatRelativeTime(e.at)}
+              </p>
               <p className="mt-1 font-medium text-fg-primary">{e.label}</p>
               <p className="mt-0.5 text-fg-muted">{e.detail}</p>
             </li>

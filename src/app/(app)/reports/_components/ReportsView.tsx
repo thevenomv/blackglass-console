@@ -9,23 +9,9 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
+import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 
 type StatusFilter = "all" | ReportRecord["status"];
-
-function formatGenerated(iso: string | null | undefined) {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return "—";
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "UTC",
-    }).format(d);
-  } catch {
-    return iso ?? "—";
-  }
-}
 
 function reportAgeWarning(generatedAt: string): boolean {
   const MS_30_DAYS = 30 * 24 * 60 * 60 * 1000;
@@ -95,11 +81,8 @@ function NewReportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
       >
         <header className="border-b border-border-subtle px-6 py-5">
           <h2 id="new-report-title" className="text-lg font-semibold text-fg-primary">
-            Generate new report
+            Generate report
           </h2>
-          <p className="mt-1 text-sm text-fg-muted">
-            Choose the scope and format for this integrity summary.
-          </p>
         </header>
         <div className="space-y-5 px-6 py-5">
           <fieldset className="space-y-2">
@@ -219,14 +202,13 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
   };
 
   return (
-    <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
+    <div className="flex flex-col gap-5 px-6 pb-12 pt-6">
       <PageHeader
         title="Reports"
-        subtitle="Readable summaries for leadership, auditors, or customer security reviews."
         actions={<Button type="button" onClick={() => setNewReportOpen(true)}>Generate report</Button>}
       />
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Report filters">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Report filters">
         {chips.map((c) => (
           <button
             key={c.id}
@@ -234,10 +216,10 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
             role="tab"
             aria-selected={filter === c.id}
             onClick={() => setFilter(c.id)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
               filter === c.id
                 ? "border-accent-blue bg-accent-blue-soft text-accent-blue"
-                : "border-border-default text-fg-muted hover:border-border-subtle hover:text-fg-primary"
+                : "border-border-subtle text-fg-muted hover:border-border-default hover:text-fg-primary"
             }`}
           >
             {c.label}
@@ -304,7 +286,12 @@ export function ReportsView({ reports: initial }: { reports: ReportRecord[] }) {
                     ) : null}
                   </td>
                   <td className="px-4 py-3 text-fg-muted">{r.scope}</td>
-                  <td className="px-4 py-3 text-fg-muted">{formatGenerated(r.generatedAt)} UTC</td>
+                  <td
+                    className="px-4 py-3 text-fg-muted"
+                    title={r.generatedAt ? formatAbsoluteUtc(r.generatedAt) : undefined}
+                  >
+                    {formatRelativeTime(r.generatedAt)}
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs uppercase text-fg-faint">{r.format}</td>
                   <td className="px-4 py-3">{statusBadge(r.status)}</td>
                   <td className="px-4 py-3 text-right">

@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 
 interface AuditEvent {
   id: string;
@@ -40,18 +41,6 @@ const QUICK_ACTIONS = [
   { label: "Auth", value: "auth" },
   { label: "Settings", value: "settings" },
 ];
-
-function fmt(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "short",
-      timeStyle: "medium",
-      timeZone: "UTC",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
 
 export function AuditLogView() {
   const [action, setAction] = useState("");
@@ -174,7 +163,7 @@ export function AuditLogView() {
         <table className="w-full text-left text-xs">
           <thead className="bg-bg-panel-elevated text-[11px] uppercase tracking-wide text-fg-faint">
             <tr>
-              <th className="px-3 py-2 font-semibold">When (UTC)</th>
+              <th className="px-3 py-2 font-semibold">When</th>
               <th className="px-3 py-2 font-semibold">Actor</th>
               <th className="px-3 py-2 font-semibold">Action</th>
               <th className="px-3 py-2 font-semibold">Target</th>
@@ -191,8 +180,11 @@ export function AuditLogView() {
             ) : null}
             {items.map((ev) => (
               <tr key={ev.id} className="bg-bg-panel">
-                <td className="px-3 py-2 font-mono text-[11px] text-fg-muted">
-                  {fmt(ev.createdAt)}
+                <td
+                  className="px-3 py-2 font-mono text-[11px] text-fg-muted"
+                  title={formatAbsoluteUtc(ev.createdAt)}
+                >
+                  {formatRelativeTime(ev.createdAt)}
                 </td>
                 <td className="px-3 py-2 font-mono text-[11px] text-fg-muted">
                   {ev.actorUserId ?? "—"}

@@ -15,6 +15,10 @@ import { ProgressRow } from "@/components/ui/ProgressBar";
 import { SecurityOverviewSection } from "./SecurityOverviewSection";
 import { ValueRecapBanner, type ValueRecap } from "@/components/dashboard/ValueRecapBanner";
 import { DriftTrendChart } from "@/components/dashboard/DriftTrendChart";
+import {
+  SystemStatusBanner,
+  type SystemStatusItem,
+} from "@/components/dashboard/SystemStatusBanner";
 import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 import Link from "next/link";
 import { useState } from "react";
@@ -100,6 +104,91 @@ export function DashboardV3({
 
   const driftCategories = liveMode ? driftTopCategories : [];
 
+  // Roll the previously-stacked banner zoo into a single SystemStatusBanner.
+  // Each entry below is conditionally added in priority order (most urgent
+  // first); `SystemStatusBanner` then re-sorts by severity so the worst
+  // issue leads visually regardless of evaluation order. The "all good"
+  // success banner is rendered separately further down only when this list
+  // is empty AND there are no urgent findings.
+  const systemStatusItems: SystemStatusItem[] = [];
+  if (liveMode) {
+    if (
+      collectorOn &&
+      baselinePersistence.configured &&
+      baselinePersistence.writable === false
+    ) {
+      systemStatusItems.push({
+        id: "baseline-not-writable",
+        severity: "danger",
+        title: "Baseline store path is not writable",
+        detail: (
+          <>
+            Check permissions on{" "}
+            <span className="font-mono text-fg-primary">{baselinePersistence.path}</span> (and its
+            parent directory).
+          </>
+        ),
+      });
+    }
+    if (attention) {
+      systemStatusItems.push({
+        id: "urgent-findings",
+        severity: "danger",
+        title: `${fleet.highRiskDrift} urgent finding${fleet.highRiskDrift === 1 ? "" : "s"} need review`,
+        detail: (
+          <>
+            Review before shipping new snapshots —{" "}
+            <Link href="/drift" className="font-medium text-accent-blue hover:underline">
+              open findings
+            </Link>
+            .
+          </>
+        ),
+      });
+    }
+    if (!collectorOn) {
+      systemStatusItems.push({
+        id: "no-collector",
+        severity: "warning",
+        title: "No collector connected",
+        detail: (
+          <>
+            Configure a host and credentials to start collecting data —{" "}
+            <Link href="/settings" className="font-medium text-accent-blue hover:underline">
+              open settings
+            </Link>
+            .
+          </>
+        ),
+      });
+    }
+    if (collectorOn && !baselinePersistence.configured) {
+      systemStatusItems.push({
+        id: "baseline-in-memory",
+        severity: "warning",
+        title: "Snapshots are in-memory only",
+        detail:
+          "Point baseline storage at a mounted volume so trusted snapshots survive restarts (Operator settings).",
+      });
+    }
+    if (collectorOn && fleet.hostsChecked === 0) {
+      systemStatusItems.push({
+        id: "no-hosts",
+        severity: "info",
+        title: "No hosts under monitoring yet",
+        detail: (
+          <>
+            Capture a trusted snapshot while systems are known-good — use{" "}
+            <Link href="/baselines" className="font-medium text-accent-blue hover:underline">
+              Baselines
+            </Link>{" "}
+            or your automation, then run a scan.
+          </>
+        ),
+      });
+    }
+  }
+
   let postureTone: Tone = "success";
   let postureLabel = "Healthy";
   if (liveMode) {
@@ -157,84 +246,9 @@ export function DashboardV3({
         />
       ) : null}
 
-      {liveMode && !collectorOn ? (
-        <div
-          role="region"
-          aria-label="Collector configuration"
-          className="rounded-card border border-warning/45 bg-warning-soft/25 px-4 py-3 text-sm text-fg-primary"
-        >
-          <p className="font-medium text-fg-primary">No collector connected</p>
-          <p className="mt-1 text-fg-muted">
-            Configure a host and credentials to start collecting integrity data. See{" "}
-            <Link href="/settings" className="font-medium text-accent-blue hover:underline">
-              Settings
-            </Link>{" "}
-            for status.
-          </p>
-        </div>
-      ) : null}
+      <SystemStatusBanner items={systemStatusItems} />
 
-      {liveMode && collectorOn && !baselinePersistence.configured ? (
-        <div
-          role="region"
-          aria-label="Baseline persistence"
-          className="rounded-card border border-border-default bg-bg-panel px-4 py-3 text-sm text-fg-muted"
-        >
-          <p className="font-medium text-fg-primary">Snapshots are in-memory only</p>
-          <p className="mt-1">
-            Ask your operator to point baseline storage at a mounted volume so trusted snapshots
-            survive restarts (see Operator settings).
-          </p>
-        </div>
-      ) : null}
-
-      {liveMode && collectorOn && baselinePersistence.configured && baselinePersistence.writable === false ? (
-        <div
-          role="region"
-          aria-label="Baseline store not writable"
-          className="rounded-card border border-danger/40 bg-danger-soft/30 px-4 py-3 text-sm text-fg-primary"
-        >
-          <p className="font-semibold text-danger">Baseline store path is not writable</p>
-          <p className="mt-1 text-fg-muted">
-            Check permissions on{" "}
-            <span className="font-mono text-fg-primary">{baselinePersistence.path}</span> (and its
-            parent directory).
-          </p>
-        </div>
-      ) : null}
-
-      {liveMode && collectorOn && fleet.hostsChecked === 0 ? (
-        <div
-          role="region"
-          aria-label="Baseline setup"
-          className="rounded-card border border-accent-blue/35 bg-accent-blue-soft/20 px-4 py-3 text-sm text-fg-primary"
-        >
-          <p className="font-medium text-fg-primary">No hosts under monitoring yet</p>
-          <p className="mt-1 text-fg-muted">
-            Capture a trusted snapshot while systems are known-good — use{" "}
-            <Link href="/baselines" className="font-medium text-accent-blue hover:underline">
-              Baselines
-            </Link>{" "}
-            or your automation, then run a scan.
-          </p>
-        </div>
-      ) : null}
-
-      {attention ? (
-        <div
-          role="region"
-          aria-label="Fleet attention"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-danger/40 bg-danger-soft/35 px-4 py-3 text-sm"
-        >
-          <p className="text-fg-primary">
-            <span className="font-semibold text-danger">{fleet.highRiskDrift}</span> urgent
-            finding{fleet.highRiskDrift === 1 ? "" : "s"} need review before you ship new snapshots.
-          </p>
-          <Link href="/drift" className="shrink-0 font-medium text-accent-blue hover:underline">
-            Open findings
-          </Link>
-        </div>
-      ) : (
+      {liveMode && systemStatusItems.length === 0 ? (
         <div
           role="region"
           aria-label="Fleet drift summary"
@@ -242,7 +256,7 @@ export function DashboardV3({
         >
           No urgent findings in the latest sweep — keep an eye on notable hosts below.
         </div>
-      )}
+      ) : null}
 
       <ValueRecapBanner recap={valueRecap} />
 

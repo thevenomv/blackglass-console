@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 
 export interface BundleListItem {
   id: string;
@@ -103,14 +104,14 @@ export function EvidenceView({ refreshSignal }: { refreshSignal?: number }) {
     return (
       <EmptyState
         title="No evidence bundles yet"
-        description="Bundles let you export an audit-ready packet of baselines, drift findings, acknowledgements, and operator notes. Triage some drift first, then click ‘New evidence bundle’ above to capture it."
+        description="Bundles export an audit-ready packet of baselines, findings, acknowledgements, and notes. Triage some drift first, then use ‘New evidence bundle’ above."
         action={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/drift"
               className="inline-flex h-9 items-center justify-center rounded-card bg-accent-blue px-4 text-sm font-medium text-white hover:bg-accent-blue-hover"
             >
-              Go to drift triage
+              Go to findings
             </Link>
             <Link
               href="/baselines"
@@ -188,14 +189,16 @@ export function EvidenceView({ refreshSignal }: { refreshSignal?: number }) {
                 </td>
               </tr>
             ) : (
-              filtered.map((b, i) => (
-                <tr
-                  key={b.id}
-                  className={`hover:bg-bg-elevated ${i % 2 === 1 ? "bg-bg-elevated/35" : ""}`}
-                >
+              filtered.map((b) => (
+                <tr key={b.id} className="transition-colors hover:bg-bg-elevated">
                   <td className="px-4 py-3 text-fg-primary">{b.title}</td>
                   <td className="px-4 py-3 text-fg-muted">{b.scope === "all" ? "All hosts" : b.scope}</td>
-                  <td className="px-4 py-3 text-fg-muted">{new Date(b.createdAt).toLocaleString()}</td>
+                  <td
+                    className="px-4 py-3 text-fg-muted"
+                    title={formatAbsoluteUtc(b.createdAt)}
+                  >
+                    {formatRelativeTime(b.createdAt)}
+                  </td>
                   <td className="px-4 py-3">
                     <span className="font-mono text-xs text-fg-faint">{b.sha256.slice(0, 16)}…</span>
                     <CopySha256 sha256={b.sha256} />

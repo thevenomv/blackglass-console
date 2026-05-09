@@ -29,16 +29,10 @@ export default async function AuditPage() {
 
   return (
     <AppShell>
-      <div className="flex max-w-5xl flex-col gap-6 px-6 pb-12 pt-6">
-        <PageHeader
-          title="Audit log"
-          subtitle="Searchable, tenant-scoped record of every action that touched this workspace."
-        />
+      <div className="flex max-w-5xl flex-col gap-5 px-6 pb-12 pt-6">
+        <PageHeader title="Audit log" />
         {allowed ? (
-          <>
-            <p className="text-xs text-fg-faint">Signed in as {role}.</p>
-            <AuditLogView />
-          </>
+          <AuditLogView />
         ) : (
           <div className="px-1 py-12 text-sm text-fg-muted">
             You do not have access to the audit log.

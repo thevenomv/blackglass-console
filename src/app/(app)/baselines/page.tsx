@@ -13,6 +13,7 @@ import { configuredCollectorHostIds } from "@/lib/server/collector-env";
 import { getBaseline, listBaselineHostIds } from "@/lib/server/baseline-store";
 import { getDriftEventsAsync } from "@/lib/server/drift-engine";
 import type { BaselineDiffCategory, BaselineDiffRow, BaselineSnapshotMeta, DriftEvent } from "@/data/mock/types";
+import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -120,18 +121,6 @@ function BaselineFallback() {
   );
 }
 
-function formatPinned(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "UTC",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
 export default async function BaselinesPage({
   searchParams,
 }: {
@@ -166,10 +155,9 @@ export default async function BaselinesPage({
   if (!live) {
     return (
       <AppShell>
-        <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
+        <div className="flex flex-col gap-5 px-6 pb-12 pt-6">
           <PageHeader
             title="Baselines"
-            subtitle="Save a trusted picture of each server for future comparisons."
             breadcrumbs={[
               { href: "/dashboard", label: "Dashboard" },
               { href: "/baselines", label: "Baselines" },
@@ -177,7 +165,7 @@ export default async function BaselinesPage({
           />
           <EmptyState
             title="Collector not configured"
-            description="Configure at least one collector host and credentials in Settings, then return here to capture your first baseline."
+            description="Configure a collector host and credentials in Settings, then return here to capture your first baseline."
             action={
               <Link
                 href="/settings"
@@ -195,10 +183,9 @@ export default async function BaselinesPage({
   if (!hostId) {
     return (
       <AppShell>
-        <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
+        <div className="flex flex-col gap-5 px-6 pb-12 pt-6">
           <PageHeader
             title="Baselines"
-            subtitle="No baseline on file yet for connected hosts."
             breadcrumbs={[
               { href: "/dashboard", label: "Dashboard" },
               { href: "/baselines", label: "Baselines" },
@@ -226,10 +213,9 @@ export default async function BaselinesPage({
 
   return (
     <AppShell>
-      <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
+      <div className="flex flex-col gap-5 px-6 pb-12 pt-6">
         <PageHeader
-          title="Baseline comparison"
-          subtitle={`Trusted snapshot vs latest check · ${hostDisplayName}`}
+          title="Baselines"
           breadcrumbs={[
             { href: "/dashboard", label: "Dashboard" },
             { href: "/baselines", label: "Baselines" },
@@ -242,12 +228,8 @@ export default async function BaselinesPage({
           }
         />
 
-        <p className="text-xs text-fg-faint">
-          Switch context from{" "}
-          <Link href="/hosts" className="text-accent-blue hover:underline">
-            host detail
-          </Link>{" "}
-          — diffs reflect live drift events for this host.
+        <p className="-mt-1 text-sm text-fg-muted">
+          Trusted snapshot vs latest check · <span className="font-mono text-fg-primary">{hostDisplayName}</span>
         </p>
 
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -269,8 +251,11 @@ export default async function BaselinesPage({
                     }`}
                   >
                     <p className="font-mono text-[13px]">{s.label}</p>
-                    <p className="mt-1 text-xs text-fg-faint">
-                      {formatPinned(s.pinnedAt)} UTC · scan{" "}
+                    <p
+                      className="mt-1 text-xs text-fg-faint"
+                      title={formatAbsoluteUtc(s.pinnedAt)}
+                    >
+                      {formatRelativeTime(s.pinnedAt)} · scan{" "}
                       <span className="font-mono">{s.scanId}</span>
                     </p>
                     {s.superseded ? (

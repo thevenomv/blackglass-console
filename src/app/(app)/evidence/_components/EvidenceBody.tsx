@@ -26,10 +26,9 @@ export function EvidenceBody({
   const [tab, setTab] = useState<Tab>("bundles");
 
   return (
-    <div className="flex flex-col gap-6 px-6 pb-12 pt-6">
+    <div className="flex flex-col gap-5 px-6 pb-12 pt-6">
       <PageHeader
         title="Evidence"
-        subtitle="Dated, shareable packages for audits, customer security reviews, and incident follow-up."
         breadcrumbs={[
           { href: "/dashboard", label: "Dashboard" },
           { href: "/evidence", label: "Evidence" },
