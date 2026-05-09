@@ -245,7 +245,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const auth = await requireSaasOrLegacyPermission("secrets.manage", ["admin"]);
+  // Allow Bearer API-key auth too (scope: secrets.manage) so an
+  // operator can fire test emails from a CLI without logging in to
+  // the console. The same admin-only gate still applies.
+  const auth = await requireSaasOrLegacyPermission("secrets.manage", ["admin"], { request });
   if (!auth.ok) return auth.response;
 
   const raw = await readJsonBodyOptional(request, requestId);
