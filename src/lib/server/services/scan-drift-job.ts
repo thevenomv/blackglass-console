@@ -302,11 +302,86 @@ async function alertDriftEmail(
   }
 }
 
+/**
+ * Hard upper bound on `executeDriftScanJob` wall-clock time. If a scan
+ * is still running after this many ms, we force-resolve it as failed
+ * with a clear message rather than leaving the UI spinning forever.
+ *
+ * Default: 6 minutes. Bound is generous enough to cover:
+ *   - 90 s wait-for-fresh-push fallback per host (capped at the wait window)
+ *   - 75 s SSH collection per host (parallel, COLLECTOR_MAX_PARALLEL_SSH)
+ *   - drift compute + DB writes + notification fan-out (~5 s)
+ *   - generous buffer for slow disks / managed Postgres latency spikes
+ *
+ * Tunable via SCAN_JOB_DEADLINE_MS for on-prem operators with very
+ * large fleets (>100 hosts in a single scan).
+ */
+const SCAN_JOB_DEADLINE_MS = (() => {
+  const raw = parseInt(process.env.SCAN_JOB_DEADLINE_MS ?? "360000", 10);
+  if (!Number.isFinite(raw) || raw <= 0) return 360_000;
+  return Math.max(60_000, Math.min(30 * 60_000, raw));
+})();
+
 export async function executeDriftScanJob(
   jobId: string,
   collectOpts: CollectScanOptions,
 ): Promise<void> {
-  console.log(`[scan-drift-job] START jobId=${jobId}`);
+  console.log(`[scan-drift-job] START jobId=${jobId} deadline=${SCAN_JOB_DEADLINE_MS}ms`);
+
+  // Wall-clock deadline as a safety net. If `executeDriftScanJobImpl`
+  // hangs (queue worker dies mid-scan, SSH library stalls, drift engine
+  // gets into a pathological state), this guarantees the scan record
+  // resolves to "failed" instead of leaving the user staring at a
+  // spinner. Wrapping in Promise.race + manually invoking resolveScan()
+  // means the polling client always sees a terminal status within the
+  // deadline window.
+  let deadlineFired = false;
+  const deadline = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      deadlineFired = true;
+      console.error(
+        `[scan-drift-job] DEADLINE jobId=${jobId} exceeded ${SCAN_JOB_DEADLINE_MS}ms — force-resolving as failed`,
+      );
+      resolveScan(
+        jobId,
+        "failed",
+        `Scan exceeded ${Math.round(SCAN_JOB_DEADLINE_MS / 1000)}s wall-clock deadline. ` +
+          `Check scan-worker health or set SCAN_JOB_DEADLINE_MS higher for very large fleets.`,
+      );
+      appendAudit({
+        action: AUDIT_ACTIONS.SCAN_FAILED,
+        detail: `Scan ${jobId} hit wall-clock deadline (${SCAN_JOB_DEADLINE_MS}ms)`,
+        scan_id: jobId,
+      });
+      markScanDone(jobId);
+      revalidateIntegritySurfaces();
+      resolve();
+    }, SCAN_JOB_DEADLINE_MS).unref?.();
+  });
+
+  await Promise.race([
+    executeDriftScanJobImpl(jobId, collectOpts).catch((err) => {
+      // Catch unexpected throws from the inner pipeline so the
+      // deadline race always settles cleanly. The inner function has
+      // its own try/catch + resolveScan call, so this is belt+braces.
+      console.error(`[scan-drift-job] unexpected error in jobId=${jobId}:`, err);
+    }),
+    deadline,
+  ]);
+
+  if (deadlineFired) {
+    // The deadline branch already published the failure; nothing to do.
+    // The inner function may still be running in the background but
+    // its eventual resolveScan() call is a no-op once the record is
+    // already marked terminal.
+    return;
+  }
+}
+
+async function executeDriftScanJobImpl(
+  jobId: string,
+  collectOpts: CollectScanOptions,
+): Promise<void> {
   try {
     const results = await collectAllSnapshots(collectOpts);
     console.log(`[scan-drift-job] collected ${results.length} host(s)`);

@@ -3,7 +3,7 @@ import { enqueueScan, markScanReal } from "@/lib/server/scan-jobs";
 import { checkScanPostRate, checkScanPostRateForTenant, clientIp } from "@/lib/server/rate-limit";
 import { collectorConfigured } from "@/lib/server/collector";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
-import { getScanQueue } from "@/lib/server/queue/scan-queue";
+import { getScanQueue, getActiveScanWorkerCount } from "@/lib/server/queue/scan-queue";
 import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
 import { requireScanEnqueueAccess } from "@/lib/server/http/saas-access";
 import { ScanPostBodySchema } from "@/lib/server/http/schemas";
@@ -128,12 +128,31 @@ export async function POST(request: Request) {
     // were stored, so the user always saw "100% aligned" even after
     // introducing real drift).
     markScanReal(job.id);
-    // Prefer BullMQ queue when REDIS_QUEUE_URL is set — the worker runs in a
-    // separate process so SSH fan-out doesn't block the Next.js event loop.
-    // Falls back to in-process execution for Stage 0/1 deployments.
+    // Prefer BullMQ queue when REDIS_QUEUE_URL is set AND at least one
+    // worker is currently registered. Without the worker check, an
+    // operator who provisioned Redis for rate limiting but never
+    // deployed the scan-worker component would see scans hang forever
+    // (the job sits in the queue with nothing to consume it). The
+    // probe is cached for 15s in scan-queue.ts so it adds at most one
+    // Redis round-trip per ~15s of scan activity.
     const queue = await getScanQueue();
-    console.log(`[scans-route] queue=${queue ? "bullmq" : "in-process"}`);
-    if (queue) {
+    const workerCount = await getActiveScanWorkerCount();
+    const useQueue = queue !== null && (workerCount ?? 0) > 0;
+    console.log(
+      `[scans-route] queue=${queue ? "bullmq" : "in-process"} workers=${workerCount ?? "n/a"} useQueue=${useQueue}`,
+    );
+    if (queue && (workerCount ?? 0) === 0) {
+      // Loud warning — this is a deployment misconfiguration we want to
+      // catch in logs, but we ship the scan in-process so the user is
+      // never blocked. The route still returns 202 + jobId so the
+      // existing client polling logic continues to work.
+      console.warn(
+        `[scans-route] REDIS_QUEUE_URL is set but no scan-worker is registered. ` +
+        `Falling back to in-process execution for jobId=${job.id}. ` +
+        `Deploy the scan-worker component (npm run worker) to restore async scan dispatch.`,
+      );
+    }
+    if (useQueue && queue) {
       await queue.add("scan", {
         jobId: job.id,
         collectOpts,
@@ -141,7 +160,7 @@ export async function POST(request: Request) {
         ...(access.mode === "saas" ? { saasTenantId: access.ctx.tenant.id } : {}),
       });
     } else {
-      console.log(`[scans-route] firing executeDriftScanJob for jobId=${job.id}`);
+      console.log(`[scans-route] firing executeDriftScanJob for jobId=${job.id} (in-process)`);
       void executeDriftScanJob(job.id, collectOpts);
     }
   } else {

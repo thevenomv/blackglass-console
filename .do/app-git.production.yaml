@@ -206,16 +206,34 @@ workers:
     instance_count: 1
     instance_size_slug: professional-xs
     source_dir: /
-    build_command: npm ci
-    run_command: npm run worker
+    # Worker uses the precompiled CJS bundle (same approach as
+    # sandbox-worker) so it doesn't need tsx at runtime — faster cold
+    # start and one fewer dev dep in the runtime image.
+    build_command: npm install --include=dev && npm run build:worker
+    run_command: node dist/worker/scan-worker.cjs
     envs:
       - key: NODE_ENV
         value: production
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
       - key: REDIS_QUEUE_URL
         value: ""
         scope: RUN_TIME
         type: SECRET
+      # SaaS-mode scans need DATABASE_URL to read tenant baselines,
+      # write drift events, and resolve per-tenant notification routing.
+      # Without this the worker silently no-ops drift writes.
+      - key: DATABASE_URL
+        value: ""
+        scope: RUN_TIME
+        type: SECRET
+      - key: PGSSLMODE
+        value: no-verify
+        scope: RUN_TIME
+      # Used by the drift Slack/email helpers to render absolute deep
+      # links back into the console.
+      - key: NEXT_PUBLIC_APP_URL
+        value: "https://blackglasssec.com"
+        scope: RUN_TIME
       - key: WORKER_CONCURRENCY
         value: "4"
         scope: RUN_TIME

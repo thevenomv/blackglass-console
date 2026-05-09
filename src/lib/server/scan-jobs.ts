@@ -447,6 +447,25 @@ export function projectScanJob(rec: ScanJobRecord): {
     detail = rec.progressDetail;
   }
 
+  // Stalled-scan diagnostic. If a real scan has been queued for more
+  // than ~30 s with no progress detail published yet, surface a clear
+  // message instead of the generic "Enumerating listeners…" so the
+  // user understands something is wrong. This catches the
+  // "REDIS_QUEUE_URL set but no scan-worker deployed" failure mode
+  // even when the per-request fallback in /api/v1/scans somehow
+  // misses (e.g. the worker was up at enqueue time but died before
+  // picking the job up).
+  if (
+    rec.kind === "real" &&
+    status === "running" &&
+    !rec.progressDetail &&
+    elapsed > SCAN_STALL_HINT_MS
+  ) {
+    detail =
+      `Scan has been running for ${Math.round(elapsed / 1000)}s with no progress signal. ` +
+      `If this persists, check the scan-worker process is running and connected to Redis.`;
+  }
+
   return {
     id: rec.id,
     status,
@@ -455,3 +474,12 @@ export function projectScanJob(rec: ScanJobRecord): {
     host_ids: rec.hostIds,
   };
 }
+
+/**
+ * Threshold above which `projectScanJob` flips from a generic "running"
+ * detail to an explicit "no progress signal yet" warning. 30s is well
+ * past the longest happy-path leg (SSH 75s only fires if SSH actually
+ * starts; if the worker is dead, we never even get to SSH), so seeing
+ * this message is a strong signal that something is wrong.
+ */
+const SCAN_STALL_HINT_MS = 30_000;
