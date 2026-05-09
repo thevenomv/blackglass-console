@@ -12,6 +12,7 @@ import { hasPermission } from "@/lib/saas/permissions";
 import { isTrialReadOnlyState } from "@/lib/saas/trial";
 import { loadHosts } from "@/lib/server/inventory";
 import { BillingPortalButton } from "@/components/saas/BillingPortalButton";
+import { getPlanDefinition } from "@/lib/saas/plans";
 
 export default async function BillingSettingsPage() {
   if (!isClerkAuthEnabled()) {
@@ -51,6 +52,8 @@ export default async function BillingSettingsPage() {
       : stripeCustomer ?? "—";
   const enterpriseLike =
     ctx.subscription.planCode === "enterprise" || ctx.subscription.status === "custom";
+  const planDef = getPlanDefinition(ctx.subscription.planCode);
+  const planLabel = planDef?.label ?? ctx.subscription.planCode;
 
   return (
     <AppShell>
@@ -76,7 +79,10 @@ export default async function BillingSettingsPage() {
           <dl className="mt-3 space-y-2 text-fg-muted">
             <div className="flex justify-between gap-4">
               <dt>Plan</dt>
-              <dd className="text-fg-primary">{ctx.subscription.planCode}</dd>
+              <dd className="text-fg-primary">
+                {planLabel}
+                <span className="ml-2 text-xs text-fg-faint">({ctx.subscription.planCode})</span>
+              </dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt>Status</dt>

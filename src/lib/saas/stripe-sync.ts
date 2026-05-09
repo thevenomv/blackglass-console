@@ -24,7 +24,7 @@ type SubRow = typeof schema.saasSubscriptions.$inferSelect;
  * the old "pro" SKU continue to load with sane defaults until they
  * resubscribe.
  */
-function priceIdToPlanCode(priceId: string | undefined): CommercialPlanCode {
+export function priceIdToPlanCode(priceId: string | undefined): CommercialPlanCode {
   if (!priceId) return "starter";
   for (const [code, vars] of Object.entries(STRIPE_PRICE_ENV_VARS) as Array<
     [CommercialPlanCode, { monthly: string; annual: string }]

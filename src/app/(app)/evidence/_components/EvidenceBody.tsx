@@ -66,8 +66,9 @@ export function EvidenceBody({
         </>
       ) : (
         <UpgradePrompt
-          feature="Evidence exports need the Team plan"
-          description="Download signed packages with baselines, open items, notes, and who exported them — ready for leadership, customers, or assessors."
+          tier="Starter"
+          feature="Evidence exports start on the Starter plan"
+          description="Download signed packages with baselines, open items, notes, and who exported them — ready for leadership, customers, or assessors. Starter includes 1 bundle/month, Growth 5, Scale 25, Business and Enterprise unlimited."
         />
       )}
     </div>

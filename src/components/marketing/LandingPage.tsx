@@ -102,7 +102,7 @@ export function LandingPage() {
                 </Link>
               </div>
               <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs text-fg-faint">
-                <span>14-day trial · no credit card</span>
+                <span>Free <Link href="/pricing" className="hover:text-fg-primary">Lab tier</Link> for homelabs · 14-day trial of any paid plan · no credit card</span>
                 <span>SSH-first · optional one-line push agent</span>
                 <span>Each customer&apos;s data stays separate end to end</span>
               </div>

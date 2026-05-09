@@ -37,8 +37,9 @@ export function DemoUpgradeModal({
         </p>
         <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-fg-muted">
           <li>14-day trial — no credit card — real scans and saved state</li>
-          <li>Trial caps: 10 hosts, 2 paid operator seats (viewers still unlimited after upgrade)</li>
+          <li>Trial caps: 10 hosts, 2 paid operator seats (viewers and guest auditors stay unlimited)</li>
           <li>After trial: read-only visibility until you subscribe</li>
+          <li>Or stay on the free <Link href="/pricing" className="text-accent-blue hover:underline">Lab tier</Link> — 5 hosts, 1 seat, perpetual</li>
         </ul>
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button

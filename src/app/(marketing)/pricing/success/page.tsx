@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { stripe } from "@/lib/stripe";
 import BillingPortalButton from "@/components/pricing/BillingPortalButton";
+import { getPlanDefinition } from "@/lib/saas/plans";
+import { priceIdToPlanCode } from "@/lib/saas/stripe-sync";
 
 export const metadata = {
   title: "Subscription confirmed — Blackglass by Obsidian Dynamics",
@@ -13,7 +15,7 @@ interface Props {
 async function getSessionData(sessionId: string) {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["subscription", "customer"],
+      expand: ["subscription", "customer", "line_items.data.price"],
     });
     const customer =
       session.customer && typeof session.customer !== "string"
@@ -23,7 +25,22 @@ async function getSessionData(sessionId: string) {
       session.subscription && typeof session.subscription !== "string"
         ? session.subscription
         : null;
+    // Resolve the actual purchased plan. Subscription items take precedence
+    // (mode=subscription is the canonical source); checkout-session line items
+    // are the fallback for one-off / first-charge cases.
+    const subPriceId =
+      sub && "items" in sub && sub.items?.data?.[0]?.price?.id
+        ? sub.items.data[0].price.id
+        : undefined;
+    const liPriceId =
+      session.line_items && "data" in session.line_items
+        ? session.line_items.data[0]?.price?.id
+        : undefined;
+    const priceId = subPriceId ?? liPriceId;
+    const planCode = priceIdToPlanCode(typeof priceId === "string" ? priceId : undefined);
+    const planDef = getPlanDefinition(planCode);
     return {
+      planLabel: planDef?.label ?? "Starter",
       email: customer && "email" in customer ? (customer.email ?? null) : null,
       customerId: customer?.id ?? null,
       invoiceUrl:
@@ -47,6 +64,7 @@ async function getSessionData(sessionId: string) {
 export default async function PricingSuccessPage({ searchParams }: Props) {
   const { session_id } = await searchParams;
   const sessionData = session_id ? await getSessionData(session_id) : null;
+  const planLabel = sessionData?.planLabel ?? "your new plan";
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-bg-base px-6 py-20">
@@ -66,11 +84,11 @@ export default async function PricingSuccessPage({ searchParams }: Props) {
         </div>
 
         <h1 className="mt-6 text-2xl font-bold text-fg-primary">
-          You&rsquo;re on Team
+          You&rsquo;re on {planLabel}
         </h1>
 
         <p className="mt-3 text-sm leading-relaxed text-fg-muted">
-          Your Blackglass Team subscription is active.
+          Your Blackglass {planLabel} subscription is active.
           {sessionData?.email ? (
             <> A receipt has been sent to <strong>{sessionData.email}</strong>.</>
           ) : (
@@ -132,4 +150,3 @@ export default async function PricingSuccessPage({ searchParams }: Props) {
     </main>
   );
 }
-

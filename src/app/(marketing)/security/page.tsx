@@ -322,9 +322,9 @@ export default function SecurityPage() {
 
             <DomainCard title="Data minimisation and retention">
               Blackglass collects only what is needed to compute drift — not file contents, not
-              environment variables, not secrets. Retention is configurable per plan (14-day trial;
-              180 days on Starter / Growth / Business; custom on Enterprise). Data is hard-deleted
-              after the window closes — not hidden, removed.
+              environment variables, not secrets. Retention is configurable per plan (30 days on
+              Lab and Starter; 180 days on Growth; 365 days on Scale and Business; custom on
+              Enterprise). Data is hard-deleted after the window closes — not hidden, removed.
             </DomainCard>
 
             <DomainCard title="Secrets and credential handling">

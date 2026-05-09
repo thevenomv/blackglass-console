@@ -124,7 +124,7 @@ export default function PrivacyPage() {
           rows={[
             ["Account data", "Duration of account plus 30 days after closure"],
             ["Billing records", "7 years (HMRC requirement)"],
-            ["Host configuration metadata", "Per plan: 14-day trial window; 180 days on Starter / Growth / Business; custom on Enterprise"],
+            ["Host configuration metadata", "Per plan: 30 days on Lab and Starter; 180 days on Growth; 365 days on Scale and Business; custom on Enterprise"],
             ["Audit logs (saas_audit_events)", "Per plan retention window; append-only during retention; exportable as deterministic JSONL with integrity verification"],
             ["Usage / security logs", "90 days"],
           ]}

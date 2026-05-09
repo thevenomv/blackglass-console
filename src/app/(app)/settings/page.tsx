@@ -192,8 +192,9 @@ export default async function SettingsPage() {
                   <AutoScanSection />
                 ) : (
                   <UpgradePrompt
-                    feature="Scheduled scans need the Team plan"
-                    description="Run automatic fleet checks on a rhythm you choose. Included on Team and Enterprise."
+                    tier="Starter"
+                    feature="Scheduled scans need the Starter plan or higher"
+                    description="Run automatic fleet checks on a rhythm you choose — up to 4×/day on Starter, hourly on Growth, and continuous from Scale upward."
                   />
                 )}
               </Card>
@@ -230,8 +231,9 @@ export default async function SettingsPage() {
                   </>
                 ) : (
                   <UpgradePrompt
-                    feature="Webhooks need the Team plan"
-                    description="Send real-time summaries to Slack, PagerDuty, or your own HTTPS endpoint. Included on Team and Enterprise."
+                    tier="Starter"
+                    feature="Webhooks need the Starter plan or higher"
+                    description="POST signed summaries to Slack, PagerDuty, or any HTTPS endpoint. 1 endpoint on Starter, 5 on Growth, 10 on Scale, unlimited on Business and Enterprise."
                   />
                 )}
               </Card>
@@ -262,8 +264,9 @@ export default async function SettingsPage() {
                   <ApiKeysSection />
                 ) : (
                   <UpgradePrompt
-                    feature="API keys need the Team plan"
-                    description="Let CI/CD trigger scans with a secure token. Included on Team and Enterprise."
+                    tier="Growth"
+                    feature="Full API access starts on the Growth plan"
+                    description="Lab and Starter get read-only API keys for scripting. Mutating endpoints (trigger scans, capture baselines, manage hosts) unlock on Growth and above."
                   />
                 )}
               </Card>

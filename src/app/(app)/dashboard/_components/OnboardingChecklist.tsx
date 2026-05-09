@@ -204,7 +204,7 @@ export function OnboardingChecklist({
         detail:
           "Send new findings to Slack, PagerDuty, or a webhook so you do not have to watch the dashboard all day.",
         done: state.manuallyDone.includes("alerts"),
-        cta: { href: "/settings#notifications", text: "Open notification settings" },
+        cta: { href: "/settings?tab=notify", text: "Open notification settings" },
         manual: true,
       },
       {
@@ -213,7 +213,7 @@ export function OnboardingChecklist({
         detail:
           "Bring at least one teammate into the workspace so on-call coverage isn't a single-person bottleneck.",
         done: state.manuallyDone.includes("team"),
-        cta: { href: "/settings#team", text: "Open team settings" },
+        cta: { href: "/settings?tab=identity", text: "Open identity settings" },
         manual: true,
       },
     ],

@@ -38,10 +38,14 @@ export function trialExpiredEmailHtml(opts: TrialExpiredEmailOptions): string {
       <tr>
         <td style="padding:20px 24px;">
           <p style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-                    font-size:13px;font-weight:600;color:#0f172a;">Not sure yet?</p>
+                    font-size:13px;font-weight:600;color:#0f172a;">Not ready to pay yet?</p>
+          <p style="margin:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+                    font-size:14px;color:#475569;line-height:1.6;">
+            Switch to the free <strong style="color:#0f172a;">Lab tier</strong> — 5 hosts, 1 operator seat, perpetual. Everything you set up keeps working at a smaller scale, and you can upgrade later without losing state.
+          </p>
           <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
                     font-size:14px;color:#475569;line-height:1.6;">
-            <a href="${consoleUrl}/book" style="color:#2563eb;">Book a 30-minute walkthrough</a> and we will walk through Blackglass using your team's actual audit scenarios — no slides, no pitch, just your use case.
+            Or <a href="${consoleUrl}/book" style="color:#2563eb;">book a 30-minute walkthrough</a> using your own audit scenarios — no slides, no pitch.
           </p>
         </td>
       </tr>
@@ -66,7 +70,9 @@ The Blackglass trial for "${orgName}" has ended. Your data is still safe — bas
 
 Reactivate at any time: ${checkoutUrl}
 
-Not sure yet? Book a 30-minute walkthrough using your own audit scenarios: ${consoleUrl}/book
+Not ready to pay yet? Switch to the free Lab tier (5 hosts, 1 operator seat, perpetual): ${consoleUrl}/pricing
+
+Or book a 30-minute walkthrough using your own audit scenarios: ${consoleUrl}/book
 
 Or simply reply to this email — we are happy to discuss pricing, deployment, or compliance requirements.
 
