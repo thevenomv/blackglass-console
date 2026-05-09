@@ -24,6 +24,10 @@
  */
 import process from "node:process";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const ALLOWED = new Set([
   "welcome",
@@ -81,16 +85,10 @@ console.log(`[send-test-emails] template=${template} to=${to} from=${process.env
 
 // Use tsx so we can import the TS sendEmail + templates straight from src/
 // without a build step.
+const innerScript = join(__dirname, "_send-test-emails.ts");
 const result = spawnSync(
   "npx",
-  [
-    "tsx",
-    "--tsconfig",
-    "tsconfig.json",
-    new URL("./_send-test-emails.ts", import.meta.url).pathname.replace(/^\//, "/").replace(/\\/g, "/"),
-    `--to=${to}`,
-    `--template=${template}`,
-  ],
+  ["tsx", innerScript, `--to=${to}`, `--template=${template}`],
   { stdio: "inherit", shell: true, cwd: process.cwd() },
 );
 
