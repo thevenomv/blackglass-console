@@ -5,11 +5,11 @@ import PricingSection from "@/components/pricing/PricingSection";
 export const metadata: Metadata = {
   title: "Pricing · Blackglass",
   description:
-    "Straightforward per-server pricing. People who only need to read along never count as paid seats. Start with a 14-day trial — no card required.",
+    "Free Lab tier for homelabs and evaluators, then per-host plans from $39/mo. Read-only viewers never count as paid seats. 14-day trial of any paid plan, no card required.",
   openGraph: {
     title: "Pricing · Blackglass",
     description:
-      "Plans grow with your Linux fleet. Unlimited read-only teammates on every paid tier. 14-day trial, no card required.",
+      "Plans grow with your Linux fleet — Lab (free) through Enterprise. Unlimited read-only teammates on every tier. 14-day trial, no card required.",
     type: "website",
     siteName: "Blackglass",
   },
@@ -17,20 +17,28 @@ export const metadata: Metadata = {
 
 const FAQ = [
   {
+    q: "What's in the free Lab tier?",
+    a: "Lab is free forever — 5 Linux hosts, 1 operator seat, unlimited read-only viewers, daily scheduled scan, 30 days of findings history, and read-only API access. No credit card required, no time limit. Self-host or use the cloud console — your call. Lab is the right starting point for homelabs, evaluators, and side projects.",
+  },
+  {
     q: "How do you bill for hosts?",
-    a: "Each plan includes a host quota (25 / 100 / 300 depending on tier). If you exceed your quota, additional hosts are billed at the per-host overage rate on your plan. You can see the overage rate on each plan card above.",
+    a: "Each plan includes a host quota (5 / 10 / 100 / 200 / 300 depending on tier). If you exceed your quota, additional hosts are billed at the per-host overage rate shown on the plan card. Hosts you delete from the dashboard immediately stop counting.",
   },
   {
     q: "Do I pay for viewers?",
-    a: "No. Read-only viewers and guest auditors are always unlimited on paid plans. Only operators, admins, and owners — roles that can run scans, modify baselines, or manage workspace settings — count toward your paid seat limit.",
+    a: "No. Read-only viewers and guest auditors are always unlimited on every plan, including Lab. Only operators, admins, and owners — roles that can run scans, modify baselines, or manage workspace settings — count toward your paid seat limit.",
   },
   {
     q: "What counts as an operator seat?",
     a: "An operator seat is consumed by any workspace member with the owner, admin, or operator role. Viewer and guest auditor roles do not consume a seat.",
   },
   {
+    q: "What is the Remediator add-on?",
+    a: "Remediator is the human-in-the-loop AI remediation engine. It generates fix plans for detected drift, sandbox-verifies them, and surfaces them for operator approval — it never runs commands directly on your hosts. Available as a $99/mo add-on on Growth and Scale, included on Business and Enterprise. Includes 100 approved actions/month with $0.10 per extra action.",
+  },
+  {
     q: "What happens when the trial ends?",
-    a: "After 14 days, if you have not subscribed to a paid plan, your workspace becomes read-only. You can still log in and review existing data — baselines, findings history, evidence bundles — but operational actions (new scans, baseline captures, host management) are locked until you upgrade. There is no automatic charge at trial end.",
+    a: "After 14 days, if you have not subscribed to a paid plan, your workspace becomes read-only. You can still log in and review existing data — baselines, findings history, evidence bundles — but operational actions (new scans, baseline captures, host management) are locked until you upgrade. There is no automatic charge at trial end. After 60 days of inactivity we email you before deleting trial data; ping us if you want it preserved longer.",
   },
   {
     q: "Can I switch plans?",
@@ -38,15 +46,19 @@ const FAQ = [
   },
   {
     q: "Is annual billing available?",
-    a: "Yes. Use the Monthly / Annual toggle above the plan cards — annual is billed once per year at 10× the monthly price (≈ 17% off, or two months free). Already on monthly? Email us and we'll switch your subscription without losing your current period.",
+    a: "Yes. Use the Monthly / Annual toggle above the plan cards — annual is billed once per year at 10× the monthly price (≈ 17 % off, or two months free). Multi-year commits (2-year and 3-year) are available on Business and Enterprise — email us for the discount schedule.",
   },
   {
-    q: "What is included in the free trial?",
-    a: "The trial is a full-featured workspace: up to 10 hosts, 2 operator seats, unlimited viewers, change detection, baseline capture, evidence bundles, and API access. No credit card is required to start.",
+    q: "How long do you keep my data?",
+    a: "Retention scales with your plan. Lab and Starter keep 30 days of drift history; Starter keeps 90 days of audit log (SOC 2 minimum). Growth: 180 days drift / 1 year audit. Scale: 1 year drift / 2 years audit. Business: same as Scale plus immutable audit log. Enterprise: unlimited drift retention plus up to 7 years audit (SOX/PCI residency). You can lower these caps in Settings → Retention; we never raise them above your plan's max.",
+  },
+  {
+    q: "How often can scans run?",
+    a: "Scheduled scan frequency scales with the plan: Lab 1×/day, Starter 4×/day, Growth hourly, Scale every 30 min, Business every 15 min, Enterprise continuous. Manual scans triggered from the dashboard are not capped.",
   },
   {
     q: "Is SSO available?",
-    a: "SAML/OIDC single sign-on is available on the Enterprise plan. Contact us if your organisation requires SSO for a smaller seat count.",
+    a: "SAML/OIDC single sign-on is included on Enterprise. It's also available as an add-on on Scale and Business — contact us if your organisation requires SSO at a smaller seat count.",
   },
   {
     q: "Can I use my own KMS key (BYOK)?",
@@ -54,7 +66,11 @@ const FAQ = [
   },
   {
     q: "Do you support air-gapped deployments?",
-    a: "Yes. We offer a locked-down mode for networks that cannot call public SaaS APIs, plus packaging for self-hosted Kubernetes. Health checks let you prove the restrictions are active. Technical teams get exact switch names and diagrams on the security page.",
+    a: "Yes, on Enterprise. We offer a locked-down mode for networks that cannot call public SaaS APIs, plus packaging for self-hosted Kubernetes. Health checks let you prove the restrictions are active. Technical teams get exact switch names and diagrams on the security page.",
+  },
+  {
+    q: "Are there discounts for non-profits or open-source maintainers?",
+    a: "Yes — 50 % off any paid tier with a verified .edu domain, registered non-profit status, or named open-source project (Linux Foundation, CNCF, Apache, etc.). Email us with the details.",
   },
 ];
 

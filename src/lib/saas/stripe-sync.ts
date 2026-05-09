@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { withBypassRls, schema } from "@/db";
 import {
   getPlanDefinition,
+  STRIPE_PRICE_ENV_VARS,
   TRIAL_HOST_LIMIT,
   TRIAL_PAID_SEAT_LIMIT,
   type CommercialPlanCode,
@@ -11,15 +12,29 @@ import { emitSaasAudit } from "@/lib/saas/event-log";
 
 type SubRow = typeof schema.saasSubscriptions.$inferSelect;
 
+/**
+ * Resolve a Stripe price id to one of our plan codes.
+ *
+ * Iterates the central STRIPE_PRICE_ENV_VARS table so adding a new tier
+ * (e.g. `scale`) doesn't require touching this file beyond declaring
+ * the env-var slot in plans.ts. Both monthly and annual prices map to
+ * the same plan code — annual is a billing cycle, not a tier.
+ *
+ * Legacy `STRIPE_PRO_PRICE_ID` falls back to Starter so customers on
+ * the old "pro" SKU continue to load with sane defaults until they
+ * resubscribe.
+ */
 function priceIdToPlanCode(priceId: string | undefined): CommercialPlanCode {
   if (!priceId) return "starter";
-  const starter = process.env.STRIPE_STARTER_PRICE_ID?.trim();
-  const growth = process.env.STRIPE_GROWTH_PRICE_ID?.trim();
-  const business = process.env.STRIPE_BUSINESS_PRICE_ID?.trim();
+  for (const [code, vars] of Object.entries(STRIPE_PRICE_ENV_VARS) as Array<
+    [CommercialPlanCode, { monthly: string; annual: string }]
+  >) {
+    const monthly = process.env[vars.monthly]?.trim();
+    const annual = process.env[vars.annual]?.trim();
+    if (monthly && priceId === monthly) return code;
+    if (annual && priceId === annual) return code;
+  }
   const legacyPro = process.env.STRIPE_PRO_PRICE_ID?.trim();
-  if (starter && priceId === starter) return "starter";
-  if (growth && priceId === growth) return "growth";
-  if (business && priceId === business) return "business";
   if (legacyPro && priceId === legacyPro) return "starter";
   return "starter";
 }

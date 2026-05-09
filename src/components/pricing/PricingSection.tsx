@@ -17,6 +17,8 @@ interface PricingTier {
   monthlyUsd: number | null;
   /** When monthly is null, render this verbatim instead. */
   customLabel?: string;
+  /** Optional "from $X / mo" anchor for sales-led tiers. */
+  anchorUsd?: number;
   tagline: string;
   bullets: string[];
   overageNote?: string;
@@ -25,13 +27,13 @@ interface PricingTier {
   ctaHref?: string;
   highlight?: boolean;
   highlightLabel?: string;
-  ctaVariant: "primary" | "secondary" | "enterprise";
+  ctaVariant: "primary" | "secondary" | "enterprise" | "ghost";
 }
 
 function formatPrice(monthlyUsd: number | null, cycle: BillingCycle): { price: string; sub: string } {
   if (monthlyUsd === null) return { price: "Custom", sub: "" };
+  if (monthlyUsd === 0) return { price: "Free", sub: "forever" };
   if (cycle === "annual") {
-    // 2 months free → 10× monthly per year, displayed as "$… / mo billed annually".
     return { price: `$${monthlyUsd}`, sub: "/ mo billed annually" };
   }
   return { price: `$${monthlyUsd}`, sub: "/ month" };
@@ -39,29 +41,51 @@ function formatPrice(monthlyUsd: number | null, cycle: BillingCycle): { price: s
 
 // ---------------------------------------------------------------------------
 // Data
+//
+// The ladder mirrors `src/lib/saas/plans.ts`. Lab is the perpetual free
+// tier and renders as a slimmer card without a billing CTA. Scale fills
+// the 100→300 host gap. Enterprise carries a published price anchor so
+// procurement-savvy buyers don't bounce on the "Custom" wall.
 // ---------------------------------------------------------------------------
 
 const TIERS: PricingTier[] = [
   {
+    key: "lab",
+    label: "Lab",
+    monthlyUsd: 0,
+    tagline: "For homelabs, side projects, and teams kicking the tyres before paying.",
+    bullets: [
+      "5 Linux hosts under management",
+      "1 operator seat",
+      "Unlimited read-only viewers",
+      "30 days of findings history",
+      "Daily scheduled scan",
+      "Read-only API access",
+      "Self-host or cloud — your call",
+    ],
+    cta: "Start free",
+    ctaHref: "/sign-up?plan=lab",
+    ctaVariant: "ghost",
+  },
+  {
     key: "starter",
     label: "Starter",
-    monthlyUsd: 79,
+    monthlyUsd: 39,
     tagline: "For lean teams who want continuous visibility and exports leadership can read.",
     bullets: [
-      "25 Linux hosts under management",
+      "10 Linux hosts under management",
       "2 operator / admin seats",
       "Unlimited read-only viewers",
-      "Scheduled scans (hourly / daily policies)",
+      "Scheduled scans up to 4× per host per day",
       "Baseline capture and change detection",
-      "Evidence bundles with notes and tags",
+      "1 evidence bundle per month",
       "Webhook, email, and Slack notifications",
-      "180 days of findings history",
-      "API access for pulling findings and evidence data",
+      "30 days of drift history · 90 days of audit log",
+      "Read-only API access",
     ],
-    overageNote: "+$2 / extra host · +$15 / extra operator seat",
+    overageNote: "+$4 / extra host · +$20 / extra operator seat · $5 / extra evidence bundle",
     cta: "Start Starter plan",
     planCode: "starter",
-    highlight: false,
     ctaVariant: "secondary",
   },
   {
@@ -73,13 +97,17 @@ const TIERS: PricingTier[] = [
       "100 Linux hosts under management",
       "5 operator / admin seats",
       "Unlimited read-only viewers",
-      "Everything in Starter",
-      "Fleet dashboard with risk-scoring and alerts",
+      "Hourly scheduled scans",
+      "5 evidence bundles per month",
+      "1 concurrent demo sandbox",
       "Audit log with full export",
       "Custom evidence and reporting templates",
+      "180 days of drift history · 1 year of audit log",
+      "Full API access",
       "Priority email support",
+      "Remediator (HITL AI) available as $99/mo add-on",
     ],
-    overageNote: "+$1.50 / extra host · +$20 / extra operator seat",
+    overageNote: "+$2 / extra host · +$25 / extra operator seat",
     cta: "Start Growth plan",
     planCode: "growth",
     highlight: true,
@@ -87,24 +115,49 @@ const TIERS: PricingTier[] = [
     ctaVariant: "primary",
   },
   {
+    key: "scale",
+    label: "Scale",
+    monthlyUsd: 349,
+    tagline: "For teams crossing the 100-host line — environment segmentation without the Enterprise jump.",
+    bullets: [
+      "200 Linux hosts under management",
+      "7 operator / admin seats",
+      "Unlimited read-only viewers",
+      "Scans every 30 min per host",
+      "25 evidence bundles per month",
+      "2 concurrent demo sandboxes",
+      "Host groups and environments",
+      "Baseline approval workflows",
+      "1 year of drift history · 2 years of audit log",
+      "Full API access",
+      "Remediator (HITL AI) available as $99/mo add-on",
+    ],
+    overageNote: "+$1.50 / extra host · +$30 / extra operator seat",
+    cta: "Start Scale plan",
+    planCode: "scale",
+    ctaVariant: "secondary",
+  },
+  {
     key: "business",
     label: "Business",
     monthlyUsd: 499,
-    tagline: "For larger teams that need environment segmentation and compliance controls.",
+    tagline: "For larger teams that need compliance controls, immutable audit, and remediation.",
     bullets: [
       "300 Linux hosts under management",
       "10 operator / admin seats",
       "Unlimited read-only viewers",
-      "Everything in Growth",
-      "Host groups and environments",
+      "Scans every 15 min per host",
+      "Unlimited evidence bundles",
+      "3 concurrent demo sandboxes",
+      "Immutable audit log",
+      "Remediator (HITL AI) included",
       "Scheduled change-summary email (daily / weekly)",
-      "Baseline approval workflows",
+      "1 year of drift history · 2 years of audit log",
       "Volume pricing for additional hosts",
     ],
-    overageNote: "+$25 / extra operator seat · additional hosts by volume",
+    overageNote: "+$1 / extra host (volume) · +$35 / extra operator seat",
     cta: "Start Business plan",
     planCode: "business",
-    highlight: false,
     ctaVariant: "secondary",
   },
   {
@@ -112,24 +165,22 @@ const TIERS: PricingTier[] = [
     label: "Enterprise",
     monthlyUsd: null,
     customLabel: "Custom",
+    anchorUsd: 1500,
     tagline: "For organisations that need governance, compliance, and support at scale.",
     bullets: [
-      "300+ hosts (hundreds or thousands)",
-      "Custom operator / admin seats",
-      "Unlimited read-only viewers",
+      "Unlimited hosts and operator seats",
       "SSO (SAML / OIDC) and granular RBAC",
-      "Custom data residency and retention",
-      "Immutable audit logs",
       "Bring Your Own Key (AWS KMS / Vault Transit)",
-      "Disconnected-network deployment options and packaging for your stack",
-      "Guided remediation with human approval and optional safe test runs",
+      "Disconnected-network deployment (air-gapped)",
+      "Custom data residency and retention (up to 7 years audit)",
+      "Immutable audit logs and SOC 2 evidence pipeline",
+      "Remediator (HITL AI) included with unlimited actions",
       "Self-hosted on your Kubernetes / VMs",
       "Named customer success and onboarding",
-      "Support SLAs",
+      "24×7 support SLA with Slack channel",
     ],
-    cta: "Contact sales",
+    cta: "Talk to sales",
     ctaHref: "mailto:jamie@obsidiandynamics.co.uk?subject=Blackglass+Enterprise+Enquiry",
-    highlight: false,
     ctaVariant: "enterprise",
   },
 ];
@@ -168,6 +219,7 @@ function BulletList({ items, muted = false }: { items: string[]; muted?: boolean
 
 function TierCard({ tier, billingCycle }: { tier: PricingTier; billingCycle: BillingCycle }) {
   const isHighlighted = tier.highlight;
+  const isFree = tier.monthlyUsd === 0;
   const { price, sub } = formatPrice(tier.monthlyUsd, billingCycle);
 
   const cardClasses = isHighlighted
@@ -196,11 +248,16 @@ function TierCard({ tier, billingCycle }: { tier: PricingTier; billingCycle: Bil
           <span className="text-3xl font-bold tracking-tight text-fg-primary">
             {tier.monthlyUsd === null ? (tier.customLabel ?? "Custom") : price}
           </span>
-          {sub && tier.monthlyUsd !== null && (
+          {sub && (
             <span className="text-sm font-normal text-fg-muted">{sub}</span>
           )}
         </div>
-        {billingCycle === "annual" && tier.monthlyUsd !== null ? (
+        {tier.anchorUsd !== undefined && tier.monthlyUsd === null ? (
+          <p className="mt-1 text-[11px] font-medium text-fg-muted">
+            From ${tier.anchorUsd.toLocaleString()}/mo · 500-host engagement typical
+          </p>
+        ) : null}
+        {billingCycle === "annual" && tier.monthlyUsd !== null && tier.monthlyUsd > 0 ? (
           <p className="mt-1 text-[11px] font-medium text-success-DEFAULT">
             ${tier.monthlyUsd * 10}/yr — save ~17%
           </p>
@@ -213,7 +270,7 @@ function TierCard({ tier, billingCycle }: { tier: PricingTier; billingCycle: Bil
 
       {/* Features */}
       <div className="flex-1">
-        <BulletList items={tier.bullets} muted={!isHighlighted} />
+        <BulletList items={tier.bullets} muted={!isHighlighted && !isFree} />
       </div>
 
       {/* Overage note */}
@@ -253,6 +310,42 @@ function TierCard({ tier, billingCycle }: { tier: PricingTier; billingCycle: Bil
 }
 
 // ---------------------------------------------------------------------------
+// Add-ons row
+// ---------------------------------------------------------------------------
+
+function AddOnsRow() {
+  return (
+    <div className="mt-12 rounded-card border border-border-subtle bg-bg-panel px-6 py-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <p className="text-sm font-semibold uppercase tracking-widest text-fg-faint">
+          Optional add-ons
+        </p>
+        <p className="text-xs text-fg-faint">
+          Available on Growth and Scale · included on Business and Enterprise
+        </p>
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="text-base font-semibold text-fg-primary">Remediator (HITL AI)</p>
+          <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+            Auto-generated remediation plans, sandbox-verified, surfaced for human approval with
+            full audit trail. Never runs AI-generated commands directly on your hosts.
+          </p>
+        </div>
+        <div className="text-sm sm:text-right">
+          <p className="text-2xl font-bold text-fg-primary">
+            $99<span className="text-sm font-normal text-fg-muted">/ month</span>
+          </p>
+          <p className="text-xs text-fg-faint">
+            Includes 100 approved actions/mo · $0.10 per extra action
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
 
@@ -280,19 +373,19 @@ export default function PricingSection() {
 
         {/* Subheadline */}
         <p className="mx-auto mt-5 max-w-2xl text-center text-base leading-relaxed text-fg-muted">
-          Plans scale with how many Linux servers you watch. People who only need to read along —
-          investigators, auditors, executives — never count toward your paid seats.
+          Plans scale with how many Linux servers you watch. Read-only viewers — investigators,
+          auditors, executives — never count toward your paid seats. Start with Lab for free, or
+          take a 14-day full-featured trial of any paid tier.
         </p>
 
         {/* Trial callout */}
         <div className="mx-auto mt-8 max-w-2xl rounded-card border border-border-subtle bg-bg-panel px-6 py-4 text-center">
           <p className="text-sm font-medium text-fg-primary">
-            Every plan starts with a 14-day free trial
+            Two ways to start: free Lab tier or 14-day trial of any paid plan
           </p>
           <p className="mt-1 text-sm text-fg-muted">
-            Up to 10 hosts, 2 operator seats, and unlimited viewers – no credit card required.
-            After the trial, choose a plan to continue. If you don&apos;t, your workspace becomes
-            read-only: no new scans, hosts, baselines, or secrets.
+            Lab gives you 5 hosts free forever, no card required. Trials run on Starter caps for
+            14 days, then convert to read-only — your data stays put while you decide.
           </p>
         </div>
 
@@ -327,12 +420,15 @@ export default function PricingSection() {
           </div>
         </div>
 
-        {/* Cards grid — 4 columns at lg */}
-        <div className="mt-12 grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:items-start">
+        {/* Cards grid — 6 tiers wraps to 3×2 at lg, 2×3 at md */}
+        <div className="mt-12 grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:items-start">
           {TIERS.map((tier) => (
             <TierCard key={tier.key} tier={tier} billingCycle={billingCycle} />
           ))}
         </div>
+
+        {/* Add-ons row */}
+        <AddOnsRow />
 
         {/* Bottom note */}
         <div className="mt-12 rounded-card border border-border-subtle bg-bg-panel px-8 py-5 text-center">
@@ -340,7 +436,7 @@ export default function PricingSection() {
             Viewers are always free, on every plan
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
-            Team members with read-only access – investigations, findings history, evidence review –
+            Team members with read-only access — investigations, findings history, evidence review —
             never consume a paid seat. Only operators and admins who can run scans, modify
             baselines, or manage secrets count toward your seat limit.
           </p>
@@ -357,9 +453,9 @@ export default function PricingSection() {
             jamie@obsidiandynamics.co.uk
           </a>
           {" "}·{" "}
-          <a href="/terms" className="text-accent-blue hover:underline">Terms</a>
+          <Link href="/terms" className="text-accent-blue hover:underline">Terms</Link>
           {" "}·{" "}
-          <a href="/privacy" className="text-accent-blue hover:underline">Privacy</a>
+          <Link href="/privacy" className="text-accent-blue hover:underline">Privacy</Link>
         </p>
 
       </div>
