@@ -34,6 +34,7 @@ import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { getDraft } from "@/lib/server/onboarding/ssh-drafts";
+import { logOnboardingEvent } from "@/lib/server/onboarding/telemetry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -163,20 +164,32 @@ export async function POST(request: Request) {
   }
 
   const overallStart = Date.now();
+  const ingestTenantId = process.env.INGEST_SAAS_TENANT_ID?.trim() ?? null;
+  const respond = (r: SshTestResult) => {
+    logOnboardingEvent("onboarding.ssh_test_attempted", {
+      tenantId: ingestTenantId,
+      hostId: host,
+      requestId,
+      stage: r.stage,
+      outcome: r.ok ? "ok" : "fail",
+      durationMs: r.durationMs,
+      reason: r.ok ? undefined : r.detail.slice(0, 200),
+    });
+    return jsonWithRequestId(r, requestId);
+  };
 
   // Stage 1: TCP
   try {
     await probeTcp(host, port, TCP_BUDGET_MS);
   } catch (err) {
-    const r: SshTestResult = {
+    return respond({
       ok: false,
       stage: "tcp_connect",
       detail: err instanceof Error ? err.message : String(err),
       remedy:
         "TCP couldn't reach the host. Check the host's network firewall (UFW, security group, cloud firewall) and confirm sshd is listening on the right port.",
       durationMs: Date.now() - overallStart,
-    };
-    return jsonWithRequestId(r, requestId);
+    });
   }
 
   // Stage 2 + 3: SSH handshake + auth + exec
@@ -190,28 +203,26 @@ export async function POST(request: Request) {
       tryKeyboard: false,
     });
     if (out.exitCode !== 0) {
-      const r: SshTestResult = {
+      return respond({
         ok: false,
         stage: "exec",
         detail: `whoami exited ${out.exitCode}: ${out.stderr.slice(0, 200)}`,
         remedy:
           "Connection succeeded but the test command failed. Confirm the 'blackglass' user has a valid login shell (the installer creates it with /bin/bash).",
         durationMs: Date.now() - overallStart,
-      };
-      return jsonWithRequestId(r, requestId);
+      });
     }
-    const r: SshTestResult = {
+    return respond({
       ok: true,
       stage: "exec",
       detail: `Authenticated as ${out.stdout.trim() || user}`,
       durationMs: Date.now() - overallStart,
-    };
-    return jsonWithRequestId(r, requestId);
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     // Heuristic: 'authentication' / 'permission' → auth failure; otherwise handshake.
     const isAuth = /auth(enticat)?|permission|publickey|password/i.test(msg);
-    const r: SshTestResult = {
+    return respond({
       ok: false,
       stage: isAuth ? "ssh_auth" : "ssh_handshake",
       detail: msg,
@@ -219,7 +230,6 @@ export async function POST(request: Request) {
         ? "The public key wasn't accepted by the host. Re-run the install command (the wizard shows it) — most often the key wasn't appended to /home/blackglass/.ssh/authorized_keys, or that file's permissions are wrong (must be 600 owned by blackglass)."
         : "SSH handshake failed before auth. Confirm the host's sshd is configured to accept ed25519 public keys and that no IDS / fail2ban is blocking the console's IP.",
       durationMs: Date.now() - overallStart,
-    };
-    return jsonWithRequestId(r, requestId);
+    });
   }
 }

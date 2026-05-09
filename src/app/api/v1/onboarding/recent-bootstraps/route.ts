@@ -19,6 +19,7 @@ import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { requireRole } from "@/lib/server/http/auth-guard";
+import { logOnboardingEvent } from "@/lib/server/onboarding/telemetry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -68,6 +69,18 @@ export async function GET(request: Request) {
   recent.sort(
     (a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt),
   );
+
+  // Only emit a log line when at least one bootstrap is observed, so we
+  // don't drown the console with "0 bootstraps" lines from the wizard's
+  // 3s polling loop.
+  if (recent.length > 0) {
+    logOnboardingEvent("onboarding.recent_bootstraps_queried", {
+      tenantId: process.env.INGEST_SAAS_TENANT_ID?.trim() ?? null,
+      requestId,
+      outcome: "ok",
+      meta: { count: recent.length, newestHostId: recent[0].hostId },
+    });
+  }
 
   return jsonWithRequestId({ recent }, requestId);
 }

@@ -37,6 +37,7 @@ import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { saveDraft } from "@/lib/server/onboarding/ssh-drafts";
+import { logOnboardingEvent } from "@/lib/server/onboarding/telemetry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -94,6 +95,13 @@ export async function POST(request: Request) {
 
   const keyId = randomBytes(16).toString("hex");
   saveDraft(keyId, publicKeyLine, privateKeyPem);
+
+  logOnboardingEvent("onboarding.ssh_keypair_generated", {
+    tenantId: process.env.INGEST_SAAS_TENANT_ID?.trim() ?? null,
+    requestId,
+    outcome: "ok",
+    meta: { label, keyIdPrefix: keyId.slice(0, 8) },
+  });
 
   // The user runs this on the host they want Blackglass to scan. We
   // default to the `blackglass` user and `~/.ssh/authorized_keys` so

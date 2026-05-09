@@ -65,6 +65,7 @@ import { isHostTombstoned } from "@/lib/server/host-tombstones";
 import { recordAgentSnapshot } from "@/lib/server/agent-snapshot-cache";
 import { onboardingError } from "@/lib/server/onboarding/errors";
 import { tryNormaliseHostId } from "@/lib/server/onboarding/host-id";
+import { logOnboardingEvent } from "@/lib/server/onboarding/telemetry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -126,6 +127,13 @@ export async function POST(request: Request) {
   // create a duplicate inventory row.
   const canonicalHostId = tryNormaliseHostId(parsed.data.hostId);
   if (!canonicalHostId) {
+    logOnboardingEvent("onboarding.ingest_validation_failed", {
+      tenantId: process.env.INGEST_SAAS_TENANT_ID?.trim() ?? null,
+      hostId: parsed.data.hostId,
+      requestId,
+      outcome: "fail",
+      reason: "host_id_not_normalisable",
+    });
     const e = onboardingError(
       "validation_failed",
       `hostId could not be normalised: ${parsed.data.hostId}`,
@@ -179,6 +187,14 @@ export async function POST(request: Request) {
     const isNewHost = !known.has(hostId);
     const gate = withinHostAllowance(sub, known.size, isNewHost ? 1 : 0);
     if (!gate.ok) {
+      logOnboardingEvent("onboarding.ingest_blocked", {
+        tenantId: ingestTenantId,
+        hostId,
+        requestId,
+        outcome: "blocked",
+        reason: "host_quota_exceeded",
+        meta: { current: known.size, limit: sub.hostLimit },
+      });
       const e = onboardingError(
         "host_quota_exceeded",
         `Host allowance exceeded (current: ${known.size}, limit: ${sub.hostLimit}). ${gate.detail}`,
@@ -205,6 +221,14 @@ export async function POST(request: Request) {
   // an admin to clear the tombstone.
   const tombstone = await isHostTombstoned(hostId, ingestTenantId ?? null);
   if (tombstone) {
+    logOnboardingEvent("onboarding.ingest_blocked", {
+      tenantId: ingestTenantId ?? null,
+      hostId,
+      requestId,
+      outcome: "blocked",
+      reason: "host_tombstoned",
+      meta: { expiresAt: tombstone.expiresAt },
+    });
     const e = onboardingError(
       "host_tombstoned",
       `Host ${hostId} was deleted; ignoring agent push until ${tombstone.expiresAt}.`,
@@ -224,6 +248,14 @@ export async function POST(request: Request) {
   // Bundle should produce ~17 sections. Anything below 5 means the
   // collection script crashed early — almost always a sudo problem.
   if (sectionCount < 5) {
+    logOnboardingEvent("onboarding.ingest_validation_failed", {
+      tenantId: ingestTenantId ?? null,
+      hostId,
+      requestId,
+      outcome: "fail",
+      reason: "bundle_truncated",
+      meta: { sectionCount },
+    });
     const e = onboardingError(
       "bundle_truncated",
       `Received only ${sectionCount} section${sectionCount === 1 ? "" : "s"} (expected ~17). The agent's bundle script likely timed out or sudo refused most commands.`,
@@ -238,6 +270,14 @@ export async function POST(request: Request) {
   if (!sections["passwd"]) missing.push("passwd (users)");
   if (!sections["sshd"]) missing.push("sshd (ssh config)");
   if (missing.length === 3) {
+    logOnboardingEvent("onboarding.ingest_validation_failed", {
+      tenantId: ingestTenantId ?? null,
+      hostId,
+      requestId,
+      outcome: "fail",
+      reason: "bundle_missing_sections",
+      meta: { missing: missing.join(",") },
+    });
     const e = onboardingError(
       "bundle_missing_sections",
       `Bundle is missing critical sections: ${missing.join(", ")}. The agent ran but couldn't read system state.`,
@@ -317,6 +357,13 @@ export async function POST(request: Request) {
       hostId,
       err instanceof Error ? err.stack ?? err.message : err,
     );
+    logOnboardingEvent("onboarding.ingest_drift_pipeline_failed", {
+      tenantId: ingestTenantId ?? null,
+      hostId,
+      requestId,
+      outcome: "fail",
+      reason: err instanceof Error ? err.message.slice(0, 200) : "unknown",
+    });
     const e = onboardingError(
       "drift_pipeline_failed",
       "Snapshot was accepted but the drift pipeline failed. The next push (in ~5 minutes) will retry.",
@@ -329,6 +376,25 @@ export async function POST(request: Request) {
   // with fresh data instead of timing out the user. See
   // src/lib/server/agent-snapshot-cache.ts for the rationale.
   recordAgentSnapshot(snapshot);
+
+  logOnboardingEvent(
+    bootstrap
+      ? "onboarding.ingest_baseline_bootstrapped"
+      : "onboarding.ingest_succeeded",
+    {
+      tenantId: ingestTenantId ?? null,
+      hostId,
+      requestId,
+      outcome: "ok",
+      meta: {
+        sections: sectionCount,
+        listeners: snapshot.listeners.length,
+        users: snapshot.users.length,
+        services: snapshot.services.length,
+        driftEvents: totalEvents,
+      },
+    },
+  );
 
   appendAudit({
     action: bootstrap ? AUDIT_ACTIONS.BASELINE_CAPTURE : AUDIT_ACTIONS.SCAN_COMPLETED,

@@ -7,6 +7,7 @@ import { MobileNavBar } from "@/components/layout/MobileNavBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SaasTrialBanner } from "@/components/saas/SaasTrialBanner";
 import { DocsDrawer } from "@/components/layout/DocsDrawer";
+import { AppShellErrorBoundary } from "@/components/layout/AppShellErrorBoundary";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -47,7 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SaasTrialBanner />
         <MockDataBanner />
         <div id="main-content" tabIndex={-1} className="min-w-0 flex-1 outline-none">
-          {children}
+          <AppShellErrorBoundary>{children}</AppShellErrorBoundary>
         </div>
       </div>
       <DocsDrawer />

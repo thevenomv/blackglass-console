@@ -38,6 +38,10 @@ import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { requireRole } from "@/lib/server/http/auth-guard";
+import {
+  logOnboardingEvent,
+  recordStageObservation,
+} from "@/lib/server/onboarding/telemetry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -169,6 +173,29 @@ export async function GET(request: Request) {
 
   const ingestTenantId = process.env.INGEST_SAAS_TENANT_ID?.trim() || null;
 
+  // Emit a single log line per (host, stage) transition. The wizard polls
+  // this endpoint every few seconds; without this gate we would write a
+  // log line per poll which is useless noise. With it, the log timeline
+  // for any onboarding session reads as a clean state-machine trace.
+  const respond = (result: OnboardingStage) => {
+    if (recordStageObservation(ingestTenantId, hostId, result.stage)) {
+      logOnboardingEvent("onboarding.stage_observed", {
+        tenantId: ingestTenantId,
+        hostId,
+        requestId,
+        stage: result.stage,
+        outcome: result.stage.startsWith("blocked_")
+          ? "blocked"
+          : result.stage === "baseline_captured"
+            ? "ok"
+            : result.stage === "bundle_invalid"
+              ? "fail"
+              : "skipped",
+      });
+    }
+    return jsonWithRequestId(result, requestId);
+  };
+
   // 1. Tombstone — highest precedence; we don't even peek at the
   //    baseline because the user has explicitly said "this host is gone".
   try {
@@ -180,7 +207,7 @@ export async function GET(request: Request) {
         remedy:
           "This host was recently deleted. Click 'Reset and reinstall' to clear the tombstone and start fresh, or wait until it expires.",
       };
-      return jsonWithRequestId(result, requestId);
+      return respond(result);
     }
   } catch (err) {
     console.error("[onboarding/host-status] tombstone lookup failed:", err);
@@ -207,7 +234,7 @@ export async function GET(request: Request) {
             remedy:
               "Your workspace has reached its host allowance. Delete an unused host from /hosts, or upgrade your plan from /settings/billing.",
           };
-          return jsonWithRequestId(result, requestId);
+          return respond(result);
         }
       }
     } catch (err) {
@@ -226,7 +253,7 @@ export async function GET(request: Request) {
         hostId,
         summary: summarise(baseline),
       };
-      return jsonWithRequestId(result, requestId);
+      return respond(result);
     }
   }
 
@@ -257,10 +284,10 @@ export async function GET(request: Request) {
         missing,
         summary,
       };
-      return jsonWithRequestId(result, requestId);
+      return respond(result);
     }
     const result: OnboardingStage = { stage: "bundle_received", summary };
-    return jsonWithRequestId(result, requestId);
+    return respond(result);
   }
 
   // 5. Default: still waiting for the first push.
@@ -271,7 +298,7 @@ export async function GET(request: Request) {
     stage: "awaiting_first_push",
     elapsedSeconds,
   };
-  return jsonWithRequestId(result, requestId);
+  return respond(result);
 }
 
 // Export the type so the wizard and tests share one source of truth.

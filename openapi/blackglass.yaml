@@ -22,6 +22,14 @@ tags:
   - name: Ingest
   - name: Collector
   - name: Webhooks
+  - name: API keys
+  - name: Exports
+  - name: Policies
+  - name: Preferences
+  - name: Remediations
+  - name: Audit
+  - name: Sandbox
+  - name: Settings
 
 paths:
   /api/health:
@@ -795,6 +803,751 @@ paths:
         "403": { description: Forbidden }
         "429": { description: Rate limit exceeded (2 per minute per IP) }
 
+  /api-keys:
+    get:
+      tags: [API keys]
+      summary: List tenant API keys (metadata only)
+      description: >
+        Returns key metadata (id, label, scopes, createdAt, lastUsedAt, expiresAt).
+        Raw key material is never returned after creation. Legacy mode (no Clerk
+        organisation) returns an empty list.
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items: { $ref: "#/components/schemas/ApiKeyView" }
+        "401": { description: Unauthenticated }
+        "402": { description: Plan does not include API access }
+        "403": { description: Forbidden — apikeys.manage required }
+        "429": { description: Rate limit exceeded }
+    post:
+      tags: [API keys]
+      summary: Create a new API key (raw key returned once)
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label]
+              properties:
+                label: { type: string, minLength: 1, maxLength: 100 }
+                scopes:
+                  type: array
+                  items: { type: string, minLength: 1, maxLength: 50 }
+                  maxItems: 20
+                  default: ["scans.run", "drift.read"]
+                expiresInDays: { type: integer, minimum: 1, maximum: 3650, nullable: true }
+      responses:
+        "201":
+          description: Key created; rawKey shown once
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    allOf:
+                      - { $ref: "#/components/schemas/ApiKeyView" }
+                      - type: object
+                        properties:
+                          rawKey: { type: string, description: Show to user once; never returned again }
+        "400": { description: Validation failed or legacy mode (not_supported) }
+        "401": { description: Unauthenticated }
+        "402": { description: Plan does not include API access }
+        "403": { description: Forbidden — apikeys.manage required }
+        "429": { description: Rate limit exceeded }
+
+  /api-keys/{id}:
+    delete:
+      tags: [API keys]
+      summary: Revoke an API key
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[\\w-]{36}$" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "400": { description: invalid_id or legacy mode (not_supported) }
+        "401": { description: Unauthenticated }
+        "402": { description: Plan does not include API access }
+        "403": { description: Forbidden }
+        "404": { description: not_found }
+        "429": { description: Rate limit exceeded }
+
+  /api-keys/{id}/rotate:
+    post:
+      tags: [API keys]
+      summary: Rotate an API key (old key sunsets after 24h)
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[\\w-]{36}$" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    allOf:
+                      - { $ref: "#/components/schemas/ApiKeyView" }
+                      - type: object
+                        properties:
+                          rawKey: { type: string }
+                  sunsetAt: { type: string, format: date-time }
+        "400": { description: invalid_id or legacy mode }
+        "401": { description: Unauthenticated }
+        "402": { description: Plan does not include API access }
+        "403": { description: Forbidden }
+        "404": { description: not_found }
+        "429": { description: Rate limit exceeded }
+
+  /exports:
+    get:
+      tags: [Exports]
+      summary: List recent data export jobs
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exports:
+                    type: array
+                    items: { $ref: "#/components/schemas/DataExportView" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — settings.write required }
+        "429": { description: Rate limit exceeded }
+    post:
+      tags: [Exports]
+      summary: Enqueue a new data export
+      security:
+        - SessionCookie: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                deliverTo: { type: string, format: email, nullable: true }
+      responses:
+        "202":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataExportView" }
+        "400": { description: Validation failed or legacy mode (not_supported) }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
+
+  /exports/{id}/download:
+    get:
+      tags: [Exports]
+      summary: Download a ready export (redirect to signed URL or inline JSON)
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[\\w-]{36}$" }
+      responses:
+        "200":
+          description: Inline JSON attachment (when Spaces not configured)
+          content:
+            application/json: { schema: { type: object, additionalProperties: true } }
+        "302":
+          description: Redirect to a short-lived signed Spaces URL
+        "400": { description: invalid_id or legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: not_found }
+        "409": { description: not_ready (still queued/running) }
+        "410": { description: expired (artefact retention exceeded) }
+        "429": { description: Rate limit exceeded }
+        "500": { description: Internal error or no artefact bytes available }
+        "503": { description: Spaces not configured (export_unavailable) }
+
+  /policies:
+    get:
+      tags: [Policies]
+      summary: List enabled drift policy rules for tenant
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policies:
+                    type: array
+                    items: { $ref: "#/components/schemas/PolicyRule" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — reports.view required }
+        "429": { description: Rate limit exceeded }
+    post:
+      tags: [Policies]
+      summary: Create a new drift policy rule
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, category, conditionKey, conditionValue]
+              properties:
+                name: { type: string }
+                category:
+                  type: string
+                  enum: [ssh, network_exposure, firewall, packages, integrity, identity, privilege_escalation, persistence]
+                conditionKey: { type: string }
+                conditionValue: { type: string }
+                severity: { type: string, enum: [high, medium, low], default: high }
+                enabled: { type: boolean, default: true }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy: { $ref: "#/components/schemas/PolicyRule" }
+        "400": { description: Validation failed or legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — policies.manage required }
+        "429": { description: Rate limit exceeded }
+
+  /policies/{id}:
+    delete:
+      tags: [Policies]
+      summary: Delete a drift policy rule
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[\\w-]{36}$" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "400": { description: invalid_id or legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: not_found }
+        "429": { description: Rate limit exceeded }
+
+  /preferences/sample-data:
+    post:
+      tags: [Preferences]
+      summary: Toggle the per-browser sample-data overlay
+      description: >
+        Sets the bg-sample-data cookie controlling whether the dashboard
+        renders the bundled sample fleet alongside live data. Per-browser only.
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: { type: boolean }
+        "400": { description: validation_error or invalid_json }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+
+  /remediations:
+    get:
+      tags: [Remediations]
+      summary: List remediations or fetch one by drift event id
+      description: >
+        With ?driftEventId, returns a single remediation envelope; otherwise lists
+        all remediations for the tenant. Accepts Bearer API keys with scope
+        `drift.read` in addition to session auth.
+      security:
+        - SessionCookie: []
+        - BearerIngestKey: []
+      parameters:
+        - name: driftEventId
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      remediation:
+                        oneOf:
+                          - { $ref: "#/components/schemas/RemediationView" }
+                          - { type: "null" }
+                  - type: object
+                    properties:
+                      remediations:
+                        type: array
+                        items: { $ref: "#/components/schemas/RemediationView" }
+        "401": { description: Unauthenticated or invalid_api_key }
+        "403": { description: Forbidden or missing_scope }
+        "429": { description: Rate limit exceeded }
+
+  /remediations/{id}/{action}:
+    post:
+      tags: [Remediations]
+      summary: Approve or reject a remediation plan
+      description: >
+        Records the operator decision and notifies the configured remediator
+        sidecar. Returns 502 (`remediator_upstream_error` or `remediator_unreachable`)
+        if the sidecar fails — never 200-on-failure.
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, maxLength: 64 }
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [approve, reject] }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  remediation: { $ref: "#/components/schemas/RemediationView" }
+                  notified: { type: boolean }
+                  requestId: { type: string }
+        "400": { description: invalid_id or legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — drift.manage required }
+        "404": { description: Unknown action or remediation not found }
+        "429": { description: Rate limit exceeded }
+        "502": { description: remediator_upstream_error or remediator_unreachable }
+
+  /saas-audit:
+    get:
+      tags: [Audit]
+      summary: Query tenant audit log with filters and cursor pagination
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: action
+          in: query
+          description: Case-insensitive substring match on audit action
+          schema: { type: string }
+        - name: actor
+          in: query
+          description: Exact match on actor user id
+          schema: { type: string }
+        - name: since
+          in: query
+          schema: { type: string, format: date-time }
+        - name: cursor
+          in: query
+          description: Exclusive upper-bound ISO timestamp for the next page
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, minimum: 1, maximum: 200 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/SaasAuditEventView" }
+                  nextCursor: { type: string, nullable: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — evidence.view required }
+        "429": { description: Rate limit exceeded }
+
+  /sandbox:
+    get:
+      tags: [Sandbox]
+      summary: Get current sandbox droplet status
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sandbox:
+                    oneOf:
+                      - { $ref: "#/components/schemas/SaasSandbox" }
+                      - { type: "null" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — hosts.manage required }
+    post:
+      tags: [Sandbox]
+      summary: Provision a sandbox droplet (idempotent)
+      security:
+        - SessionCookie: []
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sandbox: { $ref: "#/components/schemas/SaasSandbox" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — admin role required }
+        "500": { description: provision_failed }
+        "503": { description: not_configured (DO_API_TOKEN missing) }
+    delete:
+      tags: [Sandbox]
+      summary: Destroy the active sandbox droplet
+      security:
+        - SessionCookie: []
+      responses:
+        "204": { description: Destroyed }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — admin role required }
+        "404": { description: not_found }
+        "500": { description: destroy_failed }
+
+  /settings/byok:
+    get:
+      tags: [Settings]
+      summary: BYOK (customer-managed KMS) status
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantKmsStatus" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — secrets.manage required }
+    post:
+      tags: [Settings]
+      summary: Configure tenant BYOK provider (with optional verify round-trip)
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, keyRef]
+              properties:
+                provider: { type: string, enum: [awskms, vault] }
+                keyRef: { type: string, minLength: 1, maxLength: 512 }
+                verify: { type: boolean, default: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { $ref: "#/components/schemas/TenantKmsStatus" }
+                  verify:
+                    oneOf:
+                      - { $ref: "#/components/schemas/TenantKmsVerifyResult" }
+                      - { type: "null" }
+        "400": { description: byok_disabled, validation_failed, invalid_json, or legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+    delete:
+      tags: [Settings]
+      summary: Soft-disable BYOK and fall back to platform KMS
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { $ref: "#/components/schemas/TenantKmsStatus" }
+        "400": { description: legacy mode (not_supported) }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+
+  /settings/byok/verify:
+    post:
+      tags: [Settings]
+      summary: Re-run BYOK round-trip on existing tenant config
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  verify: { $ref: "#/components/schemas/TenantKmsVerifyResult" }
+                  status: { $ref: "#/components/schemas/TenantKmsStatus" }
+        "400": { description: byok_disabled or legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: not_configured }
+
+  /settings/notifications:
+    get:
+      tags: [Settings]
+      summary: Read tenant alert routing overrides
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  settings:
+                    type: object
+                    properties:
+                      alertEmailTo: { type: string, nullable: true }
+                      webhookUrls: { type: string, description: comma-joined list }
+                      slackWebhookUrl: { type: string, nullable: true }
+                      pdRoutingKey: { type: string, nullable: true, description: masked when set }
+                      driftDigestCadence: { type: string, enum: [off, daily, weekly], nullable: true }
+                  requestId: { type: string }
+        "400": { description: legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — settings.write required }
+        "429": { description: Rate limit exceeded }
+    put:
+      tags: [Settings]
+      summary: Replace tenant alert routing overrides
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alertEmailTo: { type: string, format: email, nullable: true }
+                webhookUrls:
+                  type: array
+                  items: { type: string, format: uri }
+                  nullable: true
+                slackWebhookUrl: { type: string, format: uri, nullable: true }
+                pdRoutingKey: { type: string, nullable: true }
+                driftDigestCadence: { type: string, enum: [off, daily, weekly], nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  requestId: { type: string }
+        "400": { description: validation_failed, invalid_json, or legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
+
+  /settings/retention:
+    get:
+      tags: [Settings]
+      summary: Read tenant retention policy
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RetentionPolicy" }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — settings.write required }
+        "429": { description: Rate limit exceeded }
+    put:
+      tags: [Settings]
+      summary: Update tenant retention policy
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                driftEventsDays: { type: integer, minimum: 0, maximum: 36500, nullable: true }
+                baselineSnapshotsDays: { type: integer, minimum: 0, maximum: 36500, nullable: true }
+                auditEventsDays: { type: integer, minimum: 0, maximum: 36500, nullable: true }
+                evidenceBundlesDays: { type: integer, minimum: 0, maximum: 36500, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RetentionPolicy" }
+        "400": { description: validation_failed, invalid_json, or legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
+
+  /settings/scim:
+    get:
+      tags: [Settings]
+      summary: SCIM 2.0 provisioning status (no bearer returned)
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: { type: boolean }
+                  clerkOrgId: { type: string }
+                  scimBaseUrl: { type: string }
+                  recommendedRotationDays: { type: integer }
+                  manageUrl: { type: string, format: uri }
+                  upgradeUrl: { type: string, format: uri, nullable: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
+        "501": { description: not_supported (legacy mode) }
+
+  /settings/sso:
+    get:
+      tags: [Settings]
+      summary: SAML SSO connection status for the Clerk organisation
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: { type: boolean }
+                  clerkOrgId: { type: string }
+                  connections:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        provider: { type: string }
+                        domain: { type: string, nullable: true }
+                        active: { type: boolean }
+                        syncUserAttributes: { type: boolean }
+                        acsUrl: { type: string, format: uri }
+                        spEntityId: { type: string }
+                  manageUrl: { type: string, format: uri }
+                  upgradeUrl: { type: string, format: uri, nullable: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
+        "501": { description: not_supported (legacy mode) }
+
+  /settings/webhooks/signing-key:
+    get:
+      tags: [Settings]
+      summary: Webhook signing-key fingerprint and rotation status
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { $ref: "#/components/schemas/SigningKeyStatus" }
+                  requestId: { type: string }
+        "400": { description: legacy mode (not_supported) }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — settings.write required }
+    post:
+      tags: [Settings]
+      summary: Rotate the tenant webhook signing key (raw key shown once)
+      security:
+        - SessionCookie: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  newKey: { type: string }
+                  fingerprint: { type: string }
+                  rotatedAt: { type: string, format: date-time }
+                  overlapHours: { type: integer }
+                  requestId: { type: string }
+        "400": { description: legacy mode }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "429": { description: Rate limit exceeded }
+        "500": { description: rotation_failed }
+
 components:
   parameters:
     hostId:
@@ -956,3 +1709,143 @@ components:
         download_url: { type: string, format: uri, nullable: true }
         sha256: { type: string, nullable: true }
         expires_at: { type: string, format: date-time, nullable: true }
+
+    ApiKeyView:
+      type: object
+      properties:
+        id: { type: string }
+        label: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        createdBy: { type: string, nullable: true }
+
+    DataExportView:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [queued, running, ready, failed, expired] }
+        requestedBy: { type: string, nullable: true }
+        deliverTo: { type: string, format: email, nullable: true }
+        sizeBytes: { type: integer, nullable: true }
+        errorMessage: { type: string, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        downloadUrl: { type: string, format: uri, nullable: true }
+
+    PolicyRule:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        category:
+          type: string
+          enum: [ssh, network_exposure, firewall, packages, integrity, identity, privilege_escalation, persistence]
+        conditionKey: { type: string }
+        conditionValue: { type: string }
+        severity: { type: string, enum: [high, medium, low] }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: string, nullable: true }
+
+    RemediationView:
+      type: object
+      properties:
+        id: { type: string }
+        remediationId: { type: string }
+        status:
+          type: string
+          enum: [pending, plan_ready, sandbox_verified, approved, rejected, applied, failed]
+        riskPolicyTier:
+          type: string
+          enum: [guidance_only, sandbox_verified_suggestion, approval_required, manual_only]
+        summary: { type: string, nullable: true }
+        plan:
+          type: object
+          additionalProperties: true
+        driftEventId: { type: string }
+        hostId: { type: string }
+        scanId: { type: string, nullable: true }
+        approvedBy: { type: string, nullable: true }
+        approvedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    SaasAuditEventView:
+      type: object
+      properties:
+        id: { type: string }
+        actorUserId: { type: string, nullable: true }
+        action: { type: string }
+        targetType: { type: string, nullable: true }
+        targetId: { type: string, nullable: true }
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt: { type: string, format: date-time }
+
+    SaasSandbox:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        dropletId: { type: string, nullable: true }
+        dropletIp: { type: string, nullable: true }
+        region: { type: string }
+        hostId: { type: string, nullable: true }
+        credentialId: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [provisioning, active, expired, error, destroying]
+        ttlExpiresAt: { type: string, format: date-time, nullable: true }
+        seedPhase: { type: integer, description: 0=clean, increments per drift seed }
+        driftSeededAt: { type: string, format: date-time, nullable: true }
+        errorMessage: { type: string, nullable: true }
+        firewallId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    TenantKmsStatus:
+      type: object
+      properties:
+        byokEnabled: { type: boolean }
+        configured: { type: boolean }
+        provider: { type: string, enum: [awskms, vault], nullable: true }
+        keyRef: { type: string, nullable: true }
+        lastVerifiedAt: { type: string, format: date-time, nullable: true }
+        lastVerifyError: { type: string, nullable: true }
+
+    TenantKmsVerifyResult:
+      oneOf:
+        - type: object
+          required: [ok, verifiedAt]
+          properties:
+            ok: { const: true }
+            verifiedAt: { type: string, format: date-time }
+        - type: object
+          required: [ok, error]
+          properties:
+            ok: { const: false }
+            error: { type: string }
+
+    RetentionPolicy:
+      type: object
+      properties:
+        driftEventsDays: { type: integer, nullable: true }
+        baselineSnapshotsDays: { type: integer, nullable: true }
+        auditEventsDays: { type: integer, nullable: true }
+        evidenceBundlesDays: { type: integer, nullable: true }
+
+    SigningKeyStatus:
+      type: object
+      properties:
+        hasKey: { type: boolean }
+        fingerprint: { type: string, nullable: true }
+        previousFingerprint: { type: string, nullable: true }
+        rotatedAt: { type: string, format: date-time, nullable: true }
+        previousActive: { type: boolean }
+        overlapHours: { type: integer }

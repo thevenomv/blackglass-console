@@ -44,6 +44,7 @@ import { clearAgentSnapshot } from "@/lib/server/agent-snapshot-cache";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { emitSaasAudit } from "@/lib/saas/event-log";
+import { logOnboardingEvent } from "@/lib/server/onboarding/telemetry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -129,6 +130,19 @@ export async function POST(request: Request) {
   }
 
   revalidateIntegritySurfaces();
+
+  logOnboardingEvent("onboarding.host_reset", {
+    tenantId: tenantId ?? ingestTenantId,
+    hostId,
+    requestId,
+    outcome: "ok",
+    meta: {
+      tombstoneCleared,
+      baselineRemoved,
+      driftRemoved,
+      cacheCleared,
+    },
+  });
 
   // Surface the install URL so the wizard's "Reset and reinstall" can
   // jump straight to the bake-a-fresh-command step without a round-trip
