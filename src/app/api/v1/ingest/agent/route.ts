@@ -58,6 +58,7 @@ import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 import { parseHostIngestKeys } from "@/lib/server/ingest-credentials";
 import { isHostTombstoned } from "@/lib/server/host-tombstones";
+import { recordAgentSnapshot } from "@/lib/server/agent-snapshot-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -238,6 +239,12 @@ export async function POST(request: Request) {
     console.error("[ingest/agent] drift pipeline failed for", hostId, err);
     return jsonError(502, "store_error", "Snapshot could not be processed. Check server logs.", requestId);
   }
+
+  // Make this snapshot available to the SSH-fail collector fallback so
+  // a "Re-scan" click on a host we cannot reach over SSH still resolves
+  // with fresh data instead of timing out the user. See
+  // src/lib/server/agent-snapshot-cache.ts for the rationale.
+  recordAgentSnapshot(snapshot);
 
   appendAudit({
     action: bootstrap ? AUDIT_ACTIONS.BASELINE_CAPTURE : AUDIT_ACTIONS.SCAN_COMPLETED,

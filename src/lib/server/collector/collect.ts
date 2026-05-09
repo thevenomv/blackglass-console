@@ -12,6 +12,7 @@ import {
   type SshAuthConfig,
 } from "@/lib/server/secrets";
 import { getBaseline } from "@/lib/server/baseline-store";
+import { getRecentAgentSnapshot } from "@/lib/server/agent-snapshot-cache";
 import type { CollectScanOptions, HostSnapshot } from "./types";
 import { allSshConfigs, runCollection } from "./ssh";
 
@@ -34,27 +35,51 @@ function getAgentFallbackWindowSeconds(): number {
 }
 
 /**
- * Try to satisfy a "live collection" call from an agent-pushed snapshot
- * sitting in the baseline store. Returns the snapshot when fresh enough,
- * `null` otherwise. Never throws — failure here just means "no fallback
- * available" so the caller surfaces the original SSH error.
+ * Try to satisfy a "live collection" call from a recent push-agent
+ * snapshot. Returns the snapshot when fresh enough, `null` otherwise.
+ * Never throws — failure here just means "no fallback available" so
+ * the caller surfaces the original SSH error.
+ *
+ * Source priority:
+ *   1. agent-snapshot-cache — populated on every successful push,
+ *      so `collectedAt` actually reflects the most recent ingest.
+ *   2. baseline store — kept as a legacy fallback for the very first
+ *      push after process restart (the cache hasn't repopulated yet
+ *      but the baseline still exists from bootstrap).
  */
 async function tryAgentFallback(
   hostId: string,
   scanId: string,
 ): Promise<HostSnapshot | null> {
+  const windowSeconds = getAgentFallbackWindowSeconds();
   try {
+    const cached = getRecentAgentSnapshot(hostId, windowSeconds);
+    if (cached) {
+      const collectedMs = Date.parse(cached.collectedAt ?? "");
+      const ageSeconds = Number.isFinite(collectedMs)
+        ? Math.max(0, Math.round((Date.now() - collectedMs) / 1000))
+        : 0;
+      logCollectorEvent("collector.agent_fallback.hit", {
+        scan_id: scanId,
+        host_id: hostId,
+        age_seconds: ageSeconds,
+        source: "cache",
+      });
+      return cached;
+    }
+
     const snapshot = await getBaseline(hostId);
     if (!snapshot?.collectedAt) return null;
     const collectedMs = Date.parse(snapshot.collectedAt);
     if (!Number.isFinite(collectedMs)) return null;
     const ageSeconds = Math.max(0, Math.round((Date.now() - collectedMs) / 1000));
-    if (ageSeconds > getAgentFallbackWindowSeconds()) {
+    if (ageSeconds > windowSeconds) {
       logCollectorEvent("collector.agent_fallback.stale", {
         scan_id: scanId,
         host_id: hostId,
         age_seconds: ageSeconds,
-        window_seconds: getAgentFallbackWindowSeconds(),
+        window_seconds: windowSeconds,
+        source: "baseline",
       });
       return null;
     }
@@ -62,6 +87,7 @@ async function tryAgentFallback(
       scan_id: scanId,
       host_id: hostId,
       age_seconds: ageSeconds,
+      source: "baseline",
     });
     return snapshot;
   } catch (err) {
