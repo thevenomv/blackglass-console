@@ -10,7 +10,7 @@ import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { getIngestCredentialSummary } from "@/lib/server/ingest-credentials";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
-import { jsonError } from "@/lib/server/http/json-error";
+import { jsonError, rateLimitedResponse } from "@/lib/server/http/json-error";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const requestId = getOrCreateRequestId(request);
   const ip = clientIp(request);
   if (!(await checkReadApiRate(ip))) {
-    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+    return rateLimitedResponse(requestId);
   }
 
   // This endpoint only reads env var status — no DB query needed.

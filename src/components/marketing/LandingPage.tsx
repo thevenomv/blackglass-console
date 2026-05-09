@@ -103,7 +103,7 @@ export function LandingPage() {
               </div>
               <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs text-fg-faint">
                 <span>14-day trial · no credit card</span>
-                <span>No agent on your servers by default</span>
+                <span>SSH-first · optional one-line push agent</span>
                 <span>Each customer&apos;s data stays separate end to end</span>
               </div>
             </div>

@@ -4,13 +4,16 @@ import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { NextResponse } from "next/server";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
+import { rateLimitedResponse } from "@/lib/server/http/json-error";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const requestId = getOrCreateRequestId(request);
   const ip = clientIp(request);
   if (!(await checkReadApiRate(ip))) {
-    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+    return rateLimitedResponse(requestId);
   }
 
   if (isClerkAuthEnabled()) {

@@ -1,6 +1,29 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
 
+/**
+ * Canonical 429 response for v1 routes. Centralised so every handler
+ * returns the same `{ error: "rate_limited", detail }` envelope plus a
+ * `Retry-After` header — downstream SDKs and CLI tools can rely on it
+ * instead of branching on per-route ad-hoc shapes.
+ *
+ * `retryAfterSeconds` defaults to 60s which matches the longest
+ * window in `src/lib/server/rate-limit.ts`.
+ */
+export function rateLimitedResponse(
+  requestId?: string,
+  retryAfterSeconds = 60,
+) {
+  const response = jsonError(
+    429,
+    "rate_limited",
+    "Too many requests — slow down and retry shortly.",
+    requestId,
+  );
+  response.headers.set("Retry-After", String(retryAfterSeconds));
+  return response;
+}
+
 /** Consistent API error envelope for v1 route handlers. */
 export function jsonError(status: number, error: string, detail?: string, requestId?: string) {
   if (status >= 500) {

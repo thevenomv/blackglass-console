@@ -477,7 +477,7 @@ paths:
         "404": { description: Bundle not found }
         "429": { description: Rate limit exceeded }
 
-  /api/v1/ingest:
+  /api/v1/ingest/agent:
     servers:
       - url: https://console.blackglass.invalid
         description: Next.js app origin (not under `/v1`)
@@ -485,13 +485,25 @@ paths:
       tags: [Ingest]
       summary: Push-agent snapshot ingest
       description: >
-        Lightweight agents installed on monitored hosts call this endpoint to
-        push their collected snapshot over HTTPS (pull-model alternative for
-        hosts in strict VPCs). When `INGEST_API_KEY` is set it is the default
-        Bearer secret; optional `INGEST_HOST_KEYS_JSON` maps `hostId` to a
-        per-host Bearer for compromised-key blast-radius reduction.
-        When INGEST_SAAS_TENANT_ID is set, the server enforces the tenant's host
-        allowance before accepting a snapshot for a **new** host_id.
+        The single endpoint the `blackglass-agent.sh` push agent (or any
+        compatible CI agent) calls to stream a host bundle over HTTPS. This is
+        the pull-model alternative used when a host sits in a strict VPC the
+        Blackglass collector cannot reach via SSH.
+
+        Authentication is Bearer with the tenant's INGEST_API_KEY (set in
+        Settings → Collectors & ingest, or the `INGEST_API_KEY` env var on
+        self-hosted instances). An optional INGEST_HOST_KEYS_JSON map can
+        narrow each key to a single hostId for blast-radius reduction.
+
+        Successful responses are also consumed by the wizard at
+        `/onboarding`; the `summary` and `next` blocks drive the live bundle
+        preview and the deep-link to the host detail page.
+
+        Granular failure codes (`bundle_truncated`, `bundle_missing_sections`,
+        `host_quota_exceeded`, `host_tombstoned`, `drift_pipeline_failed`,
+        etc.) come back via the `{ error, detail, remedy }` envelope so the
+        agent and wizard can render specific next-steps instead of generic
+        500s.
       security:
         - BearerIngestKey: []
       requestBody:
@@ -509,14 +521,37 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean }
+                  stage:
+                    type: string
+                    enum: [bootstrap_baseline, ingest_ok]
+                    description: bootstrap_baseline on first push, ingest_ok thereafter
                   hostId: { type: string }
                   capturedAt: { type: string, format: date-time }
+                  bootstrap: { type: boolean }
+                  driftEvents: { type: integer }
+                  summary:
+                    type: object
+                    properties:
+                      sections: { type: integer }
+                      listeners: { type: integer }
+                      users: { type: integer }
+                      services: { type: integer }
+                  next:
+                    type: object
+                    properties:
+                      host_url: { type: string, format: uri }
+                      next_action: { type: string, enum: [capture_baseline, review_findings] }
+                      wizard_url: { type: string, format: uri }
+        "400":
+          description: Validation failed, malformed bundle, or missing critical sections
         "401":
           description: Missing or invalid Bearer token
-        "429":
-          description: Rate limit exceeded for this host_id
         "403":
-          description: Tenant ingest scope or host allowance blocked the snapshot
+          description: Tenant ingest scope, host allowance, or tombstone blocked the snapshot
+        "429":
+          description: Rate limit exceeded for this hostId
+        "502":
+          description: Snapshot accepted locally but downstream drift pipeline failed
         "503":
           description: INGEST_API_KEY not configured on this instance
 

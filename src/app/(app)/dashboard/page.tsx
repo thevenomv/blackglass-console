@@ -33,6 +33,7 @@ async function DashboardDeferred() {
     baselineCaptured: boolean;
     scanRun: boolean;
   };
+  let policyFailureHostCount = 0;
 
   try {
     const page = await fetchFleetPageData();
@@ -90,6 +91,19 @@ async function DashboardDeferred() {
       baselineCaptured: baselineHostIds.length > 0,
       scanRun: fleet.hostsChecked > 0,
     };
+
+    // Compute distinct hosts with an unresolved policy_failure synthetic
+    // event so the SystemStatusBanner can fail closed: a missing policy
+    // signal must surface as a danger banner, not silently disappear.
+    policyFailureHostCount = new Set(
+      driftEvents
+        .filter(
+          (e) =>
+            e.category === "policy_failure" &&
+            (e.lifecycle === "new" || e.lifecycle === "triaged"),
+        )
+        .map((e) => e.hostId),
+    ).size;
   } catch {
     return (
       <FetchFailed title="Fleet snapshot unavailable" description="Could not load fleet KPIs from the configured API." />
@@ -107,6 +121,7 @@ async function DashboardDeferred() {
       baselinePersistence={baselinePersistence}
       valueRecap={valueRecap}
       onboardingState={onboardingState}
+      policyFailureHostCount={policyFailureHostCount}
     />
   );
 }

@@ -6,6 +6,8 @@ import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { planGuard } from "@/lib/plan";
 import { getEvidenceBundlePayload } from "@/lib/server/services/evidence-service";
+import { rateLimitedResponse } from "@/lib/server/http/json-error";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,9 +16,10 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const requestId = getOrCreateRequestId(request);
   const ip = clientIp(request);
   if (!(await checkReadApiRate(ip))) {
-    return new NextResponse("Too many requests", { status: 429 });
+    return rateLimitedResponse(requestId);
   }
 
   const guard = planGuard("evidenceExport");

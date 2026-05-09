@@ -37,7 +37,15 @@ export type DriftCategory =
   | "firewall"
   | "packages"
   | "integrity"
-  | "privilege_escalation";
+  | "privilege_escalation"
+  /**
+   * Synthetic category emitted when the drift pipeline itself failed
+   * (e.g. policy engine could not be loaded). Compliance tools must
+   * fail closed: a missing signal must surface as a high-severity
+   * finding so the operator knows the baseline is currently
+   * unverified, never silently disappear.
+   */
+  | "policy_failure";
 
 export type DriftProvenance = {
   collector: string;

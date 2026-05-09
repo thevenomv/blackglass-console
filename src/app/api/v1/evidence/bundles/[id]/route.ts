@@ -1,5 +1,6 @@
 import { EVIDENCE_BUNDLE_META } from "@/lib/server/evidence-catalog";
-import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
+import { jsonError, rateLimitedResponse, zodErrorResponse } from "@/lib/server/http/json-error";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { NextResponse } from "next/server";
@@ -11,9 +12,10 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const requestId = getOrCreateRequestId(request);
   const ip = clientIp(request);
   if (!(await checkReadApiRate(ip))) {
-    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+    return rateLimitedResponse(requestId);
   }
 
   const guard = await requireRole(["auditor", "operator", "admin"]);

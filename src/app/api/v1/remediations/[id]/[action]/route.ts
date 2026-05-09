@@ -33,13 +33,30 @@ import {
  * way a leaked remediator API key alone is insufficient to fabricate
  * approvals. See src/lib/server/remediator/approval-token.ts.
  */
+type NotifyResult =
+  | { kind: "no_remediator" }
+  | { kind: "ok" }
+  | { kind: "upstream_error"; status: number; detail: string }
+  | { kind: "transport_error"; detail: string };
+
+/**
+ * Forward the operator's decision to the remediator.
+ *
+ * Returns a discriminated result so the caller can fail loud when the
+ * sidecar didn't accept the decision — remediation is binary (it
+ * either triggered or it didn't) and a 200 here while the sidecar
+ * never received the approval would be an immediate trust-breaker.
+ *
+ * `no_remediator` is the explicit "remediator service is intentionally
+ * not configured" case — only this is treated as success-without-notify.
+ */
 async function notifyRemediator(
   remediationId: string,
   action: "approve" | "reject",
   ctx: { tenantId: string; actorId: string },
-): Promise<void> {
+): Promise<NotifyResult> {
   const base = process.env.BLACKGLASS_REMEDIATOR_BASE_URL?.trim();
-  if (!base) return;
+  if (!base) return { kind: "no_remediator" };
   const token = process.env.BLACKGLASS_REMEDIATOR_TOKEN?.trim();
 
   let approvalToken: string | null = null;
@@ -61,24 +78,36 @@ async function notifyRemediator(
   }
 
   try {
-    await fetch(`${base.replace(/\/$/, "")}/api/v1/remediations/${remediationId}/${action}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(approvalToken ? { "X-Blackglass-Approval-Token": approvalToken } : {}),
+    const res = await fetch(
+      `${base.replace(/\/$/, "")}/api/v1/remediations/${remediationId}/${action}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(approvalToken ? { "X-Blackglass-Approval-Token": approvalToken } : {}),
+        },
+        body: JSON.stringify({
+          actor_id: ctx.actorId,
+          tenant_id: ctx.tenantId,
+        }),
+        signal: AbortSignal.timeout(10_000),
       },
-      body: JSON.stringify({
-        actor_id: ctx.actorId,
-        // The remediator already has the tenant on the recommendation
-        // record — we send it again so it can cross-check the
-        // approval token without a DB lookup.
-        tenant_id: ctx.tenantId,
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
+    );
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return {
+        kind: "upstream_error",
+        status: res.status,
+        detail: body.slice(0, 200) || `HTTP ${res.status}`,
+      };
+    }
+    return { kind: "ok" };
   } catch (err) {
-    console.error(`[remediations/${action}] remediator notify failed:`, err);
+    return {
+      kind: "transport_error",
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
@@ -129,10 +158,43 @@ export async function POST(
     metadata: { request_id: requestId, status: newStatus },
   });
 
-  void notifyRemediator(id, action, {
+  // Remediation is binary — it triggered or it didn't. We MUST surface
+  // upstream sidecar failures to the operator instead of returning 200
+  // and silently dropping the approval. The DB row stays in the chosen
+  // status so the operator can retry the action; a follow-up POST is
+  // idempotent at the sidecar (it dedups on recommendation_id).
+  const notify = await notifyRemediator(id, action, {
     tenantId: access.ctx.tenant.id,
     actorId: access.ctx.userId,
   });
 
-  return NextResponse.json({ ok: true, remediation: updated });
+  if (notify.kind === "upstream_error") {
+    console.error(
+      `[remediations/${action}] sidecar rejected decision id=${id} status=${notify.status}`,
+    );
+    return jsonError(
+      502,
+      "remediator_upstream_error",
+      `Decision was recorded locally but the remediator service rejected it (HTTP ${notify.status}). Retry the action once the sidecar is healthy.`,
+      requestId,
+    );
+  }
+  if (notify.kind === "transport_error") {
+    console.error(
+      `[remediations/${action}] sidecar transport failure id=${id}: ${notify.detail}`,
+    );
+    return jsonError(
+      502,
+      "remediator_unreachable",
+      "Decision was recorded locally but the remediator service was unreachable. Verify BLACKGLASS_REMEDIATOR_BASE_URL and retry.",
+      requestId,
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    remediation: updated,
+    notified: notify.kind === "ok",
+    requestId,
+  });
 }

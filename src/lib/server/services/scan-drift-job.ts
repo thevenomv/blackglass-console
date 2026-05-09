@@ -75,6 +75,43 @@ function violationToDriftEvent(
   };
 }
 
+/**
+ * Synthetic event surfaced when the policy engine itself blew up.
+ *
+ * Compliance products must fail CLOSED: if we can't evaluate a
+ * tenant's policies, the operator must know it. The previous
+ * behaviour (catch + log + return []) silently dropped the entire
+ * compliance signal — the dashboard would render zero policy
+ * violations even though we never actually checked.
+ */
+function policyEvaluationFailedEvent(
+  hostId: string,
+  err: unknown,
+  detectedAt: string,
+): DriftEvent {
+  const reason = err instanceof Error ? err.message : String(err);
+  return {
+    id: `policy-failure-${hostId}`.slice(0, 64),
+    hostId,
+    category: "policy_failure",
+    severity: "high",
+    lifecycle: "new",
+    title: "Policy evaluation failed",
+    detectedAt,
+    rationale:
+      "Blackglass could not evaluate this tenant's policies for this host. The baseline is unverified until evaluation succeeds.",
+    evidenceSummary: JSON.stringify({
+      reason: reason.slice(0, 200),
+      hint: "Check policy storage availability and recent policy edits.",
+    }),
+    suggestedActions: [
+      "Open Settings → Policies and verify the rules load without errors.",
+      "Re-run the scan once policy storage is healthy.",
+      "If the failure persists, capture a fresh agent push and check server logs for [scan-drift-job] entries.",
+    ],
+  };
+}
+
 async function evaluateTenantPolicies(
   tenantId: string,
   snapshot: HostSnapshot,
@@ -87,8 +124,13 @@ async function evaluateTenantPolicies(
     const detectedAt = new Date().toISOString();
     return violations.map((v) => violationToDriftEvent(snapshot.hostId, v, detectedAt));
   } catch (err) {
+    // Fail closed — emit a synthetic high-severity event so the
+    // operator sees an explicit "policy evaluation failed" finding
+    // on the host instead of a silent zero. The audit log + Slack
+    // path still picks this up because it goes through the normal
+    // storeDriftEvents → alertDriftEmail flow.
     console.error("[scan-drift-job] Policy evaluation failed:", err);
-    return [];
+    return [policyEvaluationFailedEvent(snapshot.hostId, err, new Date().toISOString())];
   }
 }
 

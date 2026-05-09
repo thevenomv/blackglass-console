@@ -10,6 +10,7 @@ const CATEGORY_LABELS: Record<DriftCategory, string> = {
   packages: "Packages",
   integrity: "File integrity",
   privilege_escalation: "Privilege escalation",
+  policy_failure: "Policy evaluation failed",
 };
 
 export function pickSpotlightHost(hosts: HostRecord[]): HostRecord | null {

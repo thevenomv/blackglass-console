@@ -9,7 +9,8 @@
  * the host disappears from /hosts, /dashboard, and /drift.
  */
 
-import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
+import { jsonError, rateLimitedResponse, zodErrorResponse } from "@/lib/server/http/json-error";
+import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import {
   requireSaasOrLegacyPermission,
@@ -36,9 +37,10 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const requestId = getOrCreateRequestId(_request);
   const ip = clientIp(_request);
   if (!(await checkReadApiRate(ip))) {
-    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+    return rateLimitedResponse(requestId);
   }
 
   if (isClerkAuthEnabled()) {

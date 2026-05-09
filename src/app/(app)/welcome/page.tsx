@@ -13,7 +13,8 @@ export const metadata = {
 const FEATURES = [
   {
     label: "Lightweight connection",
-    detail: "Most teams connect without installing an agent — we gather read-only configuration signals you approve.",
+    detail:
+      "SSH-first by default; an optional one-line push agent is available when SSH isn't possible. Either way we gather read-only configuration signals you approve.",
   },
   {
     label: "Trusted snapshots",
@@ -71,7 +72,7 @@ export default function WelcomePage() {
       cta: { href: "/onboarding", text: "Run setup wizard" },
       detail: collectorOn
         ? "Collector connected — at least one host is configured."
-        : "No host connected yet. Use the setup wizard — takes under a minute with the push agent.",
+        : "No host connected yet. Use the setup wizard — SSH-first; one-line push agent if SSH isn't possible.",
     },
     {
       label: "Baseline persistence",

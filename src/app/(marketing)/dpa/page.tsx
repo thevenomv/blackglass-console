@@ -112,16 +112,26 @@ export default function DpaPage() {
 
       <Section title="6. Sub-processors">
         <p>
-          We engage sub-processors to host and operate the Service. The current list, including the
-          nature of processing and locations, is set out in our{" "}
-          <Link href="/privacy" className="text-accent-blue hover:underline">
-            Privacy Policy
-          </Link>{" "}
-          (Section 5 — Third-party processors). Notably,{" "}
-          <strong className="text-fg-primary">DigitalOcean, LLC</strong> provides cloud infrastructure
-          (including App Platform and, where configured, Spaces object storage) under their data
-          processing terms. We will notify you of material changes to sub-processors where required
-          by law and your agreement.
+          We engage sub-processors to host and operate the Service. The
+          authoritative current list — with purpose, data categories, and
+          region for each — lives at{" "}
+          <Link href="/subprocessors" className="text-accent-blue hover:underline">
+            /subprocessors
+          </Link>
+          . Notably,{" "}
+          <strong className="text-fg-primary">DigitalOcean, LLC</strong>{" "}
+          provides cloud infrastructure (including App Platform and, where
+          configured, Spaces object storage) under their data processing
+          terms. We will notify you of material changes to sub-processors
+          where required by law and your agreement; subscribe to those
+          notifications via{" "}
+          <a
+            href="mailto:jamie@obsidiandynamics.co.uk?subject=Subprocessors%20notification%20%E2%80%94%20Blackglass"
+            className="text-accent-blue hover:underline"
+          >
+            jamie@obsidiandynamics.co.uk
+          </a>
+          .
         </p>
       </Section>
 
@@ -160,6 +170,9 @@ export default function DpaPage() {
         </Link>
         <Link href="/privacy" className="text-accent-blue hover:underline">
           Legal &amp; privacy
+        </Link>
+        <Link href="/subprocessors" className="text-accent-blue hover:underline">
+          Sub-processors
         </Link>
         <Link href="/pricing" className="text-accent-blue hover:underline">
           Pricing

@@ -81,6 +81,7 @@ export function DashboardV3({
   baselinePersistence,
   valueRecap,
   onboardingState,
+  policyFailureHostCount = 0,
 }: {
   fleet: FleetSnapshot;
   showDemoKpiDeltas: boolean;
@@ -95,6 +96,13 @@ export function DashboardV3({
     baselineCaptured: boolean;
     scanRun: boolean;
   };
+  /**
+   * Number of `policy_failure` synthetic drift events currently
+   * unresolved in the fleet. > 0 means the policy engine could not
+   * evaluate at least one host's compliance — surfaced as a danger
+   * banner because compliance must fail closed.
+   */
+  policyFailureHostCount?: number;
 }) {
   const liveMode = !showDemoKpiDeltas;
   const attention = fleet.highRiskDrift > 0;
@@ -142,6 +150,28 @@ export function DashboardV3({
               open findings
             </Link>
             .
+          </>
+        ),
+      });
+    }
+    if (policyFailureHostCount > 0) {
+      // Compliance must fail closed: a missing policy signal is itself
+      // a critical finding. Render at danger so it can never be hidden
+      // behind less-urgent items in the disclosure.
+      systemStatusItems.push({
+        id: "policy-evaluation-failed",
+        severity: "danger",
+        title: `Policy evaluation failed on ${policyFailureHostCount} host${policyFailureHostCount === 1 ? "" : "s"}`,
+        detail: (
+          <>
+            Compliance is currently unverified for the affected hosts.{" "}
+            <Link
+              href="/drift?category=policy_failure"
+              className="font-medium text-accent-blue hover:underline"
+            >
+              Review affected hosts
+            </Link>{" "}
+            and confirm the policy store is healthy.
           </>
         ),
       });

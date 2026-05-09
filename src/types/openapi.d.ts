@@ -975,7 +975,7 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/ingest": {
+    "/api/v1/ingest/agent": {
         parameters: {
             query?: never;
             header?: never;
@@ -986,7 +986,10 @@ export type paths = {
         put?: never;
         /**
          * Push-agent snapshot ingest
-         * @description Lightweight agents installed on monitored hosts call this endpoint to push their collected snapshot over HTTPS (pull-model alternative for hosts in strict VPCs). When `INGEST_API_KEY` is set it is the default Bearer secret; optional `INGEST_HOST_KEYS_JSON` maps `hostId` to a per-host Bearer for compromised-key blast-radius reduction. When INGEST_SAAS_TENANT_ID is set, the server enforces the tenant's host allowance before accepting a snapshot for a **new** host_id.
+         * @description The single endpoint the `blackglass-agent.sh` push agent (or any compatible CI agent) calls to stream a host bundle over HTTPS. This is the pull-model alternative used when a host sits in a strict VPC the Blackglass collector cannot reach via SSH.
+         *     Authentication is Bearer with the tenant's INGEST_API_KEY (set in Settings → Collectors & ingest, or the `INGEST_API_KEY` env var on self-hosted instances). An optional INGEST_HOST_KEYS_JSON map can narrow each key to a single hostId for blast-radius reduction.
+         *     Successful responses are also consumed by the wizard at `/onboarding`; the `summary` and `next` blocks drive the live bundle preview and the deep-link to the host detail page.
+         *     Granular failure codes (`bundle_truncated`, `bundle_missing_sections`, `host_quota_exceeded`, `host_tombstoned`, `drift_pipeline_failed`, etc.) come back via the `{ error, detail, remedy }` envelope so the agent and wizard can render specific next-steps instead of generic 500s.
          */
         post: {
             parameters: {
@@ -1009,11 +1012,39 @@ export type paths = {
                     content: {
                         "application/json": {
                             ok?: boolean;
+                            /**
+                             * @description bootstrap_baseline on first push, ingest_ok thereafter
+                             * @enum {string}
+                             */
+                            stage?: "bootstrap_baseline" | "ingest_ok";
                             hostId?: string;
                             /** Format: date-time */
                             capturedAt?: string;
+                            bootstrap?: boolean;
+                            driftEvents?: number;
+                            summary?: {
+                                sections?: number;
+                                listeners?: number;
+                                users?: number;
+                                services?: number;
+                            };
+                            next?: {
+                                /** Format: uri */
+                                host_url?: string;
+                                /** @enum {string} */
+                                next_action?: "capture_baseline" | "review_findings";
+                                /** Format: uri */
+                                wizard_url?: string;
+                            };
                         };
                     };
+                };
+                /** @description Validation failed, malformed bundle, or missing critical sections */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
                 /** @description Missing or invalid Bearer token */
                 401: {
@@ -1022,15 +1053,22 @@ export type paths = {
                     };
                     content?: never;
                 };
-                /** @description Tenant ingest scope or host allowance blocked the snapshot */
+                /** @description Tenant ingest scope, host allowance, or tombstone blocked the snapshot */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content?: never;
                 };
-                /** @description Rate limit exceeded for this host_id */
+                /** @description Rate limit exceeded for this hostId */
                 429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Snapshot accepted locally but downstream drift pipeline failed */
+                502: {
                     headers: {
                         [name: string]: unknown;
                     };

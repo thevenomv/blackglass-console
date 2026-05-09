@@ -47,11 +47,50 @@ export function SandboxBanner() {
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/v1/sandbox", { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as {
+          detail?: string;
+          error?: string;
+        };
+        // Stale state failures aren't worth shouting about, but the
+        // operator deserves a hint that they should refresh manually
+        // if the chip stays stuck. The retry button below picks this
+        // up directly.
+        setError(body.detail ?? body.error ?? `Status check failed (HTTP ${res.status})`);
+        return;
+      }
       const json = await res.json();
       setSandbox(json.sandbox ?? null);
-    } catch {
-      // network error — leave as-is
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error reading sandbox status");
+    }
+  }, []);
+
+  const provisionOnce = useCallback(async () => {
+    setProvisioning(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/v1/sandbox", { method: "POST" });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as {
+          detail?: string;
+          error?: string;
+          message?: string;
+        };
+        setError(
+          body.detail ?? body.error ?? body.message ?? "Failed to provision sandbox",
+        );
+        return;
+      }
+      const json = await res.json();
+      setSandbox(json.sandbox ?? null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Network error while provisioning sandbox",
+      );
+    } finally {
+      setProvisioning(false);
     }
   }, []);
 
@@ -69,29 +108,7 @@ export function SandboxBanner() {
     url.searchParams.delete("sandbox");
     router.replace(url.pathname + url.search, { scroll: false });
 
-    setProvisioning(true);
-    fetch("/api/v1/sandbox", { method: "POST" })
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as {
-            detail?: string;
-            error?: string;
-            message?: string;
-          };
-          setError(
-            body.detail ?? body.error ?? body.message ?? "Failed to provision sandbox",
-          );
-          setProvisioning(false);
-          return;
-        }
-        const json = await res.json();
-        setSandbox(json.sandbox ?? null);
-        setProvisioning(false);
-      })
-      .catch(() => {
-        setError("Network error while provisioning sandbox");
-        setProvisioning(false);
-      });
+    void provisionOnce();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll while provisioning / seeding
@@ -167,8 +184,18 @@ export function SandboxBanner() {
 
   if (error) {
     return (
-      <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-fg-primary">
-        <strong>Sandbox error:</strong> {error}
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-fg-primary">
+        <span>
+          <strong>Sandbox error:</strong> {error}
+        </span>
+        <button
+          type="button"
+          onClick={() => void provisionOnce()}
+          disabled={provisioning}
+          className="ml-auto rounded-md border border-border-default bg-bg-panel px-3 py-1 text-xs font-medium text-fg-primary transition-colors hover:border-border-strong disabled:opacity-60"
+        >
+          {provisioning ? "Retrying…" : "Retry provision"}
+        </button>
       </div>
     );
   }
