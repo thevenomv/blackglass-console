@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 
 type ScanPhase = "queued" | "running" | "succeeded" | "failed";
 
@@ -33,11 +34,16 @@ const USE_MOCK_SCANS = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 export function ScanJobsProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<ScanJob[]>([]);
   const timers = useRef<Map<string, number>>(new Map());
+  const router = useRouter();
+  // Track which jobs we've already refreshed for so a slow final poll
+  // doesn't fire `router.refresh()` twice for the same scan.
+  const refreshed = useRef<Set<string>>(new Set());
 
   const dismiss = useCallback((id: string) => {
     const t = timers.current.get(id);
     if (t) window.clearInterval(t);
     timers.current.delete(id);
+    refreshed.current.delete(id);
     setJobs((prev) => prev.filter((j) => j.id !== id));
   }, []);
 
@@ -147,13 +153,23 @@ export function ScanJobsProvider({ children }: { children: ReactNode }) {
                 : x,
             ),
           );
-          if (j.status === "succeeded") {
+          if (j.status === "succeeded" || j.status === "failed") {
+            // Pull fresh server data into whatever route the user is on
+            // (dashboard, /drift, /hosts, /baselines, …). The scan worker
+            // already calls `revalidatePath` server-side, but that only
+            // invalidates the cache — a client that's already mounted on
+            // the route still needs `router.refresh()` to re-render with
+            // the new drift events. Without this, drift only appears
+            // after the user navigates away and back.
+            if (!refreshed.current.has(serverId)) {
+              refreshed.current.add(serverId);
+              router.refresh();
+            }
             window.clearInterval(poll);
             timers.current.delete(serverId);
-            window.setTimeout(() => dismiss(serverId), 6000);
-          } else if (j.status === "failed") {
-            window.clearInterval(poll);
-            timers.current.delete(serverId);
+            if (j.status === "succeeded") {
+              window.setTimeout(() => dismiss(serverId), 6000);
+            }
           }
         } catch {
           /* ignore transient poll errors */
@@ -174,7 +190,7 @@ export function ScanJobsProvider({ children }: { children: ReactNode }) {
         ),
       );
     }
-  }, [dismiss, runMockScan]);
+  }, [dismiss, runMockScan, router]);
 
   const value = useMemo(
     () => ({
