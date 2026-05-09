@@ -1115,8 +1115,8 @@ function CaptureBaselineStep({
 function RunFirstScanStep() {
   type State =
     | { kind: "idle" }
-    | { kind: "enqueued"; scanId: string; startedAt: number }
-    | { kind: "running"; scanId: string; startedAt: number }
+    | { kind: "enqueued"; scanId: string; startedAt: number; detail?: string }
+    | { kind: "running"; scanId: string; startedAt: number; detail?: string }
     | { kind: "done"; scanId: string; eventsFound: number; elapsedMs: number }
     | { kind: "error"; detail: string };
 
@@ -1135,7 +1135,18 @@ function RunFirstScanStep() {
       try {
         const res = await fetch(`/api/v1/scans/${scanId}`);
         if (res.ok) {
-          const body = (await res.json()) as { status?: string; eventsFound?: number };
+          // Pull `detail` so the wizard surfaces the collector's live
+          // status string (e.g. "Waiting for fresh agent snapshot
+          // (47s remaining)…"). Without this, the wizard shows a
+          // generic "Scan in progress…" while the collector is
+          // really waiting for a fresh agent push, and users get
+          // confused why their first scan is taking ~60s instead of
+          // ~3s. The detail explains exactly what's happening.
+          const body = (await res.json()) as {
+            status?: string;
+            eventsFound?: number;
+            detail?: string;
+          };
           if (body.status === "succeeded" || body.status === "failed") {
             setState({
               kind: "done",
@@ -1145,11 +1156,17 @@ function RunFirstScanStep() {
             });
             return;
           }
-          setState({ kind: "running", scanId, startedAt });
+          setState({ kind: "running", scanId, startedAt, detail: body.detail });
         }
       } catch {
         /* keep polling */
       }
+      // 90s ceiling matches the server-side
+      // COLLECTOR_AGENT_FRESH_WAIT_MS default. If the scan hasn't
+      // resolved by then, something's wrong (or the operator set a
+      // longer wait window) — show "done" with zero findings so the
+      // wizard can advance and the user can investigate from the
+      // dashboard rather than being trapped here.
       if (Date.now() - startedAt > 90_000) {
         setState({
           kind: "done",
@@ -1203,6 +1220,13 @@ function RunFirstScanStep() {
         With a baseline pinned, the first scan typically shows a clean bill of health.
         Future scans surface anything that deviates.
       </p>
+      <p className="text-xs text-fg-faint">
+        Heads up: when Blackglass can&rsquo;t reach the host directly over SSH (DigitalOcean
+        App Platform &rarr; Droplet, NAT, air-gap), the scan uses your push-agent&rsquo;s most
+        recent snapshot. If the agent hasn&rsquo;t pushed since you introduced a change, the
+        scan briefly waits (up to 90s) for the next push. You&rsquo;ll see the live status
+        below.
+      </p>
 
       {state.kind === "idle" ? (
         <Button type="button" onClick={() => void runScan()}>
@@ -1216,7 +1240,11 @@ function RunFirstScanStep() {
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
             <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
-          {state.kind === "enqueued" ? "Enqueueing…" : "Scan in progress…"}
+          <span>
+            {state.kind === "enqueued"
+              ? "Enqueueing…"
+              : state.detail ?? "Scan in progress…"}
+          </span>
         </div>
       ) : null}
 

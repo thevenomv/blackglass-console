@@ -92,16 +92,21 @@ export function SnapshotFreshnessPill({ latestSignalAt }: Props) {
   const { label, cls, title } = describe(ageSeconds);
 
   return (
-    <span
-      title={title}
-      aria-label={`Latest snapshot ${label}`}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${cls}`}
+    <a
+      // Linking the pill to the freshness docs gives operators a one-
+      // click answer to "why is this amber?" without us building an
+      // in-app explainer popover. The visual treatment stays the
+      // same — anchor wrapper inherits cursor:pointer for free.
+      href="/docs/snapshot-freshness"
+      title={`${title} (click to learn how this works)`}
+      aria-label={`Latest snapshot ${label}. Click to read about the snapshot freshness model.`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition hover:opacity-90 ${cls}`}
     >
       <span
         aria-hidden="true"
         className="inline-block h-1.5 w-1.5 rounded-full bg-current opacity-80"
       />
       Snapshot {label}
-    </span>
+    </a>
   );
 }

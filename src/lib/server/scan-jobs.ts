@@ -31,6 +31,14 @@ export type ScanJobRecord = {
   resolvedDetail?: string;
   /** Number of drift events found (real scans only) */
   driftCount?: number;
+  /**
+   * Wall-clock ms of the most recent write to this record. Used by
+   * the multi-instance merge logic in `getScanRecordWithFallback` to
+   * decide which copy (local Map vs Redis) is newer when both exist.
+   * Without this, a stale local copy could mask a fresher Redis copy
+   * written by the BullMQ worker (or another web instance).
+   */
+  updatedAt?: number;
 };
 
 const GLOBAL_KEY = "__blackglass_scan_jobs_v1" as const;
@@ -64,21 +72,66 @@ function scanRedisKey(id: string): string {
   return `bg:scan:${id}`;
 }
 
-/** Fire-and-forget: write a terminal scan record to Redis (worker → web). */
-function publishScanResultToRedis(rec: ScanJobRecord): void {
+/**
+ * Singleton Redis client for scan-job state (separate from BullMQ's
+ * own connection so it can be dropped without affecting queue health).
+ *
+ * Lazy-initialised: only opened when REDIS_QUEUE_URL is set AND the
+ * first publish/fetch happens. Connection is reused across calls so
+ * we avoid the "open + auth + close" cost on every progress tick.
+ */
+let _redisClient: Redis | null = null;
+function getRedisForScans(): Redis | null {
   const url = process.env.REDIS_QUEUE_URL?.trim();
-  if (!url) return;
+  if (!url) return null;
+  if (_redisClient) return _redisClient;
+  try {
+    const tlsOpts = url.startsWith("rediss://") ? { tls: { rejectUnauthorized: false } } : {};
+    _redisClient = new Redis(url, {
+      lazyConnect: true,
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
+      ...tlsOpts,
+    });
+    _redisClient.on("error", (err) => {
+      // Silence per-call noise; we always treat Redis as best-effort
+      // and fall back to local state when it's unreachable.
+      console.warn("[scan-jobs] Redis client error:", err.message);
+    });
+  } catch (err) {
+    console.error("[scan-jobs] Redis client init failed:", err);
+    _redisClient = null;
+  }
+  return _redisClient;
+}
+
+/**
+ * Fire-and-forget: publish the FULL current record to Redis so other
+ * web instances + the worker can see in-flight state (kind, progress,
+ * resolution). Called on every state-changing write — enqueue,
+ * markScanReal, updateScanProgress, resolveScan. The cost is one
+ * SET per change, which is trivial vs the wins of cross-instance
+ * consistency. Errors are logged once and swallowed.
+ *
+ * Why publish in-flight state (not just terminal): without this, an
+ * instance that didn't enqueue the scan can't see `kind="real"` or
+ * `progressDetail` — its projection then reverts to the mock-mode
+ * 3.5s elapsed-time fake-success branch, and the dashboard refreshes
+ * before drift events land. This is the same root cause as the
+ * earlier "100% baseline alignment" bug, just at the multi-instance
+ * layer.
+ */
+function publishScanRecordToRedis(rec: ScanJobRecord): void {
+  const client = getRedisForScans();
+  if (!client) return;
   void (async () => {
     try {
-      const tlsOpts = url.startsWith("rediss://") ? { tls: { rejectUnauthorized: false } } : {};
-      const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1, ...tlsOpts });
       await client.set(
         scanRedisKey(rec.id),
         JSON.stringify(rec),
         "EX",
         REDIS_SCAN_TTL_SECS,
       );
-      client.disconnect();
     } catch (err) {
       console.error("[scan-jobs] Redis publish failed:", err);
     }
@@ -86,23 +139,45 @@ function publishScanResultToRedis(rec: ScanJobRecord): void {
 }
 
 /**
- * Read a resolved scan record from Redis (web tier fallback when BullMQ
- * worker resolved the scan in a separate process).
+ * Read whatever copy of the record Redis has. Returns undefined when
+ * Redis is unreachable or the key has expired/never existed.
  */
 async function fetchScanFromRedis(id: string): Promise<ScanJobRecord | undefined> {
-  const url = process.env.REDIS_QUEUE_URL?.trim();
-  if (!url) return undefined;
+  const client = getRedisForScans();
+  if (!client) return undefined;
   try {
-    const tlsOpts = url.startsWith("rediss://") ? { tls: { rejectUnauthorized: false } } : {};
-    const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1, ...tlsOpts });
     const raw = await client.get(scanRedisKey(id));
-    client.disconnect();
     if (!raw) return undefined;
     return JSON.parse(raw) as ScanJobRecord;
   } catch (err) {
     console.error("[scan-jobs] Redis fetch failed:", err);
     return undefined;
   }
+}
+
+/**
+ * Pick the "newer" of two records using the same merge rule the
+ * polling client implicitly assumes:
+ *   1. A record with `resolvedStatus` always wins over one without
+ *      (terminal state is the source of truth).
+ *   2. Otherwise the record with the larger `updatedAt` wins.
+ *   3. If both lack `updatedAt`, the local copy wins (it's at least
+ *      definitely real).
+ *
+ * Used by `getScanRecordWithFallback` so a stale local cache can't
+ * mask a fresher Redis copy written by another instance.
+ */
+function pickNewerScanRecord(
+  a: ScanJobRecord | undefined,
+  b: ScanJobRecord | undefined,
+): ScanJobRecord | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  if (a.resolvedStatus && !b.resolvedStatus) return a;
+  if (b.resolvedStatus && !a.resolvedStatus) return b;
+  const aT = a.updatedAt ?? 0;
+  const bT = b.updatedAt ?? 0;
+  return aT >= bT ? a : b;
 }
 // ---------------------------------------------------------------------------
 
@@ -214,10 +289,11 @@ export function enqueueScan(hostIds: string[]): ScanJobRecord {
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : `scan-${Date.now()}`;
-  const rec: ScanJobRecord = { id, createdAt: Date.now(), hostIds };
+  const rec: ScanJobRecord = { id, createdAt: Date.now(), hostIds, updatedAt: Date.now() };
   jobs().set(id, rec);
   persist();
   markScanStarted(id);
+  publishScanRecordToRedis(rec);
   return rec;
 }
 
@@ -232,12 +308,11 @@ export function resolveScan(
   rec.resolvedStatus = status;
   rec.resolvedAt = Date.now();
   rec.resolvedDetail = detail;
+  rec.updatedAt = Date.now();
   if (driftCount !== undefined) rec.driftCount = driftCount;
   persist();
   markScanDone(id);
-  // Publish to Redis so the web tier can read the result when BullMQ worker
-  // resolves a scan in a separate process.
-  publishScanResultToRedis(rec);
+  publishScanRecordToRedis(rec);
 }
 
 /**
@@ -245,26 +320,39 @@ export function resolveScan(
  * `executeDriftScanJob` is dispatched (or queued to BullMQ). After this
  * point the elapsed-time projection won't fake a "succeeded" status —
  * only the actual `resolveScan` call from the collector will.
+ *
+ * Cross-instance: also publishes to Redis so a poll routed to a
+ * different web instance still sees `kind="real"` and waits for the
+ * actual resolution instead of synthesising "succeeded" at 3.5s.
  */
 export function markScanReal(id: string): void {
   const rec = jobs().get(id);
   if (!rec) return;
   rec.kind = "real";
+  rec.updatedAt = Date.now();
   persist();
+  publishScanRecordToRedis(rec);
 }
 
 /**
  * Update the in-flight progress detail for a real scan (e.g. "waiting
  * for fresh agent push"). Surfaced to the polling client via
  * `projectScanJob`. Has no effect once `resolveScan` has been called.
+ *
+ * Cross-instance: also publishes to Redis so the polling client sees
+ * the same progress message regardless of which web instance serves
+ * the poll. This is what makes the "Waiting for fresh agent
+ * snapshot…" message reliable when the collector runs in the
+ * BullMQ worker (separate process) and polls hit the web tier.
  */
 export function updateScanProgress(id: string, detail: string): void {
   const rec = jobs().get(id);
   if (!rec || rec.resolvedStatus) return;
   rec.progressDetail = detail;
-  // We don't persist progress updates — they're transient and the next
-  // resolveScan() will overwrite anyway. Skipping the disk write keeps
-  // hot-loop progress publishers cheap.
+  rec.updatedAt = Date.now();
+  // Skip the disk persist — progress updates are high-frequency and
+  // we already publish to Redis (which polling clients consult).
+  publishScanRecordToRedis(rec);
 }
 
 export function getScanRecord(id: string): ScanJobRecord | undefined {
@@ -272,29 +360,29 @@ export function getScanRecord(id: string): ScanJobRecord | undefined {
 }
 
 /**
- * Async variant: checks the in-process Map first, then falls back to Redis
- * when REDIS_QUEUE_URL is set. Use this in poll routes to handle the case
- * where a BullMQ worker in a separate process resolved the scan.
+ * Async variant used by poll routes: returns the FRESHER of the local
+ * Map and the Redis copy. Critical for multi-instance correctness —
+ * the BullMQ worker (or a different web instance) may have updated
+ * `kind`, `progressDetail`, or `resolvedStatus` since the local
+ * record was created.
  */
 export async function getScanRecordWithFallback(
   id: string,
 ): Promise<ScanJobRecord | undefined> {
   const local = jobs().get(id);
-  // If we have a terminal record locally, return it immediately.
-  if (local?.resolvedStatus) return local;
 
-  // If BullMQ is not active, don't attempt Redis.
+  // No Redis configured — local Map is all we have.
   if (!process.env.REDIS_QUEUE_URL?.trim()) return local;
 
-  // Try Redis — worker may have resolved the scan in another process.
   const remote = await fetchScanFromRedis(id);
-  if (remote) {
-    // Merge into local Map so subsequent sync calls also see it.
-    jobs().set(id, remote);
+  const newer = pickNewerScanRecord(local, remote);
+  // Mirror the newer copy back into the local Map so subsequent
+  // synchronous reads (and the SIGTERM drain) see the same state.
+  if (newer && newer !== local) {
+    jobs().set(id, newer);
     persist();
-    return remote;
   }
-  return local;
+  return newer;
 }
 
 /** Derive live status — uses real resolution when available, else clock-based mock. */

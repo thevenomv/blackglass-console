@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   let billingCycle: "monthly" | "annual" = "monthly";
   try {
     const body = (await request.json()) as { planCode?: string; billingCycle?: string };
-    if (body?.planCode && ["starter", "growth", "business"].includes(body.planCode)) {
+    if (body?.planCode && ["starter", "growth", "scale", "business"].includes(body.planCode)) {
       planCode = body.planCode;
     }
     if (body?.billingCycle === "annual" || body?.billingCycle === "monthly") {
@@ -62,15 +62,24 @@ export async function POST(request: Request) {
       monthly: process.env.STRIPE_GROWTH_PRICE_ID,
       annual: process.env.STRIPE_GROWTH_ANNUAL_PRICE_ID,
     },
+    scale: {
+      monthly: process.env.STRIPE_SCALE_PRICE_ID,
+      annual: process.env.STRIPE_SCALE_ANNUAL_PRICE_ID,
+    },
     business: {
       monthly: process.env.STRIPE_BUSINESS_PRICE_ID,
       annual: process.env.STRIPE_BUSINESS_ANNUAL_PRICE_ID,
     },
   };
 
+  // Inline fallback pricing keeps a freshly-cloned deployment functional
+  // without requiring an operator to set every env var. Amounts are in
+  // USD cents and MUST stay in sync with PLAN_PRICING in
+  // src/lib/saas/plans.ts (single source of truth for the docs / FAQ).
   const PLAN_FALLBACK: Record<string, { name: string; description: string; monthlyAmount: number }> = {
-    starter:  { name: "Blackglass Starter",  description: "25 hosts · 2 operator seats · 180-day history", monthlyAmount: 7900  },
+    starter:  { name: "Blackglass Starter",  description: "25 hosts · 2 operator seats · 180-day history", monthlyAmount: 3900   },
     growth:   { name: "Blackglass Growth",   description: "100 hosts · 5 operator seats · fleet dashboard",  monthlyAmount: 19900 },
+    scale:    { name: "Blackglass Scale",    description: "200 hosts · 7 operator seats · gap between Growth and Business", monthlyAmount: 34900 },
     business: { name: "Blackglass Business", description: "300 hosts · 10 operator seats · approval workflows", monthlyAmount: 49900 },
   };
 

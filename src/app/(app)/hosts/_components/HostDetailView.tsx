@@ -30,6 +30,7 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [deleting, setDeleting] = useState(false);
+  const [waking, setWaking] = useState(false);
   const rawTab = searchParams.get("tab") as TabId | null;
   const tab: TabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : "overview";
 
@@ -77,6 +78,35 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
     }
   }, [detail.hostname, detail.id, router, toast]);
 
+  // Force-push wake: asks the host's blackglass-agent-wake.timer to
+  // trigger an immediate snapshot push instead of waiting for the
+  // regular 60s tick. Useful right after a manual change on a NAT'd
+  // host where Run scan would otherwise show stale data.
+  const handleWake = useCallback(async () => {
+    setWaking(true);
+    try {
+      const res = await fetch(`/api/v1/hosts/${encodeURIComponent(detail.id)}/wake`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { detail?: string };
+        toast(
+          body.detail ?? `Could not request push (HTTP ${res.status}).`,
+          "danger",
+        );
+        return;
+      }
+      toast(
+        "Force-push requested. The agent will publish its next snapshot within ~10 seconds.",
+        "success",
+      );
+    } catch {
+      toast("Force-push failed — network error.", "danger");
+    } finally {
+      setWaking(false);
+    }
+  }, [detail.id, toast]);
+
   const nextActions = [
     {
       label: "Review baseline diff",
@@ -99,6 +129,15 @@ export function HostDetailView({ detail }: { detail: HostDetail }) {
         actions={
           <>
             <Button type="button">Re-scan</Button>
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={waking}
+              onClick={() => void handleWake()}
+              title="Ask this host's push-agent to publish its next snapshot immediately (within ~10s). Useful after a manual change on a NAT'd host."
+            >
+              {waking ? "Requesting…" : "Force push"}
+            </Button>
             <Link href={`/baselines?host=${detail.id}`}>
               <Button variant="secondary" type="button">
                 Compare baseline

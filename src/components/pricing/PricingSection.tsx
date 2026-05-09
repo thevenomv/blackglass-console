@@ -180,7 +180,7 @@ const TIERS: PricingTier[] = [
       "24×7 support SLA with Slack channel",
     ],
     cta: "Talk to sales",
-    ctaHref: "mailto:jamie@obsidiandynamics.co.uk?subject=Blackglass+Enterprise+Enquiry",
+    ctaHref: "/contact-sales",
     ctaVariant: "enterprise",
   },
 ];

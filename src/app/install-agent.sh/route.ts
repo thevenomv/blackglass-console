@@ -298,9 +298,59 @@ Unit=blackglass-agent.service
 [Install]
 WantedBy=timers.target
 EOF
+
+  # ---------- wake-check: 10-second poller for force-push requests ----------
+  # Operators can request an immediate snapshot via
+  #   POST /api/v1/hosts/:id/wake
+  # which sets a TTL'd flag in the console. The wake-check service polls
+  # GET /api/v1/agent/wake?hostId=... every 10s; when the flag is set it
+  # triggers blackglass-agent.service for a sub-15s push instead of
+  # waiting up to a minute for the regular timer tick. Failing safe: if
+  # the wake endpoint is unreachable (offline console, network blip) we
+  # silently no-op — the regular 60s timer still runs.
+  cat > /usr/local/bin/blackglass-agent-wake.sh <<'BLACKGLASS_WAKE_SH_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+. /etc/blackglass-agent.env
+WAKE_URL="\${BLACKGLASS_INGEST_URL%/api/v1/ingest/agent}/api/v1/agent/wake?hostId=\${BLACKGLASS_HOST_ID}"
+RESP=$(curl -sS --max-time 5 -H "Authorization: Bearer \${BLACKGLASS_API_KEY}" "$WAKE_URL" 2>/dev/null || echo '{"wake":false}')
+if printf '%s' "$RESP" | grep -qE '"wake"[[:space:]]*:[[:space:]]*true'; then
+  exec systemctl start blackglass-agent.service
+fi
+BLACKGLASS_WAKE_SH_EOF
+  chmod 0755 /usr/local/bin/blackglass-agent-wake.sh
+
+  cat > /etc/systemd/system/blackglass-agent-wake.service <<'EOF'
+[Unit]
+Description=BLACKGLASS wake-check (poll for operator force-push)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/blackglass-agent.env
+ExecStart=/usr/local/bin/blackglass-agent-wake.sh
+NoNewPrivileges=true
+PrivateTmp=true
+EOF
+  cat > /etc/systemd/system/blackglass-agent-wake.timer <<'EOF'
+[Unit]
+Description=Poll BLACKGLASS console for force-push requests every 10 seconds
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=10s
+AccuracySec=2s
+Unit=blackglass-agent-wake.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
   systemctl daemon-reload
   systemctl enable --now blackglass-agent.timer >/dev/null 2>&1 || warn "systemctl enable failed"
-  info "Systemd timer enabled (every 60 seconds)."
+  systemctl enable --now blackglass-agent-wake.timer >/dev/null 2>&1 || warn "systemctl enable wake timer failed"
+  info "Systemd timers enabled (60s push + 10s wake-check)."
 else
   # Cron's minimum granularity is 1 minute — match the systemd path.
   step "systemd not detected; installing cron job (every minute)..."

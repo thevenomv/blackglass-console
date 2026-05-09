@@ -172,6 +172,16 @@ export function checkPortalRate(ip: string): Promise<boolean> {
 }
 
 /**
+ * POST /api/contact-sales — Enterprise lead intake guard.
+ * 5 leads per IP per 10 min — generous enough for legitimate
+ * "I made a typo, let me resubmit" but tight enough that scrapers
+ * can't flood Slack #sales / fill the audit log with noise.
+ */
+export function checkContactSalesRate(ip: string): Promise<boolean> {
+  return allowHybrid(`contact-sales:${ip}`, 5, 600_000);
+}
+
+/**
  * POST /api/v1/baselines — SSH capture guard.
  * 6 per IP per minute; each call fans out SSH to all collector hosts.
  */
