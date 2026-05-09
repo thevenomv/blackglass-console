@@ -113,11 +113,8 @@ export default async function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="flex max-w-5xl flex-col gap-8 px-6 pb-12 pt-6">
-        <PageHeader
-          title="Settings"
-          subtitle="Workspace configuration, collectors, notifications, and access controls."
-        />
+      <div className="flex max-w-5xl flex-col gap-6 px-6 pb-12 pt-6">
+        <PageHeader title="Settings" />
 
         <Suspense fallback={null}>
           <SettingsTabs tabs={tabs} defaultTab="workspace">

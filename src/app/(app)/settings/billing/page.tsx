@@ -54,11 +54,8 @@ export default async function BillingSettingsPage() {
 
   return (
     <AppShell>
-      <div className="flex max-w-3xl flex-col gap-8 px-6 pb-12 pt-6">
-        <PageHeader
-          title="Plan & billing"
-          subtitle="Commercial plans bill on host volume and paid operator seats — viewers are unlimited."
-        />
+      <div className="flex max-w-3xl flex-col gap-6 px-6 pb-12 pt-6">
+        <PageHeader title="Plan & billing" />
 
         {trialRo ? (
           <div className="rounded-card border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">

@@ -71,11 +71,8 @@ export default async function MembersSettingsPage() {
 
   return (
     <AppShell>
-      <div className="flex max-w-3xl flex-col gap-8 px-6 pb-12 pt-6">
-        <PageHeader
-          title="Members"
-          subtitle="Workspace membership, roles, and paid-seat usage. Server-side RBAC is enforced on every mutation."
-        />
+      <div className="flex max-w-3xl flex-col gap-6 px-6 pb-12 pt-6">
+        <PageHeader title="Members" />
         <MembersView
           rows={enriched}
           canInvite={canInvite}
