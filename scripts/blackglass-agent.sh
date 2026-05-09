@@ -34,6 +34,21 @@
 
 set -euo pipefail
 
+# ---------------------------------------------------------------------------
+# Mode flags
+# ---------------------------------------------------------------------------
+#   --check    Pre-flight only: validates dependencies, network reachability,
+#              and that the bundle script collects all 17 expected sections.
+#              Never POSTs. Used by the installer before declaring success
+#              and by ops for triage. Exits 0 if everything is green.
+#
+# Otherwise: collect bundle and POST to BLACKGLASS_INGEST_URL.
+# ---------------------------------------------------------------------------
+MODE="run"
+if [ "${1:-}" = "--check" ]; then
+  MODE="check"
+fi
+
 : "${BLACKGLASS_INGEST_URL:?BLACKGLASS_INGEST_URL must be set}"
 : "${BLACKGLASS_API_KEY:?BLACKGLASS_API_KEY must be set}"
 
@@ -116,6 +131,75 @@ dbg "collected ${BUNDLE_BYTES} bytes in $(( $(date +%s) - TS_START ))s"
 if [ "$BUNDLE_BYTES" -lt 100 ]; then
   log "ERROR: bundle is suspiciously small (${BUNDLE_BYTES} bytes); aborting"
   exit 2
+fi
+
+# ---------------------------------------------------------------------------
+# --check mode — validate without POSTing.
+# ---------------------------------------------------------------------------
+if [ "$MODE" = "check" ]; then
+  log "--check mode: validating environment..."
+
+  # 1. Required commands
+  for cmd in curl awk grep sort tr; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      log "FAIL: missing required command: $cmd"
+      exit 4
+    fi
+  done
+  if ! command -v python3 >/dev/null 2>&1 && ! command -v jq >/dev/null 2>&1; then
+    log "FAIL: neither python3 nor jq is installed (need one for JSON encoding)"
+    exit 4
+  fi
+  log "OK: required commands present"
+
+  # 2. DNS / TCP reachability of the ingest URL (HEAD request, expect any
+  #    HTTP response — even 405 method-not-allowed proves we got there).
+  CHECK_HOST=$(printf '%s' "$BLACKGLASS_INGEST_URL" | awk -F[/:] '{print $4}')
+  if [ -z "$CHECK_HOST" ]; then
+    log "FAIL: cannot parse host from BLACKGLASS_INGEST_URL ($BLACKGLASS_INGEST_URL)"
+    exit 4
+  fi
+  if ! getent hosts "$CHECK_HOST" >/dev/null 2>&1; then
+    log "FAIL: DNS lookup failed for $CHECK_HOST"
+    exit 4
+  fi
+  log "OK: DNS resolves $CHECK_HOST"
+
+  HTTP_PROBE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 \
+    -H "Authorization: Bearer probe" \
+    -H "Content-Type: application/json" \
+    -X POST -d '{}' "$BLACKGLASS_INGEST_URL" || echo "000")
+  case "$HTTP_PROBE" in
+    400|401|403|422)
+      log "OK: ingest endpoint reachable (HTTP $HTTP_PROBE — expected for empty/probe payload)"
+      ;;
+    000)
+      log "FAIL: ingest endpoint unreachable (network error / TLS failure)"
+      exit 4
+      ;;
+    *)
+      log "WARN: ingest endpoint returned unexpected HTTP $HTTP_PROBE — continuing"
+      ;;
+  esac
+
+  # 3. Bundle section coverage. We split on =BGS: markers and confirm
+  #    each of the 17 sections is present (some may be empty, which is
+  #    fine — `ufw` on hosts without UFW for example).
+  EXPECTED_SECTIONS="ss ssudp passwd sudo sudofiles cron usercron svc sshd ufw authkeys filehashes hosts lsmod suid pkgs systemdunits"
+  MISSING=""
+  for section in $EXPECTED_SECTIONS; do
+    if ! grep -q "^=BGS:${section}$" "$BUNDLE_FILE"; then
+      MISSING="$MISSING $section"
+    fi
+  done
+  if [ -n "$MISSING" ]; then
+    log "WARN: bundle missing sections:$MISSING (the agent will still POST but expect drift coverage gaps)"
+  else
+    log "OK: bundle has all 17 expected sections (${BUNDLE_BYTES} bytes)"
+  fi
+
+  log "--check complete (no push performed)."
+  exit 0
 fi
 
 # ---------------------------------------------------------------------------

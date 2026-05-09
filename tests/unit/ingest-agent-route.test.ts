@@ -188,7 +188,13 @@ describe("/api/v1/ingest/agent", () => {
     expect(body.hostId).toBe("host-127-0-0-1");
     expect(body.bootstrap).toBe(true);
     expect(body.driftEvents).toBe(0);
-    expect(body.sections).toBeGreaterThanOrEqual(15);
+    const summary = body.summary as { sections: number; listeners: number };
+    expect(summary.sections).toBeGreaterThanOrEqual(15);
+    // The new response shape includes a `next` block with a deep-link
+    // for the install script to print on success.
+    const next = body.next as { host_url: string; wizard_url: string };
+    expect(next.host_url).toContain("/hosts/host-127-0-0-1");
+    expect(next.wizard_url).toContain("/onboarding");
 
     expect(saveBaselineMock).toHaveBeenCalledTimes(1);
     expect(storeDriftEventsMock).toHaveBeenCalledWith("host-127-0-0-1", []);

@@ -1,6 +1,7 @@
 import { Client, type ConnectConfig } from "ssh2";
 import * as net from "node:net";
 import type { SshAuthConfig } from "@/lib/server/secrets";
+import { normaliseHostId } from "@/lib/server/onboarding/host-id";
 import type { HostSnapshot } from "./types";
 import {
   parseAuthorizedKeys,
@@ -48,7 +49,9 @@ export function buildSshConfig(
       : Number(process.env.COLLECTOR_PORT ?? DEFAULT_SSH_PORT);
 
   return {
-    hostId: `host-${host.replace(/\./g, "-")}`,
+    // Use the shared normaliser so SSH-pull and push-agent paths produce
+    // identical canonical IDs for the same host.
+    hostId: normaliseHostId(host),
     displayName: process.env[`COLLECTOR_HOST_${hostIndex}_NAME`] ?? host,
     host,
     port: Number.isFinite(port) ? port : DEFAULT_SSH_PORT,

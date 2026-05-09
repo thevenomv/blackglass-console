@@ -48,7 +48,11 @@ import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { getBaseline, saveBaseline, listBaselineHostIds } from "@/lib/server/baseline-store";
 import { storeDriftEvents } from "@/lib/server/drift-engine";
 import { processHostSnapshotDrift } from "@/lib/server/services/scan-drift-job";
-import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
+import {
+  jsonErrorWithRemedy,
+  readJsonBodyOptional,
+  zodErrorResponse,
+} from "@/lib/server/http/json-error";
 import { ResourceIdPathSchema } from "@/lib/server/http/schemas";
 import { checkIngestRate } from "@/lib/server/rate-limit";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
@@ -59,6 +63,8 @@ import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 import { parseHostIngestKeys } from "@/lib/server/ingest-credentials";
 import { isHostTombstoned } from "@/lib/server/host-tombstones";
 import { recordAgentSnapshot } from "@/lib/server/agent-snapshot-cache";
+import { onboardingError } from "@/lib/server/onboarding/errors";
+import { tryNormaliseHostId } from "@/lib/server/onboarding/host-id";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -100,7 +106,11 @@ export async function POST(request: Request) {
   const hostKeyMap = parseHostIngestKeys();
   if (!apiKey && Object.keys(hostKeyMap).length === 0) {
     console.warn("[ingest/agent] INGEST_API_KEY / INGEST_HOST_KEYS_JSON not configured");
-    return jsonError(503, "not_configured", "Push ingestion is not configured on this instance", requestId);
+    const e = onboardingError(
+      "ingest_not_configured",
+      "Push ingestion is not configured on this instance",
+    );
+    return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
   }
 
   const raw = await readJsonBodyOptional(request, requestId);
@@ -109,7 +119,21 @@ export async function POST(request: Request) {
   const parsed = AgentBundlePayloadSchema.safeParse(raw.data);
   if (!parsed.success) return zodErrorResponse(parsed.error, requestId);
 
-  const { hostId, hostname, collectedAt, bundle } = parsed.data;
+  // Coerce the agent-supplied hostId to the canonical form so SSH-pull
+  // and push-agent paths produce identical IDs for the same host. This
+  // also defends against agents that send a slightly off-form ID
+  // ("Host-167.99.59.55" vs "host-167-99-59-55") that would otherwise
+  // create a duplicate inventory row.
+  const canonicalHostId = tryNormaliseHostId(parsed.data.hostId);
+  if (!canonicalHostId) {
+    const e = onboardingError(
+      "validation_failed",
+      `hostId could not be normalised: ${parsed.data.hostId}`,
+    );
+    return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
+  }
+  const hostId = canonicalHostId;
+  const { hostname, collectedAt, bundle } = parsed.data;
 
   const authHeader = request.headers.get("authorization") ?? "";
   const providedKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
@@ -128,30 +152,47 @@ export async function POST(request: Request) {
   }
 
   if (!authed) {
-    return jsonError(401, "unauthorized", "Invalid or missing Bearer token", requestId);
+    const e = onboardingError("unauthorized", "Invalid or missing Bearer token");
+    return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
   }
 
   const ingestTenantId = process.env.INGEST_SAAS_TENANT_ID?.trim();
   if (ingestTenantId) {
     const { tryGetDb } = await import("@/db");
     if (!tryGetDb()) {
-      return jsonError(503, "database_unavailable", "Tenant-scoped ingest requires DATABASE_URL", requestId);
+      const e = onboardingError(
+        "database_unavailable",
+        "Tenant-scoped ingest requires DATABASE_URL",
+      );
+      return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
     }
     const sub = await getSubscriptionForTenant(ingestTenantId);
     if (!sub) {
-      return jsonError(403, "ingest_scope_invalid", "INGEST_SAAS_TENANT_ID does not match a tenant", requestId);
+      const e = onboardingError(
+        "ingest_scope_invalid",
+        "INGEST_SAAS_TENANT_ID does not match a tenant",
+      );
+      return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
     }
     const baselineIds = await listBaselineHostIds();
     const known = new Set(baselineIds);
     const isNewHost = !known.has(hostId);
     const gate = withinHostAllowance(sub, known.size, isNewHost ? 1 : 0);
     if (!gate.ok) {
-      return jsonError(403, gate.code, gate.detail, requestId);
+      const e = onboardingError(
+        "host_quota_exceeded",
+        `Host allowance exceeded (current: ${known.size}, limit: ${sub.hostLimit}). ${gate.detail}`,
+      );
+      return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
     }
   }
 
   if (!(await checkIngestRate(hostId))) {
-    return jsonError(429, "rate_limited", `Ingest rate limit exceeded for host ${hostId}`, requestId);
+    const e = onboardingError(
+      "rate_limited",
+      `Ingest rate limit exceeded for host ${hostId}`,
+    );
+    return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
   }
 
   // Tombstone check — refuse re-bootstrap for hosts an operator just
@@ -164,15 +205,46 @@ export async function POST(request: Request) {
   // an admin to clear the tombstone.
   const tombstone = await isHostTombstoned(hostId, ingestTenantId ?? null);
   if (tombstone) {
-    return jsonError(
-      410,
+    const e = onboardingError(
       "host_tombstoned",
       `Host ${hostId} was deleted; ignoring agent push until ${tombstone.expiresAt}.`,
-      requestId,
     );
+    return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
   }
 
+  // ----------------------------------------------------------------
+  // Bundle integrity checks. We do these BEFORE running parsers so
+  // the user gets a useful error when the agent ran but couldn't
+  // collect anything (sudo failure, OS without the expected tools,
+  // bundle truncated by the 60s collection timeout, etc.).
+  // ----------------------------------------------------------------
   const sections = parseBundleOutput(bundle);
+  const sectionCount = Object.keys(sections).length;
+
+  // Bundle should produce ~17 sections. Anything below 5 means the
+  // collection script crashed early — almost always a sudo problem.
+  if (sectionCount < 5) {
+    const e = onboardingError(
+      "bundle_truncated",
+      `Received only ${sectionCount} section${sectionCount === 1 ? "" : "s"} (expected ~17). The agent's bundle script likely timed out or sudo refused most commands.`,
+    );
+    return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
+  }
+
+  // The three "must produce at least something" sections — if all
+  // three are empty we have no useful baseline to pin.
+  const missing: string[] = [];
+  if (!sections["ss"] && !sections["ssudp"]) missing.push("ss (listeners)");
+  if (!sections["passwd"]) missing.push("passwd (users)");
+  if (!sections["sshd"]) missing.push("sshd (ssh config)");
+  if (missing.length === 3) {
+    const e = onboardingError(
+      "bundle_missing_sections",
+      `Bundle is missing critical sections: ${missing.join(", ")}. The agent ran but couldn't read system state.`,
+    );
+    return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
+  }
+
   const snapshot: HostSnapshot = {
     hostId,
     hostname,
@@ -237,7 +309,11 @@ export async function POST(request: Request) {
     }
   } catch (err) {
     console.error("[ingest/agent] drift pipeline failed for", hostId, err);
-    return jsonError(502, "store_error", "Snapshot could not be processed. Check server logs.", requestId);
+    const e = onboardingError(
+      "drift_pipeline_failed",
+      `Snapshot accepted but drift pipeline failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return jsonErrorWithRemedy(e.status, e.code, e.detail, e.remedy, requestId);
   }
 
   // Make this snapshot available to the SSH-fail collector fallback so
@@ -257,17 +333,32 @@ export async function POST(request: Request) {
 
   revalidateIntegritySurfaces();
 
+  // Resolve a console URL we can hand back to the install script so it
+  // can print a deep-link to the host detail page on success.
+  const consoleUrl = (
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    `https://${request.headers.get("host") ?? "blackglasssec.com"}`
+  ).replace(/\/+$/, "");
+
   return jsonWithRequestId(
     {
       ok: true,
+      stage: bootstrap ? "bootstrap_baseline" : "ingest_ok",
       hostId,
       capturedAt: collectedAt,
-      sections: Object.keys(sections).length,
-      listeners: snapshot.listeners.length,
-      users: snapshot.users.length,
-      services: snapshot.services.length,
+      summary: {
+        sections: Object.keys(sections).length,
+        listeners: snapshot.listeners.length,
+        users: snapshot.users.length,
+        services: snapshot.services.length,
+      },
       bootstrap,
       driftEvents: totalEvents,
+      next: {
+        host_url: `${consoleUrl}/hosts/${hostId}`,
+        next_action: bootstrap ? "capture_baseline" : "review_findings",
+        wizard_url: `${consoleUrl}/onboarding`,
+      },
     },
     requestId,
   );

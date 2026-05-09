@@ -87,6 +87,16 @@ export function getRecentAgentSnapshot(
   return entry.snapshot;
 }
 
+/**
+ * Forget the cached snapshot for `hostId`. Used by the onboarding reset
+ * flow so a re-installed agent doesn't accidentally serve stale data
+ * from the deleted host's last push. Returns true when something was
+ * actually removed.
+ */
+export function clearAgentSnapshot(hostId: string): boolean {
+  return cache.delete(hostId);
+}
+
 /** Test-only: forget every cached snapshot. */
 export function _resetAgentSnapshotCacheForTests(): void {
   cache.clear();

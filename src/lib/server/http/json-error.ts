@@ -16,6 +16,32 @@ export function jsonError(status: number, error: string, detail?: string, reques
   );
 }
 
+/**
+ * Like `jsonError` but adds a `remedy` field with concrete next-step
+ * guidance. Used by the onboarding / push-agent surface where the user
+ * is most likely to hit unfamiliar failure modes and benefits from
+ * specific actions.
+ */
+export function jsonErrorWithRemedy(
+  status: number,
+  error: string,
+  detail: string,
+  remedy: string,
+  requestId?: string,
+) {
+  if (status >= 500) {
+    console.error(`[blackglass] ${status} ${error}: ${detail}`);
+  }
+  const headers: Record<string, string> = {
+    "Content-Security-Policy": "default-src 'none'",
+  };
+  if (requestId) headers["x-request-id"] = requestId;
+  return NextResponse.json(
+    { error, detail, remedy },
+    { status, headers },
+  );
+}
+
 export function zodErrorResponse(err: ZodError, requestId?: string) {
   const flat = err.flatten();
   const parts = [
