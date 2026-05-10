@@ -803,7 +803,10 @@ export function JanitorConsole() {
             <Card title="Request cleanup">
               <p className="mb-3 text-sm text-fg-muted">
                 Select findings below, choose dry-run or live (Growth+), then create requests for the
-                cleanup queue.
+                cleanup queue. Live requests skip resources tagged as protected (built-in markers like{" "}
+                <span className="font-mono text-fg-primary">production</span> /{" "}
+                <span className="font-mono text-fg-primary">blackglass-protected</span> plus your policy
+                protector tags); approval is also blocked server-side before any cloud delete.
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <select

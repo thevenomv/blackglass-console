@@ -100,6 +100,14 @@ export async function POST(request: Request) {
     if (msg === "live_cleanup_forbidden") {
       return jsonError(403, "charon_plan_blocked", "Live cleanup is not permitted.", requestId);
     }
+    if (msg === "cleanup_blocked_protected") {
+      return jsonError(
+        409,
+        "cleanup_blocked_protected",
+        "This resource is tagged as protected (built-in markers or your protector tags). Remove the tag or adjust Charon policies before live cleanup.",
+        requestId,
+      );
+    }
     if (msg === "finding_not_found" || msg === "account_not_found") {
       return jsonError(404, "not_found", "Related finding or account is missing.", requestId);
     }

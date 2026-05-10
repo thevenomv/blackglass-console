@@ -10,6 +10,15 @@ Customer-facing summaries of data handling appear on **`/privacy`**, **`/terms`*
 - **Live cleanup** runs only after an explicit approve (console or Slack interactivity). Failed deletes persist a `failed` row in the cleanup queue with a redacted error string.
 - **Slack interactivity** requires `SLACK_SIGNING_SECRET` and verifies `X-Slack-Signature`.
 
+## Blast radius (protector tags)
+
+Charon treats some tag markers as **never eligible for live delete**, and drops them from the findings list after scan policy is applied:
+
+- **Built-in markers** (matched case-insensitively on finding tag keys or values): `production`, `prod`, `critical`, `do-not-delete`, `blackglass-protected` (same set as idle-scoring heuristics on DO tags).
+- **Tenant extras**: `protectTagsExtraLower` in workspace Charon policies.
+
+**Live cleanup queue:** requests are **not created** for protected findings. **Approve path:** if a stale request somehow reaches approval, execution is **blocked** before any cloud delete (`cleanup_blocked_protected` / audit `janitor.cleanup.blocked_protect_tag`). Dry-run simulations are unaffected.
+
 ## Minimum IAM / scopes (copy-paste starters)
 
 These are **starting points** — tighten to your org. Live cleanup needs **write** actions; inventory-only needs **read**.

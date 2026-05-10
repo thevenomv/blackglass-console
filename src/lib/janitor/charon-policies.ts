@@ -2,6 +2,15 @@
  * Tenant Charon policies stored in `saas_tenants.charon_policies` (JSON).
  */
 
+/** Lowercase markers matched against finding tag keys/values — never live-deleted by Charon. */
+export const CHARON_BUILTIN_PROTECT_MARKERS_LOWER = [
+  "production",
+  "prod",
+  "critical",
+  "do-not-delete",
+  "blackglass-protected",
+] as const;
+
 export type CharonPolicyJson = {
   /** Tag keys (lowercase) — findings carrying any of these tags are dropped. */
   excludeTagsLower?: string[];
@@ -68,4 +77,17 @@ export function findingMatchesProtectTags(
   if (!protectLower.length) return false;
   const hay = tagHaystack(tags);
   return protectLower.some((p) => hay.includes(p));
+}
+
+/** Built-in protectors + tenant `protectTagsExtraLower` (for scan filtering + cleanup guardrails). */
+export function mergedProtectTagMarkersLower(policy: ResolvedCharonPolicies): string[] {
+  return [...CHARON_BUILTIN_PROTECT_MARKERS_LOWER, ...policy.protectTagsExtraLower];
+}
+
+/** True if this finding must not be live-deleted (tag keys/values vs merged protector list). */
+export function findingIsProtectTagged(
+  tags: Record<string, string> | undefined,
+  policy: ResolvedCharonPolicies,
+): boolean {
+  return findingMatchesProtectTags(tags, mergedProtectTagMarkersLower(policy));
 }

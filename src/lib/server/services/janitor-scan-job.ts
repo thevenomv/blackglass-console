@@ -21,7 +21,7 @@ import type { JanitorCloudProvider } from "@/lib/janitor/providers";
 import { janitorProviderScanImplemented } from "@/lib/janitor/providers";
 import {
   findingMatchesExcludeTags,
-  findingMatchesProtectTags,
+  findingIsProtectTagged,
   parseCharonPolicies,
 } from "@/lib/janitor/charon-policies";
 import { maybeSendCharonScanDigest } from "@/lib/server/services/charon-scan-digest";
@@ -82,7 +82,7 @@ function applyTenantPolicies(
   return rows.filter((row) => {
     if (policy.minIdleScore != null && row.idleScore < policy.minIdleScore) return false;
     if (findingMatchesExcludeTags(row.tags ?? undefined, policy.excludeTagsLower)) return false;
-    if (findingMatchesProtectTags(row.tags ?? undefined, policy.protectTagsExtraLower)) return false;
+    if (findingIsProtectTagged(row.tags ?? undefined, policy)) return false;
     return true;
   });
 }

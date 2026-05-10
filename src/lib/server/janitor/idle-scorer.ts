@@ -4,6 +4,7 @@
  */
 
 import type { DoDroplet, DoSnapshot, DoVolume } from "./do-client";
+import { CHARON_BUILTIN_PROTECT_MARKERS_LOWER } from "@/lib/janitor/charon-policies";
 
 /** Approximate droplet $/mo by size slug (USD). Unknown sizes → conservative default. */
 const DROPLET_SIZE_MONTHLY_USD: Record<string, number> = {
@@ -46,7 +47,7 @@ function hasProtectorTag(tags: string[] | undefined): boolean {
   if (!tags?.length) return false;
   const lower = tags.map((t) => t.toLowerCase());
   return lower.some((t) =>
-    ["production", "prod", "critical", "do-not-delete", "blackglass-protected"].includes(t),
+    (CHARON_BUILTIN_PROTECT_MARKERS_LOWER as readonly string[]).includes(t),
   );
 }
 

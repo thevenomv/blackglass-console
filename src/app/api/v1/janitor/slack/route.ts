@@ -143,6 +143,13 @@ export async function POST(request: Request) {
       { liveCleanupAllowed: ent.liveCleanup },
     );
   } catch (e) {
+    if (e instanceof Error && e.message === "cleanup_blocked_protected") {
+      return Response.json({
+        response_type: "ephemeral",
+        text:
+          "Blocked: this resource matches a protector tag (built-in or your Charon policy). No cloud API was called.",
+      });
+    }
     const detail =
       e instanceof JanitorCleanupExecutionError
         ? e.redactedDetail

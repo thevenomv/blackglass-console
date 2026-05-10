@@ -4,7 +4,8 @@
 
 import { and, eq } from "drizzle-orm";
 import { withTenantRls } from "@/db";
-import { janitorAccounts, janitorCleanupRequests, janitorFindings } from "@/db/schema";
+import { janitorAccounts, janitorCleanupRequests, janitorFindings, saasTenants } from "@/db/schema";
+import { findingIsProtectTagged, parseCharonPolicies } from "@/lib/janitor/charon-policies";
 import { redactSensitivePlaintext } from "@/lib/janitor/charon-error-redact";
 import { performLiveJanitorCleanup } from "@/lib/server/services/janitor-cleanup-executor";
 import { emitSaasAudit } from "@/lib/saas/event-log";
@@ -26,13 +27,26 @@ export async function createJanitorCleanupRequests(
 ): Promise<string[]> {
   const created: string[] = [];
   await withTenantRls(tenantId, async (db) => {
+    const [tenantRow] = await db
+      .select({ charonPolicies: saasTenants.charonPolicies })
+      .from(saasTenants)
+      .where(eq(saasTenants.id, tenantId))
+      .limit(1);
+    const policy = parseCharonPolicies(tenantRow?.charonPolicies);
+
     for (const fid of findingIds) {
       const [finding] = await db
-        .select({ id: janitorFindings.id })
+        .select({ id: janitorFindings.id, tags: janitorFindings.tags })
         .from(janitorFindings)
         .where(and(eq(janitorFindings.id, fid), eq(janitorFindings.tenantId, tenantId)))
         .limit(1);
       if (!finding) continue;
+      if (
+        mode === "live" &&
+        findingIsProtectTagged(finding.tags ?? undefined, policy)
+      ) {
+        continue;
+      }
 
       const [pending] = await db
         .select({ id: janitorCleanupRequests.id })
@@ -125,6 +139,42 @@ export async function approveOrRejectJanitorCleanup(
     const now = new Date();
 
     if (reqRow.mode === "live") {
+      const [tenantPolicyRow] = await db
+        .select({ charonPolicies: saasTenants.charonPolicies })
+        .from(saasTenants)
+        .where(eq(saasTenants.id, tenantId))
+        .limit(1);
+      const policy = parseCharonPolicies(tenantPolicyRow?.charonPolicies);
+      if (findingIsProtectTagged(finding.tags ?? undefined, policy)) {
+        await db
+          .update(janitorCleanupRequests)
+          .set({
+            status: "failed",
+            approvedByUserId: userId,
+            approvedAt: now,
+            executedAt: now,
+            metadata: {
+              ...reqRow.metadata,
+              blockedByProtectTag: true,
+              resourceType: finding.resourceType,
+              resourceId: finding.resourceId,
+            },
+          })
+          .where(eq(janitorCleanupRequests.id, requestId));
+        await emitSaasAudit({
+          tenantId,
+          actorUserId: userId,
+          action: "janitor.cleanup.blocked_protect_tag",
+          targetType: "janitor_cleanup",
+          targetId: requestId,
+          metadata: {
+            resourceType: finding.resourceType,
+            resourceId: finding.resourceId,
+          },
+        });
+        throw new Error("cleanup_blocked_protected");
+      }
+
       if (account.provider !== "do" && account.provider !== "aws" && account.provider !== "gcp") {
         throw new Error("live_cleanup_provider_unsupported");
       }
