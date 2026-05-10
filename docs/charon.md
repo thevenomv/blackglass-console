@@ -8,6 +8,7 @@ Customer-facing summaries of data handling appear on **`/privacy`**, **`/terms`*
 
 - **Scans** use stored credentials (envelope-encrypted per tenant) only on the server or worker.
 - **Live cleanup** runs only after an explicit approve (console or Slack interactivity). Failed deletes persist a `failed` row in the cleanup queue with a redacted error string.
+- **HTTP guard:** cleanup enqueue + approve share a dedicated per-IP rate limit (`checkJanitorCleanupPostRate` — see `docs/http-rate-limit-budgets.md`), separate from baseline capture quotas.
 - **Slack interactivity** requires `SLACK_SIGNING_SECRET` and verifies `X-Slack-Signature`.
 
 ## Blast radius (protector tags)

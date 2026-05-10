@@ -17,7 +17,7 @@ import {
 } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
-import { checkBaselinesRate, clientIp } from "@/lib/server/rate-limit";
+import { checkJanitorCleanupPostRate, clientIp } from "@/lib/server/rate-limit";
 import { createJanitorCleanupRequests } from "@/lib/server/services/janitor-cleanup-service";
 import { notifyCharonCleanupQueuedSlack } from "@/lib/server/services/charon-cleanup-slack-notify";
 import { isCharonAddonEnabled, resolveCharonEntitlements } from "@/lib/saas/plans";
@@ -33,7 +33,7 @@ const BodySchema = z
 
 export async function POST(request: Request) {
   const requestId = getOrCreateRequestId(request);
-  if (!(await checkBaselinesRate(clientIp(request)))) {
+  if (!(await checkJanitorCleanupPostRate(clientIp(request)))) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 

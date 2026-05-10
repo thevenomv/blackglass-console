@@ -14,7 +14,7 @@ import {
 } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
-import { checkBaselinesRate, clientIp } from "@/lib/server/rate-limit";
+import { checkJanitorCleanupPostRate, clientIp } from "@/lib/server/rate-limit";
 import {
   approveOrRejectJanitorCleanup,
   JanitorCleanupExecutionError,
@@ -35,7 +35,7 @@ const BodySchema = z
 
 export async function POST(request: Request) {
   const requestId = getOrCreateRequestId(request);
-  if (!(await checkBaselinesRate(clientIp(request)))) {
+  if (!(await checkJanitorCleanupPostRate(clientIp(request)))) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 

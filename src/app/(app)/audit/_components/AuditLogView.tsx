@@ -40,6 +40,7 @@ const QUICK_ACTIONS = [
   // "show me all SSO / SCIM activity in the last 30 days".
   { label: "Auth", value: "auth" },
   { label: "Settings", value: "settings" },
+  { label: "Charon", value: "janitor.cleanup" },
 ];
 
 export function AuditLogView() {

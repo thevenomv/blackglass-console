@@ -9,5 +9,6 @@ Per-client (IP-derived) defaults in **`src/lib/server/rate-limit.ts`**. When **`
 | `checkHealthSecretsProbeRate`| `GET /api/health?probe=secrets` | 12 requests / 60s   |
 | `checkLoginRate`             | Server action `signIn`          | 10 requests / 15m   |
 | `checkInviteRate`            | `GET /api/auth/invite`         | 10 requests / 60s   |
+| `checkJanitorCleanupPostRate` | `POST /api/v1/janitor/cleanup`, `POST .../cleanup/approve` | 20 requests / 60s |
 
 **IP resolution:** **`clientIp`** prefers **`x-real-ip`**, else the **last** hop in **`x-forwarded-for`** (trusted proxy semantics).

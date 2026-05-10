@@ -156,6 +156,52 @@ describe("AWS live cleanup — pre-delete Describe tag guard", () => {
     await performAwsLiveCleanup(awsCreds, finding, ["production"]);
     expect(awsSend).toHaveBeenCalledTimes(2);
   });
+
+  it("throws when ebs_volume Describe tags match protectors", async () => {
+    awsSend.mockImplementation(async (cmd: { constructor: { name: string } }) => {
+      const n = cmd.constructor.name;
+      if (n === "DescribeVolumesCommand") {
+        return {
+          Volumes: [{ VolumeId: "vol-block", Tags: [{ Key: "Tier", Value: "production" }] }],
+        };
+      }
+      throw new Error(`unexpected ${n}`);
+    });
+
+    const finding = {
+      resourceType: "ebs_volume",
+      resourceId: "vol-block",
+      metricsMeta: { region: "us-east-1" },
+    } as unknown as JanitorFinding;
+
+    await expect(performAwsLiveCleanup(awsCreds, finding, ["production"])).rejects.toThrow(
+      JanitorCleanupBlockedError,
+    );
+    expect(awsSend).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws when ebs_snapshot Describe tags match protectors", async () => {
+    awsSend.mockImplementation(async (cmd: { constructor: { name: string } }) => {
+      const n = cmd.constructor.name;
+      if (n === "DescribeSnapshotsCommand") {
+        return {
+          Snapshots: [{ SnapshotId: "snap-block", Tags: [{ Key: "env", Value: "prod" }] }],
+        };
+      }
+      throw new Error(`unexpected ${n}`);
+    });
+
+    const finding = {
+      resourceType: "ebs_snapshot",
+      resourceId: "snap-block",
+      metricsMeta: { region: "us-east-1" },
+    } as unknown as JanitorFinding;
+
+    await expect(performAwsLiveCleanup(awsCreds, finding, ["prod"])).rejects.toThrow(
+      JanitorCleanupBlockedError,
+    );
+    expect(awsSend).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("GCP live cleanup — pre-delete GET labels guard", () => {
@@ -193,6 +239,23 @@ describe("GCP live cleanup — pre-delete GET labels guard", () => {
 
     await performGcpLiveCleanup(minimalSa, finding, ["production"]);
     expect(gcpFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws when global snapshot labels match protectors", async () => {
+    gcpFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ labels: { keep: "blackglass-protected" } }), { status: 200 }),
+    );
+
+    const finding = {
+      resourceType: "gce_snapshot",
+      resourceId: "snap-glob",
+      metricsMeta: {},
+    } as unknown as JanitorFinding;
+
+    await expect(
+      performGcpLiveCleanup(minimalSa, finding, ["blackglass-protected"]),
+    ).rejects.toThrow(JanitorCleanupBlockedError);
+    expect(gcpFetch).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -269,5 +332,76 @@ describe("DigitalOcean live cleanup — pre-delete GET tag guard", () => {
 
     await performDigitalOceanLiveCleanup("tenant-x", encBlob, finding, ["production"]);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("blocks volume when live string tags match protectors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const u = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (u.includes("/v2/volumes/vol-x") && u.includes("region=nyc1") && method === "GET") {
+          return new Response(
+            JSON.stringify({
+              volume: {
+                id: "vol-x",
+                name: "v",
+                size_gigabytes: 10,
+                tags: ["critical"],
+              },
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response("unexpected", { status: 500 });
+      }),
+    );
+
+    const finding = {
+      resourceType: "volume",
+      resourceId: "vol-x",
+      metricsMeta: { region: "nyc1" },
+    } as unknown as JanitorFinding;
+
+    await expect(
+      performDigitalOceanLiveCleanup("tenant-x", encBlob, finding, ["critical"]),
+    ).rejects.toThrow(JanitorCleanupBlockedError);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks snapshot when live tags match protectors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const u = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (u.includes("/v2/snapshots/snap-99") && method === "GET") {
+          return new Response(
+            JSON.stringify({
+              snapshot: {
+                id: "snap-99",
+                name: "s",
+                resource_id: "1",
+                resource_type: "droplet",
+                size_gigabytes: 1,
+                tags: ["do-not-delete"],
+              },
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response("unexpected", { status: 500 });
+      }),
+    );
+
+    const finding = {
+      resourceType: "snapshot",
+      resourceId: "snap-99",
+    } as unknown as JanitorFinding;
+
+    await expect(
+      performDigitalOceanLiveCleanup("tenant-x", encBlob, finding, ["do-not-delete"]),
+    ).rejects.toThrow(JanitorCleanupBlockedError);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

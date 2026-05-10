@@ -297,3 +297,12 @@ export function checkJanitorScanRateForAccount(tenantId: string, accountId: stri
 export function checkJanitorAccountPostRate(ip: string): Promise<boolean> {
   return allowHybrid(`janitor:account:post:${ip}`, 12, 60_000);
 }
+
+/**
+ * POST /api/v1/janitor/cleanup and POST .../cleanup/approve — queue + approve
+ * (cloud deletes on approve). Separate bucket from generic baselines so Charon
+ * traffic cannot starve baseline capture quotas.
+ */
+export function checkJanitorCleanupPostRate(ip: string): Promise<boolean> {
+  return allowHybrid(`janitor:cleanup:post:${ip}`, 20, 60_000);
+}
