@@ -1,5 +1,13 @@
 import Link from "next/link";
 
+// Computed once at module load (server start) so SSR and client hydration
+// never see different values across a year-boundary deploy. Worst case:
+// the copyright shows last year's number for a few hours after Jan 1
+// until the server is redeployed — which is fine, and a lot quieter than
+// the hydration warning React emits when `new Date()` is evaluated per
+// render.
+const COPYRIGHT_YEAR = new Date().getFullYear();
+
 export function PublicFooter() {
   return (
     <footer className="border-t border-border-default bg-bg-panel py-12 text-sm text-fg-muted">
@@ -46,6 +54,8 @@ export function PublicFooter() {
               <li><Link href="/changelog" className="hover:text-fg-primary">Changelog</Link></li>
               <li><Link href="/docs/snapshot-freshness" className="hover:text-fg-primary">Snapshot freshness</Link></li>
               <li><Link href="/docs/api" className="hover:text-fg-primary">API docs &amp; examples</Link></li>
+              <li><Link href="/tools" className="hover:text-fg-primary">Free tools</Link></li>
+              <li><Link href="/tools/cloud-waste-estimator" className="hover:text-fg-primary">Cloud waste estimator</Link></li>
               <li><Link href="/status" className="hover:text-fg-primary">System status</Link></li>
             </ul>
           </div>
@@ -62,7 +72,7 @@ export function PublicFooter() {
       </div>
       <div className="mx-auto mt-10 max-w-6xl space-y-1 px-4 text-xs leading-relaxed text-fg-faint">
         <p>
-          © {new Date().getFullYear()} Obsidian Dynamics Limited (Co. No. 16663833). UK ICO registration{" "}
+          © {COPYRIGHT_YEAR} Obsidian Dynamics Limited (Co. No. 16663833). UK ICO registration{" "}
           <span className="whitespace-nowrap">ZC141175</span>.
         </p>
         <p>

@@ -70,6 +70,40 @@ describe("security headers", () => {
     expect(csp).toMatch(/sentry\.io/);
   });
 
+  it("CSP whitelists Plausible Analytics on script-src and connect-src", () => {
+    const csp = __test__.buildCsp();
+    // Default Plausible host appears in both directives — script load AND
+    // event-beacon endpoints. Without both, enforced CSP would silently
+    // break analytics on launch day.
+    const scriptSrc = csp.split(";").find((d) => d.trim().startsWith("script-src ")) ?? "";
+    const connectSrc = csp.split(";").find((d) => d.trim().startsWith("connect-src ")) ?? "";
+    expect(scriptSrc).toMatch(/https:\/\/plausible\.io/);
+    expect(connectSrc).toMatch(/https:\/\/plausible\.io/);
+  });
+
+  it("CSP picks up the host from NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL when set", () => {
+    process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL =
+      "https://analytics.example.com/js/script.js";
+    try {
+      const csp = __test__.buildCsp();
+      expect(csp).toMatch(/https:\/\/analytics\.example\.com/);
+    } finally {
+      delete process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL;
+    }
+  });
+
+  it("CSP silently ignores an unparseable Plausible override URL", () => {
+    process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL = "definitely not a url";
+    try {
+      const csp = __test__.buildCsp();
+      // Default still present, no crash, no garbage host.
+      expect(csp).toMatch(/https:\/\/plausible\.io/);
+      expect(csp).not.toMatch(/definitely not a url/);
+    } finally {
+      delete process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL;
+    }
+  });
+
   it("opting out via SECURITY_HEADERS_DISABLED skips ALL headers", () => {
     process.env.SECURITY_HEADERS_DISABLED = "true";
     const res = applySecurityHeaders(NextResponse.next());

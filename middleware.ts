@@ -45,6 +45,7 @@ const clerkPublic = createRouteMatcher([
   "/docs(.*)",
   "/status(.*)",
   "/subprocessors(.*)",
+  "/tools(.*)",
   // All API routes manage their own auth (Clerk session, API keys, webhook sigs).
   // Marking them public here means Clerk populates auth() context without force-redirecting.
   "/api/(.*)",
@@ -85,7 +86,8 @@ async function legacyMiddleware(request: NextRequest, requestId: string) {
     pathname.startsWith("/contact-sales") ||
     pathname.startsWith("/docs") ||
     pathname.startsWith("/status") ||
-    pathname.startsWith("/subprocessors")
+    pathname.startsWith("/subprocessors") ||
+    pathname.startsWith("/tools")
   ) {
     return withRequestId(request, requestId);
   }

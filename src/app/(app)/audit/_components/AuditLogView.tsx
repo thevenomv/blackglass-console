@@ -41,6 +41,12 @@ const QUICK_ACTIONS = [
   { label: "Auth", value: "auth" },
   { label: "Settings", value: "settings" },
   { label: "Charon", value: "janitor.cleanup" },
+  // Public marketing surfaces (contact-sales lead intake, free /tools
+  // submissions). These live on process-global audit today; the chip
+  // is forward-compatible for when any tool action becomes
+  // tenant-scoped and lands in saas_audit_events.
+  { label: "Marketing", value: "marketing" },
+  { label: "Free tools", value: "tools." },
 ];
 
 export function AuditLogView() {

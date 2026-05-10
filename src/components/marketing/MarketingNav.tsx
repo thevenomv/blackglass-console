@@ -17,6 +17,7 @@ export function MarketingNav() {
     { href: "/product", label: "Product" },
     { href: "/use-cases", label: "Use Cases" },
     { href: "/pricing", label: "Pricing" },
+    { href: "/tools", label: "Tools" },
     { href: "/security", label: "Security" },
     { href: "/demo", label: "Demo" },
     { href: "/changelog", label: "Changelog" },

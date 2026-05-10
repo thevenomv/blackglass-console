@@ -45,11 +45,41 @@ function cspEnforce(): boolean {
 }
 
 /**
+ * Plausible Analytics origin(s) for CSP.
+ *
+ * Returns the default `https://plausible.io` always (cheap to allow even
+ * when analytics is disabled — no script will load), plus the host from
+ * `NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL` when an operator points at a self-
+ * hosted instance (e.g. `https://analytics.example.com/js/script.js`).
+ *
+ * Defensive: bad URLs in the env var don't break the policy build —
+ * they're silently dropped from the host list. The admin will see the
+ * misconfiguration via a CSP violation report instead of a 500.
+ */
+function plausibleHosts(): string[] {
+  const hosts = new Set<string>(["https://plausible.io"]);
+  const overrideUrl = process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL?.trim();
+  if (overrideUrl) {
+    try {
+      const u = new URL(overrideUrl);
+      if (u.protocol === "https:" || u.protocol === "http:") {
+        hosts.add(`${u.protocol}//${u.host}`);
+      }
+    } catch {
+      // ignore unparseable override URL
+    }
+  }
+  return Array.from(hosts);
+}
+
+/**
  * Build the CSP value. Kept in code (not env) so changes are
  * code-reviewed and travel with the deploy that needs them. Each
  * domain has a one-line comment explaining why it's on the list.
  */
 function buildCsp(nonce?: string): string {
+  const plausible = plausibleHosts();
+
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
     // 'unsafe-inline' on script-src is intentional for now — Next.js
@@ -64,6 +94,7 @@ function buildCsp(nonce?: string): string {
       "https://js.stripe.com", // Stripe Checkout + Elements
       "https://*.clerk.accounts.dev",
       "https://*.clerk.com",
+      ...plausible, // Plausible Analytics (cookie-free, marketing routes only) — see PlausibleScript.tsx
       ...(nonce ? [`'nonce-${nonce}'`] : []),
     ],
     "style-src": [
@@ -89,6 +120,7 @@ function buildCsp(nonce?: string): string {
       "https://o4504505471565824.ingest.sentry.io",
       "wss://*.clerk.accounts.dev",
       "wss://*.clerk.com",
+      ...plausible, // Plausible's `/api/event` endpoint receives custom events from trackToolEvent
     ],
     "frame-src": [
       "'self'",

@@ -28,6 +28,11 @@ const PATHS = [
   "/guides/how-to-detect-unauthorized-linux-config-changes",
   "/docs/snapshot-freshness",
   "/docs/api",
+  // Free tools (public, no signup)
+  "/tools",
+  "/tools/cloud-waste-estimator",
+  "/tools/linux-drift-risk",
+  "/tools/cloud-inventory-diff",
   // Trust + freshness
   "/changelog",
   "/status",
@@ -51,6 +56,10 @@ const PRIORITY: Record<string, number> = {
   "/guides/how-to-detect-unauthorized-linux-config-changes": 0.75,
   "/docs/snapshot-freshness": 0.7,
   "/docs/api": 0.7,
+  "/tools": 0.7,
+  "/tools/cloud-waste-estimator": 0.7,
+  "/tools/linux-drift-risk": 0.7,
+  "/tools/cloud-inventory-diff": 0.7,
   "/subprocessors": 0.5,
 };
 

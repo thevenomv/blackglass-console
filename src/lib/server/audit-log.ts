@@ -64,6 +64,9 @@ export const AUDIT_ACTIONS = {
   // Lead intake
   CONTACT_SALES_LEAD: "marketing.contact_sales_lead",
 
+  // Free tools (public, anonymous)
+  TOOLS_CLOUD_WASTE_REPORT_REQUESTED: "tools.cloud_waste.report_requested",
+
   // Charon (janitor) cleanup — emitted via `emitSaasAudit()` → `saas_audit_events`
   JANITOR_CLEANUP_REQUESTED: "janitor.cleanup.requested",
   JANITOR_CLEANUP_APPROVED: "janitor.cleanup.approved",
@@ -86,6 +89,48 @@ export type AuditEntry = {
   /** Propagated from `x-request-id` middleware header for cross-service correlation. */
   request_id?: string;
 };
+
+/**
+ * Build an injection-safe `key="value" key="value"` string for use as the
+ * `detail` field on an `AuditEntry`.
+ *
+ * Why this exists: callers used to interpolate user input directly:
+ *
+ *     detail: `email="${payload.email}" org="${payload.org}"`
+ *
+ * which lets a hostile `org` value of `Acme" injected="malicious` break the
+ * grammar and confuse log parsers — and worse, embed newlines or ANSI
+ * escape codes that corrupt terminal output for an operator viewing the
+ * file directly.
+ *
+ * `formatAuditDetail` runs every value through `JSON.stringify`, which:
+ *   - escapes `"` → `\"`
+ *   - escapes `\` → `\\`
+ *   - encodes `\n`, `\r`, `\t`, NUL, and other control bytes as `\u00XX`
+ *   - therefore neutralises ANSI escape codes (\x1b becomes `\u001b`)
+ *
+ * Numeric values are accepted unquoted (the parser-friendly form). Keys
+ * are NOT escaped — they're typed by the call site and code-controlled.
+ *
+ * Field order is preserved from the input record so `email` always
+ * appears in the same position across rows; that matters when grepping.
+ */
+export function formatAuditDetail(
+  fields: Record<string, string | number | boolean | undefined | null>,
+): string {
+  const parts: string[] = [];
+  for (const [key, raw] of Object.entries(fields)) {
+    if (raw === undefined || raw === null) continue;
+    if (typeof raw === "number" || typeof raw === "boolean") {
+      parts.push(`${key}=${raw}`);
+    } else {
+      // JSON.stringify on a string yields a quoted, fully-escaped JSON
+      // string literal — exactly what we want as the value.
+      parts.push(`${key}=${JSON.stringify(raw)}`);
+    }
+  }
+  return parts.join(" ");
+}
 
 const MAX = (() => {
   const n = parseInt(process.env.AUDIT_LOG_MAX_ENTRIES ?? "500", 10);

@@ -10,6 +10,8 @@ import {
   checkDemoCtaRate,
   checkGenerateInviteRate,
   checkKeyRotateRate,
+  checkToolsCloudWasteReportEmailRate,
+  checkToolsCloudWasteReportRate,
   resetRateLimitBucketsForTests,
 } from "@/lib/server/rate-limit";
 
@@ -88,5 +90,54 @@ describe("rate-limit", () => {
   it("isolates quotas per IP for new functions", async () => {
     await expect(checkDemoCtaRate(ip(50))).resolves.toBe(true);
     await expect(checkDemoCtaRate(ip(51))).resolves.toBe(true);
+  });
+
+  it("tools cloud-waste-report IP rate allows 5 then denies", async () => {
+    const target = ip(60);
+    for (let i = 0; i < 5; i++) {
+      await expect(checkToolsCloudWasteReportRate(target)).resolves.toBe(true);
+    }
+    await expect(checkToolsCloudWasteReportRate(target)).resolves.toBe(false);
+  });
+
+  it("tools cloud-waste-report per-recipient rate allows 1 then denies", async () => {
+    // First submission for this address goes through; immediate retry is
+    // capped — the whole point of the per-recipient guard.
+    await expect(
+      checkToolsCloudWasteReportEmailRate("victim@example.com"),
+    ).resolves.toBe(true);
+    await expect(
+      checkToolsCloudWasteReportEmailRate("victim@example.com"),
+    ).resolves.toBe(false);
+  });
+
+  it("tools cloud-waste-report per-recipient rate normalises case + whitespace", async () => {
+    // Case-insensitive + trimmed normalisation closes the trivial bypass
+    // where an attacker submits VICTIM@example.com or "  victim@example.com "
+    // to dodge the cap.
+    await expect(
+      checkToolsCloudWasteReportEmailRate("user@example.com"),
+    ).resolves.toBe(true);
+    await expect(
+      checkToolsCloudWasteReportEmailRate("USER@Example.COM"),
+    ).resolves.toBe(false);
+    await expect(
+      checkToolsCloudWasteReportEmailRate("  user@example.com  "),
+    ).resolves.toBe(false);
+  });
+
+  it("tools cloud-waste-report per-recipient rate isolates distinct addresses", async () => {
+    // Different addresses — including plus-addressing variants, which we
+    // intentionally do NOT collapse, since a+1@x.com and a@x.com are
+    // genuinely different inboxes from a delivery standpoint.
+    await expect(
+      checkToolsCloudWasteReportEmailRate("alpha@example.com"),
+    ).resolves.toBe(true);
+    await expect(
+      checkToolsCloudWasteReportEmailRate("beta@example.com"),
+    ).resolves.toBe(true);
+    await expect(
+      checkToolsCloudWasteReportEmailRate("alpha+ops@example.com"),
+    ).resolves.toBe(true);
   });
 });

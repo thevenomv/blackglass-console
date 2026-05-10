@@ -3,6 +3,8 @@
  * **`RATE_LIMIT_REDIS_URL`** is unset, in tests, or when Redis errors (fail-open to local state).
  */
 
+import { createHash } from "node:crypto";
+
 type Bucket = number[];
 
 const buckets = new Map<string, Bucket>();
@@ -80,6 +82,29 @@ function clientIpFromXff(xf: string | null): string | undefined {
 /**
  * Client IP from **`Headers`** (Server Actions, Route Handlers with `headers()`).
  * Prefer **`x-real-ip`** when set by DigitalOcean / nginx in front of App Platform.
+ *
+ * !!! DEPLOYMENT REQUIREMENT — read before changing the trust boundary !!!
+ *
+ * Both branches below trust headers that a malicious client could otherwise
+ * spoof in raw HTTP requests. The trust boundary is a reverse proxy (DO App
+ * Platform's load balancer, nginx, Cloudflare) that **strips and replaces**
+ * any client-supplied `x-real-ip` and `x-forwarded-for` headers before
+ * forwarding to Next.js.
+ *
+ * If this app is ever exposed directly to the internet (no proxy in front),
+ * an attacker can:
+ *   - Send `x-real-ip: 1.2.3.4` with every request to bypass per-IP rate
+ *     limits by rotating the spoofed value.
+ *   - Pin every request to one shared IP to lock legitimate users out.
+ *
+ * Operators: verify in `app.yaml` (DO) / nginx.conf / equivalent that the
+ * proxy unconditionally rewrites these headers. The current DO App Platform
+ * default does this correctly; a custom deploy must replicate it.
+ *
+ * The XFF helper takes the LAST entry (proxy-appended) rather than the
+ * first (client-appendable), which makes XFF-only deployments somewhat
+ * defensible — but the `x-real-ip` shortcut bypasses XFF entirely and
+ * has no such defence. Stripping at the edge is the only safe answer.
  */
 export function clientIpFromHeaders(h: Headers): string {
   const realIp = h.get("x-real-ip")?.trim();
@@ -179,6 +204,42 @@ export function checkPortalRate(ip: string): Promise<boolean> {
  */
 export function checkContactSalesRate(ip: string): Promise<boolean> {
   return allowHybrid(`contact-sales:${ip}`, 5, 600_000);
+}
+
+/**
+ * POST /api/tools/cloud-waste-report — public free-tool email-me-this guard.
+ * 5 per IP per 10 min; same shape as contact-sales since both are anonymous
+ * lead-shaped surfaces and we'd rather drop a duplicate than spam the audit
+ * stream.
+ */
+export function checkToolsCloudWasteReportRate(ip: string): Promise<boolean> {
+  return allowHybrid(`tools:cloud-waste-report:${ip}`, 5, 600_000);
+}
+
+/**
+ * Per-recipient guard for POST /api/tools/cloud-waste-report.
+ *
+ * Defends against the only real abuse path on this endpoint: an attacker
+ * rotating IPs (residential proxies, Tor, etc.) to mail-bomb a chosen
+ * victim with our domain in the From line. The IP-based guard alone can't
+ * stop that — 5/IP × N IPs scales linearly. A per-email cap doesn't.
+ *
+ * Limit: 1 per email per 24h. Generous enough that a legitimate user who
+ * resubmits with a tweaked org name 30 seconds later just sees a polite
+ * "you've already received this" — but tight enough that the same address
+ * can never be flooded.
+ *
+ * Email is hashed (SHA-256, normalized lowercase + trimmed) BEFORE it
+ * touches the rate-limit key. The Redis/in-memory bucket therefore holds
+ * an opaque digest, never plaintext PII — so a memory dump or Redis SCAN
+ * doesn't leak who-emailed-what. Email normalization deliberately does
+ * NOT strip Gmail "+" addressing: `a+1@x.com` and `a@x.com` are different
+ * inboxes from a delivery standpoint and we should treat them as such.
+ */
+export function checkToolsCloudWasteReportEmailRate(email: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+  const digest = createHash("sha256").update(normalized).digest("hex").slice(0, 32);
+  return allowHybrid(`tools:cloud-waste-report:to:${digest}`, 1, 24 * 60 * 60 * 1000);
 }
 
 /**

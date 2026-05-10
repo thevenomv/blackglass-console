@@ -49,6 +49,34 @@ consistency, or retention partitioning on a single-tenant deployment
 PK), `ts`, `action`, `detail`, `actor`, `scan_id`, `request_id`
 (correlate with `x-request-id` from `middleware.ts` when log shipping).
 
+### PII in process-global audit rows (GDPR / UK GDPR)
+
+Two action families append PII (email addresses, optionally org name) to
+the process-global audit store via `appendAudit()`:
+
+- **`marketing.contact_sales_lead`** — enterprise sales intake form
+- **`tools.cloud_waste.report_requested`** — free `/tools` "email me this report"
+
+Lawful basis is **consent** (form submission with a clear purpose), but
+GDPR Art. 5(e) requires a defined retention period. The defaults are:
+
+| Sink | Default retention |
+|------|-------------------|
+| In-memory (no env vars set) | Auto-purged at 500 rows / process restart — GDPR-safe by accident. |
+| `AUDIT_LOG_PATH` (file) | **Indefinite** — operator must rotate. |
+| `AUDIT_DATABASE_URL` (Postgres) | **Indefinite** — operator must add a TTL job. |
+| `DO_SPACES_*` (object storage) | **Indefinite** — operator must apply a lifecycle policy. |
+
+For pilot / production deployments using a persistent sink, the operator
+**must** configure a lifecycle policy that aligns with the privacy notice
+on `/privacy`. A 12-month rolling window is a defensible default for B2B
+lead intake; tighten if the privacy notice promises shorter.
+
+The matching right-to-erasure path: filter the sink by `action LIKE
+'marketing.%' OR action LIKE 'tools.%'` and `detail LIKE '%email="<addr>"%'`
+when servicing a deletion request. Email is stored in clear (not hashed)
+because operators legitimately need to identify the requester for follow-up.
+
 ## Hardening for pilots (SOC2-ish direction)
 
 1. **SaaS:** the primary store is `saas_audit_events` (Postgres, RLS).
