@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { SignIn } from "@clerk/nextjs";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export default function SignInPage() {
@@ -24,6 +25,12 @@ export default function SignInPage() {
           },
         }}
       />
+      <p className="mt-6 max-w-md text-center text-xs text-fg-faint">
+        <Link href="/recover" className="text-accent-blue hover:underline">
+          Can&rsquo;t sign in?
+        </Link>{" "}
+        — forgot password, SSO issues, or shared passphrase ({`/login`}) deployments.
+      </p>
     </div>
   );
 }

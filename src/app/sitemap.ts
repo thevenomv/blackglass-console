@@ -36,6 +36,8 @@ const PATHS = [
   // Trust + freshness
   "/changelog",
   "/status",
+  "/recover",
+  "/passphrase-recovery",
 ] as const;
 
 const PRIORITY: Record<string, number> = {
@@ -60,6 +62,8 @@ const PRIORITY: Record<string, number> = {
   "/tools/cloud-waste-estimator": 0.7,
   "/tools/linux-drift-risk": 0.7,
   "/tools/cloud-inventory-diff": 0.7,
+  "/recover": 0.55,
+  "/passphrase-recovery": 0.55,
   "/subprocessors": 0.5,
 };
 

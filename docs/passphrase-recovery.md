@@ -1,6 +1,14 @@
 # Lost your console passphrase?
 
-If you can't remember the passphrase on `https://blackglasssec.com/login`, this page is for you.
+**End users (workspace members):** if you sign in with your work email at  
+`https://blackglasssec.com/sign-in` (or your deployment’s equivalent), use the first-party
+**[Sign-in help](https://blackglasssec.com/recover)** page on the website — that path uses **Clerk’s
+forgot-password / email reset** and does not require GitHub or hosting access.
+
+The sections below are for the **shared deployment passphrase** used at `/login` when
+`AUTH_ADMIN_PASSWORD` is set — operators and self-hosted installs only.
+
+If you can't remember the passphrase on `https://blackglasssec.com/login`, read on.
 
 ## Why there's no "forgot password" email
 
