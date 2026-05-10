@@ -99,11 +99,9 @@ export default async function LoginPage({
           </Button>
         </form>
         <p className="mt-4 text-center text-xs text-fg-faint">
-          <Link href="/recover" className="text-accent-blue hover:underline">
+          <Link href="/recover#passphrase" className="text-accent-blue hover:underline">
             Can&rsquo;t sign in?
-          </Link>{" "}
-          — reset your workspace password or recover the shared passphrase (first-party help, no
-          GitHub).
+          </Link>
         </p>
       </div>
     </div>

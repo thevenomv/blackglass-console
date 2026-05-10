@@ -26,10 +26,9 @@ export default function SignInPage() {
         }}
       />
       <p className="mt-6 max-w-md text-center text-xs text-fg-faint">
-        <Link href="/recover" className="text-accent-blue hover:underline">
+        <Link href="/recover#workspace" className="text-accent-blue hover:underline">
           Can&rsquo;t sign in?
-        </Link>{" "}
-        — forgot password, SSO issues, or shared passphrase ({`/login`}) deployments.
+        </Link>
       </p>
     </div>
   );

@@ -1,9 +1,11 @@
 # Lost your console passphrase?
 
-**End users (workspace members):** if you sign in with your work email at  
-`https://blackglasssec.com/sign-in` (or your deployment’s equivalent), use the first-party
-**[Sign-in help](https://blackglasssec.com/recover)** page on the website — that path uses **Clerk’s
-forgot-password / email reset** and does not require GitHub or hosting access.
+**End users (workspace members):** if you sign in with your work email, open  
+**[Sign-in help](https://blackglasssec.com/recover#workspace)** — use Clerk’s forgot-password flow on `/sign-in`.
+
+**Shared passphrase only:** operator guidance also appears inline at  
+**[Sign-in help → passphrase](https://blackglasssec.com/recover#passphrase)**.  
+The old `/passphrase-recovery` URL redirects there permanently.
 
 The sections below are for the **shared deployment passphrase** used at `/login` when
 `AUTH_ADMIN_PASSWORD` is set — operators and self-hosted installs only.
