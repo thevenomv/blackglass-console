@@ -38,6 +38,24 @@ const ENTRIES: ReadonlyArray<{
   highlights: ReadonlyArray<{ kind: "feature" | "fix" | "security" | "perf"; text: string }>;
 }> = [
   {
+    version: "2026.05.c",
+    date: "May 10, 2026",
+    highlights: [
+      {
+        kind: "feature",
+        text: "Charon (cloud janitor): link DO / AWS / GCP read credentials, run idle-resource scans, review findings, request cleanups, suppress noise, and wire scan webhooks — all from the new Janitor console.",
+      },
+      {
+        kind: "feature",
+        text: "Janitor policies and scheduled scans run through the ops worker queue; Stripe add-on entitlements gate Charon for Growth+ plans.",
+      },
+      {
+        kind: "security",
+        text: "Credential JSON validated with Zod before storage; outbound scan webhooks carry a versioned envelope for safer integration.",
+      },
+    ],
+  },
+  {
     version: "2026.05.b",
     date: "May 9, 2026",
     highlights: [

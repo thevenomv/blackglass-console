@@ -74,7 +74,7 @@ test.describe("Blackglass console smoke", () => {
 
   test("fleet dashboard renders KPI row", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fleet" })).toBeVisible();
     await expect(page.getByText("Hosts checked", { exact: true })).toBeVisible();
     await expect(page.getByText("Telemetry coverage & freshness")).toBeVisible();
     await expect(page.getByText("Collectors", { exact: true })).toBeVisible();
@@ -109,7 +109,7 @@ test.describe("Blackglass console smoke", () => {
 
   test("workspace incident page renders", async ({ page }) => {
     await page.goto("/workspace?incident=INC-2047");
-    await expect(page.getByRole("heading", { name: "Incident workspace" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Workspace" })).toBeVisible();
     await expect(page.getByText("INC-2047").first()).toBeVisible();
   });
 
@@ -129,8 +129,8 @@ test.describe("Blackglass console smoke", () => {
 
   test("command palette opens and closes with keyboard shortcut", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();
-    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("heading", { name: "Fleet" })).toBeVisible();
+    await page.waitForLoadState("domcontentloaded");
     await page.locator("body").click({ position: { x: 8, y: 8 } });
     await page.keyboard.press(`${paletteModifier}+k`);
     await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
@@ -140,8 +140,11 @@ test.describe("Blackglass console smoke", () => {
 
   test("command palette navigates to hosts via search", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("heading", { name: "Fleet" })).toBeVisible();
+    await page.waitForLoadState("domcontentloaded");
+    await page.locator("body").click({ position: { x: 8, y: 8 } });
     await page.keyboard.press(`${paletteModifier}+k`);
+    await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
     await page
       .getByPlaceholder("Search routes, hosts, findings filters…")
       .fill("hosts");
@@ -186,9 +189,9 @@ test.describe("Blackglass console smoke", () => {
   test("reports generate report modal opens and closes", async ({ page }) => {
     await page.goto("/reports");
     await page.getByRole("button", { name: "Generate report" }).first().click();
-    await expect(page.getByRole("dialog", { name: "Generate new report" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Generate report" })).toBeVisible();
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("dialog", { name: "Generate new report" })).not.toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Generate report" })).not.toBeVisible();
   });
 
   test("onboarding wizard renders three real steps", async ({ page }) => {
@@ -214,7 +217,7 @@ test.describe("Blackglass console smoke", () => {
     await page.goto("/drift");
     await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Findings" })).toBeVisible();
-    await expect(page.getByText("Detection time", { exact: true })).toBeVisible();
+    await expect(page.getByText("Detected", { exact: true })).toBeVisible();
   });
 
   test("drift events bulk select enables bulk actions toolbar", async ({ page }) => {

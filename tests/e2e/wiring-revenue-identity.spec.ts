@@ -12,7 +12,8 @@ test.describe("Revenue & identity wiring", () => {
 
   test("checkout success page renders without Stripe session", async ({ page }) => {
     await page.goto("/pricing/success");
-    await expect(page.getByRole("heading", { name: /you.*team/i })).toBeVisible();
+    // Copy uses `You&rsquo;re` (typographic apostrophe) — match a stable ASCII substring.
+    await expect(page.getByRole("heading", { name: /on your new plan/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /go to console/i })).toHaveAttribute("href", "/dashboard");
     await expect(page.getByRole("link", { name: /add your first host/i })).toHaveAttribute("href", "/hosts");
   });

@@ -13,7 +13,7 @@ test.describe("SSR (NEXT_PUBLIC_USE_MOCK=false)", () => {
 
   test("fleet dashboard loads KPI labels", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fleet" })).toBeVisible();
     await expect(page.getByText("Hosts checked", { exact: true })).toBeVisible();
     await expect(page.getByRole("status", { name: "Mock data mode" })).not.toBeVisible();
   });

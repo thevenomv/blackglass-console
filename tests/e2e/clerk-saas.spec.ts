@@ -62,7 +62,7 @@ test.describe("Clerk SaaS (live)", () => {
 
   test("authenticated user lands on dashboard", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: "Fleet dashboard" })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Fleet" })).toBeVisible({
       timeout: 10_000,
     });
   });

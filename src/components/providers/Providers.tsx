@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { CommandPalette } from "@/components/command/CommandPalette";
 import { ScanJobsProvider } from "@/components/providers/ScanJobsProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 
@@ -8,10 +9,6 @@ import { ToastProvider } from "@/components/ui/Toast";
 // and both depend on client-only state (scan jobs context, keyboard events).
 const ScanJobBanner = dynamic(
   () => import("@/components/scan/ScanJobBanner").then((m) => ({ default: m.ScanJobBanner })),
-  { ssr: false },
-);
-const CommandPalette = dynamic(
-  () => import("@/components/command/CommandPalette").then((m) => ({ default: m.CommandPalette })),
   { ssr: false },
 );
 
