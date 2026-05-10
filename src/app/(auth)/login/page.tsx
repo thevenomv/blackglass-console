@@ -98,6 +98,28 @@ export default async function LoginPage({
             Continue to console
           </Button>
         </form>
+        {/*
+          Honest UX for a single-shared-passphrase auth model: there's no
+          email-based reset because there's no user record to send it to.
+          The link points operators at the rotation runbook instead of
+          implying a self-serve recovery flow that doesn't exist.
+          When the Clerk-backed multi-user auth migration lands
+          (docs/saas-clerk-rbac.md) this whole block can be replaced with
+          a real "Forgot password?" link that triggers a Clerk reset.
+        */}
+        <p className="mt-4 text-xs text-fg-faint">
+          Lost your passphrase? It&rsquo;s a deployment secret, not an account
+          password &mdash;{" "}
+          <a
+            href="https://github.com/thevenomv/blackglass-console/blob/main/docs/passphrase-recovery.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent-blue hover:underline"
+          >
+            see the rotation runbook
+          </a>
+          .
+        </p>
       </div>
     </div>
   );

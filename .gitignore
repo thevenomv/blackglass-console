@@ -60,6 +60,11 @@ migration-output.txt
 .lab-bg-key.local
 .lab-host-keys.local
 
+# Local-only operator artefacts (rotated passphrases, scratch one-off scripts,
+# anything you do NOT want in source control). Convention: any file under
+# /.local/ stays on the operator's machine.
+/.local/
+
 # Python
 __pycache__/
 *.py[cod]
