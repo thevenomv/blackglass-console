@@ -5,8 +5,9 @@
 import { and, eq } from "drizzle-orm";
 import { withTenantRls } from "@/db";
 import { janitorAccounts, janitorCleanupRequests, janitorFindings, saasTenants } from "@/db/schema";
-import { findingIsProtectTagged, parseCharonPolicies } from "@/lib/janitor/charon-policies";
+import { findingIsProtectTagged, mergedProtectTagMarkersLower, parseCharonPolicies } from "@/lib/janitor/charon-policies";
 import { redactSensitivePlaintext } from "@/lib/janitor/charon-error-redact";
+import { JanitorCleanupBlockedError } from "@/lib/server/janitor/janitor-cleanup-blocked-error";
 import { performLiveJanitorCleanup } from "@/lib/server/services/janitor-cleanup-executor";
 import { emitSaasAudit } from "@/lib/saas/event-log";
 
@@ -184,8 +185,39 @@ export async function approveOrRejectJanitorCleanup(
           account.provider,
           account.encryptedApiKey,
           finding,
+          mergedProtectTagMarkersLower(policy),
         );
       } catch (e) {
+        if (e instanceof JanitorCleanupBlockedError) {
+          await db
+            .update(janitorCleanupRequests)
+            .set({
+              status: "failed",
+              approvedByUserId: userId,
+              approvedAt: now,
+              executedAt: now,
+              metadata: {
+                ...reqRow.metadata,
+                blockedByProtectTag: true,
+                blockedByLiveTagCheck: true,
+                resourceType: finding.resourceType,
+                resourceId: finding.resourceId,
+              },
+            })
+            .where(eq(janitorCleanupRequests.id, requestId));
+          await emitSaasAudit({
+            tenantId,
+            actorUserId: userId,
+            action: "janitor.cleanup.blocked_protect_tag_live",
+            targetType: "janitor_cleanup",
+            targetId: requestId,
+            metadata: {
+              resourceType: finding.resourceType,
+              resourceId: finding.resourceId,
+            },
+          });
+          throw new Error("cleanup_blocked_protected");
+        }
         const raw = e instanceof Error ? e.message : String(e);
         const redacted = redactSensitivePlaintext(raw, 800);
         await db

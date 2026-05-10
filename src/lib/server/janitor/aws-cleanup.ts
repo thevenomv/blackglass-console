@@ -6,9 +6,14 @@ import {
   EC2Client,
   DeleteSnapshotCommand,
   DeleteVolumeCommand,
+  DescribeInstancesCommand,
+  DescribeSnapshotsCommand,
+  DescribeVolumesCommand,
   TerminateInstancesCommand,
 } from "@aws-sdk/client-ec2";
 import type { JanitorFinding } from "@/db/schema";
+import { findingMatchesProtectTags, recordFromAwsEc2Tags } from "@/lib/janitor/charon-policies";
+import { JanitorCleanupBlockedError } from "@/lib/server/janitor/janitor-cleanup-blocked-error";
 import { parseAwsAccessJson } from "@/lib/server/janitor/aws-ec2-read";
 import { withAwsRetry } from "@/lib/server/janitor/cloud-api-retry";
 
@@ -35,9 +40,56 @@ async function sendIgnoreNotFound(fn: () => Promise<unknown>): Promise<void> {
   }
 }
 
+type Ec2Tag = { Key?: string; Value?: string };
+
+function assertAwsLiveNotProtected(tags: Ec2Tag[] | undefined, markers: string[]): void {
+  const rec = recordFromAwsEc2Tags(tags);
+  if (findingMatchesProtectTags(rec, markers)) {
+    throw new JanitorCleanupBlockedError();
+  }
+}
+
+async function readEc2InstanceTags(client: EC2Client, instanceId: string): Promise<Ec2Tag[] | undefined> {
+  try {
+    const out = await withAwsRetry(() =>
+      client.send(new DescribeInstancesCommand({ InstanceIds: [instanceId] })),
+    );
+    const inst = out.Reservations?.flatMap((r) => r.Instances ?? []).find((i) => i.InstanceId === instanceId);
+    return inst?.Tags;
+  } catch (e) {
+    if (isEc2AlreadyGone(e)) return undefined;
+    throw e;
+  }
+}
+
+async function readEc2VolumeTags(client: EC2Client, volumeId: string): Promise<Ec2Tag[] | undefined> {
+  try {
+    const out = await withAwsRetry(() =>
+      client.send(new DescribeVolumesCommand({ VolumeIds: [volumeId] })),
+    );
+    return out.Volumes?.[0]?.Tags;
+  } catch (e) {
+    if (isEc2AlreadyGone(e)) return undefined;
+    throw e;
+  }
+}
+
+async function readEc2SnapshotTags(client: EC2Client, snapshotId: string): Promise<Ec2Tag[] | undefined> {
+  try {
+    const out = await withAwsRetry(() =>
+      client.send(new DescribeSnapshotsCommand({ SnapshotIds: [snapshotId] })),
+    );
+    return out.Snapshots?.[0]?.Tags;
+  } catch (e) {
+    if (isEc2AlreadyGone(e)) return undefined;
+    throw e;
+  }
+}
+
 export async function performAwsLiveCleanup(
   credsJson: string,
   finding: JanitorFinding,
+  protectMarkersLower: string[],
 ): Promise<void> {
   const parsed = parseAwsAccessJson(credsJson);
   const meta = (finding.metricsMeta ?? {}) as { region?: string };
@@ -59,6 +111,8 @@ export async function performAwsLiveCleanup(
   const rt = finding.resourceType;
 
   if (rt === "ec2_instance") {
+    const tags = await readEc2InstanceTags(client, finding.resourceId);
+    assertAwsLiveNotProtected(tags, protectMarkersLower);
     await sendIgnoreNotFound(() =>
       client.send(
         new TerminateInstancesCommand({
@@ -70,6 +124,8 @@ export async function performAwsLiveCleanup(
   }
 
   if (rt === "ebs_volume") {
+    const tags = await readEc2VolumeTags(client, finding.resourceId);
+    assertAwsLiveNotProtected(tags, protectMarkersLower);
     await sendIgnoreNotFound(() =>
       client.send(
         new DeleteVolumeCommand({
@@ -81,6 +137,8 @@ export async function performAwsLiveCleanup(
   }
 
   if (rt === "ebs_snapshot") {
+    const tags = await readEc2SnapshotTags(client, finding.resourceId);
+    assertAwsLiveNotProtected(tags, protectMarkersLower);
     await sendIgnoreNotFound(() =>
       client.send(
         new DeleteSnapshotCommand({

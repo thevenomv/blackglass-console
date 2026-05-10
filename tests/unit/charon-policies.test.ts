@@ -4,6 +4,8 @@ import {
   findingIsProtectTagged,
   findingMatchesProtectTags,
   parseCharonPolicies,
+  recordFromAwsEc2Tags,
+  recordFromDoStringTags,
 } from "@/lib/janitor/charon-policies";
 
 describe("Charon policies", () => {
@@ -32,5 +34,17 @@ describe("Charon policies", () => {
     expect(findingIsProtectTagged({ tier: "prod" }, p)).toBe(true);
     expect(findingIsProtectTagged({ "keep-forever": "yes" }, p)).toBe(true);
     expect(findingIsProtectTagged({ env: "staging" }, p)).toBe(false);
+  });
+
+  it("recordFromAwsEc2Tags feeds protector matching", () => {
+    const rec = recordFromAwsEc2Tags([{ Key: "Environment", Value: "production" }]);
+    expect(findingMatchesProtectTags(rec, ["production"])).toBe(true);
+    expect(findingMatchesProtectTags(rec, ["staging"])).toBe(false);
+  });
+
+  it("recordFromDoStringTags feeds protector matching for flat DO tag names", () => {
+    const rec = recordFromDoStringTags(["staging", "blackglass-protected"]);
+    expect(findingMatchesProtectTags(rec, ["blackglass-protected"])).toBe(true);
+    expect(findingMatchesProtectTags(rec, ["prod"])).toBe(false);
   });
 });

@@ -22,6 +22,7 @@ import { janitorProviderScanImplemented } from "@/lib/janitor/providers";
 import {
   findingMatchesExcludeTags,
   findingIsProtectTagged,
+  findingMatchesProtectTags,
   parseCharonPolicies,
 } from "@/lib/janitor/charon-policies";
 import { maybeSendCharonScanDigest } from "@/lib/server/services/charon-scan-digest";

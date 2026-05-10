@@ -17,7 +17,7 @@ Charon treats some tag markers as **never eligible for live delete**, and drops 
 - **Built-in markers** (matched case-insensitively on finding tag keys or values): `production`, `prod`, `critical`, `do-not-delete`, `blackglass-protected` (same set as idle-scoring heuristics on DO tags).
 - **Tenant extras**: `protectTagsExtraLower` in workspace Charon policies.
 
-**Live cleanup queue:** requests are **not created** for protected findings. **Approve path:** if a stale request somehow reaches approval, execution is **blocked** before any cloud delete (`cleanup_blocked_protected` / audit `janitor.cleanup.blocked_protect_tag`). Dry-run simulations are unaffected.
+**Live cleanup queue:** requests are **not created** for protected findings. **Approve path:** if a stale request somehow reaches approval, execution is **blocked** before any cloud delete (`cleanup_blocked_protected` / audit `janitor.cleanup.blocked_protect_tag`). **Immediately before delete**, Charon **re-reads** the resource’s current tags (DigitalOcean / AWS EC2) or labels (GCP) and blocks again if a merged protector marker appears (`cleanup_blocked_protected` / audit `janitor.cleanup.blocked_protect_tag_live`). Dry-run simulations are unaffected.
 
 ## Minimum IAM / scopes (copy-paste starters)
 

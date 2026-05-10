@@ -79,6 +79,31 @@ export function findingMatchesProtectTags(
   return protectLower.some((p) => hay.includes(p));
 }
 
+/** EC2 `Tag` list → key/value record for protector matching. */
+export function recordFromAwsEc2Tags(
+  tags: Array<{ Key?: string; Value?: string }> | undefined,
+): Record<string, string> {
+  const r: Record<string, string> = {};
+  for (const t of tags ?? []) {
+    const k = t.Key?.trim();
+    if (k) r[k] = (t.Value ?? "").trim();
+  }
+  return r;
+}
+
+/**
+ * DigitalOcean flat string tag arrays → synthetic record (empty values) so `tagHaystack`
+ * includes tag names for substring protector matching.
+ */
+export function recordFromDoStringTags(tags: string[] | undefined): Record<string, string> {
+  const r: Record<string, string> = {};
+  for (const t of tags ?? []) {
+    const k = typeof t === "string" ? t.trim() : "";
+    if (k) r[k] = "";
+  }
+  return r;
+}
+
 /** Built-in protectors + tenant `protectTagsExtraLower` (for scan filtering + cleanup guardrails). */
 export function mergedProtectTagMarkersLower(policy: ResolvedCharonPolicies): string[] {
   return [...CHARON_BUILTIN_PROTECT_MARKERS_LOWER, ...policy.protectTagsExtraLower];

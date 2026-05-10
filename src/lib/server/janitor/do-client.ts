@@ -23,6 +23,7 @@ export type DoVolume = {
   droplet_ids?: number[];
   size_gigabytes: number;
   created_at?: string;
+  tags?: string[];
 };
 
 export type DoSnapshot = {
@@ -188,10 +189,37 @@ type MetricResponse = {
   data?: { result?: Array<{ values?: Array<[number, string]> }> };
 };
 
-/**
- * Returns average metric value over the window, or null if unavailable.
- * CPU is typically 0–100; network_tx is bytes per step.
- */
+export async function fetchDroplet(token: string, id: number): Promise<DoDroplet | null> {
+  const r = await doRequest<{ droplet?: DoDroplet }>(token, `/droplets/${id}`);
+  if (!r.ok) {
+    if (r.status === 404) return null;
+    throw new Error(`do_droplet_get_${r.status}:${r.body.slice(0, 200)}`);
+  }
+  return r.data.droplet ?? null;
+}
+
+export async function fetchSnapshot(token: string, snapshotId: string): Promise<DoSnapshot | null> {
+  const r = await doRequest<{ snapshot?: DoSnapshot }>(token, `/snapshots/${encodeURIComponent(snapshotId)}`);
+  if (!r.ok) {
+    if (r.status === 404) return null;
+    throw new Error(`do_snapshot_get_${r.status}:${r.body.slice(0, 200)}`);
+  }
+  return r.data.snapshot ?? null;
+}
+
+export async function fetchVolume(token: string, volumeId: string, region: string): Promise<DoVolume | null> {
+  const q = new URLSearchParams({ region });
+  const r = await doRequest<{ volume?: DoVolume }>(
+    token,
+    `/volumes/${encodeURIComponent(volumeId)}?${q}`,
+  );
+  if (!r.ok) {
+    if (r.status === 404) return null;
+    throw new Error(`do_volume_get_${r.status}:${r.body.slice(0, 200)}`);
+  }
+  return r.data.volume ?? null;
+}
+
 export async function deleteDroplet(token: string, dropletId: number): Promise<void> {
   const res = await fetch(`${DO_API}/droplets/${dropletId}`, {
     method: "DELETE",
@@ -226,6 +254,7 @@ export async function deleteSnapshot(token: string, snapshotId: string): Promise
   }
 }
 
+/** Average metric value over the window, or null if unavailable (CPU ~0–100; network_tx bytes per step). */
 export async function dropletMetricAverage(
   token: string,
   hostId: number,

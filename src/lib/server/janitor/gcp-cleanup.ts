@@ -4,6 +4,8 @@
 
 import { GoogleAuth } from "google-auth-library";
 import type { JanitorFinding } from "@/db/schema";
+import { findingMatchesProtectTags } from "@/lib/janitor/charon-policies";
+import { JanitorCleanupBlockedError } from "@/lib/server/janitor/janitor-cleanup-blocked-error";
 import { fetchWithCloudRetry } from "@/lib/server/janitor/cloud-api-retry";
 import { parseGcpServiceAccountJson } from "@/lib/server/janitor/gcp-compute-read";
 
@@ -23,9 +25,31 @@ function snapshotDeletePath(
   return `https://compute.googleapis.com/compute/v1/projects/${encodeURIComponent(projectId)}/global/snapshots/${name}`;
 }
 
+async function fetchGcpResourceLabels(
+  url: string,
+  headers: Record<string, string>,
+): Promise<Record<string, string> | null> {
+  const res = await fetchWithCloudRetry(url, { method: "GET", headers, cache: "no-store" });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`gcp_get_${res.status}:${t.slice(0, 200)}`);
+  }
+  const body = (await res.json()) as { labels?: Record<string, string> };
+  return body.labels ?? {};
+}
+
+function assertGcpLiveNotProtected(labels: Record<string, string> | null, markers: string[]): void {
+  if (labels === null) return;
+  if (findingMatchesProtectTags(labels, markers)) {
+    throw new JanitorCleanupBlockedError();
+  }
+}
+
 export async function performGcpLiveCleanup(
   saJson: string,
   finding: JanitorFinding,
+  protectMarkersLower: string[],
 ): Promise<void> {
   const creds = parseGcpServiceAccountJson(saJson);
   const projectId = creds.project_id as string;
@@ -51,6 +75,7 @@ export async function performGcpLiveCleanup(
     const z = encodeURIComponent(zone);
     const p = encodeURIComponent(projectId);
     const url = `https://compute.googleapis.com/compute/v1/projects/${p}/zones/${z}/disks/${disk}`;
+    assertGcpLiveNotProtected(await fetchGcpResourceLabels(url, headers), protectMarkersLower);
     const res = await fetchWithCloudRetry(url, { method: "DELETE", headers, cache: "no-store" });
     if (!res.ok && res.status !== 404) {
       const t = await res.text();
@@ -61,6 +86,7 @@ export async function performGcpLiveCleanup(
 
   if (rt === "gce_snapshot") {
     const url = snapshotDeletePath(projectId, finding);
+    assertGcpLiveNotProtected(await fetchGcpResourceLabels(url, headers), protectMarkersLower);
     const res = await fetchWithCloudRetry(url, { method: "DELETE", headers, cache: "no-store" });
     if (!res.ok && res.status !== 404) {
       const t = await res.text();
