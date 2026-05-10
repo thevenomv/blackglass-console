@@ -173,6 +173,41 @@ export function LandingPage() {
           </div>
         </section>
 
+        <section className="border-t border-border-subtle bg-bg-panel/40 px-4 py-14 sm:py-16">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="text-2xl font-semibold text-fg-primary">Optional: Charon for cloud sprawl</h2>
+            <p className="mt-4 max-w-3xl text-fg-muted">
+              When you enable the Charon add-on, you can link read-scoped credentials for
+              DigitalOcean, AWS, or Google Cloud. Blackglass inventories resources, highlights likely
+              idle candidates, and keeps cleanup behind explicit approval — the same careful posture
+              as the rest of the product.
+            </p>
+            <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+              {[
+                "Scan diffs and optional signed webhooks to your own HTTPS endpoints.",
+                "Dismiss or snooze findings so your team’s judgement survives the next scan.",
+                "Plans gate linked accounts, scheduled scans, and live delete — see pricing.",
+              ].map((t) => (
+                <li
+                  key={t}
+                  className="rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm leading-relaxed"
+                >
+                  {t}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 text-sm">
+              <Link href="/product#charon" className="font-medium text-accent-blue hover:underline">
+                Read more on the product page →
+              </Link>
+              {" · "}
+              <Link href="/pricing" className="font-medium text-accent-blue hover:underline">
+                Pricing &amp; add-ons →
+              </Link>
+            </p>
+          </div>
+        </section>
+
         <section className="px-4 py-14 sm:py-16">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-2xl font-semibold text-fg-primary">Try it without risk</h2>

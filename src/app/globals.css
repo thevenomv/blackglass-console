@@ -90,6 +90,31 @@
   --focus-ring: 2px solid var(--accent-blue);
 }
 
+/* Charon — force light operational tokens inside this subtree (matches marketing / blackglasssec.com light UI). */
+.charon-surface {
+  --bg-base: #f1f5f9;
+  --bg-sidebar: #e8eef6;
+  --bg-panel: #ffffff;
+  --bg-panel-elevated: #f8fafc;
+  --border-default: #cbd5e1;
+  --border-subtle: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-muted: #475569;
+  --text-secondary: #475569;
+  --text-faint: #64748b;
+  --accent-blue: #1d4ed8;
+  --accent-blue-hover: #1e40af;
+  --accent-blue-soft-bg: #dbeafe;
+  --accent-blue-muted: #3b82f6;
+  --success-green: #166534;
+  --success-green-soft-bg: #dcfce7;
+  --warning-amber: #92400e;
+  --warning-amber-soft-bg: #fef3c7;
+  --danger-red: #b91c1c;
+  --danger-red-soft-bg: #fee2e2;
+  --shadow-elevated: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
 html {
   color-scheme: light;
 }

@@ -167,17 +167,9 @@ export default function ChangelogPage() {
         <h1 className="mt-2 text-3xl font-semibold text-fg-primary">Changelog</h1>
         <p className="mt-3 max-w-prose text-sm leading-relaxed text-fg-muted">
           What we&rsquo;ve shipped recently. We release small improvements continuously
-          and group user-visible changes here for easier scanning. Want a deeper dive?
-          See the full{" "}
-          <a
-            className="text-accent-blue hover:underline"
-            href="https://github.com/jamiesibley/blackglass"
-          >
-            commit history on GitHub
-          </a>
-          {" "}or{" "}
+          and group user-visible changes here for easier scanning. Want a deeper dive?{" "}
           <Link className="text-accent-blue hover:underline" href="/contact-sales">
-            ask us about a specific change
+            Ask us about a specific change
           </Link>
           .
         </p>

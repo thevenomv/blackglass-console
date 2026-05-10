@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     "Data Processing Addendum (UK GDPR / UK Data Protection Act 2018) for organisational customers of Blackglass.",
 };
 
-const EFFECTIVE = "2 May 2026";
+const EFFECTIVE = "10 May 2026";
 
 export default function DpaPage() {
   return (
@@ -66,8 +66,8 @@ export default function DpaPage() {
           </li>
           <li>
             <strong className="text-fg-primary">Purpose:</strong> to provide the features you activate
-            (baselines, drift analysis, audit evidence, notifications, and related console and API
-            access).
+            (baselines, drift analysis, audit evidence, notifications, optional cloud inventory and
+            approved cleanup workflows where Charon is enabled, and related console and API access).
           </li>
         </ul>
       </Section>
@@ -78,7 +78,9 @@ export default function DpaPage() {
           (session events, IP at login), subscription metadata, and technical data relating to users
           you authorise to access the Service. Host telemetry processed by Blackglass is primarily
           configuration metadata; where it can relate to an identifiable natural person, it is treated
-          as personal data when required by applicable law.
+          as personal data when required by applicable law. If you enable Charon, similar principles
+          apply to metadata returned from linked cloud provider APIs (for example tags or display
+          names that identify an individual).
         </p>
       </Section>
 

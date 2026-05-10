@@ -401,7 +401,7 @@ function buildLinearPayload(
 // ---------------------------------------------------------------------------
 // GitHub Issues — POST /repos/{owner}/{repo}/issues
 // Auth: Authorization: Bearer <token>; X-GitHub-Api-Version: 2022-11-28
-// Reference: https://docs.github.com/en/rest/issues/issues#create-an-issue
+// GitHub Issues: REST create-issue endpoint (vendor API).
 // ---------------------------------------------------------------------------
 function buildGithubPayload(
   payload: WebhookPayload,
@@ -972,6 +972,59 @@ export async function dispatchDriftWebhook(opts: {
       }),
     ),
   );
+}
+
+/**
+ * POST JSON to every tenant-configured webhook URL with the same HMAC headers as generic drift payloads.
+ * Intended for non-drift events (e.g. Charon). Delivery failures are logged only.
+ */
+export async function dispatchTenantJsonWebhooks(opts: {
+  tenantId: string;
+  /** Correlation id for queued webhook jobs. */
+  scanId: string;
+  payload: Record<string, unknown>;
+}): Promise<void> {
+  const routing = await getTenantNotifications(opts.tenantId);
+  const urls = applyAirgapFilter(routing.webhookUrls);
+  if (urls.length === 0) return;
+
+  const body = JSON.stringify(opts.payload);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "User-Agent": "Blackglass-Webhook/1.0",
+  };
+  applySignatureHeaders(
+    headers,
+    body,
+    routing.webhookSigningKey,
+    routing.webhookSigningKeyPrevious,
+  );
+
+  for (const url of urls) {
+    try {
+      let queued = false;
+      try {
+        queued = await enqueueWebhookDelivery({
+          url,
+          body,
+          headers,
+          tenantId: opts.tenantId,
+          scanId: opts.scanId,
+        });
+      } catch (err) {
+        console.error("[outbound-webhook] enqueue failed, inline fallback:", err);
+      }
+      if (!queued) {
+        await deliverWebhookInline(url, body, headers);
+      }
+    } catch (e) {
+      console.warn(
+        "[outbound-webhook] tenant JSON webhook failed",
+        url,
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
 }
 
 // Drop unused webhookUrls() helper — kept exported only for backwards compat

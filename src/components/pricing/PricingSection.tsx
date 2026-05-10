@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ADD_ONS } from "@/lib/saas/plans";
 import CheckoutButton from "./CheckoutButton";
 
 type BillingCycle = "monthly" | "annual";
@@ -314,12 +315,16 @@ function TierCard({ tier, billingCycle }: { tier: PricingTier; billingCycle: Bil
 // ---------------------------------------------------------------------------
 
 function AddOnsRow({ billingCycle }: { billingCycle: BillingCycle }) {
-  // Annual = 10× monthly (two months free) — same ratio as the
-  // base plan tiers so the toggle behaves consistently. Keep the
-  // numbers aligned with ADD_ONS in src/lib/saas/plans.ts.
   const isAnnual = billingCycle === "annual";
-  const headline = isAnnual ? "$990" : "$99";
-  const cadence = isAnnual ? "/ year" : "/ month";
+  const remMonthlyUsd = ADD_ONS.remediator.baseCentsMonthly / 100;
+  const remAnnualUsd = ADD_ONS.remediator.baseCentsAnnual / 100;
+  const charonMonthlyUsd = ADD_ONS.charon.baseCentsMonthly / 100;
+  const charonAnnualUsd = ADD_ONS.charon.baseCentsAnnual / 100;
+
+  const remHeadline = isAnnual ? `$${remAnnualUsd}` : `$${remMonthlyUsd}`;
+  const remCadence = isAnnual ? "/ year" : "/ month";
+  const charonHeadline = isAnnual ? `$${charonAnnualUsd}` : `$${charonMonthlyUsd}`;
+  const charonCadence = remCadence;
 
   return (
     <div className="mt-12 rounded-card border border-border-subtle bg-bg-panel px-6 py-5">
@@ -331,44 +336,73 @@ function AddOnsRow({ billingCycle }: { billingCycle: BillingCycle }) {
           Available on Growth and Scale · included on Business and Enterprise
         </p>
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div>
-          <p className="text-base font-semibold text-fg-primary">Remediator (HITL AI)</p>
-          <p className="mt-1 text-sm leading-relaxed text-fg-muted">
-            Auto-generated remediation plans, sandbox-verified, surfaced for human approval with
-            full audit trail. Never runs AI-generated commands directly on your hosts.
-          </p>
-          <p className="mt-1 text-xs text-fg-faint">
-            Includes 100 approved actions/{isAnnual ? "year" : "month"} · $0.10 per extra action
-          </p>
-        </div>
-        <div className="text-sm sm:text-right">
-          <p className="text-2xl font-bold text-fg-primary">
-            {headline}
-            <span className="text-sm font-normal text-fg-muted">{cadence}</span>
-          </p>
-          <div className="mt-3 flex flex-col gap-2 sm:items-end">
-            {/* CheckoutButton handles both unauthenticated (Stripe link)
-                and authenticated callers — server adds the line item to
-                the same subscription either way via the addons[] field. */}
-            <CheckoutButton
-              className="inline-flex items-center justify-center rounded-md border border-accent-blue bg-accent-blue/10 px-4 py-2 text-sm font-medium text-accent-blue transition hover:bg-accent-blue/20"
-              planCode="growth"
-              billingCycle={billingCycle}
-              addons={["remediator"]}
-            >
-              Buy Remediator with Growth
-            </CheckoutButton>
-            <p className="text-[11px] text-fg-faint">
-              Already on Growth/Scale?{" "}
-              <Link href="/settings/billing" className="text-accent-blue hover:underline">
-                Manage billing
-              </Link>
-              {" "}to add Remediator to your existing subscription.
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="flex flex-col justify-between gap-4 rounded-lg border border-border-subtle bg-bg-base p-4 sm:flex-row sm:items-start">
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-semibold text-fg-primary">Remediator (HITL AI)</p>
+            <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+              Auto-generated remediation plans, sandbox-verified, surfaced for human approval with
+              full audit trail. Never runs AI-generated commands directly on your hosts.
             </p>
+            <p className="mt-1 text-xs text-fg-faint">
+              Includes 100 approved actions/{isAnnual ? "year" : "month"} · $0.10 per extra action
+            </p>
+          </div>
+          <div className="shrink-0 text-sm sm:text-right">
+            <p className="text-2xl font-bold text-fg-primary">
+              {remHeadline}
+              <span className="text-sm font-normal text-fg-muted">{remCadence}</span>
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:items-end">
+              <CheckoutButton
+                className="inline-flex items-center justify-center rounded-md border border-accent-blue bg-accent-blue/10 px-4 py-2 text-sm font-medium text-accent-blue transition hover:bg-accent-blue/20"
+                planCode="growth"
+                billingCycle={billingCycle}
+                addons={["remediator"]}
+              >
+                Buy Remediator with Growth
+              </CheckoutButton>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-between gap-4 rounded-lg border border-border-subtle bg-bg-base p-4 sm:flex-row sm:items-start">
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-semibold text-fg-primary">Charon (cloud janitor)</p>
+            <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+              Link read-scoped credentials for DigitalOcean, AWS, or Google Cloud. Inventory scans,
+              idle scoring, dismiss/snooze, scan diffs, and optional signed webhooks. Cleanup stays
+              human-in-the-loop when enabled on your plan.
+            </p>
+            <p className="mt-1 text-xs text-fg-faint">
+              Boosts linked-account limits on paid tiers — see plan table above.
+            </p>
+          </div>
+          <div className="shrink-0 text-sm sm:text-right">
+            <p className="text-2xl font-bold text-fg-primary">
+              {charonHeadline}
+              <span className="text-sm font-normal text-fg-muted">{charonCadence}</span>
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:items-end">
+              <CheckoutButton
+                className="inline-flex items-center justify-center rounded-md border border-accent-blue bg-accent-blue/10 px-4 py-2 text-sm font-medium text-accent-blue transition hover:bg-accent-blue/20"
+                planCode="growth"
+                billingCycle={billingCycle}
+                addons={["charon"]}
+              >
+                Buy Charon with Growth
+              </CheckoutButton>
+            </div>
           </div>
         </div>
       </div>
+      <p className="mt-4 text-center text-[11px] text-fg-faint">
+        Already on Growth/Scale?{" "}
+        <Link href="/settings/billing" className="text-accent-blue hover:underline">
+          Manage billing
+        </Link>{" "}
+        to add an add-on to your existing subscription.
+      </p>
     </div>
   );
 }

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     "Privacy Policy for Blackglass, a product of Obsidian Dynamics Limited (Co. No. 16663833). ICO registration ZC141175. UK GDPR compliant.",
 };
 
-const EFFECTIVE = "2 May 2026";
+const EFFECTIVE = "10 May 2026";
 
 export default function PrivacyPage() {
   return (
@@ -57,6 +57,11 @@ export default function PrivacyPage() {
             ["Billing data", "Billing email, Stripe customer ID, subscription status", "Processing payments and managing your subscription"],
             ["Usage data", "IP address, browser/device type, pages visited, session duration", "Security, fraud prevention, service improvement"],
             ["Host configuration metadata", "Configuration state of Linux hosts you enrol (listening ports, local users and groups, sudo policy, sshd effective configuration, systemd unit files, cron entries, installed packages, file integrity hashes for critical paths)", "Core service — computing drift and generating reports"],
+            [
+              "Cloud inventory metadata (Charon)",
+              "When you link a cloud account: resource identifiers, types, regions/zones, tags, utilisation signals, and scores derived by Blackglass — from DigitalOcean/AWS/Google APIs using credentials you provide (stored envelope-encrypted). May include personal data if your cloud metadata does (e.g. tag values).",
+              "Optional feature — idle-resource visibility and approved cleanup workflows",
+            ],
             ["Audit log data", "Timestamped record of operator actions within Blackglass", "Security and compliance audit trail"],
             ["Support communications", "Emails and messages you send us", "Responding to support requests"],
           ]}
@@ -65,7 +70,10 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>File contents from your hosts</li>
           <li>Environment variables or application secrets from your hosts</li>
-          <li>SSH private keys (credentials are held in memory only for the duration of a scan)</li>
+          <li>
+            SSH private keys or cloud API secrets as plain text at rest (they are envelope-encrypted;
+            decrypted only in memory for the duration of a scan job)
+          </li>
         </ul>
       </Section>
 
@@ -75,6 +83,10 @@ export default function PrivacyPage() {
             ["Account and billing data", "Contract performance (Art. 6(1)(b)) — necessary to provide the Service"],
             ["Usage and security data", "Legitimate interests (Art. 6(1)(f)) — fraud prevention and service security"],
             ["Host configuration metadata", "Contract performance (Art. 6(1)(b)) — the core function of the Service"],
+            [
+              "Cloud inventory metadata (Charon)",
+              "Contract performance (Art. 6(1)(b)) — optional feature you enable by linking credentials",
+            ],
             ["Marketing communications", "Consent (Art. 6(1)(a)) — you may opt in or out at any time"],
           ]}
           headers={["Data type", "Legal basis"]}
@@ -125,6 +137,10 @@ export default function PrivacyPage() {
             ["Account data", "Duration of account plus 30 days after closure"],
             ["Billing records", "7 years (HMRC requirement)"],
             ["Host configuration metadata", "Per plan: 30 days on Lab and Starter; 180 days on Growth; 365 days on Scale and Business; custom on Enterprise"],
+            [
+              "Charon findings & linked-account metadata",
+              "Retained with other tenant configuration data under the same workspace retention rules; suppressions and cleanup queue rows follow tenant RLS",
+            ],
             ["Audit logs (saas_audit_events)", "Per plan retention window; append-only during retention; exportable as deterministic JSONL with integrity verification"],
             ["Usage / security logs", "90 days"],
           ]}
@@ -169,10 +185,12 @@ export default function PrivacyPage() {
           All data in transit is protected by TLS 1.3. Data at rest is encrypted with AES-256.
           SSH credentials used to scan your hosts are envelope-encrypted at rest (KMS providers:
           local key, HashiCorp Vault, or AWS KMS) and only decrypted in memory for the duration of
-          a scan. Tenant data is isolated at the database layer using PostgreSQL row-level
-          security; the application sets the tenant GUC on every authenticated request. Outbound
-          webhooks are HMAC-SHA256 signed and rotation-aware. We conduct regular dependency
-          vulnerability reviews and run an automated DAST baseline against staging.
+          a scan. Cloud API credentials for Charon follow the same envelope-encryption model.
+          Tenant data is isolated at the database layer using PostgreSQL row-level security; the
+          application sets the tenant GUC on every authenticated request. Outbound webhooks
+          (including optional Charon scan-complete events) are HMAC-SHA256 signed and
+          rotation-aware. We conduct regular dependency vulnerability reviews and run an automated
+          DAST baseline against staging.
         </p>
         <p className="mt-2">
           Full details: see our{" "}

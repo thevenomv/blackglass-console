@@ -21,6 +21,12 @@ The onboarding wizard at `/onboarding` is three real steps:
    users, services), then explicitly pin the baseline.
 3. **Run first scan** — POST `/api/v1/scans`, polled to completion.
 
+### Pilot success criteria (what “good” looks like)
+
+- **Connect:** First successful ingest within **~10 minutes** of a correct install (agent timer is 5 minutes; allow one extra cycle plus network slack).
+- **Baseline:** Operator explicitly pins baseline in step 2 after reviewing the bundle preview — no silent auto-baseline.
+- **Recoverability:** Transient errors should clear with a single retry or documented remedy; use **Reset and reinstall** only when the host state is actually wrong, not on every hiccup.
+
 If anything goes sideways on any step, the wizard surfaces:
 
 - The specific error code (mapped from the API response)

@@ -30,6 +30,8 @@ export const QUEUE_NAMES = {
   EXPORTS: "blackglass-exports",
   /** Maintenance jobs: retention sweeps, idempotency pruning, future ops crons. */
   MAINTENANCE: "blackglass-maintenance",
+  /** Charon (cloud janitor): read-only inventory + idle scoring. */
+  JANITOR: "blackglass-janitor",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -110,6 +112,11 @@ export const RETRY_POLICIES = {
   maintenance: {
     attempts: 1,
   },
+  /** Charon DO scans: external API bound; retry transient 5xx. */
+  janitor: {
+    attempts: 3,
+    backoff: { type: "exponential" as const, delay: 15_000 },
+  },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -129,6 +136,7 @@ export const RETENTION = {
   exports: { removeOnComplete: { count: 50 }, removeOnFail: { count: 50 } },
   /** Maintenance is high-frequency repeatable; trim aggressively. */
   maintenance: { removeOnComplete: { count: 20 }, removeOnFail: { count: 20 } },
+  janitor: { removeOnComplete: { count: 100 }, removeOnFail: { count: 50 } },
 } as const;
 
 // ---------------------------------------------------------------------------

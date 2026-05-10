@@ -5,8 +5,9 @@ Checklist for Obsidian Dynamics / Blackglass. Complements [data-breach-response.
 ## After each production deploy
 
 - [ ] **Migrations:** `npm run db:migrate` (or your platform equivalent) applied — new SQL under `drizzle/` is not active until then.
-- [ ] **Workers:** If you use **Redis**, confirm **ops-worker** is running (retention sweep, webhooks, exports; also expires **stuck async baseline jobs**).
+- [ ] **Workers:** If you use **Redis**, confirm **ops-worker** is running (retention sweep, webhooks, exports, **Charon janitor** queue; also expires **stuck async baseline jobs**).
 - [ ] **Smoke:** Sign in → **Capture baseline** (or confirm job polling completes) → **Reports** → download a **PDF** → open **Legal & privacy** from the sidebar.
+- [ ] **Charon (if used):** Link a sandbox cloud account → run scan → confirm findings or diff; optional: toggle **Webhook on scan** only on a test endpoint.
 
 ## At least annually
 

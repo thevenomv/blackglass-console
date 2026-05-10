@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     "Terms of Service for Blackglass, a product of Obsidian Dynamics Limited (Co. No. 16663833). ICO registration ZC141175.",
 };
 
-const EFFECTIVE = "2 May 2026";
+const EFFECTIVE = "10 May 2026";
 
 export default function TermsPage() {
   return (
@@ -39,8 +39,12 @@ export default function TermsPage() {
         <p>
           Blackglass is a configuration-integrity and drift-detection platform for Linux hosts. It
           allows authorised operators to capture baselines, detect configuration drift, classify
-          risk, and export audit evidence. These Terms govern your access to and use of the
-          Blackglass console, API, and collector tooling (collectively, the <em>&ldquo;Service&rdquo;</em>).
+          risk, and export audit evidence. Optional features (where enabled on your plan) include{" "}
+          <strong className="text-fg-primary">Charon</strong>, which uses cloud-provider API
+          credentials you supply to inventory resources in linked accounts and, when explicitly
+          approved, queue cleanup actions subject to plan limits and safety controls. These Terms
+          govern your access to and use of the Blackglass console, API, and collector tooling
+          (collectively, the <em>&ldquo;Service&rdquo;</em>).
         </p>
       </Section>
 
@@ -94,6 +98,11 @@ export default function TermsPage() {
         <p className="mb-2">You must not use the Service to:</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>Scan or collect data from hosts you do not own or have explicit written permission to monitor.</li>
+          <li>
+            Use Charon or any cloud-linking feature against accounts, projects, or subscriptions you
+            do not own or are not authorised to administer, or to exceed the scope of the credentials
+            you provide.
+          </li>
           <li>Circumvent security controls, conduct denial-of-service attacks, or distribute malware.</li>
           <li>Resell or sublicense the Service without our written consent.</li>
           <li>Violate any applicable law or regulation, including the Computer Misuse Act 1990.</li>
@@ -110,8 +119,10 @@ export default function TermsPage() {
             Legal &amp; privacy
           </Link>
           . Blackglass collects only configuration metadata required to compute drift — not file
-          contents, environment variables, or secrets. You retain ownership of all host data
-          collected through the Service.
+          contents, environment variables, or secrets. Where you enable cloud inventory (Charon),
+          we process resource metadata returned by the cloud provider APIs you authorise; you remain
+          responsible for the scope and rotation of those credentials. You retain ownership of all
+          host and cloud-inventory data collected through the Service.
         </p>
         <p className="mt-2">
           If you use Blackglass on behalf of an organisation and we process personal data for you,

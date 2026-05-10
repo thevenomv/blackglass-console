@@ -1,6 +1,6 @@
 # GitHub Actions — first‑run cheatsheet
 
-Assume [`gh`](https://cli.github.com/) is authenticated (`gh auth login`).
+Assume the `gh` CLI is authenticated (`gh auth login`).
 
 ```bash
 # Staging probe (manual URL overrides secret)

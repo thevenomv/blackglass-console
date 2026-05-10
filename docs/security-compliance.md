@@ -1,6 +1,6 @@
 # BLACKGLASS — Security & Compliance Reference
 
-> Version: 1.0 · Last reviewed: 2026-05-07
+> Version: 1.1 · Last reviewed: 2026-05-10
 > Audience: customer security reviewers, procurement, internal SOC 2 prep.
 
 This document maps the BLACKGLASS implementation to the standard
@@ -129,7 +129,20 @@ their question, link them straight to that section.
 
 ---
 
-## 8a. Schema integrity & migration governance
+## 8a. Charon (optional cloud resource hygiene)
+
+| Control                                | Implementation                                                                  | Verify here                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Linked cloud credentials at rest       | Envelope-encrypted ciphertext in `janitor_accounts` (same model as SSH creds) | `src/app/api/v1/janitor/accounts/route.ts`, `encryptKey`                          |
+| Tenant isolation                       | RLS on `janitor_*` tables + `withTenantRls` in routes/services                  | `drizzle/0019_janitor_charon.sql` et seq.                                         |
+| Scan execution off web thread          | BullMQ `blackglass-janitor` consumer in `ops-worker.ts`                           | `src/worker/ops-worker.ts`, `janitor-queue.ts`                                    |
+| Cleanup human-in-the-loop              | Queue → approve (console or Slack) before live delete when plan allows          | `janitor/cleanup`, `janitor/cleanup/approve`, `charon-cleanup-slack-notify.ts`    |
+| Optional scan webhooks                 | `charon.scan.completed` via `dispatchTenantJsonWebhooks` + HMAC headers           | `charon-scan-webhook.ts`, `outbound-webhook.ts`                                   |
+| Suppressions / policy                  | Dismiss/snooze rows; `webhookOnScan` + digest flags in tenant Charon policy JSON | `janitor-suppression-service.ts`, `charon-policies.ts`                            |
+
+---
+
+## 8b. Schema integrity & migration governance
 
 | Control                                  | Implementation                                                                                                              | Verify here                                                                       |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -163,7 +176,10 @@ storage), **Clerk** (auth, optional), **Stripe** (billing, optional),
 and **PagerDuty** (alerting, optional). Everything except DigitalOcean
 can be disabled or replaced with self-hosted equivalents. In
 `BLACKGLASS_AIRGAPPED=true` mode, all outbound integrations are
-short-circuited at dispatch time.
+short-circuited at dispatch time. **Charon** issues API calls from our
+compute to **your** DigitalOcean / AWS / Google Cloud accounts using
+credentials you upload; those cloud providers are not additional
+Obsidian sub-processors solely for that feature (see `docs/vendor-inventory.md`).
 
 ---
 
@@ -213,44 +229,6 @@ For the most common questions:
 > A: Hash-tracked migrations (`drizzle.__drizzle_migrations`) plus a PR-time
 > static check (`db:migrate:files`) plus a CI-time end-to-end apply against
 > a fresh Postgres. See § 8a above.
-
----
-
-## 10b. Security questionnaire mapping (drop-in answers)
-
-The table below maps the most-common SaaS security questionnaire
-headings to the mechanism BLACKGLASS uses, and to the file or doc a
-reviewer can read to verify the claim. Copy a row directly into your
-DPA / SOC-2 evidence bundle.
-
-| Questionnaire heading                | Mechanism                                                                        | Source of truth                                                                                                              |
-| ------------------------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Identity provider / SSO              | SAML SSO via Clerk Enterprise                                                    | `src/app/api/v1/settings/sso/route.ts`, [§1](#1-auth--iam)                                                                   |
-| User provisioning                    | SCIM 2.0 via Clerk Enterprise                                                    | `src/app/api/v1/settings/scim/route.ts`                                                                                      |
-| Multi-factor authentication          | Enforced via Clerk; per-org policy                                               | Clerk dashboard; [§1](#1-auth--iam)                                                                                          |
-| Role-based access control            | `SaasPermission`-keyed RBAC (`drift.read`, `drift.manage`, `audit.read`, …)      | `src/lib/saas/rbac.ts`                                                                                                       |
-| API authentication                   | API keys with prefix fingerprinting + bcrypt-hashed secret + rotation            | `src/lib/saas/api-key.ts`                                                                                                    |
-| Tenant isolation                     | `tenant_id` on every table + Postgres RLS + `withTenantRls` enforced in CI       | `tests/unit/rls-tenant-leak.test.ts` (CI-gated against fresh Postgres)                                                       |
-| Encryption at rest — DB              | DigitalOcean managed Postgres (provider-side AES-256)                            | DO managed-DB security overview                                                                                              |
-| Encryption at rest — object storage  | DigitalOcean Spaces (provider-side AES-256)                                      | DO Spaces security overview                                                                                                  |
-| Encryption at rest — secrets         | Envelope encryption (AES-256-GCM) for SSH creds; BYOK per-tenant KEK supported   | `src/lib/server/secrets/envelope.ts`, `src/lib/server/secrets/tenant-kms.ts`, [§3](#3-data-protection-in-transit--at-rest)   |
-| Encryption in transit                | TLS 1.2+ (1.3 preferred) on all endpoints; HSTS via security-headers middleware | `src/lib/server/http/security-headers.ts`                                                                                    |
-| Webhook authenticity                 | HMAC-SHA256 (`X-Blackglass-Signature: sha256=…`) with per-tenant signing keys + key-rotation header | `src/lib/server/outbound-webhook.ts`                                                                                         |
-| Inbound rate limiting                | Per-IP rate-limit on every public endpoint; per-tenant cap on POST `/api/v1/scans` | `src/lib/server/rate-limit.ts`                                                                                               |
-| Audit logging                        | `saas_audit_events` (tenant-scoped) for SSO, SCIM, API keys, scans, remediations, exports | `src/lib/saas/event-log.ts`, [§4](#4-logging--audit)                                                                         |
-| AI / agent governance                | 4-tier risk-policy gate + forbidden-command denylist + per-category confidence cap + sudo/SSH auto-escalation + HMAC Approval Token | `blackglass-remediator/docs/safety-model.md`, [§8](#8-ai--remediator-governance)                                             |
-| Vulnerability scanning (deps)        | Dependabot daily on Node + Python                                                | `.github/dependabot.yml`                                                                                                     |
-| Static application security testing | Semgrep `p/owasp-top-ten` + JS/TS + secrets, fails CI on ERROR                   | `.github/workflows/semgrep.yml`                                                                                              |
-| Dynamic application security testing | OWASP ZAP baseline against staging on every push to main                         | `.github/workflows/dast-zap-baseline.yml`                                                                                    |
-| Secret management                    | Doppler / DO env vars; nothing committed; air-gap mode disables outbound calls   | `.env.example`, `src/lib/server/airgap.ts`                                                                                   |
-| Backup & restore                     | Daily Postgres snapshot + weekly `pg_dump` to Spaces; documented restore-into-staging | `docs/runbooks/operations.md` § 3                                                                                            |
-| Disaster recovery / RTO              | Documented quarterly drill, target RTO ≤ 4 h, RPO ≤ 24 h                         | `docs/runbooks/operations.md` § 4                                                                                            |
-| Air-gapped operation                 | `BLACKGLASS_AIRGAPPED=true`; `/api/health/airgap?probe=true` self-test; Sentry & PostHog disabled in browser via `NEXT_PUBLIC_BLACKGLASS_AIRGAPPED` | `src/lib/server/airgap.ts`, `src/instrumentation-client.ts`                                                                  |
-| Security headers                     | CSP (Report-Only by default), X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP applied via middleware | `src/lib/server/http/security-headers.ts`                                                                                    |
-| Sub-processor list                   | Clerk, Stripe, Resend, DigitalOcean, Sentry (optional), PostHog (optional)       | [`docs/vendor-inventory.md`](./vendor-inventory.md)                                                                          |
-| Customer data export                 | Per-tenant data-export bundles (Spaces upload or inline JSON), audit-logged       | `src/lib/server/services/export-service.ts`, `src/app/api/v1/exports/route.ts`                                               |
-| Right to deletion                    | Tenant deletion via admin; cascades through `tenant_id` FKs and partition prune | `src/lib/saas/tenant-service.ts`                                                                                             |
-| Schema migration governance         | Hash-tracked Drizzle migrations + CI fresh-apply + `db:migrate:check` PR gate    | [§8a](#8a-schema-integrity--migration-governance)                                                                            |
 
 ---
 

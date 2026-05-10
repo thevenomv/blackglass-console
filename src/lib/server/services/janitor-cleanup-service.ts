@@ -1,0 +1,209 @@
+/**
+ * Charon cleanup requests — queue, approve/reject, optional live cloud deletes.
+ */
+
+import { and, eq } from "drizzle-orm";
+import { withTenantRls } from "@/db";
+import { janitorAccounts, janitorCleanupRequests, janitorFindings } from "@/db/schema";
+import { redactSensitivePlaintext } from "@/lib/janitor/charon-error-redact";
+import { performLiveJanitorCleanup } from "@/lib/server/services/janitor-cleanup-executor";
+import { emitSaasAudit } from "@/lib/saas/event-log";
+
+/** Live delete failed after approval; `redactedDetail` is safe for API responses. */
+export class JanitorCleanupExecutionError extends Error {
+  readonly redactedDetail: string;
+  constructor(redactedDetail: string) {
+    super("janitor_cleanup_execution_failed");
+    this.name = "JanitorCleanupExecutionError";
+    this.redactedDetail = redactedDetail;
+  }
+}
+
+export async function createJanitorCleanupRequests(
+  tenantId: string,
+  findingIds: string[],
+  mode: "dry_run" | "live",
+): Promise<string[]> {
+  const created: string[] = [];
+  await withTenantRls(tenantId, async (db) => {
+    for (const fid of findingIds) {
+      const [finding] = await db
+        .select({ id: janitorFindings.id })
+        .from(janitorFindings)
+        .where(and(eq(janitorFindings.id, fid), eq(janitorFindings.tenantId, tenantId)))
+        .limit(1);
+      if (!finding) continue;
+
+      const [pending] = await db
+        .select({ id: janitorCleanupRequests.id })
+        .from(janitorCleanupRequests)
+        .where(
+          and(
+            eq(janitorCleanupRequests.findingId, fid),
+            eq(janitorCleanupRequests.tenantId, tenantId),
+            eq(janitorCleanupRequests.status, "pending"),
+          ),
+        )
+        .limit(1);
+      if (pending) continue;
+
+      const [row] = await db
+        .insert(janitorCleanupRequests)
+        .values({
+          tenantId,
+          findingId: fid,
+          mode,
+          status: "pending",
+        })
+        .returning({ id: janitorCleanupRequests.id });
+      if (row) created.push(row.id);
+    }
+  });
+  return created;
+}
+
+export async function approveOrRejectJanitorCleanup(
+  tenantId: string,
+  requestId: string,
+  action: "approve" | "reject",
+  userId: string,
+  opts: { liveCleanupAllowed: boolean },
+): Promise<void> {
+  await withTenantRls(tenantId, async (db) => {
+    const [reqRow] = await db
+      .select()
+      .from(janitorCleanupRequests)
+      .where(
+        and(eq(janitorCleanupRequests.id, requestId), eq(janitorCleanupRequests.tenantId, tenantId)),
+      )
+      .limit(1);
+
+    if (!reqRow || reqRow.status !== "pending") {
+      throw new Error("invalid_cleanup_request");
+    }
+
+    if (action === "approve" && reqRow.mode === "live" && !opts.liveCleanupAllowed) {
+      throw new Error("live_cleanup_forbidden");
+    }
+
+    if (action === "reject") {
+      await db
+        .update(janitorCleanupRequests)
+        .set({
+          status: "rejected",
+          metadata: {
+            ...reqRow.metadata,
+            rejectedAt: new Date().toISOString(),
+          },
+        })
+        .where(eq(janitorCleanupRequests.id, requestId));
+      return;
+    }
+
+    const [finding] = await db
+      .select()
+      .from(janitorFindings)
+      .where(eq(janitorFindings.id, reqRow.findingId))
+      .limit(1);
+
+    if (!finding) {
+      throw new Error("finding_not_found");
+    }
+
+    const [account] = await db
+      .select()
+      .from(janitorAccounts)
+      .where(
+        and(eq(janitorAccounts.id, finding.accountId), eq(janitorAccounts.tenantId, tenantId)),
+      )
+      .limit(1);
+
+    if (!account) {
+      throw new Error("account_not_found");
+    }
+
+    const now = new Date();
+
+    if (reqRow.mode === "live") {
+      if (account.provider !== "do" && account.provider !== "aws" && account.provider !== "gcp") {
+        throw new Error("live_cleanup_provider_unsupported");
+      }
+      try {
+        await performLiveJanitorCleanup(
+          tenantId,
+          account.provider,
+          account.encryptedApiKey,
+          finding,
+        );
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : String(e);
+        const redacted = redactSensitivePlaintext(raw, 800);
+        await db
+          .update(janitorCleanupRequests)
+          .set({
+            status: "failed",
+            approvedByUserId: userId,
+            approvedAt: now,
+            executedAt: now,
+            metadata: {
+              ...reqRow.metadata,
+              live: true,
+              executionFailed: true,
+              executionError: redacted,
+              provider: account.provider,
+              resourceType: finding.resourceType,
+              resourceId: finding.resourceId,
+            },
+          })
+          .where(eq(janitorCleanupRequests.id, requestId));
+        await emitSaasAudit({
+          tenantId,
+          actorUserId: userId,
+          action: "janitor.cleanup.execution_failed",
+          targetType: "janitor_cleanup",
+          targetId: requestId,
+          metadata: {
+            provider: account.provider,
+            resourceType: finding.resourceType,
+            error: redacted.slice(0, 400),
+          },
+        });
+        throw new JanitorCleanupExecutionError(redacted);
+      }
+      await db.delete(janitorFindings).where(eq(janitorFindings.id, finding.id));
+      await db
+        .update(janitorCleanupRequests)
+        .set({
+          status: "executed",
+          approvedByUserId: userId,
+          approvedAt: now,
+          executedAt: now,
+          metadata: {
+            ...reqRow.metadata,
+            live: true,
+            provider: account.provider,
+            resourceType: finding.resourceType,
+            resourceId: finding.resourceId,
+          },
+        })
+        .where(eq(janitorCleanupRequests.id, requestId));
+      return;
+    }
+
+    const simulatedAction = `Dry-run: would call ${account.provider} delete for ${finding.resourceType} ${finding.resourceId} (${finding.resourceName})`;
+    await db
+      .update(janitorCleanupRequests)
+      .set({
+        status: "executed",
+        approvedByUserId: userId,
+        approvedAt: now,
+        executedAt: now,
+        metadata: {
+          ...reqRow.metadata,
+          dryRun: true,
+          simulatedAction,
+        },
+      })
+      .where(eq(janitorCleanupRequests.id, requestId));
+  });
+}

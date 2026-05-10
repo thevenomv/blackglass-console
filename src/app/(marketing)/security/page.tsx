@@ -91,19 +91,9 @@ export default function SecurityPage() {
           <li>We show you what changed, why it matters, and who touched it — with exports you can hand to leadership.</li>
           <li>Your workspace stays separate from everyone else&apos;s, with encryption in transit and at rest.</li>
           <li>Automation that suggests fixes is designed so humans stay in charge; nothing runs on production without an explicit approval path.</li>
-          <li>Need the engineering detail? Everything below this box is the deeper dive procurement and security teams usually ask for.</li>
+          <li>Need the engineering detail? Everything below this box is the deeper dive security teams usually ask for.</li>
         </ul>
       </div>
-      <p className="mb-12 mt-3 max-w-2xl text-xs text-fg-faint">
-        Last reviewed 2026-05-08 · Looking for procurement evidence? See the{" "}
-        <Link
-          href="https://github.com/thevenomv/blackglass-console/blob/main/docs/security-compliance.md#10b-security-questionnaire-mapping-drop-in-answers"
-          className="text-accent-blue hover:underline"
-        >
-          questionnaire mapping table
-        </Link>{" "}
-        — 24 rows of common questions answered with mechanism and source file.
-      </p>
 
       <div className="space-y-14">
         {/* Section 1 — What Blackglass does */}
@@ -274,15 +264,9 @@ export default function SecurityPage() {
           </div>
 
           <p className="mt-4 text-xs text-fg-faint">
-            Full remediator safety model is in the open source —{" "}
-            <Link
-              href="https://github.com/thevenomv/blackglass-console/blob/main/blackglass-remediator/docs/safety-model.md"
-              className="text-accent-blue hover:underline"
-            >
-              safety-model.md
-            </Link>{" "}
-            includes the end-to-end HITL flow diagram and the threat-mitigation
-            matrix for the Approval Token.
+            The remediator safety model covers the end-to-end HITL flow and the
+            threat-mitigation matrix for the Approval Token. Ask your Blackglass
+            contact if you need the full technical write-up for review.
           </p>
         </section>
 
@@ -348,8 +332,17 @@ export default function SecurityPage() {
             <DomainCard title="Signed outbound webhooks">
               Webhooks are HMAC-SHA256 signed with a per-tenant secret and rotation-aware (current
               and previous keys are accepted during rollover). Receivers can verify signatures
-              independently. Inbound webhook idempotency is enforced via a Postgres dedup table to
-              eliminate duplicate processing.
+              independently. Drift-style events and optional Charon scan-complete payloads use the
+              same signing headers. Inbound webhook idempotency is enforced via a Postgres dedup
+              table to eliminate duplicate processing.
+            </DomainCard>
+
+            <DomainCard title="Charon (optional cloud inventory)">
+              You may link read-scoped API credentials for DigitalOcean, AWS, or Google Cloud.
+              They are envelope-encrypted like SSH keys, unsealed only for scan jobs. Our service
+              calls vendor inventory APIs; findings, suppressions, and scan diffs stay inside your
+              tenant boundary (Postgres RLS). Live resource deletion requires explicit approval when
+              enabled on your plan — there is no silent autopilot.
             </DomainCard>
 
             <DomainCard title="Air-gapped mode">
@@ -385,7 +378,7 @@ export default function SecurityPage() {
               <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">p/javascript</code>,{" "}
               <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">p/typescript</code>,
               and a secrets ruleset runs on every push and weekly cron — fails CI
-              on ERROR-severity findings, uploads SARIF to GitHub code-scanning.
+              on ERROR-severity findings and publishes SARIF for review.
               Dependabot watches both the Node and Python stacks daily.
             </DomainCard>
 

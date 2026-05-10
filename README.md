@@ -1,8 +1,6 @@
 # Blackglass
 
-[![CI — main](https://github.com/thevenomv/blackglass-console/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/thevenomv/blackglass-console/actions/workflows/ci.yml)
-
-Next.js **16** fleet console for baselines, configuration findings, evidence exports, Stripe billing hooks, and DigitalOcean-ready deployment.
+Next.js **16** fleet console for baselines, configuration drift, optional **Charon** cloud inventory (DO/AWS/GCP), evidence exports, Stripe billing hooks, and DigitalOcean-ready deployment.
 
 ## Requirements
 
@@ -46,7 +44,7 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `stripe:setup` | Interactive Stripe webhook/price bootstrap ([script](scripts/stripe-setup.mjs)) |
 | `do:apply-stage0` | Applies Stage-0 auth env on an existing DO app |
 
-**DigitalOcean App Platform:** deploy builds use `npm ci` and `next build` only; rely on this repo’s GitHub Actions for `lint`. ESLint on DO builders is a common source of flaky or persistent failures if you add it to `build_command` — see [.do/README.md](.do/README.md#eslint-and-app-platform).
+**DigitalOcean App Platform:** deploy builds use `npm ci` and `next build` only; rely on your CI pipeline for `lint`. ESLint on DO builders is a common source of flaky or persistent failures if you add it to `build_command` — see [.do/README.md](.do/README.md#eslint-and-app-platform).
 
 ## Release & operations
 
@@ -58,8 +56,8 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 
 ## Maintenance & upgrades
 
-- **Dependabot:** Weekly npm + GitHub Actions PRs — triage on GitHub (merge or close with rationale); **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Moderate **`postcss`** advisories via **`next/node_modules`** may persist until **Next** ships patched deps — avoid **`npm audit fix --force`**. DevDependency **`postcss`** stays on **^8.5.x** for direct toolchain use.
-- **Semgrep SAST:** [.github/workflows/semgrep.yml](.github/workflows/semgrep.yml) runs `p/owasp-top-ten` + `p/javascript` + `p/typescript` + `p/secrets` on every PR + weekly cron and uploads SARIF to GitHub code-scanning. ERROR-severity findings fail CI; WARNING/INFO surface in the Security tab only.
+- **Dependabot:** Weekly npm + workflow dependency PRs — triage merges or close with rationale; **`npm audit --audit-level=high --omit=dev`** runs on every CI push. Moderate **`postcss`** advisories via **`next/node_modules`** may persist until **Next** ships patched deps — avoid **`npm audit fix --force`**. DevDependency **`postcss`** stays on **^8.5.x** for direct toolchain use.
+- **Semgrep SAST:** [.github/workflows/semgrep.yml](.github/workflows/semgrep.yml) runs `p/owasp-top-ten` + `p/javascript` + `p/typescript` + `p/secrets` on every PR + weekly cron and publishes SARIF for review. ERROR-severity findings fail CI; WARNING/INFO are visible in SARIF / CI logs.
 - **SBOM artifact:** CI uploads `cyclonedx-sbom.json` from `npm run sbom` — diff across releases or feed into dependency review alongside Dependabot / Dependency review for transitive CVEs.
 - **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** flat preset); `next lint` is not used.
 - **SEO / discovery:** **`NEXT_PUBLIC_APP_URL`** feeds canonical/meta Open Graph (**no Twitter / social-account fields**); **`/sitemap.xml`** + **`/robots.txt`**; staging uses **`NEXT_PUBLIC_SITE_NOINDEX=true`** (see [.env.example](.env.example)).
@@ -74,15 +72,16 @@ Multi-tenant SaaS console with:
 - **Data** — **Drizzle ORM + PostgreSQL** with **row-level security**; `withTenantRls` for app reads/writes, `withBypassRls` only in webhooks/migrations
 - **Billing** — **Stripe** subscriptions (`saas_subscriptions`) with idempotent webhook sync + a reconciliation worker
 - **Async** — **BullMQ** workers backed by **Redis/Valkey**: `scan-worker` (SSH + drift), `ops-worker` (webhooks + exports + scheduled drift digest), `sandbox-worker` (sandbox lifecycle)
-- **Outbound integrations** — **HMAC-signed** webhooks with key rotation; native dispatchers for Slack, PagerDuty, Datadog, Splunk, Sentinel, Linear, GitHub, AWS Security Hub
+- **Outbound integrations** — **HMAC-signed** webhooks with key rotation; native dispatchers for Slack, PagerDuty, Datadog, Splunk, Sentinel, Linear, GitHub Issues, AWS Security Hub
 - **Secrets at rest** — **envelope encryption** (AES-256-GCM DEK wrapped by a KMS-managed KEK); KMS providers: `local` / `vault` / `awskms`; **per-tenant BYOK** for Enterprise (`BYOK_ENABLED`) — see [src/lib/server/secrets/README.md](src/lib/server/secrets/README.md)
 - **Air-gapped mode** — `BLACKGLASS_AIRGAPPED=true` short-circuits every outbound call; `/api/health/airgap?probe=true` actively exercises the gate against fixed public/internal URLs
+- **Charon** — optional cloud resource janitor: envelope-encrypted linked accounts, BullMQ scans on **ops-worker** (`blackglass-janitor` queue), suppressions, scan snapshot/diff, optional `charon.scan.completed` HMAC webhooks; operator reference [docs/charon.md](docs/charon.md)
 - **AI remediator** — separate Python/FastAPI service ([blackglass-remediator/](blackglass-remediator/)) that proposes drift fixes, sandbox-verifies them, and surfaces them for human approval; risk-tier policy is **enforced in code, not prompts** ([blackglass-remediator/app/agent/risk_policy.py](blackglass-remediator/app/agent/risk_policy.py)) and per-category confidence ceilings clamp LLM scores before they reach the operator
 - **Audit** — immutable **`saas_audit_events`** stream with JSONL export + integrity verification (`audit:verify-jsonl`)
 - **Edge security** — security-headers middleware applies CSP (Report-Only by default; flip with `SECURITY_HEADERS_CSP_ENFORCE=true`), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `COOP` on every response — see [src/lib/server/http/security-headers.ts](src/lib/server/http/security-headers.ts)
 - **Deployment** — **DigitalOcean App Platform** for hosted; **Helm chart** ([deploy/helm/blackglass](deploy/helm/blackglass)) with opt-in `sandbox-worker` for self-hosted Kubernetes
 
-See [docs/architecture-overview.md](docs/architecture-overview.md) for the layer map and rules between layers, and [docs/security-compliance.md](docs/security-compliance.md) for the buyer-facing security mapping (RLS, encryption, audit, vendor inventory, DR).
+See [docs/architecture-overview.md](docs/architecture-overview.md) for the layer map and rules between layers, and [docs/security-compliance.md](docs/security-compliance.md) for the buyer-facing security mapping (RLS, encryption, audit, vendor inventory, DR). Stakeholder **review packet**: open the **Project overview** canvas in Cursor (`canvases/project-overview.canvas.tsx` under this workspace’s Cursor project directory — same folder as other `.canvas.tsx` files).
 
 ### Key data-flow invariants
 
@@ -104,7 +103,7 @@ See [docs/architecture-overview.md](docs/architecture-overview.md) for the layer
 
 ## Shipping
 
-- **`git push` → GitHub Actions** on `main` / `staging` / PRs runs audit, lint, typecheck, OpenAPI, unit tests, **`next build`** (TypeScript enforced), **`test:e2e`** and **`test:e2e:live`** (SSR with `NEXT_PUBLIC_USE_MOCK=false`).
+- **CI on** `main` / `staging` / PRs runs audit, lint, typecheck, OpenAPI, unit tests, **`next build`** (TypeScript enforced), **`test:e2e`** and **`test:e2e:live`** (SSR with `NEXT_PUBLIC_USE_MOCK=false`).
 - **Sentry releases:** CI sets `SENTRY_RELEASE` and `NEXT_PUBLIC_SENTRY_RELEASE` to the git SHA during build when present; mirror that in Doppler for production (`SENTRY_RELEASE`, optional `NEXT_PUBLIC_SENTRY_RELEASE`).
 
 ## Stripe (go-live sanity)
@@ -116,7 +115,7 @@ Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. De
 - Deploy specs: [.do/](.do/) (see [.do/README.md](.do/README.md)) · Helm chart: [deploy/helm/blackglass](deploy/helm/blackglass)
 - Runbooks: [docs/operator-guide.md](docs/operator-guide.md), [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md)
 - Local Windows / OneDrive builds: [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)
-- First GitHub Actions runs (`gh workflow run`): [docs/github-actions-first-run.md](docs/github-actions-first-run.md)
+- First CI pipeline setup (`gh workflow run`): [docs/github-actions-first-run.md](docs/github-actions-first-run.md)
 - Staging probe: [.github/workflows/staging-smoke.yml](.github/workflows/staging-smoke.yml) (secret **`STAGING_URL`** and/or **`staging_url_override`**; weekly cron when secret present) — also runs the lab-health check against `/api/admin/lab-health` and hard-fails when the demo VM is unreachable
 - ZAP passive DAST: [.github/workflows/dast-zap-baseline.yml](.github/workflows/dast-zap-baseline.yml) (optional **`target_url_override`**; **`fail_action`** off — review logs / ZAP report manually); rule tuning: [docs/zap-baseline-rules.md](docs/zap-baseline-rules.md)
 - **Security & compliance** mapping (RLS, encryption, audit, DR, vendor list): [docs/security-compliance.md](docs/security-compliance.md) · Pen checklist: [docs/security-pentest-checklist.md](docs/security-pentest-checklist.md) · Vendor inventory: [docs/vendor-inventory.md](docs/vendor-inventory.md)

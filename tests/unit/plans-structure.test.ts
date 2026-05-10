@@ -266,6 +266,12 @@ describe("add-ons catalogue", () => {
     expect(ADD_ONS.remediator.includedActionsPerMonth).toBe(100);
     expect(ADD_ONS.remediator.extraActionCents).toBe(10);
   });
+
+  it("Charon add-on follows the same 10× annual rule and $49/mo anchor", () => {
+    const c = ADD_ONS.charon;
+    expect(c.baseCentsAnnual).toBe(c.baseCentsMonthly * 10);
+    expect(c.baseCentsMonthly).toBe(4_900);
+  });
 });
 
 describe("Stripe price-id mapping", () => {

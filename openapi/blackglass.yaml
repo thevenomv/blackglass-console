@@ -30,6 +30,7 @@ tags:
   - name: Audit
   - name: Sandbox
   - name: Settings
+  - name: Charon
 
 paths:
   /api/health:
@@ -1547,6 +1548,310 @@ paths:
         "403": { description: Forbidden }
         "429": { description: Rate limit exceeded }
         "500": { description: rotation_failed }
+
+  /janitor/accounts:
+    get:
+      tags: [Charon]
+      summary: List linked cloud accounts (Charon)
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          description: Accounts and entitlements (each account may include lastScanDiff vs prior successful scan)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401": { description: Unauthenticated }
+    post:
+      tags: [Charon]
+      summary: Link or update a cloud account for Charon scans
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          description: Account saved
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+
+  /janitor/scan:
+    post:
+      tags: [Charon]
+      summary: Enqueue or run inline Charon inventory scan
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accountId]
+              properties:
+                accountId: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Queued or completed
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { description: Unauthenticated }
+
+  /janitor/policies:
+    get:
+      tags: [Charon]
+      summary: Get workspace Charon policy JSON
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policies:
+                    type: object
+                    additionalProperties: true
+                    description: >
+                      May include excludeTagsLower, protectTagsExtraLower, minIdleScore,
+                      emailDigestOnScan, webhookOnScan, and future keys.
+    patch:
+      tags: [Charon]
+      summary: Update Charon policies (partial merge)
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                excludeTagsLower:
+                  type: array
+                  items: { type: string }
+                protectTagsExtraLower:
+                  type: array
+                  items: { type: string }
+                minIdleScore:
+                  type: number
+                  nullable: true
+                  minimum: 0
+                  maximum: 100
+                emailDigestOnScan: { type: boolean }
+                webhookOnScan:
+                  type: boolean
+                  description: When true, POST charon.scan.completed to tenant webhook URLs after each successful scan (HMAC-signed).
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policies: { type: object, additionalProperties: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — SaaS only or missing janitor.manage }
+        "429": { description: Rate limit exceeded }
+
+  /janitor/findings:
+    get:
+      tags: [Charon]
+      summary: Paginated Charon findings
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          description: Capped at 50 per response
+          schema: { type: integer, minimum: 1, maximum: 50, default: 50 }
+        - name: accountId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: resourceType
+          in: query
+          schema: { type: string }
+        - name: minScore
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 100 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /janitor/findings/suppress:
+    post:
+      tags: [Charon]
+      summary: Dismiss or snooze a finding (persists across rescans)
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [findingId, kind]
+              additionalProperties: false
+              properties:
+                findingId: { type: string, format: uuid }
+                kind:
+                  type: string
+                  enum: [dismiss, snooze]
+                snoozeDays:
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+                  description: Days to snooze (default 7 when kind is snooze)
+                note: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: Suppression saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        "400": { description: Invalid body or snooze window }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: Finding not found }
+        "429": { description: Rate limit exceeded }
+        "500": { description: Internal error }
+
+  /janitor/suppressions:
+    get:
+      tags: [Charon]
+      summary: List dismiss/snooze suppressions for the workspace
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: accountId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+          description: When set, only suppressions scoped to this linked account
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suppressions:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+        "401": { description: Unauthenticated }
+        "429": { description: Rate limit exceeded }
+    delete:
+      tags: [Charon]
+      summary: Remove a suppression by id (resource may reappear on the next scan)
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden }
+        "404": { description: Suppression not found }
+        "429": { description: Rate limit exceeded }
+
+  /janitor/cleanup-requests:
+    get:
+      tags: [Charon]
+      summary: List Charon cleanup queue rows for the tenant
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requests:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+        "401": { description: Unauthenticated }
+        "429": { description: Rate limit exceeded }
+
+  /janitor/do/scan:
+    post:
+      tags: [Charon]
+      summary: Legacy alias for POST /janitor/scan (enqueue or run inline scan)
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accountId]
+              properties:
+                accountId: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Queued or completed
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { description: Unauthenticated }
+        "403": { description: Forbidden — legacy mode or SaaS-only }
+        "429": { description: Rate limit exceeded }
+
+  /janitor/cleanup:
+    post:
+      tags: [Charon]
+      summary: Queue Charon cleanup requests (HITL)
+      security:
+        - SessionCookie: []
+      responses:
+        "202":
+          description: Requests created
+        "401": { description: Unauthenticated }
+
+  /janitor/cleanup/approve:
+    post:
+      tags: [Charon]
+      summary: Approve or reject a pending Charon cleanup request
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          description: Applied
+        "401": { description: Unauthenticated }
+
+  /janitor/slack:
+    post:
+      tags: [Charon]
+      summary: Slack interactivity endpoint for Charon (signed payloads)
+      responses:
+        "200":
+          description: Slack acknowledgment JSON
+        "401": { description: Bad signature }
 
 components:
   parameters:

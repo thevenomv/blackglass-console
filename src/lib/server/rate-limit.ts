@@ -282,3 +282,18 @@ export function checkGenerateInviteRate(ip: string): Promise<boolean> {
 export function checkKeyRotateRate(ip: string): Promise<boolean> {
   return allowHybrid(`key:rotate:${ip}`, 5, 60 * 60_000);
 }
+
+/**
+ * POST Charon scan — per linked account, per hour (default 10).
+ * Override with BLACKGLASS_JANITOR_SCAN_PER_ACCOUNT_HOUR.
+ */
+export function checkJanitorScanRateForAccount(tenantId: string, accountId: string): Promise<boolean> {
+  const limit = Number(process.env.BLACKGLASS_JANITOR_SCAN_PER_ACCOUNT_HOUR ?? "10");
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 10;
+  return allowHybrid(`janitor:scan:${tenantId}:${accountId}`, safeLimit, 3_600_000);
+}
+
+/** POST /api/v1/janitor/accounts — token validation touches DO; keep tight. */
+export function checkJanitorAccountPostRate(ip: string): Promise<boolean> {
+  return allowHybrid(`janitor:account:post:${ip}`, 12, 60_000);
+}

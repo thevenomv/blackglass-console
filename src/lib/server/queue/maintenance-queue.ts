@@ -16,11 +16,13 @@
 import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
 import { digestEveryMs, digestInterval } from "@/lib/server/services/drift-digest-service";
 import { partitionMaintenanceEveryMs } from "@/lib/server/services/partition-maintenance-service";
+import { charonScheduleTickEveryMs } from "@/lib/server/services/charon-scheduled-scan-service";
 
 export type MaintenanceJobType =
   | "retention-sweep"
   | "drift-digest"
-  | "partition-maintenance";
+  | "partition-maintenance"
+  | "charon-scheduled-scans";
 
 export interface MaintenanceJobPayload {
   type: MaintenanceJobType;
@@ -39,6 +41,9 @@ const DIGEST_REPEATABLE_JOB_ID = "drift-digest";
 
 const PARTITION_REPEATABLE_JOB_NAME = "maintenance:partition-maintenance";
 const PARTITION_REPEATABLE_JOB_ID = "partition-maintenance";
+
+const CHARON_REPEATABLE_JOB_NAME = "maintenance:charon-scheduled-scans";
+const CHARON_REPEATABLE_JOB_ID = "charon-scheduled-scans";
 
 function retentionEveryMs(): number {
   const raw = process.env.RETENTION_SWEEP_HOURS?.trim();
@@ -168,6 +173,37 @@ export async function installPartitionMaintenanceRepeatable(): Promise<{
     {
       repeat: { every: everyMs },
       jobId: PARTITION_REPEATABLE_JOB_ID,
+    },
+  );
+
+  return { installed: true, everyMs };
+}
+
+/**
+ * Repeatable tick that enqueues due Charon scans (daily/weekly linked accounts).
+ * Cadence: `CHARON_SCHEDULE_TICK_MINUTES` (default 60, minimum 5).
+ */
+export async function installCharonScheduleRepeatable(): Promise<{
+  installed: boolean;
+  everyMs: number;
+}> {
+  const queue = await getMaintenanceQueue();
+  if (!queue) return { installed: false, everyMs: 0 };
+
+  const everyMs = charonScheduleTickEveryMs();
+  const existing = await queue.getRepeatableJobs();
+  await Promise.all(
+    existing
+      .filter((j) => j.name === CHARON_REPEATABLE_JOB_NAME)
+      .map((j) => queue.removeRepeatableByKey(j.key)),
+  );
+
+  await queue.add(
+    CHARON_REPEATABLE_JOB_NAME,
+    { type: "charon-scheduled-scans" },
+    {
+      repeat: { every: everyMs },
+      jobId: CHARON_REPEATABLE_JOB_ID,
     },
   );
 

@@ -1,6 +1,6 @@
 # BLACKGLASS — Vendor / sub-processor inventory
 
-> Version: 1.0 · Last reviewed: 2026-05-07
+> Version: 1.1 · Last reviewed: 2026-05-10
 > Audience: customer security reviewers, DPA / sub-processor questionnaires.
 
 This is the canonical list of third-party services that may receive
@@ -19,6 +19,21 @@ Anything marked **Optional** is gated behind an env var or per-tenant
 configuration; in `BLACKGLASS_AIRGAPPED=true` mode all optional
 outbound integrations are short-circuited at dispatch time (see
 `src/lib/server/airgap.ts`).
+
+---
+
+## Charon — tenant cloud APIs (not Obsidian sub-processors)
+
+When Charon is enabled, BLACKGLASS workers call **DigitalOcean, AWS, or
+Google Cloud APIs** using **credentials uploaded by the tenant**. Those
+calls are made from BLACKGLASS infrastructure (typically DigitalOcean
+App Platform) but are **authorised by the customer** against **the
+customer’s** cloud accounts. For sub-processor questionnaires: this is
+analogous to SSH reachability to customer-owned servers — the listed
+cloud vendor is not a new Obsidian Dynamics sub-processor solely because
+Charon exists; metadata returned is stored in tenant-scoped Postgres
+under RLS like drift data. Customer-configured HTTPS webhooks may receive
+`charon.scan.completed` events alongside drift payloads.
 
 ---
 
@@ -65,7 +80,7 @@ customer explicitly opts in.
 | AWS Security Hub               | Drift findings (ASFF)                                | ASFF JSON             |
 | Microsoft Sentinel             | Drift events (CEF)                                   | CEF over HTTPS        |
 | OCSF (Security Lake / Splunk OCSF / Snowflake / OpenSearch) | Drift events as OCSF Compliance Findings (class 2003) | OCSF 2.0 JSON         |
-| Generic webhook (HMAC-signed)  | Drift events                                         | BLACKGLASS native JSON |
+| Generic webhook (HMAC-signed)  | Drift events; optional Charon `charon.scan.completed` | BLACKGLASS native JSON |
 
 The router that decides which payload format applies lives at
 `src/lib/server/outbound-webhook.ts::detectPlatform()`.
@@ -108,6 +123,7 @@ these vendors holds the unwrapping key for production traffic
 
 ## Change log
 
+- **2026-05-10** v1.1 — Charon cloud-API clarification + webhook row note.
 - **2026-05-07** v1.0 — Initial inventory written for Wave 10 review packet.
 
 If a vendor is added, removed, or changes purpose, file a PR updating

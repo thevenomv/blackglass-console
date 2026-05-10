@@ -12,12 +12,12 @@ interface CheckoutButtonProps {
   billingCycle?: "monthly" | "annual";
   /**
    * Add-on codes to bundle into the same Stripe subscription as the
-   * base plan (currently only "remediator" is supported). Passing
+   * base plan ("remediator", "charon"). Passing
    * an add-on means the customer pays one combined invoice instead
    * of going through a second checkout. Ignored values are silently
    * dropped server-side, so a stale frontend can't break checkout.
    */
-  addons?: ReadonlyArray<"remediator">;
+  addons?: ReadonlyArray<"remediator" | "charon">;
 }
 
 export default function CheckoutButton({

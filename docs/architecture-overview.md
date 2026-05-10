@@ -20,7 +20,8 @@
 ├──────────────────────────────────────────────────────────────────────────┤
 │  Application Services                                                    │
 │  src/lib/server/services/**     — scan orchestration, evidence assembly, │
-│                                   sandbox provisioner, baseline capture  │
+│                                   sandbox provisioner, baseline capture, │
+│                                   Charon (janitor) scan + cleanup        │
 │  src/lib/server/collector/**    — SSH fan-out + parser pipeline           │
 │  src/lib/server/drift-engine.ts — drift computation                      │
 │  src/lib/server/inventory.ts    — host inventory                         │
@@ -29,7 +30,8 @@
 │  Async / Workers                                                         │
 │  src/lib/server/queue/**  — BullMQ queue singletons + config             │
 │  src/worker/scan-worker.ts    — SSH + drift consumer (isolated process)  │
-│  src/worker/ops-worker.ts     — webhooks, exports, maintenance           │
+│  src/worker/ops-worker.ts     — webhooks, exports, maintenance, Charon  │
+│                                janitor queue (cloud inventory scans)      │
 │  src/worker/sandbox-worker.ts — sandbox lifecycle consumer               │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  Persistence & Infrastructure                                            │
@@ -114,6 +116,13 @@
 
 - All event deliveries to external SIEM/webhook endpoints go through `outbound-webhook.ts`.
 - Direct `fetch()` calls to arbitrary customer-controlled URLs from route handlers are prohibited.
+
+### Charon (cloud janitor)
+
+- Linked-account credentials are stored envelope-encrypted (`janitor_accounts`); scans run on the **`blackglass-janitor`** BullMQ queue (`src/lib/server/queue/janitor-queue.ts`), not on the web request thread.
+- Scheduled Charon ticks are repeatable jobs on the **maintenance** queue (`charon-scheduled-scans` in `maintenance-queue.ts`).
+- Tenant isolation uses the same RLS pattern as other `janitor_*` tables; see migrations `0019`–`0025` under `drizzle/`.
+- Optional `charon.scan.completed` webhooks reuse `dispatchTenantJsonWebhooks` + HMAC headers (`charon-scan-webhook.ts`).
 
 ---
 

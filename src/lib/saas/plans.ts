@@ -79,6 +79,14 @@ export type PlanDefinition = {
   immutableAuditLog: boolean;
   prioritySupport: boolean;
   supportSla: boolean;
+
+  // Charon (cloud janitor) — enforced in `/api/v1/janitor/*` + Stripe-backed planCode
+  /** Max linked cloud accounts per workspace (-1 = unlimited). */
+  charonLinkedAccountsMax: number;
+  /** Cleanup request queue + approvals (Lab: off — manual scans / findings only). */
+  charonCleanupQueueEnabled: boolean;
+  /** Live cleanup after approval (Growth+). Starter is dry-run only. */
+  charonLiveCleanupEnabled: boolean;
 };
 
 /**
@@ -109,7 +117,7 @@ export type PlanPricing = {
 /**
  * Optional add-ons. Independent of the base plan price.
  */
-export type AddOnCode = "remediator";
+export type AddOnCode = "remediator" | "charon";
 
 export type AddOnPricing = {
   code: AddOnCode;
@@ -176,6 +184,9 @@ export const COMMERCIAL_PLANS: Record<
     immutableAuditLog: false,
     prioritySupport: false,
     supportSla: false,
+    charonLinkedAccountsMax: 1,
+    charonCleanupQueueEnabled: false,
+    charonLiveCleanupEnabled: false,
   },
   starter: {
     code: "starter",
@@ -204,6 +215,9 @@ export const COMMERCIAL_PLANS: Record<
     immutableAuditLog: false,
     prioritySupport: false,
     supportSla: false,
+    charonLinkedAccountsMax: 5,
+    charonCleanupQueueEnabled: true,
+    charonLiveCleanupEnabled: false,
   },
   growth: {
     code: "growth",
@@ -232,6 +246,9 @@ export const COMMERCIAL_PLANS: Record<
     immutableAuditLog: false,
     prioritySupport: true,
     supportSla: false,
+    charonLinkedAccountsMax: 25,
+    charonCleanupQueueEnabled: true,
+    charonLiveCleanupEnabled: true,
   },
   scale: {
     code: "scale",
@@ -260,6 +277,9 @@ export const COMMERCIAL_PLANS: Record<
     immutableAuditLog: false,
     prioritySupport: true,
     supportSla: false,
+    charonLinkedAccountsMax: 25,
+    charonCleanupQueueEnabled: true,
+    charonLiveCleanupEnabled: true,
   },
   business: {
     code: "business",
@@ -288,6 +308,9 @@ export const COMMERCIAL_PLANS: Record<
     immutableAuditLog: true,
     prioritySupport: true,
     supportSla: false,
+    charonLinkedAccountsMax: 50,
+    charonCleanupQueueEnabled: true,
+    charonLiveCleanupEnabled: true,
   },
 };
 
@@ -353,7 +376,25 @@ export const ADD_ONS: Record<AddOnCode, AddOnPricing> = {
     includedActionsPerMonth: 100,
     extraActionCents: 10,
   },
+  /**
+   * Charon — multi-cloud resource hygiene (DO, AWS, GCP read inventory + optional HITL cleanup).
+   * Priced under Remediator; boosts linked-account limits when subscribed.
+   */
+  charon: {
+    code: "charon",
+    label: "Charon (cloud resource janitor)",
+    baseCentsMonthly: 4_900,
+    baseCentsAnnual: 49_000,
+    includedActionsPerMonth: -1,
+    extraActionCents: 0,
+  },
 };
+
+/** Stripe recurring price IDs for the Charon add-on line item (checkout + webhook detection). */
+export const STRIPE_CHARON_ADDON_ENV_VARS = {
+  monthly: "STRIPE_CHARON_PRICE_ID",
+  annual: "STRIPE_CHARON_ANNUAL_PRICE_ID",
+} as const;
 
 /**
  * Resolve a plan code to its full definition.
@@ -391,6 +432,9 @@ export function getPlanDefinition(code: string): PlanDefinition | null {
       immutableAuditLog: true,
       prioritySupport: true,
       supportSla: true,
+      charonLinkedAccountsMax: -1,
+      charonCleanupQueueEnabled: true,
+      charonLiveCleanupEnabled: true,
     };
   }
   if (code === "trial") {
@@ -479,6 +523,64 @@ export function remediatorIsAddon(code: string): boolean {
   const def = getPlanDefinition(code);
   if (!def) return false;
   return !def.remediatorIncluded && def.remediatorAddonAvailable;
+}
+
+/** True when Stripe sync has recorded an active Charon subscription line item. */
+export function isCharonAddonEnabled(features: unknown): boolean {
+  if (!features || typeof features !== "object") return false;
+  const addons = (features as { addons?: unknown }).addons;
+  if (!addons || typeof addons !== "object") return false;
+  return (addons as { charon?: boolean }).charon === true;
+}
+
+export type CharonEntitlements = {
+  linkedAccountsMax: number;
+  cleanupQueue: boolean;
+  liveCleanup: boolean;
+  scheduledScansAllowed: boolean;
+  /** Active paid Charon add-on (see ADD_ONS.charon). */
+  charonAddon: boolean;
+};
+
+/**
+ * Charon (cloud janitor) limits for a workspace plan, optionally boosted by the Charon add-on.
+ * Unknown / custom plan codes fall back to Starter-like caps (conservative live cleanup off).
+ */
+export function resolveCharonEntitlements(
+  planCode: string,
+  options?: { charonAddon?: boolean },
+): CharonEntitlements {
+  const charonAddon = options?.charonAddon ?? false;
+  const def = getPlanDefinition(planCode);
+  if (!def) {
+    return {
+      linkedAccountsMax: 5,
+      cleanupQueue: true,
+      liveCleanup: false,
+      scheduledScansAllowed: true,
+      charonAddon,
+    };
+  }
+
+  let linkedAccountsMax = def.charonLinkedAccountsMax;
+  let cleanupQueue = def.charonCleanupQueueEnabled;
+
+  if (charonAddon) {
+    cleanupQueue = true;
+    if (planCode === "lab") {
+      linkedAccountsMax = Math.max(linkedAccountsMax, 5);
+    } else if (linkedAccountsMax >= 0) {
+      linkedAccountsMax = Math.min(50, linkedAccountsMax + 10);
+    }
+  }
+
+  return {
+    linkedAccountsMax,
+    cleanupQueue,
+    liveCleanup: def.charonLiveCleanupEnabled,
+    scheduledScansAllowed: def.scheduledScansEnabled,
+    charonAddon,
+  };
 }
 
 // ---------------------------------------------------------------------------

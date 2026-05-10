@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   // so the customer pays one combined invoice. Only validated codes
   // are accepted; anything else is silently dropped (vs erroring) so
   // a stale frontend can't break checkout entirely.
-  let addons: ReadonlyArray<"remediator"> = [];
+  let addons: ReadonlyArray<"remediator" | "charon"> = [];
   try {
     const body = (await request.json()) as {
       planCode?: string;
@@ -59,9 +59,7 @@ export async function POST(request: Request) {
       billingCycle = body.billingCycle;
     }
     if (Array.isArray(body?.addons)) {
-      const valid = body.addons.filter(
-        (a): a is "remediator" => a === "remediator",
-      );
+      const valid = body.addons.filter((a): a is "remediator" | "charon" => a === "remediator" || a === "charon");
       // De-dupe — Stripe rejects line_items with duplicate price IDs.
       addons = Array.from(new Set(valid));
     }
@@ -147,6 +145,13 @@ export async function POST(request: Request) {
       name: "Blackglass Remediator (HITL AI)",
       description: "100 included remediation actions/month, $0.10 per extra",
       monthlyAmount: 9_900,
+    },
+    charon: {
+      monthlyEnv: process.env.STRIPE_CHARON_PRICE_ID?.trim() || undefined,
+      annualEnv: process.env.STRIPE_CHARON_ANNUAL_PRICE_ID?.trim() || undefined,
+      name: "Blackglass Charon (cloud janitor)",
+      description: "Linked cloud accounts + cleanup queue boosts; see docs for plan pairing",
+      monthlyAmount: 4_900,
     },
   } as const;
 

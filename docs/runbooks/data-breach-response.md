@@ -5,6 +5,7 @@ Internal checklist for Obsidian Dynamics Limited (Blackglass). Not legal advice;
 ## 1. Triage (0–2 hours)
 
 - **Contain:** Revoke tokens, rotate keys, disable compromised accounts or features, preserve logs without destroying evidence.
+- **Charon / linked clouds (if implicated):** Treat linked cloud credentials like any other long-lived secret — stop the blast radius first (pause or scale down **ops-worker** so `blackglass-janitor` and outbound cleanup cannot run; block egress to cloud APIs at the edge if you use a firewall). In Postgres, you can delete or rotate ciphertext rows in `janitor_accounts` per affected tenant under change control. Tell the customer to **revoke or rotate IAM keys / tokens on their side** and to review cloud audit logs for APIs called during the exposure window. Capture what you halted and when in the incident timeline.
 - **Classify:** Personal data involved? Living individuals identifiable? Volume, sensitivity (special-category, credentials, children)?
 - **Scope:** Which tenants, systems, and subprocessors? Still ongoing or contained?
 - **Owner:** Name one incident lead and a comms owner.

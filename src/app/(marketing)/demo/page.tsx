@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DEMO_AUDIT, DEMO_DRIFT, DEMO_HOSTS, DEMO_REMEDIATIONS } from "@/lib/demo/seed";
-import { DemoGateButton, TrialSignupLink } from "@/components/demo/DemoGateButton";
+import { DemoGateButton } from "@/components/demo/DemoGateButton";
 
 function sevColor(s: string) {
   switch (s) {
@@ -19,11 +19,9 @@ export default function DemoOverviewPage() {
   const openDrift = DEMO_DRIFT.filter((d) => d.lifecycle === "new").length;
   const fails = DEMO_HOSTS.filter((h) => h.sshHardening === "fail").length;
 
-  const actionClass =
-    "inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-card border border-border-default bg-bg-panel px-4 py-2 text-sm font-medium text-fg-primary transition-colors hover:bg-bg-elevated";
-  const quietClass =
-    "inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-card border border-border-subtle bg-bg-panel px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:bg-bg-elevated hover:text-fg-primary";
-
+  /** Shared control surface — full-width cells in a 2×2 grid so labels can wrap cleanly. */
+  const outlineControl =
+    "inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-card border border-border-default bg-bg-panel px-3 py-2 text-center text-sm font-medium leading-snug text-fg-primary transition-colors hover:border-accent-blue/35 hover:bg-bg-elevated";
   return (
     <div className="space-y-8">
       <div className="rounded-card border border-border-subtle bg-bg-panel/50 p-5 sm:p-6">
@@ -36,29 +34,38 @@ export default function DemoOverviewPage() {
               your infrastructure.
             </p>
           </div>
-          <div className="flex w-full flex-col gap-3 lg:max-w-xl lg:items-end">
-            <div className="flex flex-wrap gap-2 lg:justify-end">
-              <DemoGateButton actionLabel="Run fleet scan">Run scan</DemoGateButton>
-              <DemoGateButton actionLabel="Capture baseline">Capture baseline</DemoGateButton>
+          <div className="flex w-full flex-col gap-5 lg:ml-auto lg:max-w-md">
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
+                Demo actions
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <DemoGateButton actionLabel="Run fleet scan" className={outlineControl}>
+                  Run scan
+                </DemoGateButton>
+                <DemoGateButton actionLabel="Capture baseline" className={outlineControl}>
+                  Capture baseline
+                </DemoGateButton>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2 lg:justify-end">
-              <a href="/api/public/demo-evidence" download className={actionClass}>
-                Integrity evidence package (PDF)
-              </a>
-              <a href="/api/public/demo-evidence?format=json" download className={quietClass}>
-                Evidence JSON
-              </a>
-              <a href="/api/public/demo-report" download className={quietClass}>
-                Sample report (PDF)
-              </a>
-              <a href="/api/public/demo-report?format=json" download className={quietClass}>
-                Report JSON
-              </a>
-            </div>
-            <div className="flex w-full lg:justify-end">
-              <TrialSignupLink className="inline-flex min-h-10 w-full items-center justify-center whitespace-nowrap rounded-card bg-accent-blue px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-blue-hover sm:w-auto">
-                Start free trial
-              </TrialSignupLink>
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
+                Sample exports
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <a href="/api/public/demo-evidence" download className={outlineControl}>
+                  Integrity evidence (PDF)
+                </a>
+                <a href="/api/public/demo-evidence?format=json" download className={outlineControl}>
+                  Evidence (JSON)
+                </a>
+                <a href="/api/public/demo-report" download className={outlineControl}>
+                  Sample report (PDF)
+                </a>
+                <a href="/api/public/demo-report?format=json" download className={outlineControl}>
+                  Report (JSON)
+                </a>
+              </div>
             </div>
           </div>
         </div>

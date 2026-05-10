@@ -5,11 +5,11 @@ import { TrialSignupLink } from "@/components/demo/DemoGateButton";
 export const metadata: Metadata = {
   title: "Product — Blackglass",
   description:
-    "See how Blackglass brings fleet overview, per-server detail, trusted snapshots, clear change alerts, exports for reviews, and sensible access roles into one calm workflow.",
+    "Fleet overview, per-server detail, trusted snapshots, change alerts, optional Charon cloud inventory, exports for reviews, and sensible access roles in one workflow.",
   openGraph: {
     title: "Product — Blackglass",
     description:
-      "Fleet overview, per-server detail, trusted snapshots, change alerts, shareable reports, and roles that match how real teams work.",
+      "Fleet overview, per-server detail, trusted snapshots, change alerts, optional Charon for cloud accounts, shareable reports, and roles that match how real teams work.",
     type: "website",
     siteName: "Blackglass",
   },
@@ -85,8 +85,23 @@ const FEATURES = [
     useCaseLabel: "More on continuous checks →",
   },
   {
-    id: "evidence",
+    id: "charon",
     label: "05",
+    title: "Charon (cloud resource hygiene)",
+    summary:
+      "Optional add-on: connect DigitalOcean, AWS, or Google Cloud with read-scoped credentials. Inventory scans, idle scoring, scan-over-scan diffs, and dismiss/snooze — cleanup stays human-approved when your plan allows live actions.",
+    bullets: [
+      "Credentials are envelope-encrypted per workspace; the API never returns secrets.",
+      "Signed webhook payloads (same HMAC model as drift) when you enable scan notifications.",
+      "Deep links into each vendor console from findings so operators land in the right place.",
+      "Scheduled scans on eligible plans; rate limits protect both you and vendor APIs.",
+      "Technical IAM starters and trust model: operator docs (not legal advice).",
+    ],
+    useCase: null,
+  },
+  {
+    id: "evidence",
+    label: "06",
     title: "Reports you can share",
     summary:
       "Download a dated package for one server or the whole fleet — ideal for leadership updates, customer security reviews, or working with an outside assessor.",
@@ -101,7 +116,7 @@ const FEATURES = [
   },
   {
     id: "rbac",
-    label: "06",
+    label: "07",
     title: "Roles that match reality",
     summary:
       "Five roles from read-only guests to full administrators. People who only need to read never count against your paid seats.",

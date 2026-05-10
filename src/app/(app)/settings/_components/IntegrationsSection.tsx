@@ -22,8 +22,8 @@ interface IntegrationDef {
   urlPattern: string;
   /** Env vars the operator needs to set for credentials. */
   envVars: string[];
-  /** Setup link / docs target. */
-  docs: string;
+  /** Setup link / docs target (omit when no external doc URL is used). */
+  docs?: string;
 }
 
 const INTEGRATIONS: IntegrationDef[] = [
@@ -81,7 +81,6 @@ const INTEGRATIONS: IntegrationDef[] = [
     description: "Creates an issue in the target repo with severity labels.",
     urlPattern: "api.github.com/repos/<owner>/<repo>/issues",
     envVars: ["GITHUB_TOKEN"],
-    docs: "https://docs.github.com/en/rest/issues/issues#create-an-issue",
   },
   {
     id: "splunk",
@@ -196,14 +195,16 @@ export async function IntegrationsSection() {
                   Env: {integ.envVars.join(", ")}
                 </p>
               </div>
-              <a
-                href={integ.docs}
-                target="_blank"
-                rel="noreferrer"
-                className="shrink-0 self-start rounded-md border border-border-default bg-bg-elevated px-2.5 py-1 text-xs font-medium text-fg-muted transition-colors hover:border-accent-blue hover:text-accent-blue"
-              >
-                Docs ↗
-              </a>
+              {integ.docs ? (
+                <a
+                  href={integ.docs}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 self-start rounded-md border border-border-default bg-bg-elevated px-2.5 py-1 text-xs font-medium text-fg-muted transition-colors hover:border-accent-blue hover:text-accent-blue"
+                >
+                  Docs ↗
+                </a>
+              ) : null}
             </li>
           );
         })}

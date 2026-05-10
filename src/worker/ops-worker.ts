@@ -5,6 +5,7 @@
  *   - WEBHOOKS    (outbound webhook delivery + DLQ)
  *   - EXPORTS     (per-tenant data-export bundle assembly + Spaces upload)
  *   - MAINTENANCE (retention sweep + future ops crons)
+ *   - JANITOR     (Charon read-only cloud scans)
  *
  * Run alongside scan-worker / sandbox-worker:
  *
@@ -29,16 +30,20 @@ import { deliverWebhookInline } from "@/lib/server/outbound-webhook";
 import type { WebhookJobPayload } from "@/lib/server/queue/webhook-queue";
 import type { ExportJobPayload } from "@/lib/server/queue/export-queue";
 import type { MaintenanceJobPayload } from "@/lib/server/queue/maintenance-queue";
+import type { JanitorScanJobPayload } from "@/lib/server/queue/janitor-queue";
 import {
   installRetentionRepeatable,
   installDriftDigestRepeatable,
   installPartitionMaintenanceRepeatable,
+  installCharonScheduleRepeatable,
 } from "@/lib/server/queue/maintenance-queue";
 import { runExportJob } from "@/lib/server/services/export-service";
 import { pruneAllTenants } from "@/lib/server/services/retention-service";
 import { runDriftDigest } from "@/lib/server/services/drift-digest-service";
 import { ensureUpcomingDriftPartitions } from "@/lib/server/services/partition-maintenance-service";
 import { expireStaleBaselineCaptureJobs } from "@/lib/server/services/baseline-capture-async";
+import { executeJanitorScanJob } from "@/lib/server/services/janitor-scan-job";
+import { runCharonScheduledScanTick } from "@/lib/server/services/charon-scheduled-scan-service";
 import { logStructured } from "@/lib/server/log";
 
 const redisUrl = process.env.REDIS_QUEUE_URL?.trim();
@@ -56,8 +61,12 @@ const concurrency = (() => {
   return 4;
 })();
 
+const redisTlsOpts = redisUrl.startsWith("rediss://")
+  ? { tls: { rejectUnauthorized: false } }
+  : {};
+
 console.info(
-  `[ops-worker] Starting — queues=${QUEUE_NAMES.WEBHOOKS},${QUEUE_NAMES.EXPORTS},${QUEUE_NAMES.MAINTENANCE} concurrency=${concurrency}`,
+  `[ops-worker] Starting — queues=${QUEUE_NAMES.WEBHOOKS},${QUEUE_NAMES.EXPORTS},${QUEUE_NAMES.MAINTENANCE},${QUEUE_NAMES.JANITOR} concurrency=${concurrency}`,
 );
 
 // ---------------------------------------------------------------------------
@@ -77,7 +86,7 @@ const webhookWorker = new Worker<WebhookJobPayload>(
     await deliverWebhookInline(url, body, headers);
   },
   {
-    connection: { url: redisUrl },
+    connection: { url: redisUrl, ...redisTlsOpts },
     concurrency,
   },
 );
@@ -122,7 +131,7 @@ const exportWorker = new Worker<ExportJobPayload>(
     await runExportJob(exportId, tenantId);
   },
   {
-    connection: { url: redisUrl },
+    connection: { url: redisUrl, ...redisTlsOpts },
     // Bundle assembly + Spaces upload is I/O bound but each job collects
     // every drift event for the tenant; cap below the webhook concurrency.
     concurrency: Math.max(1, Math.floor(concurrency / 2)),
@@ -228,6 +237,17 @@ const maintenanceWorker = new Worker<MaintenanceJobPayload>(
         });
         return;
       }
+      case "charon-scheduled-scans": {
+        const startedAt = Date.now();
+        logStructured("info", "charon_scheduled_scan_tick_start", { bullJobId: job.id });
+        const res = await runCharonScheduledScanTick();
+        logStructured("info", "charon_scheduled_scan_tick_completed", {
+          bullJobId: job.id,
+          ...res,
+          elapsedMs: Date.now() - startedAt,
+        });
+        return;
+      }
       default: {
         const _exhaustive: never = job.data.type;
         throw new Error(`Unknown maintenance job type: ${String(_exhaustive)}`);
@@ -235,7 +255,7 @@ const maintenanceWorker = new Worker<MaintenanceJobPayload>(
     }
   },
   {
-    connection: { url: redisUrl },
+    connection: { url: redisUrl, ...redisTlsOpts },
     concurrency: 1, // never want two retention sweeps overlapping
   },
 );
@@ -244,6 +264,37 @@ maintenanceWorker.on("failed", (job, err) =>
   logStructured("error", "maintenance_job_failed", {
     bullJobId: job?.id,
     type: job?.data?.type,
+    error: err instanceof Error ? err.message : String(err),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Charon janitor worker
+// ---------------------------------------------------------------------------
+
+const janitorWorker = new Worker<JanitorScanJobPayload>(
+  QUEUE_NAMES.JANITOR,
+  async (job) => {
+    const { tenantId, accountId } = job.data;
+    logStructured("info", "janitor_scan_start", {
+      bullJobId: job.id,
+      tenantId,
+      accountId,
+      attempt: job.attemptsMade + 1,
+    });
+    await executeJanitorScanJob(job.data);
+  },
+  {
+    connection: { url: redisUrl, ...redisTlsOpts },
+    concurrency: Math.max(1, Math.floor(concurrency / 2)),
+  },
+);
+
+janitorWorker.on("failed", (job, err) =>
+  logStructured("error", "janitor_scan_failed", {
+    bullJobId: job?.id,
+    accountId: job?.data?.accountId,
+    tenantId: job?.data?.tenantId,
     error: err instanceof Error ? err.message : String(err),
   }),
 );
@@ -294,6 +345,18 @@ void installDriftDigestRepeatable()
     }),
   );
 
+void installCharonScheduleRepeatable()
+  .then((res) => {
+    if (res.installed) {
+      logStructured("info", "charon_schedule_repeatable_installed", { everyMs: res.everyMs });
+    }
+  })
+  .catch((err) =>
+    logStructured("error", "charon_schedule_repeatable_install_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    }),
+  );
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -324,6 +387,7 @@ async function shutdown(signal: string) {
     webhookWorker.close(),
     exportWorker.close(),
     maintenanceWorker.close(),
+    janitorWorker.close(),
   ]);
   clearTimeout(forceExit);
   console.info("[ops-worker] All workers closed — exiting");

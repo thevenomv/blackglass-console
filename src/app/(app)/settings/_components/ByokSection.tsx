@@ -205,16 +205,8 @@ export function ByokSection() {
             Use your own KMS key (AWS KMS or HashiCorp Vault Transit) to
             wrap data-encryption keys for this workspace. Plaintext SSH
             keys and other tenant secrets never touch the platform root
-            key. See the{" "}
-            <a
-              href="https://github.com/thevenomv/blackglass-console/blob/main/src/lib/server/secrets/README.md#per-tenant-kms--byok-phase-1"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent-blue"
-            >
-              architecture doc
-            </a>
-            .
+            key. Per-tenant KMS wiring is documented in your deployment operator
+            materials; request details from your Blackglass contact if needed.
           </p>
         </div>
         <Button variant="secondary" disabled={loading || busy} onClick={() => void loadStatus()}>

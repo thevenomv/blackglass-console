@@ -77,9 +77,15 @@ export function SnapshotFreshnessPill({ latestSignalAt }: Props) {
   // accurate without a re-fetch. Initialising on mount avoids
   // SSR-vs-client hydration mismatch on the timestamp string.
   useEffect(() => {
-    setNow(Date.now());
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setNow(Date.now());
+    });
     const t = window.setInterval(() => setNow(Date.now()), 5000);
-    return () => window.clearInterval(t);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
   }, []);
 
   if (!latestSignalAt) return null;

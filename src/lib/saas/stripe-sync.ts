@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { withBypassRls, schema } from "@/db";
 import {
   getPlanDefinition,
+  STRIPE_CHARON_ADDON_ENV_VARS,
   STRIPE_PRICE_ENV_VARS,
   TRIAL_HOST_LIMIT,
   TRIAL_PAID_SEAT_LIMIT,
@@ -37,6 +38,19 @@ export function priceIdToPlanCode(priceId: string | undefined): CommercialPlanCo
   const legacyPro = process.env.STRIPE_PRO_PRICE_ID?.trim();
   if (legacyPro && priceId === legacyPro) return "starter";
   return "starter";
+}
+
+function subscriptionHasCharonLineItem(subscription: Stripe.Subscription): boolean {
+  const monthly = process.env[STRIPE_CHARON_ADDON_ENV_VARS.monthly]?.trim();
+  const annual = process.env[STRIPE_CHARON_ADDON_ENV_VARS.annual]?.trim();
+  if (!monthly && !annual) return false;
+  for (const item of subscription.items.data) {
+    const pid = item.price?.id;
+    if (!pid || typeof pid !== "string") continue;
+    if (monthly && pid === monthly) return true;
+    if (annual && pid === annual) return true;
+  }
+  return false;
 }
 
 function mapStripeStatus(status: Stripe.Subscription.Status): SubRow["status"] {
@@ -78,7 +92,25 @@ export async function syncSaasSubscriptionFromStripe(input: {
   const trialEndsAt =
     input.subscription.status === "trialing" && trialEndRaw ? new Date(trialEndRaw * 1000) : null;
 
+  const charonAddonLine = subscriptionHasCharonLineItem(input.subscription);
+
   await withBypassRls(async (db) => {
+    const [existing] = await db
+      .select({ features: schema.saasSubscriptions.features })
+      .from(schema.saasSubscriptions)
+      .where(eq(schema.saasSubscriptions.tenantId, input.tenantId))
+      .limit(1);
+
+    const prev = (existing?.features as Record<string, unknown> | null) ?? {};
+    const prevAddons =
+      prev.addons !== null &&
+      typeof prev.addons === "object" &&
+      !Array.isArray(prev.addons)
+        ? { ...(prev.addons as Record<string, unknown>) }
+        : {};
+    prevAddons.charon = charonAddonLine;
+    const nextFeatures: Record<string, unknown> = { ...prev, addons: prevAddons };
+
     await db
       .update(schema.saasSubscriptions)
       .set({
@@ -90,6 +122,7 @@ export async function syncSaasSubscriptionFromStripe(input: {
         paidSeatLimit,
         currentPeriodEndsAt,
         trialEndsAt,
+        features: nextFeatures,
         updatedAt: new Date(),
       })
       .where(eq(schema.saasSubscriptions.tenantId, input.tenantId));
@@ -101,7 +134,7 @@ export async function syncSaasSubscriptionFromStripe(input: {
     action: "plan.synced_from_stripe",
     targetType: "stripe_subscription",
     targetId: input.stripeSubscriptionId,
-    metadata: { planCode, status, priceId: priceId ?? null },
+    metadata: { planCode, status, priceId: priceId ?? null, charon_addon: charonAddonLine },
   });
 }
 
@@ -127,6 +160,7 @@ export async function clearStripeSubscriptionForTenant(tenantId: string): Promis
         status: "canceled",
         hostLimit: TRIAL_HOST_LIMIT,
         paidSeatLimit: TRIAL_PAID_SEAT_LIMIT,
+        features: {},
         updatedAt: new Date(),
       })
       .where(eq(schema.saasSubscriptions.tenantId, tenantId));

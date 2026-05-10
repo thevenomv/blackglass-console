@@ -29,7 +29,7 @@ version: 0.1.0
 appVersion: "0.1.0"
 home: https://app.blackglasssec.com
 sources:
-  - https://github.com/blackglass/blackglass
+  - https://www.blackglasssec.com
 maintainers:
   - name: Obsidian Dynamics
     email: hello@obsidiandynamics.dev

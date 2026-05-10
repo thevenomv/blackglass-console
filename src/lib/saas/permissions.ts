@@ -22,7 +22,11 @@ export type SaasPermission =
   /** Manage host-policy invariants (mint/list/disable). Owner + admin. */
   | "policies.manage"
   /** Manage tenant integration settings (webhooks, alert routing, schedule). Owner + admin. */
-  | "settings.write";
+  | "settings.write"
+  /** Charon: link cloud accounts and enqueue scans. */
+  | "janitor.manage"
+  /** Charon: view accounts and findings. */
+  | "janitor.read";
 
 const matrix: Record<TenantRole, readonly SaasPermission[]> = {
   owner: [
@@ -42,6 +46,8 @@ const matrix: Record<TenantRole, readonly SaasPermission[]> = {
     "apikeys.manage",
     "policies.manage",
     "settings.write",
+    "janitor.manage",
+    "janitor.read",
   ],
   admin: [
     "members.invite_non_owner",
@@ -58,6 +64,8 @@ const matrix: Record<TenantRole, readonly SaasPermission[]> = {
     "apikeys.manage",
     "policies.manage",
     "settings.write",
+    "janitor.manage",
+    "janitor.read",
   ],
   operator: [
     "secrets.manage",
@@ -68,8 +76,10 @@ const matrix: Record<TenantRole, readonly SaasPermission[]> = {
     "dashboards.view",
     "alerts.view",
     "evidence.view",
+    "janitor.manage",
+    "janitor.read",
   ],
-  viewer: ["reports.view", "dashboards.view", "alerts.view"],
+  viewer: ["reports.view", "dashboards.view", "alerts.view", "janitor.read"],
   guest_auditor: ["reports.view", "evidence.view"],
 };
 
