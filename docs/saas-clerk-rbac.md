@@ -5,11 +5,14 @@ This document summarizes what the codebase enforces and what you must configure 
 ## Pricing & access (product rules)
 
 - **Charge for action roles, not viewers.** Only `owner`, `admin`, and `operator` consume **paid seats**. `viewer` and `guest_auditor` are unlimited.
-- **Commercial plan host & seat envelopes** (reference values in `src/lib/saas/plans.ts`):
-  - **Starter** — 25 hosts, 3 paid seats  
-  - **Growth** — 100 hosts, 8 paid seats  
-  - **Business** — 300 hosts, 15 paid seats  
-  - **Enterprise** — custom (negative limits = “no numeric cap” in helpers)
+- **Commercial plan host & seat envelopes** (reference values in `src/lib/saas/plans.ts` — refreshed 2026-05-10):
+  - **Lab** — 5 hosts, 1 paid seat (free forever; 1 Charon linked account included)
+  - **Starter** — 15 hosts, 3 paid seats ($59/mo)
+  - **Team** — 25 hosts, 3 paid seats ($89/mo; closes the Starter→Growth cliff)
+  - **Growth** — 100 hosts, 5 paid seats ($199/mo)
+  - **Scale** — 200 hosts, 7 paid seats ($349/mo)
+  - **Business** — 300 hosts, 10 paid seats ($499/mo; Remediator included)
+  - **Enterprise** — custom from $2,500/mo (negative limits = "no numeric cap" in helpers)
 - **14-day trial** created in Postgres when a Clerk org is provisioned: **10 hosts**, **2 paid seats**, then **`trial_expired`** read-only (no permanent free operational tier).
 - **Seat exhaustion** blocks inviting **paid** roles only; viewer / guest_auditor invites always succeed.
 - **No silent downgrades:** existing memberships stay until an explicit role change; enforcement is on **invite / role update** paths.

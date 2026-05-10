@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       billingCycle?: string;
       addons?: unknown;
     };
-    if (body?.planCode && ["starter", "growth", "scale", "business"].includes(body.planCode)) {
+    if (body?.planCode && ["starter", "team", "growth", "scale", "business"].includes(body.planCode)) {
       planCode = body.planCode;
     }
     if (body?.billingCycle === "annual" || body?.billingCycle === "monthly") {
@@ -71,6 +71,10 @@ export async function POST(request: Request) {
     starter: {
       monthly: process.env.STRIPE_STARTER_PRICE_ID,
       annual: process.env.STRIPE_STARTER_ANNUAL_PRICE_ID,
+    },
+    team: {
+      monthly: process.env.STRIPE_TEAM_PRICE_ID,
+      annual: process.env.STRIPE_TEAM_ANNUAL_PRICE_ID,
     },
     growth: {
       monthly: process.env.STRIPE_GROWTH_PRICE_ID,
@@ -91,10 +95,11 @@ export async function POST(request: Request) {
   // USD cents and MUST stay in sync with PLAN_PRICING in
   // src/lib/saas/plans.ts (single source of truth for the docs / FAQ).
   const PLAN_FALLBACK: Record<string, { name: string; description: string; monthlyAmount: number }> = {
-    starter:  { name: "Blackglass Starter",  description: "25 hosts · 2 operator seats · 180-day history", monthlyAmount: 3900   },
-    growth:   { name: "Blackglass Growth",   description: "100 hosts · 5 operator seats · fleet dashboard",  monthlyAmount: 19900 },
-    scale:    { name: "Blackglass Scale",    description: "200 hosts · 7 operator seats · gap between Growth and Business", monthlyAmount: 34900 },
-    business: { name: "Blackglass Business", description: "300 hosts · 10 operator seats · approval workflows", monthlyAmount: 49900 },
+    starter:  { name: "Blackglass Starter",  description: "15 hosts · 3 operator seats · drift detection · 4 scans/day",     monthlyAmount: 5900  },
+    team:     { name: "Blackglass Team",     description: "25 hosts · 3 operator seats · hourly scans · full API",            monthlyAmount: 8900  },
+    growth:   { name: "Blackglass Growth",   description: "100 hosts · 5 operator seats · fleet dashboard",                   monthlyAmount: 19900 },
+    scale:    { name: "Blackglass Scale",    description: "200 hosts · 7 operator seats · host groups · approval workflows",  monthlyAmount: 34900 },
+    business: { name: "Blackglass Business", description: "300 hosts · 10 operator seats · immutable audit · Remediator incl", monthlyAmount: 49900 },
   };
 
   const priceId = PLAN_PRICE_ENV[planCode][billingCycle];
@@ -143,7 +148,7 @@ export async function POST(request: Request) {
       monthlyEnv: process.env.STRIPE_REMEDIATOR_PRICE_ID?.trim() || undefined,
       annualEnv: process.env.STRIPE_REMEDIATOR_ANNUAL_PRICE_ID?.trim() || undefined,
       name: "Blackglass Remediator (HITL AI)",
-      description: "100 included remediation actions/month, $0.10 per extra",
+      description: "250 included remediation actions/month, $0.10 per extra",
       monthlyAmount: 9_900,
     },
     charon: {

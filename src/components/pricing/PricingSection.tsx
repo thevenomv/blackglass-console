@@ -44,9 +44,11 @@ function formatPrice(monthlyUsd: number | null, cycle: BillingCycle): { price: s
 // Data
 //
 // The ladder mirrors `src/lib/saas/plans.ts`. Lab is the perpetual free
-// tier and renders as a slimmer card without a billing CTA. Scale fills
-// the 100→300 host gap. Enterprise carries a published price anchor so
-// procurement-savvy buyers don't bounce on the "Custom" wall.
+// tier and renders as a slimmer card without a billing CTA. Team
+// (introduced 2026-05-10) closes the previous Starter→Growth 5× cliff
+// with a 25-host SMB landing pad. Scale fills the 100→300 host gap.
+// Enterprise carries a published price anchor so procurement-savvy
+// buyers don't bounce on the "Custom" wall.
 // ---------------------------------------------------------------------------
 
 const TIERS: PricingTier[] = [
@@ -62,6 +64,7 @@ const TIERS: PricingTier[] = [
       "30 days of findings history",
       "Daily scheduled scan",
       "Read-only API access",
+      "Charon: 1 linked cloud account (read-only inventory)",
       "Self-host or cloud — your call",
     ],
     cta: "Start free",
@@ -71,11 +74,11 @@ const TIERS: PricingTier[] = [
   {
     key: "starter",
     label: "Starter",
-    monthlyUsd: 39,
+    monthlyUsd: 59,
     tagline: "For lean teams who want continuous visibility and exports leadership can read.",
     bullets: [
-      "10 Linux hosts under management",
-      "2 operator / admin seats",
+      "15 Linux hosts under management",
+      "3 operator / admin seats",
       "Unlimited read-only viewers",
       "Scheduled scans up to 4× per host per day",
       "Baseline capture and change detection",
@@ -87,6 +90,27 @@ const TIERS: PricingTier[] = [
     overageNote: "+$4 / extra host · +$20 / extra operator seat · $5 / extra evidence bundle",
     cta: "Start Starter plan",
     planCode: "starter",
+    ctaVariant: "secondary",
+  },
+  {
+    key: "team",
+    label: "Team",
+    monthlyUsd: 89,
+    tagline: "For growing SMB teams ready for hourly scans and full API — without jumping to Growth.",
+    bullets: [
+      "25 Linux hosts under management",
+      "3 operator / admin seats",
+      "Unlimited read-only viewers",
+      "Hourly scheduled scans",
+      "2 evidence bundles per month",
+      "Webhook, email, and Slack notifications (3 endpoints)",
+      "90 days of drift history · 180 days of audit log",
+      "Full API access",
+      "Charon: 10 linked cloud accounts",
+    ],
+    overageNote: "+$3 / extra host · +$22 / extra operator seat · $5 / extra evidence bundle",
+    cta: "Start Team plan",
+    planCode: "team",
     ctaVariant: "secondary",
   },
   {
@@ -166,7 +190,7 @@ const TIERS: PricingTier[] = [
     label: "Enterprise",
     monthlyUsd: null,
     customLabel: "Custom",
-    anchorUsd: 1500,
+    anchorUsd: 2500,
     tagline: "For organisations that need governance, compliance, and support at scale.",
     bullets: [
       "Unlimited hosts and operator seats",
@@ -345,7 +369,7 @@ function AddOnsRow({ billingCycle }: { billingCycle: BillingCycle }) {
               full audit trail. Never runs AI-generated commands directly on your hosts.
             </p>
             <p className="mt-1 text-xs text-fg-faint">
-              Includes 100 approved actions/{isAnnual ? "year" : "month"} · $0.10 per extra action
+              Includes 250 approved actions/{isAnnual ? "year" : "month"} · $0.10 per extra action
             </p>
           </div>
           <div className="shrink-0 text-sm sm:text-right">
@@ -482,10 +506,16 @@ export default function PricingSection() {
           </div>
         </div>
 
-        {/* Cards grid — 6 tiers wraps to 3×2 at lg, 2×3 at md */}
+        {/* Cards grid — 7 tiers (6 self-serve in 2 rows of 3 at lg) + Enterprise
+            spans the full width on its own row to read as the sales-led step. */}
         <div className="mt-12 grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:items-start">
           {TIERS.map((tier) => (
-            <TierCard key={tier.key} tier={tier} billingCycle={billingCycle} />
+            <div
+              key={tier.key}
+              className={tier.key === "enterprise" ? "md:col-span-2 lg:col-span-3" : undefined}
+            >
+              <TierCard tier={tier} billingCycle={billingCycle} />
+            </div>
           ))}
         </div>
 

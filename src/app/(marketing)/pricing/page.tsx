@@ -5,11 +5,11 @@ import PricingSection from "@/components/pricing/PricingSection";
 export const metadata: Metadata = {
   title: "Pricing · Blackglass",
   description:
-    "Free Lab tier for homelabs and evaluators, then per-host plans from $39/mo. Read-only viewers never count as paid seats. 14-day trial of any paid plan, no card required.",
+    "Free Lab tier for homelabs and evaluators, then per-host plans from $59/mo. Team at $89/mo for SMB fleets, Growth from $199. Read-only viewers never count as paid seats. 14-day trial of any paid plan, no card required.",
   openGraph: {
     title: "Pricing · Blackglass",
     description:
-      "Plans grow with your Linux fleet — Lab (free) through Enterprise. Unlimited read-only teammates on every tier. 14-day trial, no card required.",
+      "Plans grow with your Linux fleet — Lab (free) through Enterprise. Seven tiers from $0 to $2,500+/mo. Unlimited read-only teammates on every tier. 14-day trial, no card required.",
     type: "website",
     siteName: "Blackglass",
   },
@@ -18,11 +18,15 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: "What's in the free Lab tier?",
-    a: "Lab is free forever — 5 Linux hosts, 1 operator seat, unlimited read-only viewers, daily scheduled scan, 30 days of findings history, and read-only API access. No credit card required, no time limit. Self-host or use the cloud console — your call. Lab is the right starting point for homelabs, evaluators, and side projects.",
+    a: "Lab is free forever — 5 Linux hosts, 1 operator seat, unlimited read-only viewers, daily scheduled scan, 30 days of findings history, and read-only API access. Lab also includes 1 linked cloud account in Charon (read-only inventory) so you can see waste estimates against real data, not just the public estimator. No credit card required, no time limit. Self-host or use the cloud console — your call.",
   },
   {
     q: "How do you bill for hosts?",
-    a: "Each plan includes a host quota (5 / 10 / 100 / 200 / 300 depending on tier). If you exceed your quota, additional hosts are billed at the per-host overage rate shown on the plan card. Hosts you delete from the dashboard immediately stop counting.",
+    a: "Each plan includes a host quota (5 / 15 / 25 / 100 / 200 / 300 depending on tier). If you exceed your quota, additional hosts are billed at the per-host overage rate shown on the plan card. Hosts you delete from the dashboard immediately stop counting.",
+  },
+  {
+    q: "Why a Team tier between Starter and Growth?",
+    a: "The previous ladder jumped from Starter ($39 / 10 hosts) straight to Growth ($199 / 100 hosts) — a 5× cliff with no landing pad for SMB teams in the 15–50 host band. Team at $89/mo (25 hosts, 3 seats, hourly scans, full API) closes that gap so you don't have to negotiate or buy capacity you don't need.",
   },
   {
     q: "Do I pay for viewers?",
@@ -34,7 +38,7 @@ const FAQ = [
   },
   {
     q: "What is the Remediator add-on?",
-    a: "Remediator is the human-in-the-loop AI remediation engine. It generates fix plans for detected drift, sandbox-verifies them, and surfaces them for operator approval — it never runs commands directly on your hosts. Available as a $99/mo add-on on Growth and Scale, included on Business and Enterprise. Includes 100 approved actions/month with $0.10 per extra action.",
+    a: "Remediator is the human-in-the-loop AI remediation engine. It generates fix plans for detected drift, sandbox-verifies them, and surfaces them for operator approval — it never runs commands directly on your hosts. Available as a $99/mo add-on on Growth and Scale, included on Business and Enterprise. Includes 250 approved actions/month with $0.10 per extra action.",
   },
   {
     q: "What happens when the trial ends?",
@@ -50,11 +54,11 @@ const FAQ = [
   },
   {
     q: "How long do you keep my data?",
-    a: "Retention scales with your plan. Lab and Starter keep 30 days of drift history; Starter keeps 90 days of audit log (SOC 2 minimum). Growth: 180 days drift / 1 year audit. Scale: 1 year drift / 2 years audit. Business: same as Scale plus immutable audit log. Enterprise: unlimited drift retention plus up to 7 years audit (SOX/PCI residency). You can lower these caps in Settings → Retention; we never raise them above your plan's max.",
+    a: "Retention scales with your plan. Lab and Starter keep 30 days of drift history; Starter keeps 90 days of audit log (SOC 2 minimum). Team: 90 days drift / 180 days audit. Growth: 180 days drift / 1 year audit. Scale: 1 year drift / 2 years audit. Business: same as Scale plus immutable audit log. Enterprise: unlimited drift retention plus up to 7 years audit (SOX/PCI residency). You can lower these caps in Settings → Retention; we never raise them above your plan's max.",
   },
   {
     q: "How often can scans run?",
-    a: "Scheduled scan frequency scales with the plan: Lab 1×/day, Starter 4×/day, Growth hourly, Scale every 30 min, Business every 15 min, Enterprise continuous. Manual scans triggered from the dashboard are not capped.",
+    a: "Scheduled scan frequency scales with the plan: Lab 1×/day, Starter 4×/day, Team and Growth hourly, Scale every 30 min, Business every 15 min, Enterprise continuous. Manual scans triggered from the dashboard are not capped.",
   },
   {
     q: "Is SSO available?",

@@ -28,7 +28,7 @@ import {
   type CommercialPlanCode,
 } from "@/lib/saas/plans";
 
-const PAID_LADDER = ["lab", "starter", "growth", "scale", "business"] as const;
+const PAID_LADDER = ["lab", "starter", "team", "growth", "scale", "business"] as const;
 
 describe("commercial plan ladder", () => {
   it("declares every paid tier with a definition", () => {
@@ -40,18 +40,18 @@ describe("commercial plan ladder", () => {
 
   it("hostLimit increases monotonically up the ladder", () => {
     const limits = PAID_LADDER.map((c) => COMMERCIAL_PLANS[c].hostLimit);
-    expect(limits).toEqual([5, 10, 100, 200, 300]);
+    expect(limits).toEqual([5, 15, 25, 100, 200, 300]);
     for (let i = 1; i < limits.length; i++) {
       expect(limits[i]).toBeGreaterThan(limits[i - 1]);
     }
   });
 
-  it("paidSeatLimit increases monotonically up the ladder", () => {
+  it("paidSeatLimit never decreases up the ladder (Starter/Team intentionally tie at 3)", () => {
     const seats = PAID_LADDER.map((c) => COMMERCIAL_PLANS[c].paidSeatLimit);
     for (let i = 1; i < seats.length; i++) {
       expect(seats[i]).toBeGreaterThanOrEqual(seats[i - 1]);
     }
-    expect(seats).toEqual([1, 2, 5, 7, 10]);
+    expect(seats).toEqual([1, 3, 3, 5, 7, 10]);
   });
 
   it("retention caps never decrease as you go up the ladder", () => {
@@ -67,22 +67,27 @@ describe("commercial plan ladder", () => {
     }
   });
 
-  it("scan frequency increases up the ladder", () => {
+  it("scan frequency increases (or holds) up the ladder", () => {
     const scans = PAID_LADDER.map((c) => maxScansPerDayPerHost(c));
-    expect(scans).toEqual([1, 4, 24, 48, 96]);
+    // Team and Growth both hourly (24/day) — Team's value vs Growth is the
+    // host count and feature set, not scan cadence.
+    expect(scans).toEqual([1, 4, 24, 24, 48, 96]);
+    for (let i = 1; i < scans.length; i++) {
+      expect(scans[i]).toBeGreaterThanOrEqual(scans[i - 1]);
+    }
   });
 
   it("Lab is the only paid-ladder tier without scheduled scans enabled", () => {
     expect(COMMERCIAL_PLANS.lab.scheduledScansEnabled).toBe(false);
-    for (const code of ["starter", "growth", "scale", "business"] as const) {
+    for (const code of ["starter", "team", "growth", "scale", "business"] as const) {
       expect(COMMERCIAL_PLANS[code].scheduledScansEnabled).toBe(true);
     }
   });
 
-  it("Lab and Starter are read-only API; Growth and above are full API", () => {
+  it("Lab and Starter are read-only API; Team and above are full API", () => {
     expect(COMMERCIAL_PLANS.lab.apiAccess).toBe("read_only");
     expect(COMMERCIAL_PLANS.starter.apiAccess).toBe("read_only");
-    for (const code of ["growth", "scale", "business"] as const) {
+    for (const code of ["team", "growth", "scale", "business"] as const) {
       expect(COMMERCIAL_PLANS[code].apiAccess).toBe("full");
     }
   });
@@ -99,6 +104,14 @@ describe("commercial plan ladder", () => {
     expect(lab.webhookDeliveriesPerMonth).toBe(0);
   });
 
+  it("Lab still gets 1 free Charon linked account (read-only inventory wedge)", () => {
+    // Pricing recommendation P1-4 (2026-05-10): Lab keeps the 1-cloud-account
+    // wedge so the public /tools estimator can convert into the real product
+    // without an immediate paywall. Live cleanup is still gated by add-on.
+    expect(COMMERCIAL_PLANS.lab.charonLinkedAccountsMax).toBe(1);
+    expect(COMMERCIAL_PLANS.lab.charonLiveCleanupEnabled).toBe(false);
+  });
+
   it("Business includes Remediator; Growth and Scale only as add-on", () => {
     expect(COMMERCIAL_PLANS.business.remediatorIncluded).toBe(true);
     expect(COMMERCIAL_PLANS.business.remediatorAddonAvailable).toBe(false);
@@ -106,16 +119,28 @@ describe("commercial plan ladder", () => {
       expect(COMMERCIAL_PLANS[code].remediatorIncluded).toBe(false);
       expect(COMMERCIAL_PLANS[code].remediatorAddonAvailable).toBe(true);
     }
-    for (const code of ["lab", "starter"] as const) {
+    for (const code of ["lab", "starter", "team"] as const) {
       expect(COMMERCIAL_PLANS[code].remediatorIncluded).toBe(false);
       expect(COMMERCIAL_PLANS[code].remediatorAddonAvailable).toBe(false);
     }
+  });
+
+  it("Team sits between Starter and Growth on every numeric capacity dimension", () => {
+    const s = COMMERCIAL_PLANS.starter;
+    const t = COMMERCIAL_PLANS.team;
+    const g = COMMERCIAL_PLANS.growth;
+    expect(t.hostLimit).toBeGreaterThan(s.hostLimit);
+    expect(t.hostLimit).toBeLessThan(g.hostLimit);
+    expect(t.evidenceBundlesPerMonth).toBeGreaterThan(s.evidenceBundlesPerMonth);
+    expect(t.evidenceBundlesPerMonth).toBeLessThan(g.evidenceBundlesPerMonth);
+    expect(t.webhookDeliveriesPerMonth).toBeGreaterThan(s.webhookDeliveriesPerMonth);
+    expect(t.webhookDeliveriesPerMonth).toBeLessThan(g.webhookDeliveriesPerMonth);
   });
 });
 
 describe("pricing", () => {
   it("publishes monthly base prices for every paid tier except Lab", () => {
-    const tiers = ["starter", "growth", "scale", "business"] as const;
+    const tiers = ["starter", "team", "growth", "scale", "business"] as const;
     for (const code of tiers) {
       const price = PLAN_PRICING[code];
       expect(price).toBeDefined();
@@ -125,17 +150,23 @@ describe("pricing", () => {
     }
   });
 
+  it("Starter / Team / Growth headline prices match the published cards", () => {
+    expect(PLAN_PRICING.starter.baseCentsMonthly).toBe(5_900);
+    expect(PLAN_PRICING.team.baseCentsMonthly).toBe(8_900);
+    expect(PLAN_PRICING.growth.baseCentsMonthly).toBe(19_900);
+  });
+
   it("per-host overage gets cheaper as you go up the ladder", () => {
-    const tiers = ["starter", "growth", "scale", "business"] as const;
+    const tiers = ["starter", "team", "growth", "scale", "business"] as const;
     const overages = tiers.map((c) => PLAN_PRICING[c].extraHostCentsMonthly);
-    expect(overages).toEqual([400, 200, 150, 100]);
+    expect(overages).toEqual([400, 300, 200, 150, 100]);
     for (let i = 1; i < overages.length; i++) {
       expect(overages[i]).toBeLessThanOrEqual(overages[i - 1]);
     }
   });
 
   it("per-seat overage gets more expensive as roles get more privileged", () => {
-    const tiers = ["starter", "growth", "scale", "business"] as const;
+    const tiers = ["starter", "team", "growth", "scale", "business"] as const;
     const seats = tiers.map((c) => PLAN_PRICING[c].extraSeatCentsMonthly);
     for (let i = 1; i < seats.length; i++) {
       expect(seats[i]).toBeGreaterThanOrEqual(seats[i - 1]);
@@ -143,7 +174,9 @@ describe("pricing", () => {
   });
 
   it("Enterprise anchor is published and meaningful", () => {
-    expect(ENTERPRISE_PRICE_ANCHOR_CENTS_MONTHLY).toBeGreaterThanOrEqual(100_000);
+    // Bumped 2026-05-10 from $1,500 to $2,500 so the floor can fund
+    // named-CSM and SLA promises that ship with the tier.
+    expect(ENTERPRISE_PRICE_ANCHOR_CENTS_MONTHLY).toBe(250_000);
   });
 
   it("trial constants are wired correctly", () => {
@@ -214,16 +247,16 @@ describe("retentionWithinPlan", () => {
 });
 
 describe("planSatisfiesApiAccess", () => {
-  it("read_only is satisfied by Lab, Starter, and full-API tiers", () => {
-    for (const code of ["lab", "starter", "growth", "scale", "business", "enterprise"] as const) {
+  it("read_only is satisfied by every tier", () => {
+    for (const code of ["lab", "starter", "team", "growth", "scale", "business", "enterprise"] as const) {
       expect(planSatisfiesApiAccess(code, "read_only")).toBe(true);
     }
   });
 
-  it("full is denied to Lab and Starter, granted to Growth+", () => {
+  it("full is denied to Lab and Starter, granted to Team+", () => {
     expect(planSatisfiesApiAccess("lab", "full")).toBe(false);
     expect(planSatisfiesApiAccess("starter", "full")).toBe(false);
-    for (const code of ["growth", "scale", "business", "enterprise"] as const) {
+    for (const code of ["team", "growth", "scale", "business", "enterprise"] as const) {
       expect(planSatisfiesApiAccess(code, "full")).toBe(true);
     }
   });
@@ -235,9 +268,10 @@ describe("planSatisfiesApiAccess", () => {
 });
 
 describe("remediator helpers", () => {
-  it("remediator unavailable on Lab and Starter", () => {
+  it("remediator unavailable on Lab, Starter, and Team", () => {
     expect(remediatorAvailable("lab")).toBe(false);
     expect(remediatorAvailable("starter")).toBe(false);
+    expect(remediatorAvailable("team")).toBe(false);
   });
 
   it("remediator available as add-on on Growth and Scale", () => {
@@ -262,8 +296,11 @@ describe("add-ons catalogue", () => {
     expect(r.baseCentsMonthly).toBe(9_900);
   });
 
-  it("Remediator add-on includes 100 actions/month with $0.10 overage", () => {
-    expect(ADD_ONS.remediator.includedActionsPerMonth).toBe(100);
+  it("Remediator add-on includes 250 actions/month with $0.10 overage", () => {
+    // Bumped 2026-05-10 from 100 → 250 so a real Growth customer running
+    // weekly drift on a 10-host fleet doesn't blow through the included
+    // pool in week 1 and immediately see metered overage.
+    expect(ADD_ONS.remediator.includedActionsPerMonth).toBe(250);
     expect(ADD_ONS.remediator.extraActionCents).toBe(10);
   });
 
@@ -278,6 +315,7 @@ describe("Stripe price-id mapping", () => {
   it("declares env-var slots for every paid tier", () => {
     const expected: Array<Exclude<CommercialPlanCode, "trial" | "enterprise" | "lab">> = [
       "starter",
+      "team",
       "growth",
       "scale",
       "business",
@@ -288,6 +326,13 @@ describe("Stripe price-id mapping", () => {
       expect(slot.monthly).toMatch(/^STRIPE_/);
       expect(slot.annual).toMatch(/^STRIPE_/);
     }
+  });
+
+  it("Team uses the STRIPE_TEAM_PRICE_ID env-var slot", () => {
+    expect(STRIPE_PRICE_ENV_VARS.team).toEqual({
+      monthly: "STRIPE_TEAM_PRICE_ID",
+      annual: "STRIPE_TEAM_ANNUAL_PRICE_ID",
+    });
   });
 
   it("Lab is intentionally absent — it has no Stripe SKU", () => {

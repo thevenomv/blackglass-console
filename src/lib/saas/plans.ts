@@ -12,6 +12,7 @@ export type CommercialPlanCode =
   | "trial"
   | "lab"
   | "starter"
+  | "team"
   | "growth"
   | "scale"
   | "business"
@@ -145,7 +146,7 @@ export const TRIAL_PAID_SEAT_LIMIT = 2;
 export const TRIAL_DAYS = 14;
 
 /** Public anchor for the marketing page Enterprise card. USD cents/month. */
-export const ENTERPRISE_PRICE_ANCHOR_CENTS_MONTHLY = 150_000; // $1,500
+export const ENTERPRISE_PRICE_ANCHOR_CENTS_MONTHLY = 250_000; // $2,500
 
 /**
  * Canonical commercial plan definitions.
@@ -191,8 +192,8 @@ export const COMMERCIAL_PLANS: Record<
   starter: {
     code: "starter",
     label: "Starter",
-    hostLimit: 10,
-    paidSeatLimit: 2,
+    hostLimit: 15,
+    paidSeatLimit: 3,
     retentionDriftDaysMax: 30,
     retentionAuditDaysMax: 90,
     retentionBaselineDaysMax: 30,
@@ -216,6 +217,37 @@ export const COMMERCIAL_PLANS: Record<
     prioritySupport: false,
     supportSla: false,
     charonLinkedAccountsMax: 5,
+    charonCleanupQueueEnabled: true,
+    charonLiveCleanupEnabled: false,
+  },
+  team: {
+    code: "team",
+    label: "Team",
+    hostLimit: 25,
+    paidSeatLimit: 3,
+    retentionDriftDaysMax: 90,
+    retentionAuditDaysMax: 180,
+    retentionBaselineDaysMax: 90,
+    retentionEvidenceDaysMax: 90,
+    scansPerDayPerHost: 24,
+    evidenceBundlesPerMonth: 2,
+    concurrentSandboxes: 0,
+    webhookDeliveriesPerMonth: 50_000,
+    webhookEndpointsMax: 3,
+    apiAccess: "full",
+    ssoIncluded: false,
+    byokIncluded: false,
+    airgapIncluded: false,
+    remediatorIncluded: false,
+    remediatorAddonAvailable: false,
+    scheduledScansEnabled: true,
+    customEvidenceTemplates: false,
+    hostGroupsEnabled: false,
+    baselineApprovalWorkflows: false,
+    immutableAuditLog: false,
+    prioritySupport: false,
+    supportSla: false,
+    charonLinkedAccountsMax: 10,
     charonCleanupQueueEnabled: true,
     charonLiveCleanupEnabled: false,
   },
@@ -326,10 +358,19 @@ export const PLAN_PRICING: Record<
   PlanPricing
 > = {
   starter: {
-    baseCentsMonthly: 3_900,
-    baseCentsAnnual: 39_000,
+    baseCentsMonthly: 5_900,
+    baseCentsAnnual: 59_000,
     extraHostCentsMonthly: 400,
     extraSeatCentsMonthly: 2_000,
+    extraEvidenceBundleCents: 500,
+    extraConcurrentSandboxCentsMonthly: 0,
+    extraWebhookDeliveryCentsPerTenK: 100,
+  },
+  team: {
+    baseCentsMonthly: 8_900,
+    baseCentsAnnual: 89_000,
+    extraHostCentsMonthly: 300,
+    extraSeatCentsMonthly: 2_200,
     extraEvidenceBundleCents: 500,
     extraConcurrentSandboxCentsMonthly: 0,
     extraWebhookDeliveryCentsPerTenK: 100,
@@ -373,7 +414,7 @@ export const ADD_ONS: Record<AddOnCode, AddOnPricing> = {
     label: "Remediator (HITL AI remediation)",
     baseCentsMonthly: 9_900,
     baseCentsAnnual: 99_000,
-    includedActionsPerMonth: 100,
+    includedActionsPerMonth: 250,
     extraActionCents: 10,
   },
   /**
@@ -596,6 +637,7 @@ export const STRIPE_PRICE_ENV_VARS: Record<
   { monthly: string; annual: string }
 > = {
   starter: { monthly: "STRIPE_STARTER_PRICE_ID", annual: "STRIPE_STARTER_ANNUAL_PRICE_ID" },
+  team: { monthly: "STRIPE_TEAM_PRICE_ID", annual: "STRIPE_TEAM_ANNUAL_PRICE_ID" },
   growth: { monthly: "STRIPE_GROWTH_PRICE_ID", annual: "STRIPE_GROWTH_ANNUAL_PRICE_ID" },
   scale: { monthly: "STRIPE_SCALE_PRICE_ID", annual: "STRIPE_SCALE_ANNUAL_PRICE_ID" },
   business: { monthly: "STRIPE_BUSINESS_PRICE_ID", annual: "STRIPE_BUSINESS_ANNUAL_PRICE_ID" },
