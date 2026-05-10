@@ -134,8 +134,10 @@ the answers below should match exactly what reviewers find in the code.
 
 - **Per-tenant CMEK / BYOK.** Today every tenant's DEK is wrapped by the
   same KMS-managed KEK; per-tenant key separation is on deck.
-- **`sandbox-worker` in the Helm chart.** Currently documented for
-  manual deployment; should ship as a third Deployment in `values.yaml`.
+- **`sandbox-worker` in the Helm chart.** A `sandbox-worker` Deployment
+  template ships in `deploy/helm/blackglass/` (disabled by default via
+  `sandboxWorker.enabled: false`); remaining work is operator docs and
+  deciding when to enable it in managed environments.
 - **WORM-grade audit retention.** Customers can stream `saas_audit_events`
   to their own S3 + Object Lock bucket via the OCSF webhook; a managed
   cold-archive bucket on the SaaS side would close the loop without

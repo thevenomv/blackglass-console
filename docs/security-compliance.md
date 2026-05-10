@@ -63,7 +63,7 @@ their question, link them straight to that section.
 | Per-tenant audit filtering             | Audit page is RLS-scoped — operators only see their own org                      | `src/app/(app)/audit/_components/AuditLogView.tsx`                                |
 | Audit of remediation lifecycle         | `remediation.requested`, `tier_classified`, `plan_generated`, `approved`, etc. | `blackglass-remediator/docs/safety-model.md` § 6                                   |
 | Audit quick-filters                    | "Auth", "Settings", "Webhooks", "Drift" pills on the audit log UI                | `src/app/(app)/audit/_components/AuditLogView.tsx` (`QUICK_ACTIONS`)              |
-| Action constants centralised           | `SaasAuditAction` enum prevents typo'd action strings polluting the table         | `src/lib/server/audit-log.ts`                                                     |
+| Action constants centralised           | `AUDIT_ACTIONS` in `audit-log.ts` (shared constants; SaaS inserts via `emitSaasAudit`) | `src/lib/server/audit-log.ts`, `src/lib/saas/event-log.ts`                          |
 | Sentry server-side error capture       | Errors with PII-stripping `beforeSend`; tunnel through `/monitoring`              | `sentry.server.config.ts`                                                          |
 | Optional Sentry → PagerDuty bridge     | Throttled, deduplicated, gated by `BLACKGLASS_AIRGAPPED`                          | `src/lib/server/sentry-pagerduty.ts`                                              |
 | Optional OpenTelemetry trace export    | OTLP via `OTEL_EXPORTER_OTLP_ENDPOINT`; coexists with Sentry                      | `src/lib/observability/otel.ts`, `src/instrumentation.ts`                          |

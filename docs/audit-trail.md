@@ -4,8 +4,15 @@
 
 The canonical audit plane in production is **`saas_audit_events`** —
 per-tenant, append-only, RLS-scoped. Every privileged action emits a row
-through `emitSaasAudit()` (`src/lib/server/audit-log.ts`), with a typed
-`SaasAuditAction` enum to keep action strings consistent.
+through `emitSaasAudit()` (`src/lib/saas/event-log.ts`). Prefer the string
+constants in `AUDIT_ACTIONS` (`src/lib/server/audit-log.ts`) when emitting
+from TypeScript so action names stay consistent (legacy file audit uses the
+same constants where applicable).
+
+**Charon cleanup (examples):** `AUDIT_ACTIONS.JANITOR_CLEANUP_REQUESTED`,
+`JANITOR_CLEANUP_APPROVED`, `JANITOR_CLEANUP_REJECTED`,
+`JANITOR_CLEANUP_BLOCKED_PROTECT_TAG`, `JANITOR_CLEANUP_BLOCKED_PROTECT_TAG_LIVE`,
+`JANITOR_CLEANUP_EXECUTION_FAILED`.
 
 - **Per-tenant filtering:** the audit log UI is RLS-scoped — operators
   only see their own org. Quick-filters: Auth, Settings, Webhooks, Drift.

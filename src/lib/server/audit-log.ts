@@ -63,6 +63,14 @@ export const AUDIT_ACTIONS = {
 
   // Lead intake
   CONTACT_SALES_LEAD: "marketing.contact_sales_lead",
+
+  // Charon (janitor) cleanup — emitted via `emitSaasAudit()` → `saas_audit_events`
+  JANITOR_CLEANUP_REQUESTED: "janitor.cleanup.requested",
+  JANITOR_CLEANUP_APPROVED: "janitor.cleanup.approved",
+  JANITOR_CLEANUP_REJECTED: "janitor.cleanup.rejected",
+  JANITOR_CLEANUP_BLOCKED_PROTECT_TAG: "janitor.cleanup.blocked_protect_tag",
+  JANITOR_CLEANUP_BLOCKED_PROTECT_TAG_LIVE: "janitor.cleanup.blocked_protect_tag_live",
+  JANITOR_CLEANUP_EXECUTION_FAILED: "janitor.cleanup.execution_failed",
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

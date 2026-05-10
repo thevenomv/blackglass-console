@@ -20,6 +20,7 @@ import {
   JanitorCleanupExecutionError,
 } from "@/lib/server/services/janitor-cleanup-service";
 import { isCharonAddonEnabled, resolveCharonEntitlements } from "@/lib/saas/plans";
+import { AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { emitSaasAudit } from "@/lib/saas/event-log";
 import { withTenantRls } from "@/db";
 import { janitorCleanupRequests } from "@/db/schema";
@@ -137,8 +138,8 @@ export async function POST(request: Request) {
     actorUserId: access.ctx.userId,
     action:
       parsed.data.action === "approve"
-        ? "janitor.cleanup.approved"
-        : "janitor.cleanup.rejected",
+        ? AUDIT_ACTIONS.JANITOR_CLEANUP_APPROVED
+        : AUDIT_ACTIONS.JANITOR_CLEANUP_REJECTED,
     targetType: "janitor_cleanup",
     targetId: parsed.data.requestId,
     metadata: { ...(requestId ? { request_id: requestId } : {}) },

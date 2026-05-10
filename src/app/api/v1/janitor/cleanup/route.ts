@@ -21,6 +21,7 @@ import { checkBaselinesRate, clientIp } from "@/lib/server/rate-limit";
 import { createJanitorCleanupRequests } from "@/lib/server/services/janitor-cleanup-service";
 import { notifyCharonCleanupQueuedSlack } from "@/lib/server/services/charon-cleanup-slack-notify";
 import { isCharonAddonEnabled, resolveCharonEntitlements } from "@/lib/saas/plans";
+import { AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { emitSaasAudit } from "@/lib/saas/event-log";
 
 const BodySchema = z
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
   await emitSaasAudit({
     tenantId,
     actorUserId: access.ctx.userId,
-    action: "janitor.cleanup.requested",
+    action: AUDIT_ACTIONS.JANITOR_CLEANUP_REQUESTED,
     targetType: "janitor_cleanup",
     targetId: ids[0] ?? "batch",
     metadata: {

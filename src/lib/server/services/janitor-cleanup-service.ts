@@ -7,6 +7,7 @@ import { withTenantRls } from "@/db";
 import { janitorAccounts, janitorCleanupRequests, janitorFindings, saasTenants } from "@/db/schema";
 import { findingIsProtectTagged, mergedProtectTagMarkersLower, parseCharonPolicies } from "@/lib/janitor/charon-policies";
 import { redactSensitivePlaintext } from "@/lib/janitor/charon-error-redact";
+import { AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { JanitorCleanupBlockedError } from "@/lib/server/janitor/janitor-cleanup-blocked-error";
 import { performLiveJanitorCleanup } from "@/lib/server/services/janitor-cleanup-executor";
 import { emitSaasAudit } from "@/lib/saas/event-log";
@@ -165,7 +166,7 @@ export async function approveOrRejectJanitorCleanup(
         await emitSaasAudit({
           tenantId,
           actorUserId: userId,
-          action: "janitor.cleanup.blocked_protect_tag",
+          action: AUDIT_ACTIONS.JANITOR_CLEANUP_BLOCKED_PROTECT_TAG,
           targetType: "janitor_cleanup",
           targetId: requestId,
           metadata: {
@@ -208,7 +209,7 @@ export async function approveOrRejectJanitorCleanup(
           await emitSaasAudit({
             tenantId,
             actorUserId: userId,
-            action: "janitor.cleanup.blocked_protect_tag_live",
+            action: AUDIT_ACTIONS.JANITOR_CLEANUP_BLOCKED_PROTECT_TAG_LIVE,
             targetType: "janitor_cleanup",
             targetId: requestId,
             metadata: {
@@ -241,7 +242,7 @@ export async function approveOrRejectJanitorCleanup(
         await emitSaasAudit({
           tenantId,
           actorUserId: userId,
-          action: "janitor.cleanup.execution_failed",
+          action: AUDIT_ACTIONS.JANITOR_CLEANUP_EXECUTION_FAILED,
           targetType: "janitor_cleanup",
           targetId: requestId,
           metadata: {
