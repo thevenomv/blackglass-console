@@ -108,6 +108,9 @@ export async function ensureUpcomingDriftPartitions(
   const created: string[] = [];
   const errors: Record<string, string> = {};
 
+  // RLS-BYPASS: pg_catalog read + DDL (CREATE TABLE PARTITION OF). These
+  // are catalog-level operations on the drift_events parent table itself,
+  // not tenant-scoped data; ops-worker is the only caller (scheduled).
   await withBypassRls(async (db) => {
     // 1. Snapshot existing partitions to differentiate created-this-run
     //    vs already-present in the log line.

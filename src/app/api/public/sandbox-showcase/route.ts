@@ -203,6 +203,9 @@ export async function GET(request: NextRequest) {
 
   const { saasSandboxes } = schema;
 
+  // RLS-BYPASS: unauthenticated public showcase route; tenantId comes from
+  // the operator-set SANDBOX_SHOWCASE_TENANT_ID env var, never from the
+  // caller. Read-only query scoped to that single fixed UUID.
   const [sandbox] = await withBypassRls((db) =>
     db
       .select({

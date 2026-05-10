@@ -81,6 +81,10 @@ interface TenantRow {
 }
 
 async function listTenantsWithEmail(): Promise<TenantRow[]> {
+  // RLS-BYPASS: ops-worker drift-digest fan-out enumerates every tenant
+  // with an alert email configured; this is intentionally cross-tenant.
+  // Each per-tenant query downstream (computeTenantTotals) explicitly
+  // filters by tenant_id in SQL.
   return withBypassRls(async (db) => {
     const rows = await db
       .select({
@@ -136,6 +140,9 @@ async function computeTenantTotals(
   tenantId: string,
   windowStart: Date,
 ): Promise<TenantTotals> {
+  // RLS-BYPASS: per-tenant aggregate query on the drift_events partitioned
+  // table; tenant_id is interpolated as a uuid bind in every WHERE clause
+  // below. ops-worker context only.
   return withBypassRls(async (db) => {
     const sevRows = await db.execute(sql`
       SELECT severity, COUNT(*)::bigint AS cnt
@@ -398,8 +405,10 @@ export async function runDriftDigestForTenant(
     "",
   );
 
-  // Pull just this tenant's row — uses the same join shape as
-  // listTenantsWithEmail so the field semantics line up exactly.
+  // RLS-BYPASS: ad-hoc "send test digest" for a single tenant; tenantId
+  // came from an authenticated operator route gated by tenant RLS at the
+  // API layer. Mirrors the listTenantsWithEmail join so field semantics
+  // line up.
   const rows = await withBypassRls(async (db) => {
     return db
       .select({

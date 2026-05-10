@@ -125,6 +125,8 @@ export async function GET() {
 
   let sandbox: typeof saasSandboxes.$inferSelect | undefined;
   try {
+    // RLS-BYPASS: unauthenticated health probe; queries the showcase tenant id
+    // (env-injected operator-controlled UUID), no per-request tenant context.
     [sandbox] = await withBypassRls((db) =>
       db
         .select()

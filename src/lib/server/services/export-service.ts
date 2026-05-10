@@ -246,6 +246,10 @@ async function setStatus(
   exportId: string,
   patch: Partial<typeof saasDataExports.$inferInsert>,
 ): Promise<void> {
+  // RLS-BYPASS: export-job runner updates a row keyed by exportId (UUID,
+  // unforgeable); not running in a per-request tenant context. Tenant
+  // ownership of the row is enforced by the calling tenant-RLS path that
+  // created the row and by the WHERE clause below.
   await withBypassRls((db) =>
     db
       .update(saasDataExports)

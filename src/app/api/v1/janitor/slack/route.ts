@@ -98,6 +98,9 @@ export async function POST(request: Request) {
 
   const slackUser = payload.user?.id ?? "unknown";
 
+  // RLS-BYPASS: signature-verified Slack webhook with no tenant session;
+  // resolves the cleanup_request UUID -> tenantId so we can hand off to a
+  // tenant-scoped service.
   const lookup = await withBypassRls(async (db) => {
     const [row] = await db
       .select({

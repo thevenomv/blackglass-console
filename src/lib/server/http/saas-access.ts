@@ -164,12 +164,17 @@ async function tenantContextForApiKey(
   const { eq } = await import("drizzle-orm");
   if (!tryGetDb()) return null;
 
+  // RLS-BYPASS: Bearer API key already authenticated; the tenantId comes
+  // from the verified key row, not from the caller. Lookup loads tenant +
+  // subscription so we can build a TenantAuthContext for downstream code.
   const tenantRows = await withBypassRls((db) =>
     db.select().from(schema.saasTenants).where(eq(schema.saasTenants.id, apiKey.tenantId)).limit(1),
   );
   const tenant = tenantRows[0];
   if (!tenant) return null;
 
+  // RLS-BYPASS: same as above — companion subscription read for the
+  // already-authenticated API key tenantId.
   const subRows = await withBypassRls((db) =>
     db
       .select()

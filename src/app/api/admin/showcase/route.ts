@@ -42,6 +42,8 @@ export async function GET() {
   }
 
   const { saasSandboxes } = schema;
+  // RLS-BYPASS: operator-only admin route; reads the showcase tenant id from
+  // env, not from the caller's session, so it cannot leak across tenants.
   const [sandbox] = await withBypassRls((db) =>
     db
       .select()

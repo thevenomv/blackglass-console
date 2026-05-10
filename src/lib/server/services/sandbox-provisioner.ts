@@ -451,6 +451,8 @@ export async function provisionSandbox(tenantId: string): Promise<string> {
     });
     dropletId = String(resp.droplet.id);
   } catch (err) {
+    // RLS-BYPASS: provisioner failure path — record error against the
+    // sandbox row that we just inserted under tenant RLS above.
     await withBypassRls((db) =>
       db
         .update(saasSandboxes)
@@ -464,7 +466,7 @@ export async function provisionSandbox(tenantId: string): Promise<string> {
     throw err;
   }
 
-  // 6. Update sandbox row with droplet ID
+  // RLS-BYPASS: write back DO droplet id to the sandbox row created above.
   await withBypassRls((db) =>
     db
       .update(saasSandboxes)
@@ -484,6 +486,8 @@ export async function activateSandbox(
   sandboxId: string,
   tenantId: string,
 ): Promise<{ ip: string; hostId: string }> {
+  // RLS-BYPASS: BullMQ activation handler; sandboxId/tenantId from the
+  // verified job payload.
   const [sandbox] = await withBypassRls((db) =>
     db.select().from(saasSandboxes).where(eq(saasSandboxes.id, sandboxId)),
   );
@@ -560,6 +564,8 @@ export async function activateSandbox(
     console.warn(`[sandbox-provisioner] Failed to create DO Firewall for ${sandboxId}: ${err}`);
   }
 
+  // RLS-BYPASS: persist activation results (IP, host id, firewall id) on
+  // the sandbox row driven by the BullMQ job payload sandboxId.
   await withBypassRls((db) =>
     db
       .update(saasSandboxes)
@@ -581,11 +587,13 @@ export async function activateSandbox(
  * Safe to call multiple times (idempotent).
  */
 export async function destroySandbox(sandboxId: string): Promise<void> {
+  // RLS-BYPASS: BullMQ cleanup handler; sandboxId from the verified job.
   const [sandbox] = await withBypassRls((db) =>
     db.select().from(saasSandboxes).where(eq(saasSandboxes.id, sandboxId)),
   );
   if (!sandbox) return;
 
+  // RLS-BYPASS: status flip to "destroying" before any DO API call.
   await withBypassRls((db) =>
     db
       .update(saasSandboxes)
@@ -617,6 +625,7 @@ export async function destroySandbox(sandboxId: string): Promise<void> {
 
   // Remove host registration
   if (sandbox.hostId) {
+    // RLS-BYPASS: delete the synthetic host row we registered during activate.
     await withBypassRls((db) =>
       db.delete(saasCollectorHosts).where(eq(saasCollectorHosts.id, sandbox.hostId!)),
     );
@@ -624,11 +633,15 @@ export async function destroySandbox(sandboxId: string): Promise<void> {
 
   // Remove credential
   if (sandbox.credentialId) {
+    // RLS-BYPASS: delete the per-sandbox SSH credential row we generated
+    // during provision; credentialId is internal to this sandbox.
     await withBypassRls((db) =>
       db.delete(tenantCredentials).where(eq(tenantCredentials.id, sandbox.credentialId!)),
     );
   }
 
+  // RLS-BYPASS: final status flip to "destroyed" once cloud-side teardown
+  // (Droplet + firewall) has succeeded.
   await withBypassRls((db) =>
     db
       .update(saasSandboxes)

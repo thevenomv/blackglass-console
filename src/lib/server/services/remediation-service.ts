@@ -75,6 +75,10 @@ export async function upsertRemediation(input: RemediationInput): Promise<Remedi
     throw new Error("DATABASE_URL is not configured");
   }
 
+  // RLS-BYPASS: HMAC-verified callback from the remediator sidecar (no
+  // tenant session). Input.tenantId is included in the signed payload and
+  // becomes the tenant FK on the inserted row; downstream reads under
+  // tenant RLS enforce isolation.
   const [row] = await withBypassRls((db) =>
     db
       .insert(saasRemediations)

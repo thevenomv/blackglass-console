@@ -133,6 +133,9 @@ export async function getTenantNotifications(
   if (!tenantId || !tryGetDb()) return fallback;
 
   try {
+    // RLS-BYPASS: scan-worker reads tenant routing while assembling outbound
+    // payloads — worker has no per-request tenant context, queries are
+    // explicitly scoped by the tenantId passed in by the job.
     const rows = await withBypassRls((db) =>
       db
         .select()

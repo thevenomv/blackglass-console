@@ -39,6 +39,8 @@ async function ensureTenantForClerkOrgWithDb(db: BlackglassDb, clerkOrgId: strin
 }
 
 export async function ensureTenantForClerkOrg(clerkOrgId: string, orgName: string) {
+  // RLS-BYPASS: Clerk webhook / first-login bootstrap creates the tenant
+  // row itself (no tenantId yet to scope to).
   return withBypassRls((db) => ensureTenantForClerkOrgWithDb(db, clerkOrgId, orgName));
 }
 
@@ -56,6 +58,9 @@ export async function upsertMembership(input: {
   role: TenantRole;
   invitedBy?: string | null;
 }) {
+  // RLS-BYPASS: Clerk organizationMembership.* webhook handler. Creates or
+  // updates the SaaS membership row; tenant id is derived from the verified
+  // Clerk org id in the same transaction.
   return withBypassRls(async (db) => {
     const tenant = await ensureTenantForClerkOrgWithDb(db, input.clerkOrgId, input.orgName);
     await db
@@ -80,6 +85,8 @@ export async function upsertMembership(input: {
 }
 
 export async function deleteMembership(clerkOrgId: string, userId: string) {
+  // RLS-BYPASS: Clerk organizationMembership.deleted webhook; resolves the
+  // verified Clerk org id to the SaaS tenant id, then drops the membership.
   return withBypassRls(async (db) => {
     const tenantRows = await db
       .select({ id: saasTenants.id })
@@ -97,6 +104,8 @@ export async function deleteMembership(clerkOrgId: string, userId: string) {
 }
 
 export async function getTenantRowByClerkOrg(clerkOrgId: string) {
+  // RLS-BYPASS: lookup-only; resolves Clerk org id (from a verified session
+  // or webhook) to the saas_tenants row that backs it.
   return withBypassRls((db) =>
     db.select().from(saasTenants).where(eq(saasTenants.clerkOrgId, clerkOrgId)).limit(1),
   );
@@ -107,6 +116,9 @@ export async function getTenantRowByClerkOrg(clerkOrgId: string) {
  * row (e.g. created before auto-provisioning, or webhook delivery failed).
  */
 export async function ensureSubscriptionForTenant(tenantId: string) {
+  // RLS-BYPASS: subscription-row backfill for a tenant that somehow has no
+  // saas_subscriptions row yet (early-bird tenants from before
+  // auto-provision, or a missed Clerk webhook delivery). Idempotent.
   return withBypassRls(async (db) => {
     const existing = await db
       .select()
@@ -183,6 +195,8 @@ export async function getMembership(tenantId: string, userId: string) {
  * The tenant row and audit history are preserved for compliance.
  */
 export async function cancelTenantByClerkOrg(clerkOrgId: string): Promise<void> {
+  // RLS-BYPASS: Clerk organization.deleted webhook; cancels the tenant
+  // subscription and deactivates memberships in one transaction.
   return withBypassRls(async (db) => {
     const tenantRows = await db
       .select({ id: saasTenants.id })
@@ -207,6 +221,8 @@ export async function cancelTenantByClerkOrg(clerkOrgId: string): Promise<void> 
  * Called when a `user.deleted` event is received from Clerk.
  */
 export async function deleteAllMembershipsForUser(userId: string): Promise<void> {
+  // RLS-BYPASS: Clerk user.deleted webhook is intentionally cross-tenant —
+  // a deleted user must lose every membership in one shot.
   return withBypassRls(async (db) => {
     await db
       .delete(saasTenantMemberships)

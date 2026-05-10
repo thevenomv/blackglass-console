@@ -94,6 +94,9 @@ export async function syncSaasSubscriptionFromStripe(input: {
 
   const charonAddonLine = subscriptionHasCharonLineItem(input.subscription);
 
+  // RLS-BYPASS: signature-verified Stripe webhook handler; no tenant
+  // session yet. input.tenantId resolved earlier from the verified Stripe
+  // customer id; this write applies the new plan state to that tenant row.
   await withBypassRls(async (db) => {
     const [existing] = await db
       .select({ features: schema.saasSubscriptions.features })
@@ -139,6 +142,9 @@ export async function syncSaasSubscriptionFromStripe(input: {
 }
 
 export async function getTenantIdByStripeCustomer(customerId: string): Promise<string | null> {
+  // RLS-BYPASS: Stripe webhook lookup — resolves a verified Stripe
+  // customer id to the tenantId we stored on subscription create. No
+  // tenant session exists yet; this read is the bridge.
   const rows = await withBypassRls((db) =>
     db
       .select({ tenantId: schema.saasSubscriptions.tenantId })
@@ -150,6 +156,8 @@ export async function getTenantIdByStripeCustomer(customerId: string): Promise<s
 }
 
 export async function clearStripeSubscriptionForTenant(tenantId: string): Promise<void> {
+  // RLS-BYPASS: signature-verified Stripe customer.subscription.deleted
+  // webhook; tenantId already resolved via getTenantIdByStripeCustomer.
   await withBypassRls(async (db) => {
     await db
       .update(schema.saasSubscriptions)

@@ -45,19 +45,6 @@ export function getDb() {
 export type BlackglassDb = ReturnType<typeof createDb>;
 
 /**
- * @internal — **Restricted to a small set of trusted server paths.**
- * Allowed callers:
- *   - Clerk/Stripe webhook handlers (`src/app/api/webhooks/`)
- *   - Tenant provisioning (`src/lib/saas/tenant-service.ts`)
- *   - Admin / maintenance scripts (`scripts/`)
- *   - Drizzle migrations
- *
- * All other app code **must** use `withTenantRls` to enforce per-tenant data isolation.
- * Sets `app.bypass_rls=1` so RLS policies allow cross-tenant writes for one transaction.
- * @see drizzle/0016_consolidate_rls_gucs.sql for the canonical RLS policy set
- * @see docs/security-compliance.md § 3 for the operator-facing RLS story
- */
-/**
  * Sentinel UUID for `app.tenant_id` in bypass mode.
  *
  * Why not `''`? PostgreSQL's RLS policies cast the GUC to uuid via
@@ -74,6 +61,40 @@ export type BlackglassDb = ReturnType<typeof createDb>;
  */
 const BYPASS_SENTINEL_TENANT_UUID = "00000000-0000-0000-0000-000000000000";
 
+/**
+ * Run a transaction with PostgreSQL RLS bypass enabled. **Restricted to a
+ * small set of trusted server paths.**
+ *
+ * Allowed callers (the only legitimate reasons to bypass RLS):
+ *   - Inbound webhook handlers that look up a tenant by an external id
+ *     (Stripe customer / subscription, Clerk org, Slack action) — they have
+ *     no session yet, so they can't use `withTenantRls`.
+ *   - Tenant lifecycle (provisioning, deletion, membership reconciliation).
+ *   - Cross-tenant maintenance jobs that explicitly carry their own tenant
+ *     scope in the job payload (retention sweep, partition health, drift
+ *     digest fan-out, sandbox lifecycle, baseline-capture finalisation).
+ *   - Admin / showcase routes scoped to operators (never authenticated
+ *     tenant CRUD).
+ *
+ * All other app code **must** use `withTenantRls` to enforce per-tenant data
+ * isolation. Sets `app.bypass_rls=1` so RLS policies short-circuit for one
+ * transaction; the function emits a structured `rls_bypass_entered` log on
+ * every entry so unexpected callers are visible in production.
+ *
+ * **RLS-BYPASS convention** — every call to this function MUST be preceded
+ * by a single-line comment of the form:
+ *
+ *     // RLS-BYPASS: <one-line reason>
+ *     await withBypassRls(async (db) => { ... });
+ *
+ * The `RLS-BYPASS:` prefix is the greppable tag reviewers use to enumerate
+ * every cross-tenant code path in a single search. Adding a `withBypassRls`
+ * call without the tag is a review-blocker.
+ *
+ * @see drizzle/0016_consolidate_rls_gucs.sql for the canonical RLS policy set
+ * @see docs/security-compliance.md § 3 for the operator-facing RLS story
+ * @see canvases/project-overview.canvas.tsx §2 / §13 for the reviewer workflow
+ */
 export async function withBypassRls<T>(fn: (db: BlackglassDb) => Promise<T>): Promise<T> {
   // Emit a structured security event every time bypass mode is entered so that
   // unexpected callers are visible in production logs.

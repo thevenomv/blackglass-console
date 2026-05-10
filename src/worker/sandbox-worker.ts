@@ -106,6 +106,9 @@ async function runOverSsh(ip: string, privateKeyPem: string | Buffer, command: s
 }
 
 async function getSandboxPrivateKey(credentialId: string): Promise<Buffer> {
+  // RLS-BYPASS: BullMQ sandbox-worker has no per-request tenant context;
+  // credential id was attached to the sandbox row when the tenant-RLS
+  // provisioner created it.
   const [cred] = await withBypassRls((db) =>
     db
       .select()
@@ -117,11 +120,13 @@ async function getSandboxPrivateKey(credentialId: string): Promise<Buffer> {
 }
 
 // ---------------------------------------------------------------------------
-// Job handlers
+// Job handlers — every read/write below is from the sandbox-worker, scoped by
+// the sandboxId / tenantId that BullMQ delivers in the job payload. RLS-BYPASS
+// throughout because workers have no per-request tenant context.
 // ---------------------------------------------------------------------------
 
 async function handleProvision(sandboxId: string, tenantId: string): Promise<void> {
-  // Idempotency guard: skip if the Droplet was already activated (BullMQ retry case)
+  // RLS-BYPASS: idempotency guard — BullMQ retry case.
   const [existing] = await withBypassRls((db) =>
     db.select().from(saasSandboxes).where(eq(saasSandboxes.id, sandboxId)),
   );
@@ -147,7 +152,7 @@ async function handleProvision(sandboxId: string, tenantId: string): Promise<voi
     await enqueueSandboxSeedDrift(sandboxId, tenantId, phase, (8 + phase * 10) * 60_000);
   }
 
-  // Cleanup when TTL expires
+  // RLS-BYPASS: read sandbox row to schedule TTL cleanup (job payload tenantId).
   const [sandbox] = await withBypassRls((db) =>
     db.select().from(saasSandboxes).where(eq(saasSandboxes.id, sandboxId)),
   );
@@ -161,6 +166,7 @@ async function handleSeedDrift(
   tenantId: string,
   phase: number,
 ): Promise<void> {
+  // RLS-BYPASS: load sandbox row to drive seed-drift step (job payload tenantId).
   const [sandbox] = await withBypassRls((db) =>
     db.select().from(saasSandboxes).where(eq(saasSandboxes.id, sandboxId)),
   );
@@ -172,7 +178,7 @@ async function handleSeedDrift(
     throw new Error(`Sandbox ${sandboxId} missing ip or credentialId`);
   }
 
-  // Mark as seeding
+  // RLS-BYPASS: status flip to "seeding" while the SSH command runs.
   await withBypassRls((db) =>
     db
       .update(saasSandboxes)
@@ -195,6 +201,7 @@ async function handleSeedDrift(
       privateKey,
       `sudo /root/sandbox/seed.sh ${safePha}`,
     );
+    // RLS-BYPASS: seed-drift success — record applied phase and timestamp.
     await withBypassRls((db) =>
       db
         .update(saasSandboxes)
@@ -208,6 +215,7 @@ async function handleSeedDrift(
     );
     console.info(`[sandbox-worker] Drift phase=${phase} applied to sandbox ${sandboxId}`);
   } catch (err) {
+    // RLS-BYPASS: seed-drift failure — revert status so retries don't stall.
     await withBypassRls((db) =>
       db
         .update(saasSandboxes)

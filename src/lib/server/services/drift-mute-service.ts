@@ -61,6 +61,9 @@ export async function listActiveMutesForWorker(
   tenantId: string,
 ): Promise<DriftMuteRule[]> {
   if (!tryGetDb()) return [];
+  // RLS-BYPASS: scan-worker reads mute rules while computing drift; worker
+  // has no per-request tenant context, queries are explicitly scoped by the
+  // tenantId carried in the job payload.
   const rows = await withBypassRls((db) =>
     db
       .select()

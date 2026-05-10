@@ -122,6 +122,9 @@ export async function pruneTenantData(tenantId: string): Promise<RetentionRunRes
   if (policy.auditEventsDays && policy.auditEventsDays > 0) {
     const cutoff = new Date(Date.now() - policy.auditEventsDays * 86_400_000);
     try {
+      // RLS-BYPASS: nightly retention worker; tenantId interpolated into
+      // every WHERE clause so cross-tenant deletes are impossible by
+      // construction (asserted by tests in retention-service.test.ts).
       const rows = await withBypassRls((db) =>
         db
           .delete(saasAuditEvents)
@@ -143,6 +146,8 @@ export async function pruneTenantData(tenantId: string): Promise<RetentionRunRes
   if (policy.evidenceBundlesDays && policy.evidenceBundlesDays > 0) {
     const cutoff = new Date(Date.now() - policy.evidenceBundlesDays * 86_400_000);
     try {
+      // RLS-BYPASS: nightly retention worker; same tenant-scoping pattern
+      // as the audit-events delete above.
       const rows = await withBypassRls((db) =>
         db
           .delete(saasEvidenceBundles)
@@ -169,6 +174,8 @@ export async function pruneTenantData(tenantId: string): Promise<RetentionRunRes
     (policy.baselineSnapshotsDays && policy.baselineSnapshotsDays > 0)
   ) {
     try {
+      // RLS-BYPASS: collect this tenant's host ids (legacy drift-events /
+      // baselines tables are scoped by host_id, so we need this list).
       const tenantHostIds = await withBypassRls((db) =>
         db
           .select({ id: saasCollectorHosts.id })
@@ -187,6 +194,9 @@ export async function pruneTenantData(tenantId: string): Promise<RetentionRunRes
       // worker's atomic delete.
       if (policy.driftEventsDays && policy.driftEventsDays > 0) {
         const cutoff = new Date(Date.now() - policy.driftEventsDays * 86_400_000);
+        // RLS-BYPASS: drift_events legacy table is host_id-keyed; the host
+        // id list above came from THIS tenant only, so the ANY() filter
+        // can't widen across tenants.
         const deleted = await withBypassRls(async (db) => {
           const r = await db.execute(sql`
             DELETE FROM blackglass_drift_events
@@ -202,6 +212,8 @@ export async function pruneTenantData(tenantId: string): Promise<RetentionRunRes
 
       if (policy.baselineSnapshotsDays && policy.baselineSnapshotsDays > 0) {
         const cutoff = new Date(Date.now() - policy.baselineSnapshotsDays * 86_400_000);
+        // RLS-BYPASS: baselines legacy table; same tenant-scoping argument
+        // via host_id ANY() as the drift_events delete above.
         const deleted = await withBypassRls(async (db) => {
           // Keep the latest snapshot per host regardless of age, then delete
           // older snapshots beyond the cutoff.
@@ -234,6 +246,9 @@ export async function pruneTenantData(tenantId: string): Promise<RetentionRunRes
  */
 export async function pruneAllTenants(): Promise<RetentionRunResult[]> {
   if (!tryGetDb()) return [];
+  // RLS-BYPASS: ops-worker fan-out — enumerates every tenant with a
+  // retention policy row and runs pruneTenantData() per tenant. Each
+  // per-tenant call is itself tenant-scoped above.
   const tenants = await withBypassRls((db) =>
     db
       .select({ tenantId: saasRetentionPolicies.tenantId })

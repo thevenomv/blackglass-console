@@ -39,6 +39,8 @@ export async function runCharonScheduledScanTick(): Promise<{
     return { candidates: 0, enqueued: 0, skippedNotDue: 0, skippedPlan: 0 };
   }
 
+  // RLS-BYPASS: ops-worker maintenance tick fans out across all tenants;
+  // each enqueued scan job carries its own tenantId for downstream RLS.
   return withBypassRls(async (tx) => {
     const rows = await tx
       .select({

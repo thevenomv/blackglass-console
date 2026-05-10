@@ -63,8 +63,10 @@ export async function resolveApiKey(bearerToken: string): Promise<ApiKeyContext 
 
   const { eq } = await import("drizzle-orm");
 
-  // Bypass RLS at the lookup step — the request has not yet established a
-  // tenant identity, so the row read must be a trusted server operation.
+  // RLS-BYPASS: API key resolution happens BEFORE the request has any
+  // tenant identity (the row is what determines the tenantId). Lookup is
+  // by SHA-256 hash of the bearer token; rows are not joinable by tenant
+  // until after this read returns.
   const rows = await withBypassRls((bdb) =>
     bdb
       .select({
@@ -85,6 +87,8 @@ export async function resolveApiKey(bearerToken: string): Promise<ApiKeyContext 
   if (row.expiresAt && row.expiresAt < new Date()) return null;
 
   try {
+    // RLS-BYPASS: bookkeeping write keyed by the API key id we just resolved
+    // above; no per-request tenant context yet.
     await withBypassRls((bdb) =>
       bdb
         .update(s.saasApiKeys)

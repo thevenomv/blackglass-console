@@ -77,6 +77,8 @@ export async function GET(request: Request) {
   const present = new Set<string>();
   let defaultPartitionExists = false;
   try {
+    // RLS-BYPASS: pg_catalog read for partition-health diagnostics; queries
+    // pg_inherits / pg_class which are not tenant-scoped tables.
     await withBypassRls(async (db) => {
       const rows = await db.execute<{ relname: string }>(sql`
         SELECT c.relname FROM pg_inherits i

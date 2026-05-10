@@ -40,6 +40,9 @@ export async function createQueuedBaselineJob(params: {
       return row.id;
     });
   }
+  // RLS-BYPASS: legacy / single-tenant deployments without a workspace
+  // tenantId — job row is created without a tenant FK and its lifecycle
+  // is read-only by the caller via getBaselineJobRowBypass below.
   return withBypassRls(async (tx) => {
     const [row] = await tx.insert(schema.saasBaselineCaptureJobs).values(values).returning({
       id: schema.saasBaselineCaptureJobs.id,
@@ -49,6 +52,9 @@ export async function createQueuedBaselineJob(params: {
 }
 
 export async function getBaselineJobRowBypass(jobId: string) {
+  // RLS-BYPASS: status-poll endpoint for an async job; lookup is by job id
+  // (UUID). Polling continues across pages / workers without a stable
+  // tenant context, and the result shape contains no cross-tenant data.
   return withBypassRls(async (tx) => {
     const rows = await tx
       .select()
@@ -94,6 +100,8 @@ async function updateJobBypass(
     errorDetail: string | null;
   }>,
 ) {
+  // RLS-BYPASS: in-process after() task lifecycle write. Runs after the
+  // request scope ends; updates the job row by job id only.
   await withBypassRls(async (tx) => {
     await tx
       .update(schema.saasBaselineCaptureJobs)
@@ -194,6 +202,8 @@ export async function expireStaleBaselineCaptureJobs(): Promise<{ markedFailed: 
   const msgRunning =
     "Baseline capture exceeded the maximum background runtime and was stopped. Retry with fewer hosts or check collector SSH connectivity.";
 
+  // RLS-BYPASS: ops-worker retention sweep marks orphan jobs across all
+  // tenants as failed. Cross-tenant by design (one query per status).
   return withBypassRls(async (tx) => {
     const finishedAt = new Date();
     const expiredQueued = await tx
