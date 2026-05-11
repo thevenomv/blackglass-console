@@ -52,7 +52,7 @@ const ENTRIES: ReadonlyArray<{
       },
       {
         kind: "feature",
-        text: "Janitor policies and scheduled scans run through the ops worker queue; Stripe add-on entitlements gate Charon for Growth+ plans.",
+        text: "Janitor policies and scheduled scans run through the ops worker queue; Charon enforced through per-workspace add-on entitlements.",
       },
       {
         kind: "security",
@@ -96,15 +96,7 @@ const ENTRIES: ReadonlyArray<{
     highlights: [
       {
         kind: "feature",
-        text: "New six-tier pricing ladder — Lab (free), Starter, Growth, Scale, Business, Enterprise — plus a Remediator (HITL AI) add-on slot.",
-      },
-      {
-        kind: "feature",
-        text: "Enterprise \"Talk to sales\" CTA now opens a structured lead form with Slack + email fan-out and full audit-log capture.",
-      },
-      {
-        kind: "feature",
-        text: "Stripe checkout supports Scale tier and inline-fallback pricing for fresh deployments where price IDs aren't wired yet.",
+        text: "Structured \"talk to sales\" lead capture — replaces the previous mailto: handoff with an in-app form, Slack + email fan-out, and full audit-log capture.",
       },
     ],
   },
