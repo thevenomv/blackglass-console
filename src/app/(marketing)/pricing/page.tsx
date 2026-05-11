@@ -1,19 +1,39 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PricingSection from "@/components/pricing/PricingSection";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical, faqPageSchema, productOfferSchema } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Pricing · Blackglass",
   description:
     "Free Lab tier for homelabs and evaluators, then per-host plans from $59/mo. Team at $89/mo for SMB fleets, Growth from $199. Read-only viewers never count as paid seats. 14-day trial of any paid plan, no card required.",
+  alternates: { canonical: canonical("/pricing") },
   openGraph: {
     title: "Pricing · Blackglass",
     description:
       "Plans grow with your Linux fleet — Lab (free) through Enterprise. Seven tiers from $0 to $2,500+/mo. Unlimited read-only teammates on every tier. 14-day trial, no card required.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical("/pricing"),
   },
 };
+
+/**
+ * Tier catalogue for Product+Offer JSON-LD. Mirrors `PLAN_PRICING` and
+ * `ENTERPRISE_PRICE_ANCHOR_CENTS_MONTHLY` in `src/lib/saas/plans.ts`. Lab
+ * is omitted because $0 tiers don't need Offer markup; Enterprise is
+ * present with the published anchor as `lowPrice` so SERPs reflect the
+ * floor without overpromising.
+ */
+const TIER_SCHEMA: Array<{ name: string; description: string; monthly: number; annual: number }> = [
+  { name: "Blackglass Starter",  description: "15 hosts · 3 operator seats · 4 scheduled scans/day · webhook alerts · 30-day drift, 90-day audit retention.", monthly:   59, annual:   590 },
+  { name: "Blackglass Team",     description: "25 hosts · 3 operator seats · hourly scans · full API · 90-day drift, 180-day audit retention.",                monthly:   89, annual:   890 },
+  { name: "Blackglass Growth",   description: "100 hosts · 5 operator seats · fleet dashboard · 180-day drift retention · Charon live cleanup eligible.",       monthly:  199, annual: 1990 },
+  { name: "Blackglass Scale",    description: "200 hosts · 7 operator seats · host groups · approval workflows · 1-year drift retention.",                      monthly:  349, annual: 3490 },
+  { name: "Blackglass Business", description: "300 hosts · 10 operator seats · immutable audit log · Remediator add-on included · priority support.",          monthly:  499, annual: 4990 },
+  { name: "Blackglass Enterprise", description: "Unlimited hosts/seats, SSO, BYOK, air-gapped option, named CSM, signed SLA. Anchor pricing from $2,500/mo.",  monthly: 2500, annual: 25000 },
+];
 
 const FAQ = [
   {
@@ -79,8 +99,43 @@ const FAQ = [
 ];
 
 export default function PricingPage() {
+  const pricingUrl = canonical("/pricing") ?? "/pricing";
+  const breadcrumb = breadcrumbSchema([
+    { name: "Home", url: "/" },
+    { name: "Pricing", url: "/pricing" },
+  ]);
   return (
     <main>
+        <JsonLd data={faqPageSchema(FAQ)} id="schema-faq" />
+        <JsonLd data={breadcrumb} id="schema-breadcrumb" />
+        {TIER_SCHEMA.map((tier) => (
+          <JsonLd
+            key={tier.name}
+            id={`schema-product-${tier.name.toLowerCase().replace(/\s+/g, "-")}`}
+            data={productOfferSchema({
+              name: tier.name,
+              description: tier.description,
+              url: pricingUrl,
+              priceMonthlyUsd: tier.monthly,
+              priceAnnualUsd: tier.annual,
+            })}
+          />
+        ))}
+
+        {/* Visible h1 — was missing pre-2026-05-11; weakened topical signal for the page. */}
+        <header className="border-b border-border-subtle px-4 pt-12 pb-6 sm:pt-16">
+          <div className="mx-auto max-w-5xl">
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Pricing</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-fg-primary sm:text-4xl">
+              Plans for every Linux fleet — from homelab to enterprise
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-fg-muted sm:text-base">
+              Free Lab tier forever. Paid tiers from $59/mo. Read-only viewers and guest auditors are
+              unlimited on every plan. 14-day trial of any paid tier, no credit card required.
+            </p>
+          </div>
+        </header>
+
         <PricingSection />
 
         {/* FAQ */}

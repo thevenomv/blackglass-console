@@ -7,6 +7,8 @@ import { Providers } from "@/components/providers/Providers";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ClerkThemedProvider } from "@/components/clerk/ClerkThemedProvider";
 import { siteOrigin, siteShouldNoindex } from "@/lib/site";
+import { organizationSchema } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -62,8 +64,22 @@ export const metadata: Metadata = {
     siteName: "Blackglass",
     title: "Blackglass",
     description: SITE_DESCRIPTION,
-    // Prefer light-themed artwork for og:image when added (see docs/theming.md).
-    // Add `metadata.openGraph.images` plus a static asset under `public/` when you ship share art.
+    // Sitewide default share image. Per-page metadata overrides as needed.
+    // 1200×630 PNG; resolved against `metadataBase` so a leading `/` works.
+    images: [
+      {
+        url: "/og-default.png",
+        width: 1200,
+        height: 630,
+        alt: "Blackglass — operational integrity for Linux fleets",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Blackglass",
+    description: SITE_DESCRIPTION,
+    images: ["/og-default.png"],
   },
   formatDetection: { telephone: false },
   category: "technology",
@@ -77,16 +93,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const origin = siteOrigin();
-  const jsonLdWebSite =
-    origin && !siteShouldNoindex()
-      ? JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          name: "Blackglass",
-          description: SITE_DESCRIPTION,
-          url: `${origin}/`,
-        })
-      : null;
+  const showSchema = Boolean(origin) && !siteShouldNoindex();
+  const jsonLdWebSite = showSchema
+    ? {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "Blackglass",
+        description: SITE_DESCRIPTION,
+        url: `${origin}/`,
+      }
+    : null;
+  const jsonLdOrganization = showSchema ? organizationSchema() : null;
 
   // ClerkProvider is a client component that only needs the publishable key.
   // Do not gate on isClerkAuthEnabled() (which also checks CLERK_SECRET_KEY)
@@ -102,13 +119,8 @@ export default function RootLayout({
   return (
     <html lang="en-GB" data-theme="light" suppressHydrationWarning>
       <body className={`${plexSans.variable} ${plexMono.variable}`}>
-        {jsonLdWebSite ? (
-          <script
-            type="application/ld+json"
-            suppressHydrationWarning
-            dangerouslySetInnerHTML={{ __html: jsonLdWebSite }}
-          />
-        ) : null}
+        {jsonLdWebSite ? <JsonLd data={jsonLdWebSite} id="schema-website" /> : null}
+        {jsonLdOrganization ? <JsonLd data={jsonLdOrganization} id="schema-organization" /> : null}
         <Script id="blackglass-theme-init" strategy="beforeInteractive">
           {themeInit}
         </Script>
