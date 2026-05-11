@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TrialSignupLink } from "@/components/demo/DemoGateButton";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { breadcrumbSchema, canonical, defaultOgImages, softwareApplicationSchema } from "@/lib/seo";
+import { breadcrumbSchema, canonical, dynamicOgImages, softwareApplicationSchema } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Product — Blackglass",
@@ -16,7 +16,10 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Blackglass",
     url: canonical("/product"),
-    images: defaultOgImages(),
+    images: dynamicOgImages({
+      title: "Product tour",
+      subtitle: "Fleet overview · trusted snapshots · change alerts · evidence exports",
+    }),
   },
 };
 

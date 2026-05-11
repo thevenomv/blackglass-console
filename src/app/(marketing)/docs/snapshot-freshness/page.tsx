@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
+import { breadcrumbSchema, canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata: Metadata = {
   title: "Snapshot freshness · Blackglass docs",
@@ -28,6 +29,14 @@ export const metadata: Metadata = {
 export default function SnapshotFreshnessDocsPage() {
   return (
     <main className="guide-article mx-auto max-w-3xl px-4 py-16 text-fg-muted">
+      <JsonLd
+        id="schema-breadcrumb"
+        data={breadcrumbSchema([
+          { name: "Home", url: "/" },
+          { name: "Docs", url: "/docs/api" },
+          { name: "Snapshot freshness", url: "/docs/snapshot-freshness" },
+        ])}
+      />
       <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Docs</p>
       <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
         Snapshot freshness model

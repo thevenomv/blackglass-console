@@ -1,11 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { stripe } from "@/lib/stripe";
 import BillingPortalButton from "@/components/pricing/BillingPortalButton";
 import { getPlanDefinition } from "@/lib/saas/plans";
 import { priceIdToPlanCode } from "@/lib/saas/stripe-sync";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Subscription confirmed — Blackglass by Obsidian Dynamics",
+  // Post-checkout page carries session_id in the URL — never index.
+  robots: { index: false, follow: false, nocache: true },
 };
 
 interface Props {

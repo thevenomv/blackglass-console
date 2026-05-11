@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical } from "@/lib/seo";
 
 const TITLE = "Free tools for Linux & cloud teams — Blackglass";
 const DESCRIPTION =
@@ -8,12 +10,13 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/tools" },
+  alternates: { canonical: canonical("/tools") },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
     type: "website",
     siteName: "Blackglass",
+    url: canonical("/tools"),
     images: [{ url: "/og-tools.png", width: 1200, height: 630, alt: "Blackglass Tools" }],
   },
   twitter: {
@@ -89,6 +92,13 @@ const TOOLS: ToolCard[] = [
 export default function ToolsIndexPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-12 sm:py-14">
+      <JsonLd
+        id="schema-breadcrumb"
+        data={breadcrumbSchema([
+          { name: "Home", url: "/" },
+          { name: "Tools", url: "/tools" },
+        ])}
+      />
       <section aria-label="Tools list" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {TOOLS.map((tool) => (
           <ToolCardView key={tool.href} tool={tool} />

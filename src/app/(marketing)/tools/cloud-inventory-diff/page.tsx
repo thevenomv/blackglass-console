@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CloudInventoryDiffClient } from "@/components/tools/CloudInventoryDiffClient";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical } from "@/lib/seo";
 
+const PATH = "/tools/cloud-inventory-diff";
 const TITLE = "Cloud Inventory Diff Visualiser — Blackglass Tools";
 const DESCRIPTION =
   "Compare two cloud inventory exports and see what was added, removed, or changed. Browser-only — files never leave your device.";
@@ -9,12 +12,13 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/tools/cloud-inventory-diff" },
+  alternates: { canonical: canonical(PATH) },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
     type: "website",
     siteName: "Blackglass",
+    url: canonical(PATH),
     images: [{ url: "/og-tools.png", width: 1200, height: 630, alt: "Blackglass Tools" }],
   },
   twitter: {
@@ -55,6 +59,14 @@ const SAMPLE_SCHEMA = `{
 export default function CloudInventoryDiffPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-12 sm:py-14">
+      <JsonLd
+        id="schema-breadcrumb"
+        data={breadcrumbSchema([
+          { name: "Home", url: "/" },
+          { name: "Tools", url: "/tools" },
+          { name: "Cloud Inventory Diff Visualiser", url: PATH },
+        ])}
+      />
       <header className="mb-8">
         <h2 className="text-2xl font-semibold text-fg-primary">Cloud Inventory Diff Visualiser</h2>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">{DESCRIPTION}</p>

@@ -64,6 +64,47 @@ export function defaultTwitterImages(): string[] {
   return ["/og-default.png"];
 }
 
+/**
+ * Per-route Open Graph image URL. Renders dynamically through `/api/og`
+ * (edge runtime, see `src/app/api/og/route.tsx`) so each shared link
+ * shows the page's own title + subtitle on the brand card instead of the
+ * generic `/og-default.png`.
+ *
+ * Returned shape is the same `OpenGraph['images']` array Next.js expects —
+ * spread it into a page's `metadata.openGraph.images`. Twitter cards share
+ * the same URL via `dynamicTwitterImages(...)`.
+ *
+ * @example
+ *   openGraph: {
+ *     ...
+ *     images: dynamicOgImages({ title: "Pricing", subtitle: "From $59/mo" }),
+ *   }
+ */
+export function dynamicOgImages(opts: { title: string; subtitle: string; alt?: string }) {
+  const url = dynamicOgPath(opts);
+  return [
+    {
+      url,
+      width: 1200,
+      height: 630,
+      alt: opts.alt ?? `Blackglass — ${opts.title}`,
+    },
+  ];
+}
+
+/** Twitter equivalent of `dynamicOgImages` — accepts the same params. */
+export function dynamicTwitterImages(opts: { title: string; subtitle: string }): string[] {
+  return [dynamicOgPath(opts)];
+}
+
+function dynamicOgPath(opts: { title: string; subtitle: string }): string {
+  const params = new URLSearchParams({
+    title: opts.title,
+    subtitle: opts.subtitle,
+  });
+  return `/api/og?${params.toString()}`;
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // schema.org JSON-LD factories
 // ───────────────────────────────────────────────────────────────────────────

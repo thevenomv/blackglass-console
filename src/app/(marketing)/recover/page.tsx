@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RecoverEffects } from "./RecoverEffects";
+import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Can't sign in? · Blackglass",
   description:
     "Recover workspace access: reset your email password via Clerk, or rotate the shared deployment passphrase.",
+  alternates: { canonical: canonical("/recover") },
   robots: { index: true, follow: true },
 };
 

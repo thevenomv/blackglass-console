@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CloudWasteEstimatorClient } from "@/components/tools/CloudWasteEstimatorClient";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical } from "@/lib/seo";
 
+const PATH = "/tools/cloud-waste-estimator";
 const TITLE = "Cloud Waste Estimator — Blackglass";
 const DESCRIPTION =
   "Estimate how much you might be wasting on idle droplets, ghost volumes, and old snapshots — without API keys.";
@@ -9,12 +12,13 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/tools/cloud-waste-estimator" },
+  alternates: { canonical: canonical(PATH) },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
     type: "website",
     siteName: "Blackglass",
+    url: canonical(PATH),
     images: [{ url: "/og-tools.png", width: 1200, height: 630, alt: "Blackglass Tools" }],
   },
   twitter: {
@@ -28,6 +32,14 @@ export const metadata: Metadata = {
 export default function CloudWasteEstimatorPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 sm:py-14">
+      <JsonLd
+        id="schema-breadcrumb"
+        data={breadcrumbSchema([
+          { name: "Home", url: "/" },
+          { name: "Tools", url: "/tools" },
+          { name: "Cloud Waste Estimator", url: PATH },
+        ])}
+      />
       <header className="mb-8">
         <h2 className="text-2xl font-semibold text-fg-primary">Cloud Waste Estimator</h2>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { breadcrumbSchema, canonical, defaultOgImages, howToSchema } from "@/lib/seo";
+import { breadcrumbSchema, canonical, dynamicOgImages, howToSchema } from "@/lib/seo";
 
 const PATH = "/guides/how-to-detect-unauthorized-linux-config-changes";
 
@@ -17,7 +17,10 @@ export const metadata: Metadata = {
     type: "article",
     siteName: "Blackglass",
     url: canonical(PATH),
-    images: defaultOgImages(),
+    images: dynamicOgImages({
+      title: "How to detect unauthorized Linux config changes",
+      subtitle: "Practical guide · ~12 min read",
+    }),
   },
 };
 

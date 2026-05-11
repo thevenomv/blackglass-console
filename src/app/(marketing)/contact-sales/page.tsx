@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ContactSalesForm } from "@/components/marketing/ContactSalesForm";
-import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
+import { breadcrumbSchema, canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata: Metadata = {
   title: "Contact Sales · Blackglass",
@@ -28,6 +29,13 @@ export const metadata: Metadata = {
 export default function ContactSalesPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-16">
+      <JsonLd
+        id="schema-breadcrumb"
+        data={breadcrumbSchema([
+          { name: "Home", url: "/" },
+          { name: "Contact Sales", url: "/contact-sales" },
+        ])}
+      />
       <header className="mb-8">
         <p className="text-xs font-medium uppercase tracking-wider text-accent-blue">
           Enterprise

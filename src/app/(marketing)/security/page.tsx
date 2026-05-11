@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { canonical, defaultOgImages } from "@/lib/seo";
+import { breadcrumbSchema, canonical, defaultOgImages } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata: Metadata = {
   title: "Security — Blackglass by Obsidian Dynamics",
@@ -80,6 +81,13 @@ const DRIFT_CATEGORIES = [
 export default function SecurityPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-16 text-sm leading-relaxed text-fg-muted">
+      <JsonLd
+        id="schema-breadcrumb"
+        data={breadcrumbSchema([
+          { name: "Home", url: "/" },
+          { name: "Security", url: "/security" },
+        ])}
+      />
       {/* Header */}
       <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-fg-faint">Security</p>
       <h1 className="mb-4 text-3xl font-bold text-fg-primary">Security overview</h1>

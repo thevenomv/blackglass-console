@@ -1,8 +1,24 @@
 import type { Metadata } from "next";
+import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Book a walkthrough · Blackglass",
   description: "Schedule a friendly, no-pressure tour of Blackglass with our team.",
+  alternates: { canonical: canonical("/book") },
+  openGraph: {
+    title: "Book a walkthrough · Blackglass",
+    description: "Schedule a friendly, no-pressure tour of Blackglass with our team.",
+    type: "website",
+    siteName: "Blackglass",
+    url: canonical("/book"),
+    images: defaultOgImages(),
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Book a walkthrough · Blackglass",
+    description: "Schedule a friendly, no-pressure tour of Blackglass with our team.",
+    images: defaultTwitterImages(),
+  },
 };
 
 export default function BookWalkthroughPage() {

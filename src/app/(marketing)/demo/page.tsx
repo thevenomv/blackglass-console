@@ -1,6 +1,32 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { DEMO_AUDIT, DEMO_DRIFT, DEMO_HOSTS, DEMO_REMEDIATIONS } from "@/lib/demo/seed";
 import { DemoGateButton } from "@/components/demo/DemoGateButton";
+import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
+
+const TITLE = "Live demo workspace · Blackglass";
+const DESCRIPTION =
+  "Explore a populated Blackglass workspace — hosts, drift events, audit log, and remediation flow — with no signup. Illustrative data only.";
+
+export const metadata: Metadata = {
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: canonical("/demo") },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    type: "website",
+    siteName: "Blackglass",
+    url: canonical("/demo"),
+    images: defaultOgImages(),
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: defaultTwitterImages(),
+  },
+};
 
 function sevColor(s: string) {
   switch (s) {

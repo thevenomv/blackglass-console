@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PricingSection from "@/components/pricing/PricingSection";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { breadcrumbSchema, canonical, defaultOgImages, faqPageSchema, productOfferSchema } from "@/lib/seo";
+import {
+  breadcrumbSchema,
+  canonical,
+  dynamicOgImages,
+  faqPageSchema,
+  productOfferSchema,
+} from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Pricing · Blackglass",
@@ -16,7 +22,10 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Blackglass",
     url: canonical("/pricing"),
-    images: defaultOgImages(),
+    images: dynamicOgImages({
+      title: "Pricing",
+      subtitle: "Free Lab tier · paid plans from $59/mo · 14-day trial",
+    }),
   },
 };
 

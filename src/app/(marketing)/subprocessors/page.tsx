@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Sub-processors · Blackglass by Obsidian Dynamics",
   description:
     "Current list of third-party sub-processors that may process customer personal data on behalf of Blackglass.",
+  alternates: { canonical: canonical("/subprocessors") },
 };
 
 const EFFECTIVE = "9 May 2026";

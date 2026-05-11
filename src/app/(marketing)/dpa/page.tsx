@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Data Processing Addendum · Blackglass by Obsidian Dynamics",
   description:
     "Data Processing Addendum (UK GDPR / UK Data Protection Act 2018) for organisational customers of Blackglass.",
+  alternates: { canonical: canonical("/dpa") },
 };
 
 const EFFECTIVE = "10 May 2026";

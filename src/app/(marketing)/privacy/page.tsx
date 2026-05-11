@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Privacy Policy · Blackglass by Obsidian Dynamics",
   description:
     "Privacy Policy for Blackglass, a product of Obsidian Dynamics Limited (Co. No. 16663833). ICO registration ZC141175. UK GDPR compliant.",
+  alternates: { canonical: canonical("/privacy") },
 };
 
 const EFFECTIVE = "10 May 2026";

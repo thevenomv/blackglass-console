@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { StatusBoard } from "@/components/marketing/StatusBoard";
-import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
+import { breadcrumbSchema, canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata: Metadata = {
   title: "System status · Blackglass",
@@ -28,6 +29,13 @@ export const metadata: Metadata = {
 export default function StatusPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16">
+      <JsonLd
+        id="schema-breadcrumb"
+        data={breadcrumbSchema([
+          { name: "Home", url: "/" },
+          { name: "Status", url: "/status" },
+        ])}
+      />
       <header className="mb-8">
         <p className="text-xs font-medium uppercase tracking-wider text-accent-blue">
           System status

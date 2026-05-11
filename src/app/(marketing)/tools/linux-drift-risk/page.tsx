@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LinuxDriftRiskClient } from "@/components/tools/LinuxDriftRiskClient";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical } from "@/lib/seo";
 
+const PATH = "/tools/linux-drift-risk";
 const TITLE = "Linux Drift Risk Score — Blackglass Tools";
 const DESCRIPTION =
   "Five-question questionnaire that scores your Linux change-control posture and surfaces the three drift classes most worth watching.";
@@ -9,12 +12,13 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/tools/linux-drift-risk" },
+  alternates: { canonical: canonical(PATH) },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
     type: "website",
     siteName: "Blackglass",
+    url: canonical(PATH),
     images: [{ url: "/og-tools.png", width: 1200, height: 630, alt: "Blackglass Tools" }],
   },
   twitter: {
@@ -28,6 +32,14 @@ export const metadata: Metadata = {
 export default function LinuxDriftRiskPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 sm:py-14">
+      <JsonLd
+        id="schema-breadcrumb"
+        data={breadcrumbSchema([
+          { name: "Home", url: "/" },
+          { name: "Tools", url: "/tools" },
+          { name: "Linux Drift Risk Score", url: PATH },
+        ])}
+      />
       <header className="mb-8">
         <h2 className="text-2xl font-semibold text-fg-primary">Linux Drift Risk Score</h2>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">{DESCRIPTION}</p>
