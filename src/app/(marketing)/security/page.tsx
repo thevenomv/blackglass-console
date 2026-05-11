@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { canonical, defaultOgImages } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Security — Blackglass by Obsidian Dynamics",
   description:
     "How Blackglass keeps your Linux visibility data safe — in plain language up top, with technical depth for security reviewers below.",
+  alternates: { canonical: canonical("/security") },
   openGraph: {
     title: "Security — Blackglass",
     description:
       "Encryption, access control, careful handling of credentials, audit trails, and platform hardening — explained for both executives and engineers.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical("/security"),
+    images: defaultOgImages(),
   },
 };
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { breadcrumbSchema, canonical } from "@/lib/seo";
+import { breadcrumbSchema, canonical, defaultOgImages } from "@/lib/seo";
 
 const PATH = "/use-cases/linux-configuration-drift-detection";
 
@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Blackglass",
     url: canonical(PATH),
+    images: defaultOgImages(),
   },
 };
 

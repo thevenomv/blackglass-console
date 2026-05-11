@@ -1,22 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Changelog · Blackglass",
   description:
     "What's new in Blackglass — recent releases, security fixes, and product polish.",
+  alternates: { canonical: canonical("/changelog") },
   openGraph: {
     title: "Changelog · Blackglass",
     description:
       "What's new in Blackglass — recent releases, security fixes, and product polish.",
     type: "article",
     siteName: "Blackglass",
+    url: canonical("/changelog"),
+    images: defaultOgImages(),
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Changelog · Blackglass",
     description:
       "What's new in Blackglass — recent releases, security fixes, and product polish.",
+    images: defaultTwitterImages(),
   },
 };
 

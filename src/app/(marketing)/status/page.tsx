@@ -1,22 +1,27 @@
 import type { Metadata } from "next";
 import { StatusBoard } from "@/components/marketing/StatusBoard";
+import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "System status · Blackglass",
   description:
     "Live status of Blackglass console, API, database, queue, and object store. Updated every 30 seconds.",
+  alternates: { canonical: canonical("/status") },
   openGraph: {
     title: "System status · Blackglass",
     description:
       "Live status of Blackglass console, API, database, queue, and object store. Updated every 30 seconds.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical("/status"),
+    images: defaultOgImages(),
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "System status · Blackglass",
     description:
       "Live status of Blackglass console, API, database, queue, and object store.",
+    images: defaultTwitterImages(),
   },
 };
 

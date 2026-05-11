@@ -1,22 +1,27 @@
 import type { Metadata } from "next";
 import { ContactSalesForm } from "@/components/marketing/ContactSalesForm";
+import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Contact Sales · Blackglass",
   description:
     "Tell us about your fleet and how you'd like to use Blackglass. We typically reply within one business day.",
+  alternates: { canonical: canonical("/contact-sales") },
   openGraph: {
     title: "Contact Sales · Blackglass",
     description:
       "Tell us about your fleet and how you'd like to use Blackglass. We typically reply within one business day.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical("/contact-sales"),
+    images: defaultOgImages(),
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Contact Sales · Blackglass",
     description:
       "Tell us about your fleet and how you'd like to use Blackglass. We typically reply within one business day.",
+    images: defaultTwitterImages(),
   },
 };
 

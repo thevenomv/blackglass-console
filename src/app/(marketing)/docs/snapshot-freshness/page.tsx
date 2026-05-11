@@ -1,22 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Snapshot freshness · Blackglass docs",
   description:
     "How Blackglass keeps host snapshots fresh, how the SSH-fail fallback waits for the next push-agent snapshot, and how to tune the cadence for your fleet.",
+  alternates: { canonical: canonical("/docs/snapshot-freshness") },
   openGraph: {
     title: "Snapshot freshness · Blackglass docs",
     description:
       "How Blackglass keeps host snapshots fresh and how the SSH-fail fallback waits for the next push-agent snapshot.",
     type: "article",
     siteName: "Blackglass",
+    url: canonical("/docs/snapshot-freshness"),
+    images: defaultOgImages(),
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Snapshot freshness · Blackglass docs",
     description:
       "How Blackglass keeps host snapshots fresh and how the SSH-fail fallback waits for the next push-agent snapshot.",
+    images: defaultTwitterImages(),
   },
 };
 

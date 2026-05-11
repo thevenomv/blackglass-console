@@ -37,6 +37,33 @@ export function defaultOgImage(): string | undefined {
   return `${origin}/og-default.png`;
 }
 
+/**
+ * Default OG image array, ready to spread into a page's
+ * `metadata.openGraph.images`. Necessary because Next.js does NOT deeply
+ * merge `openGraph` between layout and page — any page that declares its
+ * own openGraph block wipes the layout's `images` array. Every page must
+ * therefore re-declare the image to inherit the sitewide share preview.
+ *
+ * Returns absolute path so it works without `metadataBase` resolution
+ * (Next.js still rewrites it, but absolute is robust against future
+ * env-only changes).
+ */
+export function defaultOgImages() {
+  return [
+    {
+      url: "/og-default.png",
+      width: 1200,
+      height: 630,
+      alt: "Blackglass — operational integrity for Linux fleets",
+    },
+  ];
+}
+
+/** Same shape as `defaultOgImages` but for Twitter card metadata. */
+export function defaultTwitterImages(): string[] {
+  return ["/og-default.png"];
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // schema.org JSON-LD factories
 // ───────────────────────────────────────────────────────────────────────────

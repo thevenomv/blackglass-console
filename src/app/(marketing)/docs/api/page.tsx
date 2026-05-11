@@ -1,22 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "API quick start · Blackglass docs",
   description:
     "Authenticate, push host snapshots, run scans, and read drift events — copy-pasteable curl + Node + Python examples for the Blackglass v1 API.",
+  alternates: { canonical: canonical("/docs/api") },
   openGraph: {
     title: "API quick start · Blackglass docs",
     description:
       "Authenticate, push host snapshots, run scans, and read drift events with the Blackglass v1 API.",
     type: "article",
     siteName: "Blackglass",
+    url: canonical("/docs/api"),
+    images: defaultOgImages(),
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "API quick start · Blackglass docs",
     description:
       "Copy-pasteable curl + Node + Python examples for the Blackglass v1 API.",
+    images: defaultTwitterImages(),
   },
 };
 
