@@ -5,7 +5,6 @@
 
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import type { DemoAuditRow, DemoDriftFinding, DemoHost, DemoRemediation } from "@/lib/demo/seed";
-import { drawBrandWordmarkOnCover, embedBrandWordmark } from "@/lib/server/brand-wordmark";
 import { winAnsi } from "@/lib/server/report-pdf";
 
 const PAGE_W = 595.28;
@@ -159,7 +158,6 @@ export async function generateDemoEvidencePdf(input: DemoEvidencePdfInput): Prom
 
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const wordmark = await embedBrandWordmark(doc);
   const pm = new PageManager(doc, { regular, bold });
 
   pm.currentPage.drawRectangle({
@@ -171,24 +169,15 @@ export async function generateDemoEvidencePdf(input: DemoEvidencePdfInput): Prom
   });
   pm.y = PAGE_H - 56;
 
-  if (wordmark) {
-    const imgH = drawBrandWordmarkOnCover(pm.currentPage, wordmark, {
-      marginLeft: MARGIN,
-      titleBaselineY: pm.y,
-      maxWidthPt: 200,
-    });
-    pm.advance(imgH + 14);
-  } else {
-    pm.text("Blackglass", { size: 30, font: bold, color: C_BRAND });
-    pm.currentPage.drawRectangle({
-      x: MARGIN,
-      y: pm.y - 5,
-      width: 216,
-      height: 3.5,
-      color: C_BRAND,
-    });
-    pm.advance(LINE_LG + 8);
-  }
+  pm.text("Blackglass", { size: 30, font: bold, color: C_BRAND });
+  pm.currentPage.drawRectangle({
+    x: MARGIN,
+    y: pm.y - 5,
+    width: 216,
+    height: 3.5,
+    color: C_BRAND,
+  });
+  pm.advance(LINE_LG + 8);
   pm.text("Integrity evidence", { size: 15, font: bold, color: C_BLACK });
   pm.advance(LINE_SM + 2);
   pm.text("Sample pack · fictional fleet data", { size: 11, font: regular, color: C_MUTED });

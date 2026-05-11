@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { BrandLogo } from "@/components/brand/BrandLogo";
 
 // Computed once at module load (server start) so SSR and client hydration
 // never see different values across a year-boundary deploy. Worst case:
@@ -14,10 +13,8 @@ export function PublicFooter() {
     <footer className="border-t border-border-default bg-bg-panel py-12 text-sm text-fg-muted">
       <div className="mx-auto grid max-w-7xl items-start gap-8 px-4 sm:grid-cols-2 lg:grid-cols-6">
         <div className="lg:col-span-1">
-          <Link href="/" className="inline-flex max-w-full text-fg-primary">
-            <BrandLogo variant="footer" />
-          </Link>
-          <p className="mt-3 max-w-sm">
+          <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Blackglass</p>
+          <p className="mt-2 max-w-sm">
             Friendly visibility into Linux configuration changes — with snapshots you trust, alerts that
             make sense, and reports you can share.
           </p>

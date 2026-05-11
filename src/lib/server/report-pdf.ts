@@ -10,7 +10,6 @@
  */
 
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
-import { drawBrandWordmarkOnCover, embedBrandWordmark } from "@/lib/server/brand-wordmark";
 
 // ---------------------------------------------------------------------------
 // WinAnsi sanitisation
@@ -304,8 +303,6 @@ export async function generateReportPdf(contentJson: string): Promise<Uint8Array
   const mono = await doc.embedFont(StandardFonts.Courier);
   const fonts = { regular, bold, mono };
 
-  const wordmark = await embedBrandWordmark(doc);
-
   const pm = new PageManager(doc, fonts);
 
   // -----------------------------------------------------------------------
@@ -321,24 +318,15 @@ export async function generateReportPdf(contentJson: string): Promise<Uint8Array
   });
   pm.y = PAGE_H - 56;
 
-  if (wordmark) {
-    const imgH = drawBrandWordmarkOnCover(pm.currentPage, wordmark, {
-      marginLeft: MARGIN,
-      titleBaselineY: pm.y,
-      maxWidthPt: 200,
-    });
-    pm.advance(imgH + 14);
-  } else {
-    pm.text("Blackglass", { size: 30, font: bold, color: C_BRAND });
-    pm.currentPage.drawRectangle({
-      x: MARGIN,
-      y: pm.y - 5,
-      width: 216,
-      height: 3.5,
-      color: C_BRAND,
-    });
-    pm.advance(LINE_LG + 8);
-  }
+  pm.text("Blackglass", { size: 30, font: bold, color: C_BRAND });
+  pm.currentPage.drawRectangle({
+    x: MARGIN,
+    y: pm.y - 5,
+    width: 216,
+    height: 3.5,
+    color: C_BRAND,
+  });
+  pm.advance(LINE_LG + 8);
   pm.text("Linux server integrity report", { size: 16, font: bold, color: C_BLACK });
   pm.advance(LINE_SM + 4);
   pm.text("Confidential — share only with people cleared for this workspace.", {

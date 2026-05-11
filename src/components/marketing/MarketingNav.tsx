@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BrandLogo } from "@/components/brand/BrandLogo";
 
 const clerkOn =
   typeof process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY === "string" &&
@@ -27,8 +26,8 @@ export function MarketingNav() {
   return (
     <header className="sticky top-0 z-50 border-b border-border-default/80 bg-bg-base/90 backdrop-blur-md supports-[backdrop-filter]:bg-bg-base/80">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4">
-        <Link href="/" className="inline-flex shrink-0 items-center text-fg-primary">
-          <BrandLogo variant="nav" />
+        <Link href="/" className="text-sm font-semibold tracking-tight text-fg-primary">
+          Blackglass
         </Link>
         <nav className="hidden items-center gap-6 md:flex" aria-label="Primary">
           {links.map((l) => (
