@@ -1,16 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical } from "@/lib/seo";
+
+const PATH = "/use-cases/cis-benchmark-monitoring";
 
 export const metadata: Metadata = {
   title: "CIS Benchmark Monitoring for Linux · Blackglass",
   description:
     "Track CIS benchmark compliance posture on Linux servers over time. Blackglass captures hardening baselines and surfaces regressions across SSH, listeners, identity, persistence, packages, and integrity controls.",
+  alternates: { canonical: canonical(PATH) },
   openGraph: {
     title: "CIS Benchmark Monitoring for Linux · Blackglass",
     description:
       "Track CIS benchmark compliance posture on Linux servers over time. Blackglass captures hardening baselines and surfaces regressions from CIS-relevant configurations.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical(PATH),
   },
 };
 
@@ -58,6 +64,14 @@ const CIS_AREAS = [
 export default function CISBenchmarkMonitoringPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 text-fg-muted">
+        <JsonLd
+          id="schema-breadcrumb"
+          data={breadcrumbSchema([
+            { name: "Home", url: "/" },
+            { name: "Use cases", url: "/use-cases" },
+            { name: "CIS benchmark monitoring", url: PATH },
+          ])}
+        />
         <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use case</p>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">

@@ -1,16 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical } from "@/lib/seo";
+
+const PATH = "/use-cases/linux-hardening-monitoring";
 
 export const metadata: Metadata = {
   title: "Linux Hardening Monitoring & Baseline Audit · Blackglass",
   description:
     "Track your Linux security baseline over time. Blackglass captures hardening state after each change, monitors for regression, and exports evidence for security reviews.",
+  alternates: { canonical: canonical(PATH) },
   openGraph: {
     title: "Linux Hardening Monitoring & Baseline Audit · Blackglass",
     description:
       "Track your Linux security baseline over time. Blackglass captures hardening state after each change, monitors for regression, and exports evidence for security reviews.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical(PATH),
   },
 };
 
@@ -28,6 +34,14 @@ const CHECKS = [
 export default function LinuxHardeningMonitoringPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 text-fg-muted">
+        <JsonLd
+          id="schema-breadcrumb"
+          data={breadcrumbSchema([
+            { name: "Home", url: "/" },
+            { name: "Use cases", url: "/use-cases" },
+            { name: "Linux hardening monitoring", url: PATH },
+          ])}
+        />
         <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use case</p>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">

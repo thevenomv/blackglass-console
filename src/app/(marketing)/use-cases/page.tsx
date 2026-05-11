@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Use Cases · Blackglass",
   description:
     "Practical ways teams use Blackglass: catching silent server drift, reviewing remote access, keeping hardening honest, and staying aligned with common security baselines.",
+  alternates: { canonical: canonical("/use-cases") },
   openGraph: {
     title: "Use Cases · Blackglass",
     description:
       "Stories and starting points for operations and security leaders who want calmer Linux visibility.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical("/use-cases"),
   },
 };
 
@@ -48,6 +52,13 @@ const USE_CASES = [
 export default function UseCasesIndexPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16">
+        <JsonLd
+          id="schema-breadcrumb"
+          data={breadcrumbSchema([
+            { name: "Home", url: "/" },
+            { name: "Use cases", url: "/use-cases" },
+          ])}
+        />
         <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use cases</p>
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
           Where Blackglass fits

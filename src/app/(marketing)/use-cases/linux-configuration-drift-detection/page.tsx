@@ -1,22 +1,36 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical } from "@/lib/seo";
+
+const PATH = "/use-cases/linux-configuration-drift-detection";
 
 export const metadata: Metadata = {
   title: "Linux Configuration Drift Detection · Blackglass",
   description:
     "Detect unauthorised changes to Linux server configuration on every scan. Blackglass captures approved baselines and surfaces drift across sshd, listeners, identity, sudo, persistence, packages, kernel modules, and file integrity.",
+  alternates: { canonical: canonical(PATH) },
   openGraph: {
     title: "Linux Configuration Drift Detection · Blackglass",
     description:
       "Detect unauthorised changes to Linux server configuration on every scan. Drift across sshd, listeners, identity, persistence, packages, kernel modules, and file integrity — with severity, evidence, and audit trail.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical(PATH),
   },
 };
 
 export default function LinuxDriftDetectionPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 text-fg-muted">
+        <JsonLd
+          id="schema-breadcrumb"
+          data={breadcrumbSchema([
+            { name: "Home", url: "/" },
+            { name: "Use cases", url: "/use-cases" },
+            { name: "Linux configuration drift detection", url: PATH },
+          ])}
+        />
         {/* Breadcrumb */}
         <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use case</p>
 

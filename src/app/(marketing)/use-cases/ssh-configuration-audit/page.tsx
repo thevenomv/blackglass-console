@@ -1,16 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical } from "@/lib/seo";
+
+const PATH = "/use-cases/ssh-configuration-audit";
 
 export const metadata: Metadata = {
   title: "SSH Configuration Audit Tool · Blackglass",
   description:
     "Audit sshd_config changes across your Linux fleet. Blackglass surfaces SSH misconfigurations, tracks posture against a baseline, and flags high-risk directives like PermitRootLogin and weak ciphers.",
+  alternates: { canonical: canonical(PATH) },
   openGraph: {
     title: "SSH Configuration Audit Tool · Blackglass",
     description:
       "Audit sshd_config changes across your Linux fleet. Blackglass surfaces SSH misconfigurations, tracks posture against a baseline, and flags high-risk directives.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical(PATH),
   },
 };
 
@@ -50,6 +56,14 @@ const COMMON_MISCONFIGS = [
 export default function SSHAuditPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 text-fg-muted">
+        <JsonLd
+          id="schema-breadcrumb"
+          data={breadcrumbSchema([
+            { name: "Home", url: "/" },
+            { name: "Use cases", url: "/use-cases" },
+            { name: "SSH configuration audit", url: PATH },
+          ])}
+        />
         <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Use case</p>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">

@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TrialSignupLink } from "@/components/demo/DemoGateButton";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical, softwareApplicationSchema } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Product — Blackglass",
   description:
     "Fleet overview, per-server detail, trusted snapshots, change alerts, optional Charon cloud inventory, exports for reviews, and sensible access roles in one workflow.",
+  alternates: { canonical: canonical("/product") },
   openGraph: {
     title: "Product — Blackglass",
     description:
       "Fleet overview, per-server detail, trusted snapshots, change alerts, optional Charon for cloud accounts, shareable reports, and roles that match how real teams work.",
     type: "website",
     siteName: "Blackglass",
+    url: canonical("/product"),
   },
 };
 
@@ -133,8 +137,21 @@ const FEATURES = [
 ];
 
 export default function ProductPage() {
+  const productUrl = canonical("/product") ?? "/product";
+  const pricingUrl = canonical("/pricing") ?? "/pricing";
   return (
     <main>
+        <JsonLd
+          id="schema-software-application"
+          data={softwareApplicationSchema({ url: productUrl, pricingUrl })}
+        />
+        <JsonLd
+          id="schema-breadcrumb"
+          data={breadcrumbSchema([
+            { name: "Home", url: "/" },
+            { name: "Product", url: "/product" },
+          ])}
+        />
         {/* Hero */}
         <section className="border-b border-border-subtle px-4 py-16 sm:py-20">
           <div className="mx-auto max-w-3xl">

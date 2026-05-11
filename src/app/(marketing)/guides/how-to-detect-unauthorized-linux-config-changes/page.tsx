@@ -1,22 +1,90 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, canonical, howToSchema } from "@/lib/seo";
+
+const PATH = "/guides/how-to-detect-unauthorized-linux-config-changes";
 
 export const metadata: Metadata = {
   title: "How to Detect Unauthorized Linux Config Changes · Blackglass",
   description:
     "A practical guide to detecting unauthorized configuration changes on Linux servers — covering manual techniques, tooling options, and how to build a sustainable drift detection workflow.",
+  alternates: { canonical: canonical(PATH) },
   openGraph: {
     title: "How to Detect Unauthorized Linux Config Changes · Blackglass",
     description:
       "A practical guide to detecting unauthorized configuration changes on Linux servers — covering manual techniques, tooling options, and how to build a sustainable drift detection workflow.",
     type: "article",
     siteName: "Blackglass",
+    url: canonical(PATH),
   },
 };
 
+/**
+ * Step list mirrors the visible <h2>s on the page (Google requires the
+ * HowTo step text to appear in the rendered DOM). Step text is a brief
+ * one-liner; the page itself supplies the prose.
+ */
+const HOW_TO_STEPS: Array<{ name: string; text: string; anchor: string }> = [
+  {
+    name: "Define what counts as an unauthorized change",
+    text: "List the file paths, kernel parameters, listener surface, and identity changes that count as drift in your environment.",
+    anchor: "what-counts",
+  },
+  {
+    name: "Understand why manual detection fails",
+    text: "Configuration is split across many files; manual diffing breaks down past a handful of hosts and misses transient runtime changes.",
+    anchor: "why-hard",
+  },
+  {
+    name: "Run manual detection commands",
+    text: "Use sshd -T, sysctl -a, ss -tlnpu, and journalctl to capture effective state, then diff against a saved baseline.",
+    anchor: "manual-techniques",
+  },
+  {
+    name: "Pick the right tooling category",
+    text: "Choose between FIM, configuration management, benchmark scanners, CSPM, and dedicated drift tools based on the trade-offs.",
+    anchor: "tooling",
+  },
+  {
+    name: "Build a sustainable workflow",
+    text: "Combine recorded baselines, automated scheduled collection, severity filtering, remediation tracking, and evidence export.",
+    anchor: "sustainable-workflow",
+  },
+  {
+    name: "Apply the workflow with Blackglass",
+    text: "Use Blackglass agentless SSH collection, baseline pinning, severity-classified drift events, and exportable evidence bundles.",
+    anchor: "blackglass-approach",
+  },
+];
+
 export default function DetectUnauthorizedChangesGuidePage() {
+  const url = canonical(PATH) ?? PATH;
   return (
     <main className="guide-article mx-auto max-w-3xl px-4 py-16 text-fg-muted">
+        <JsonLd
+          id="schema-breadcrumb"
+          data={breadcrumbSchema([
+            { name: "Home", url: "/" },
+            { name: "Guides", url: "/guides" },
+            { name: "Detect unauthorized Linux config changes", url: PATH },
+          ])}
+        />
+        <JsonLd
+          id="schema-howto"
+          data={howToSchema({
+            name: "How to detect unauthorized Linux configuration changes",
+            description:
+              "Step-by-step guide for detecting unauthorized configuration changes on Linux servers — manual techniques, tooling categories, and a sustainable team workflow.",
+            url,
+            totalTime: "PT12M",
+            steps: HOW_TO_STEPS.map((s) => ({
+              name: s.name,
+              text: s.text,
+              url: `${url}#${s.anchor}`,
+            })),
+          })}
+        />
         <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Guide</p>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
