@@ -38,6 +38,16 @@ const SECTIONS: ReadonlyArray<{
       { href: "/guides/how-to-detect-unauthorized-linux-config-changes", label: "Guide: detect unauthorized Linux config changes" },
       { href: "/docs/api", label: "API quick start" },
       { href: "/docs/snapshot-freshness", label: "Snapshot freshness model" },
+      { href: "/blog", label: "Blog" },
+    ],
+  },
+  {
+    title: "Compare",
+    links: [
+      { href: "/vs", label: "Compare to Wiz, Lacework, Orca" },
+      { href: "/vs/wiz", label: "Blackglass vs Wiz" },
+      { href: "/vs/lacework", label: "Blackglass vs Lacework" },
+      { href: "/vs/orca", label: "Blackglass vs Orca" },
     ],
   },
   {

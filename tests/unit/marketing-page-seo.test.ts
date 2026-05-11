@@ -99,6 +99,11 @@ function discoverPages(): PageContract[] {
                 skipOgImage: "noindex auth surface — no share preview needed",
               }
             : {}),
+          ...(route.startsWith("/vs/") && route !== "/vs"
+            ? {
+                skipH1: "h1 lives in the shared <VsLayout /> component, not directly in page.tsx",
+              }
+            : {}),
         });
       }
     }

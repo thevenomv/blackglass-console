@@ -48,6 +48,27 @@ const USE_CASES = [
       "Stay close to the parts of CIS-style guidance that matter to you, with alerts when posture slips between formal audits.",
     keywords: ["CIS benchmark", "CIS linux", "compliance monitoring"],
   },
+  {
+    href: "/use-cases/file-integrity-monitoring",
+    title: "File integrity monitoring (FIM)",
+    description:
+      "Practical FIM for Linux — hash-based change detection on the files compliance frameworks actually care about, without the alert noise.",
+    keywords: ["file integrity monitoring", "FIM", "PCI DSS 11.5"],
+  },
+  {
+    href: "/use-cases/sox-evidence-capture",
+    title: "SOX & SOC 2 change-control evidence",
+    description:
+      "Auditor-grade evidence of every server config change, tied to operator approval. Replaces manual screenshot collection with one-click PDF + JSON exports.",
+    keywords: ["SOX", "SOC 2", "ITGC", "change control evidence"],
+  },
+  {
+    href: "/use-cases/incident-response-baselines",
+    title: "Incident response baselines",
+    description:
+      "First question in any Linux incident: what changed? Get a per-line diff against the last approved baseline in seconds — before you image, before you escalate.",
+    keywords: ["incident response", "Linux IR", "baseline triage"],
+  },
 ];
 
 export default function UseCasesIndexPage() {
