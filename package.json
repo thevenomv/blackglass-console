@@ -13,6 +13,8 @@
     "start": "node .next/standalone/server.js",
     "start:doppler": "doppler run -- npm run start",
     "typecheck": "tsc --noEmit",
+    "cf:audit-edge": "node scripts/cloudflare-edge-audit.mjs",
+    "cf:public-seo-check": "node scripts/cf-public-seo-check.mjs",
     "doppler:verify": "node scripts/doppler-verify.mjs",
     "verify:staging": "node scripts/verify-staging.mjs",
     "verify:stage0": "npm run lint && npm run check:openapi && npm run schemas:export && git diff --exit-code openapi/zod-schemas.json && npm run db:migrate:files && npm run typecheck && npm run test:unit && npm run build",
