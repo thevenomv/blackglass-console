@@ -118,6 +118,12 @@ export default function BlackglassVsLaceworkPage() {
           { label: "Polygraph data platform", href: "https://www.lacework.com/platform/polygraph" },
           { label: "Blackglass product page", href: "https://blackglasssec.com/product" },
         ]}
+        relatedComparisons={[
+          { href: "/vs/wiz", label: "Blackglass vs Wiz" },
+          { href: "/vs/orca", label: "Blackglass vs Orca Security" },
+          { href: "/vs/tenable", label: "Blackglass vs Tenable" },
+          { href: "/vs/qualys", label: "Blackglass vs Qualys" },
+        ]}
       />
     </>
   );

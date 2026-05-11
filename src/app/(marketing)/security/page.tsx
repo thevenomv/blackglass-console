@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { breadcrumbSchema, canonical, defaultOgImages } from "@/lib/seo";
+import { breadcrumbSchema, canonical, defaultOgImages, faqPageSchema } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata: Metadata = {
@@ -74,6 +74,33 @@ const DRIFT_CATEGORIES = [
   ["Environment", "/etc/hosts changes (DNS hijack detection)"],
 ];
 
+const SECURITY_FAQ = [
+  {
+    q: "Is Blackglass a SIEM replacement?",
+    a: "No. Blackglass does not ingest arbitrary logs or run correlation rules across your whole estate. It is a configuration-integrity product focused on Linux hosts: baselines, drift, evidence exports, and optional Charon cloud inventory.",
+  },
+  {
+    q: "How is tenant data isolated?",
+    a: "Workspace data lives in Postgres with row-level security (RLS) enforced on every query. Cross-tenant access requires a tiny set of audited bypass paths, each tagged in source code for review. Encryption in transit (TLS 1.2+) and at rest applies to all customer data.",
+  },
+  {
+    q: "Where are SSH and cloud credentials stored?",
+    a: "Credentials are envelope-encrypted with workspace-specific keys; plaintext secrets are unsealed only briefly inside isolated job workers for scans and Charon inventory. Bring-your-own-key (BYOK) is available on Enterprise.",
+  },
+  {
+    q: "What subprocessors does the SaaS use?",
+    a: "The live subprocessors list is published at /subprocessors and updated when vendors change. Typical categories include hosting, payments, authentication, error reporting, and transactional email.",
+  },
+  {
+    q: "Can we run in an air-gapped environment?",
+    a: "Yes on Enterprise: air-gapped mode disables outbound calls to public SaaS dependencies, with health endpoints that actively verify the restriction. Self-hosted Helm packaging is available for networks that cannot use multi-tenant SaaS at all.",
+  },
+  {
+    q: "How do you handle vulnerability disclosure?",
+    a: "Report security issues to jamie@obsidiandynamics.co.uk with encrypted detail if needed. We commit to timely triage, workarounds where possible, and coordinated disclosure for confirmed issues affecting customer data.",
+  },
+];
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -88,6 +115,7 @@ export default function SecurityPage() {
           { name: "Security", url: "/security" },
         ])}
       />
+      <JsonLd id="schema-faq" data={faqPageSchema(SECURITY_FAQ)} />
       {/* Header */}
       <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-fg-faint">Security</p>
       <h1 className="mb-4 text-3xl font-bold text-fg-primary">Security overview</h1>
@@ -402,6 +430,19 @@ export default function SecurityPage() {
               Sentry + OpenTelemetry provide tagged error and trace observability per tenant.
             </DomainCard>
           </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="rounded-lg border border-border-default bg-bg-panel px-6 py-8">
+          <h2 className="text-base font-semibold text-fg-primary">Security FAQ</h2>
+          <dl className="mt-6 space-y-6">
+            {SECURITY_FAQ.map((item) => (
+              <div key={item.q}>
+                <dt className="text-sm font-semibold text-fg-primary">{item.q}</dt>
+                <dd className="mt-2 text-sm leading-relaxed text-fg-muted">{item.a}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
 
         {/* CTA */}

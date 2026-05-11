@@ -5,8 +5,7 @@ share previews, sitemap freshness, and the regression tests that keep it
 working. Read this before adding a new marketing page.
 
 This is an **engineering** doc — keyword strategy, content briefs, and
-backlink outreach live in the marketing canvas
-(`canvases/seo-follow-up.canvas.tsx`).
+backlink outreach live in the marketing canvas (e.g. `canvases/seo-follow-up.canvas.tsx` when present).
 
 ---
 
@@ -19,10 +18,16 @@ backlink outreach live in the marketing canvas
    or `dynamicOgImages({ title, subtitle })`. **Page-level openGraph
    replaces the layout block — it does not deep-merge.**
 5. Render an `<h1>` somewhere in the page.
-6. Add the route to `src/app/sitemap.ts`.
+6. Add the route to `src/app/sitemap.ts`. If it introduces a **new**
+   top-level segment (e.g. `/glossary`, `/blog`, `/vs`), add the same
+   path to `middleware.ts` public matchers (`clerkPublic` and
+   `legacyMiddleware` when `AUTH_REQUIRED=true`) — otherwise auth
+   middleware will 404 the page in production.
 7. Add a `<JsonLd data={breadcrumbSchema([...])} />` near the top of
    `<main>` (Home → Section → Leaf).
-8. Run `npx vitest run tests/unit/marketing-page-seo.test.ts` to confirm
+8. **Blog posts:** also emit `<JsonLd data={articleSchema({...})} />`
+   (author, publisher, dates) for Article-eligible structured data.
+9. Run `npx vitest run tests/unit/marketing-page-seo.test.ts` to confirm
    the contract holds.
 
 That's it. The smoke test catches the rest.

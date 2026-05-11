@@ -49,6 +49,8 @@ export interface VsPageProps {
   readonly lastReviewed: string;
   /** Sources used to verify competitor claims. */
   readonly sources: ReadonlyArray<{ label: string; href: string }>;
+  /** Optional cross-links to other /vs pages (topical clustering). */
+  readonly relatedComparisons?: ReadonlyArray<{ href: string; label: string }>;
 }
 
 export function VsLayout(props: VsPageProps) {
@@ -62,6 +64,7 @@ export function VsLayout(props: VsPageProps) {
     pickBlackglass,
     lastReviewed,
     sources,
+    relatedComparisons,
   } = props;
 
   return (
@@ -170,6 +173,21 @@ export function VsLayout(props: VsPageProps) {
           </Link>
         </div>
       </section>
+
+      {relatedComparisons && relatedComparisons.length > 0 ? (
+        <section className="mt-14 rounded-card border border-border-default bg-bg-panel p-6">
+          <h2 className="text-base font-semibold text-fg-primary">Related comparisons</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            {relatedComparisons.map((r) => (
+              <li key={r.href}>
+                <Link className="text-accent-blue hover:underline" href={r.href}>
+                  {r.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <footer className="mt-12 rounded-card border border-border-default bg-bg-panel/50 p-4 text-xs text-fg-faint">
         <p>

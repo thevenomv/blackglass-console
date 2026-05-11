@@ -4,6 +4,20 @@ All notable user-facing and integration-facing changes are summarized here. Inte
 
 ## Unreleased
 
+### Marketing SEO follow-up (2026-05-11 — autonomous batch)
+
+- **`articleSchema()`** in `src/lib/seo.ts` + **Article JSON-LD** on all blog posts (including new posts).
+- **`/llms.txt`** route — AI/LLM crawler entry point with curated internal links (`src/app/llms.txt/route.ts`).
+- **`robots.txt`** — explicit `allow` for `/` and `/api/og` (OG image fetchers), `disallow` for `/pricing/success`, `host` hint when origin is configured.
+- **Root layout** — `alternates.types` RSS discovery for `/changelog/feed.xml`.
+- **Nav + footer** — primary nav adds Compare + Blog; footer adds Compare column (incl. Tenable/Qualys), new use-case links, Glossary, RSS.
+- **`/glossary`** — 12 anchored terms from `src/lib/glossary.ts`.
+- **`/vs/tenable`** and **`/vs/qualys`** comparison pages; **`VsLayout`** optional related-comparison links; all five `/vs/*` pages cross-link.
+- **Three new blog posts** — snapshot freshness, RLS tenant isolation, Charon cleanup safety model.
+- **`/pricing` FAQ** expanded to 23 Q&As (visible + FAQPage JSON-LD); **`/product`** and **`/security`** each gain a visible FAQ + matching FAQPage JSON-LD.
+- **Sitemap + middleware** — new routes whitelisted for public access.
+- **Tests** — `articleSchema` coverage in `seo-helpers.test.ts`.
+
 ### SEO infrastructure (2026-05-11 — bucket A + B)
 
 Mechanical follow-on to the P0 / P1 audit shipped a day earlier; locks the

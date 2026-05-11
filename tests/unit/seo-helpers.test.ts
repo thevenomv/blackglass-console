@@ -273,6 +273,44 @@ describe("seo.howToSchema", () => {
   });
 });
 
+describe("seo.articleSchema", () => {
+  it("emits Article with Person author and Organization publisher", async () => {
+    const { articleSchema } = await import("@/lib/seo");
+    const s = articleSchema({
+      url: `${ORIGIN}/blog/example`,
+      headline: "Example post",
+      description: "One line summary.",
+      datePublished: "2026-05-01",
+      author: { name: "Jamie", role: "Founder" },
+      tags: ["engineering", "security"],
+    });
+    expect(s["@type"]).toBe("Article");
+    expect(s.headline).toBe("Example post");
+    const author = s.author as Record<string, unknown>;
+    expect(author["@type"]).toBe("Person");
+    expect(author.name).toBe("Jamie");
+    expect(author.jobTitle).toBe("Founder");
+    const publisher = s.publisher as Record<string, unknown>;
+    expect(publisher["@type"]).toBe("Organization");
+    expect(publisher.name).toBe("Blackglass");
+    expect(s.keywords).toBe("engineering, security");
+  });
+
+  it("truncates headlines over 110 characters with an ellipsis", async () => {
+    const { articleSchema } = await import("@/lib/seo");
+    const long = "x".repeat(120);
+    const s = articleSchema({
+      url: `${ORIGIN}/blog/long`,
+      headline: long,
+      description: "d",
+      datePublished: "2026-05-01",
+      author: { name: "A" },
+    });
+    expect((s.headline as string).length).toBe(108);
+    expect(s.headline).toMatch(/…$/);
+  });
+});
+
 describe("seo schema JSON-serialisability", () => {
   /**
    * Every factory returns objects that get embedded inside a
@@ -303,6 +341,13 @@ describe("seo schema JSON-serialisability", () => {
         description: "y",
         url: `${ORIGIN}/g`,
         steps: [{ name: "s", text: "t" }],
+      }),
+      seo.articleSchema({
+        url: `${ORIGIN}/blog/x`,
+        headline: "H",
+        description: "D",
+        datePublished: "2026-05-01",
+        author: { name: "A" },
       }),
     ];
     for (const sample of samples) {

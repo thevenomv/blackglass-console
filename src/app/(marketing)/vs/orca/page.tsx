@@ -118,6 +118,12 @@ export default function BlackglassVsOrcaPage() {
           { label: "Orca SideScanning explained", href: "https://orca.security/platform/sidescanning-technology/" },
           { label: "Blackglass product page", href: "https://blackglasssec.com/product" },
         ]}
+        relatedComparisons={[
+          { href: "/vs/wiz", label: "Blackglass vs Wiz" },
+          { href: "/vs/lacework", label: "Blackglass vs Lacework" },
+          { href: "/vs/tenable", label: "Blackglass vs Tenable" },
+          { href: "/vs/qualys", label: "Blackglass vs Qualys" },
+        ]}
       />
     </>
   );

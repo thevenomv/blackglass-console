@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { breadcrumbSchema, canonical, dynamicOgImages } from "@/lib/seo";
+import { articleSchema, breadcrumbSchema, canonical, dynamicOgImages } from "@/lib/seo";
 import { formatBlogDate, getBlogPost } from "@/lib/blog";
 
 const SLUG = "seo-for-a-b2b-linux-security-tool";
 const POST = getBlogPost(SLUG)!;
 const PATH = `/blog/${SLUG}`;
+const POST_URL = canonical(PATH) ?? PATH;
 
 export const metadata: Metadata = {
   title: `${POST.title} · Blackglass`,
@@ -38,6 +39,17 @@ export default function Post() {
           { name: "Blog", url: "/blog" },
           { name: POST.title, url: PATH },
         ])}
+      />
+      <JsonLd
+        id="schema-article"
+        data={articleSchema({
+          url: POST_URL,
+          headline: POST.title,
+          description: POST.excerpt,
+          datePublished: POST.date,
+          author: POST.author,
+          tags: POST.tags,
+        })}
       />
       <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Engineering</p>
 

@@ -11,7 +11,7 @@ const COPYRIGHT_YEAR = new Date().getFullYear();
 export function PublicFooter() {
   return (
     <footer className="border-t border-border-default bg-bg-panel py-12 text-sm text-fg-muted">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="lg:col-span-1">
           <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Blackglass</p>
           <p className="mt-2 max-w-sm">
@@ -32,6 +32,9 @@ export function PublicFooter() {
             <li><Link href="/use-cases/ssh-configuration-audit" className="hover:text-fg-primary">SSH audit</Link></li>
             <li><Link href="/use-cases/linux-hardening-monitoring" className="hover:text-fg-primary">Hardening monitoring</Link></li>
             <li><Link href="/use-cases/cis-benchmark-monitoring" className="hover:text-fg-primary">CIS benchmarks</Link></li>
+            <li><Link href="/use-cases/file-integrity-monitoring" className="hover:text-fg-primary">File integrity (FIM)</Link></li>
+            <li><Link href="/use-cases/sox-evidence-capture" className="hover:text-fg-primary">SOX evidence capture</Link></li>
+            <li><Link href="/use-cases/incident-response-baselines" className="hover:text-fg-primary">IR baselines</Link></li>
             <li><Link href="/guides/how-to-detect-unauthorized-linux-config-changes" className="hover:text-fg-primary">Guide: detect config changes</Link></li>
           </ul>
         </div>
@@ -47,11 +50,27 @@ export function PublicFooter() {
             <li><Link href="/dashboard" className="hover:text-fg-primary">Console</Link></li>
           </ul>
         </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Compare</p>
+          <ul className="mt-2 space-y-1.5">
+            <li><Link href="/vs" className="hover:text-fg-primary">All comparisons</Link></li>
+            <li><Link href="/vs/wiz" className="hover:text-fg-primary">vs Wiz</Link></li>
+            <li><Link href="/vs/lacework" className="hover:text-fg-primary">vs Lacework</Link></li>
+            <li><Link href="/vs/orca" className="hover:text-fg-primary">vs Orca Security</Link></li>
+            <li><Link href="/vs/tenable" className="hover:text-fg-primary">vs Tenable</Link></li>
+            <li><Link href="/vs/qualys" className="hover:text-fg-primary">vs Qualys</Link></li>
+          </ul>
+        </div>
         <div className="space-y-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Resources</p>
             <ul className="mt-2 space-y-1.5">
+              <li><Link href="/glossary" className="hover:text-fg-primary">Glossary</Link></li>
+              <li><Link href="/blog" className="hover:text-fg-primary">Blog</Link></li>
               <li><Link href="/changelog" className="hover:text-fg-primary">Changelog</Link></li>
+              <li>
+                <Link href="/changelog/feed.xml" className="hover:text-fg-primary">RSS feed</Link>
+              </li>
               <li><Link href="/docs/snapshot-freshness" className="hover:text-fg-primary">Snapshot freshness</Link></li>
               <li><Link href="/docs/api" className="hover:text-fg-primary">API docs &amp; examples</Link></li>
               <li><Link href="/tools" className="hover:text-fg-primary">Free tools</Link></li>

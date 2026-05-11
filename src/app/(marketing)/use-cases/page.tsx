@@ -116,6 +116,21 @@ export default function UseCasesIndexPage() {
               </Link>
             </li>
             <li>
+              <Link href="/glossary" className="text-accent-blue hover:underline">
+                Glossary — drift, baselines, RLS, Charon
+              </Link>
+            </li>
+            <li>
+              <Link href="/vs" className="text-accent-blue hover:underline">
+                Compare — Blackglass vs CNAPP &amp; VM vendors
+              </Link>
+            </li>
+            <li>
+              <Link href="/blog" className="text-accent-blue hover:underline">
+                Engineering &amp; product blog
+              </Link>
+            </li>
+            <li>
               <Link href="/product" className="text-accent-blue hover:underline">
                 Full product overview
               </Link>

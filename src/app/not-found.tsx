@@ -39,6 +39,7 @@ const SECTIONS: ReadonlyArray<{
       { href: "/docs/api", label: "API quick start" },
       { href: "/docs/snapshot-freshness", label: "Snapshot freshness model" },
       { href: "/blog", label: "Blog" },
+      { href: "/glossary", label: "Glossary (drift, baselines, RLS)" },
     ],
   },
   {

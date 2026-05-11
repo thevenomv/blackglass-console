@@ -17,10 +17,10 @@ export function MarketingNav() {
     { href: "/product", label: "Product" },
     { href: "/use-cases", label: "Use Cases" },
     { href: "/pricing", label: "Pricing" },
+    { href: "/vs", label: "Compare" },
     { href: "/tools", label: "Tools" },
-    { href: "/security", label: "Security" },
+    { href: "/blog", label: "Blog" },
     { href: "/demo", label: "Demo" },
-    { href: "/changelog", label: "Changelog" },
   ] as const;
 
   return (

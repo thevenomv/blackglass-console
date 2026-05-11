@@ -31,6 +31,45 @@ export interface BlogPost {
 
 export const BLOG_POSTS: ReadonlyArray<BlogPost> = [
   {
+    slug: "snapshot-freshness-for-linux-evidence",
+    title: "Snapshot freshness: why 'last seen' timestamps matter for Linux evidence",
+    excerpt:
+      "How we document maximum lag between a host scan and the dashboard, why auditors care, and what happens when push agents miss a heartbeat — without pretending we're real-time where we aren't.",
+    date: "2026-05-11",
+    readingTime: "~6 min read",
+    tags: ["engineering", "operations", "trust"],
+    author: {
+      name: "Jamie",
+      role: "Founder, Blackglass",
+    },
+  },
+  {
+    slug: "row-level-security-tenant-isolation",
+    title: "Row-level security in Postgres: how we keep tenant data from ever mixing",
+    excerpt:
+      "A practical note on RLS as the last line of defence, why every bypass is greppable with // RLS-BYPASS:<reason>, and what we don't pretend RLS solves (compromised superuser credentials still win).",
+    date: "2026-05-11",
+    readingTime: "~8 min read",
+    tags: ["engineering", "security", "postgres"],
+    author: {
+      name: "Jamie",
+      role: "Founder, Blackglass",
+    },
+  },
+  {
+    slug: "charon-cleanup-safety-model",
+    title: "Charon's cleanup safety model: propose, approve, audit — never autopilot",
+    excerpt:
+      "The design rules that keep cloud janitor features from deleting the wrong snapshot: read-only default, tag-based protect lists, idle-score floors, and versioned webhook envelopes.",
+    date: "2026-05-10",
+    readingTime: "~6 min read",
+    tags: ["charon", "engineering", "product"],
+    author: {
+      name: "Jamie",
+      role: "Founder, Blackglass",
+    },
+  },
+  {
     slug: "seo-for-a-b2b-linux-security-tool",
     title: "How we approached SEO for a B2B Linux security tool (without buying any backlinks)",
     excerpt:

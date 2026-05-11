@@ -301,6 +301,53 @@ export function breadcrumbSchema(
 }
 
 /**
+ * Article node for blog posts. Google treats `Article` (and the more
+ * specific `BlogPosting` subtype) interchangeably for the SERP carousel,
+ * but `Article` is the safer base type — `BlogPosting` adds nothing
+ * Google indexes today, so we keep the simpler shape.
+ *
+ * `headline` must be ≤110 chars per Google's spec. Author and publisher
+ * are required for rich-result eligibility. `datePublished` and
+ * `dateModified` should be ISO 8601 — pass either `2026-05-09` or a full
+ * timestamp; Google accepts both.
+ */
+export function articleSchema(opts: {
+  url: string;
+  headline: string;
+  description: string;
+  datePublished: string;
+  dateModified?: string;
+  author: { name: string; role?: string };
+  imageUrl?: string;
+  tags?: ReadonlyArray<string>;
+}): Record<string, unknown> {
+  const origin = siteOrigin();
+  const headline = opts.headline.length > 110 ? `${opts.headline.slice(0, 107)}…` : opts.headline;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    mainEntityOfPage: { "@type": "WebPage", "@id": opts.url },
+    url: opts.url,
+    headline,
+    description: opts.description,
+    datePublished: opts.datePublished,
+    dateModified: opts.dateModified ?? opts.datePublished,
+    author: {
+      "@type": "Person",
+      name: opts.author.name,
+      ...(opts.author.role ? { jobTitle: opts.author.role } : {}),
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Blackglass",
+      ...(origin ? { logo: { "@type": "ImageObject", url: `${origin}/icon.svg` } } : {}),
+    },
+    ...(opts.imageUrl ? { image: opts.imageUrl } : {}),
+    ...(opts.tags && opts.tags.length ? { keywords: opts.tags.join(", ") } : {}),
+  };
+}
+
+/**
  * HowTo node for step-by-step guides. `totalTime` follows ISO 8601
  * duration format (`PT12M` = 12 minutes).
  */

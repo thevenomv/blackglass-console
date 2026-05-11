@@ -80,11 +80,15 @@ export default function BlogIndexPage() {
       </section>
 
       <p className="mt-12 text-xs text-fg-faint">
-        Subscribe to the{" "}
+        New to the vocabulary? See the{" "}
+        <Link className="text-accent-blue hover:underline" href="/glossary">
+          glossary
+        </Link>
+        . Subscribe to the{" "}
         <Link className="text-accent-blue hover:underline" href="/changelog/feed.xml">
           changelog RSS feed
         </Link>{" "}
-        for now — a /blog feed will follow once we&rsquo;re past 5 posts.
+        — a dedicated /blog RSS will follow once we&apos;re past a handful of posts.
       </p>
     </main>
   );

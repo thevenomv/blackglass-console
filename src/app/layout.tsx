@@ -83,6 +83,14 @@ export const metadata: Metadata = {
   },
   formatDetection: { telephone: false },
   category: "technology",
+  // RSS auto-discovery for the public changelog feed. Browsers (and
+  // feed readers like NetNewsWire / Feedly) surface this so users can
+  // subscribe without finding the link buried at the bottom of /changelog.
+  alternates: {
+    types: {
+      "application/rss+xml": [{ url: "/changelog/feed.xml", title: "Blackglass changelog" }],
+    },
+  },
 };
 
 const themeInit = `(function(){try{var k="blackglass-theme";var t=localStorage.getItem(k);if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}else{var d=typeof matchMedia!=="undefined"&&matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.setAttribute("data-theme",d?"dark":"light");}}catch(e){document.documentElement.setAttribute("data-theme","light");}})();`;

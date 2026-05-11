@@ -117,6 +117,12 @@ export default function BlackglassVsWizPage() {
           { label: "Wiz CNAPP architecture", href: "https://www.wiz.io/solutions/cnapp" },
           { label: "Blackglass product page", href: "https://blackglasssec.com/product" },
         ]}
+        relatedComparisons={[
+          { href: "/vs/lacework", label: "Blackglass vs Lacework" },
+          { href: "/vs/orca", label: "Blackglass vs Orca Security" },
+          { href: "/vs/tenable", label: "Blackglass vs Tenable" },
+          { href: "/vs/qualys", label: "Blackglass vs Qualys" },
+        ]}
       />
     </>
   );

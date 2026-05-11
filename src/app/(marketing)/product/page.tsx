@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TrialSignupLink } from "@/components/demo/DemoGateButton";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { breadcrumbSchema, canonical, dynamicOgImages, softwareApplicationSchema } from "@/lib/seo";
+import { breadcrumbSchema, canonical, dynamicOgImages, faqPageSchema, softwareApplicationSchema } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Product — Blackglass",
@@ -140,6 +140,33 @@ const FEATURES = [
   },
 ];
 
+const PRODUCT_FAQ = [
+  {
+    q: "Do I need to install an agent on every server?",
+    a: "No. Blackglass supports SSH pull, a lightweight push agent (systemd timer or cron), or a hybrid. Many teams start with SSH pull for a pilot, then move long-lived fleets to push for tighter freshness.",
+  },
+  {
+    q: "What data leaves my hosts?",
+    a: "We collect configuration metadata needed for drift detection — sshd effective settings, listeners, users, sudoers, persistence hooks, package lists, selected file hashes, and similar signals. We do not bulk-copy application secrets, private keys, or arbitrary file contents.",
+  },
+  {
+    q: "How does Blackglass differ from a SIEM or vulnerability scanner?",
+    a: "Blackglass is not a log aggregator or CVE database. It answers whether a host still matches the configuration your team approved, with per-line diffs and exports for change control. SIEMs and scanners answer different questions and are often complementary.",
+  },
+  {
+    q: "Can I try it without connecting production?",
+    a: "Yes. The live demo workspace uses illustrative data. When you are ready, the free Lab tier supports up to five real hosts with daily scans — no card required.",
+  },
+  {
+    q: "What roles and seat limits apply?",
+    a: "Owners, admins, and operators consume paid seats. Viewers and guest auditors are unlimited on every tier so finance, auditors, and leadership can read without bumping your bill.",
+  },
+  {
+    q: "Is Charon included?",
+    a: "Lab includes one read-only linked cloud account for Charon inventory. Live cleanup workflows require the Charon add-on on a paid plan. See pricing for the current add-on fee.",
+  },
+];
+
 export default function ProductPage() {
   const productUrl = canonical("/product") ?? "/product";
   const pricingUrl = canonical("/pricing") ?? "/pricing";
@@ -156,6 +183,7 @@ export default function ProductPage() {
             { name: "Product", url: "/product" },
           ])}
         />
+        <JsonLd id="schema-faq" data={faqPageSchema(PRODUCT_FAQ)} />
         {/* Hero */}
         <section className="border-b border-border-subtle px-4 py-16 sm:py-20">
           <div className="mx-auto max-w-3xl">
@@ -248,6 +276,21 @@ export default function ProductPage() {
           </div>
         </section>
 
+        {/* FAQ */}
+        <section className="border-t border-border-subtle px-4 py-14">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="text-lg font-semibold text-fg-primary">Frequently asked questions</h2>
+            <dl className="mt-8 space-y-8">
+              {PRODUCT_FAQ.map((item) => (
+                <div key={item.q}>
+                  <dt className="font-semibold text-fg-primary">{item.q}</dt>
+                  <dd className="mt-2 text-sm leading-relaxed text-fg-muted">{item.a}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
         {/* Internal links */}
         <section className="px-4 py-12">
           <div className="mx-auto max-w-3xl">
@@ -258,6 +301,9 @@ export default function ProductPage() {
                 { href: "/use-cases/ssh-configuration-audit", label: "SSH configuration audit" },
                 { href: "/use-cases/linux-hardening-monitoring", label: "Linux hardening monitoring" },
                 { href: "/use-cases/cis-benchmark-monitoring", label: "CIS benchmark monitoring" },
+                { href: "/use-cases/file-integrity-monitoring", label: "File integrity monitoring (FIM)" },
+                { href: "/use-cases/sox-evidence-capture", label: "SOX & SOC 2 evidence capture" },
+                { href: "/use-cases/incident-response-baselines", label: "Incident response baselines" },
                 { href: "/guides/how-to-detect-unauthorized-linux-config-changes", label: "Guide: Detect unauthorized changes" },
               ].map((l) => (
                 <li key={l.href}>

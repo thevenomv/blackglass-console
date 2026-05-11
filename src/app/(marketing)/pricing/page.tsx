@@ -103,6 +103,34 @@ const FAQ = [
     a: "Yes, on Enterprise. We offer a locked-down mode for networks that cannot call public SaaS APIs, plus packaging for self-hosted Kubernetes. Health checks let you prove the restrictions are active. Technical teams get exact switch names and diagrams on the security page.",
   },
   {
+    q: "What is Charon and how is it priced?",
+    a: "Charon is the optional cloud-resource hygiene module: read-only inventory across linked DigitalOcean, AWS, and GCP accounts, idle-resource detection, and human-approved cleanup requests — inside the same console as Linux drift. Charon is a flat $99/mo add-on on any paid tier (not per cloud account). Lab includes one read-only linked account so you can evaluate inventory without a card.",
+  },
+  {
+    q: "What payment methods do you accept?",
+    a: "Paid plans are billed through Stripe. We accept major cards (Visa, Mastercard, Amex) and, where Stripe supports it in your region, direct debit / bank transfer for annual Business and Enterprise contracts. Invoices with PO numbers are available on Business and Enterprise — contact sales to enable.",
+  },
+  {
+    q: "Can we complete a vendor security questionnaire?",
+    a: "Yes. Send your SIG Lite, CAIQ, or custom spreadsheet to jamie@obsidiandynamics.co.uk — we return completed answers within five business days for standard questionnaires, or faster on Enterprise with an NDA in place. The public security page already covers encryption, RLS, retention, subprocessors, and air-gapped mode.",
+  },
+  {
+    q: "Where is data hosted? Can we stay in the EU or UK?",
+    a: "Production SaaS runs on DigitalOcean with regions you select at workspace creation (including EU and UK options). Data at rest stays in the chosen region; cross-region replication is opt-in on Enterprise only. Self-hosted Helm deployments can pin everything inside your own network.",
+  },
+  {
+    q: "Do you sign a BAA or support HIPAA workloads?",
+    a: "We can execute a Business Associate Agreement (BAA) and configure HIPAA-eligible hosting patterns on Enterprise where a regulated workload requires it. Not every deployment mode is HIPAA-eligible out of the box — talk to sales with your architecture so we can confirm controls and subprocessors.",
+  },
+  {
+    q: "What happens to our data if we cancel?",
+    a: "You can export evidence bundles, JSON findings, and baseline metadata from the dashboard at any time during an active or read-only subscription. After cancellation we retain data per the published retention schedule, then securely delete. Enterprise customers can request a formal certificate of destruction.",
+  },
+  {
+    q: "Do you offer professional services or custom integrations?",
+    a: "Light onboarding is included on Growth and above (baseline workshop, webhook setup). Heavier integrations — SIEM forwarding, custom evidence formats, air-gap packaging — are scoped as fixed-fee projects. Email sales with the integration target and timeline.",
+  },
+  {
     q: "Are there discounts for non-profits or open-source maintainers?",
     a: "Yes — 50 % off any paid tier with a verified .edu domain, registered non-profit status, or named open-source project (Linux Foundation, CNCF, Apache, etc.). Email us with the details.",
   },

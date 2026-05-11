@@ -43,6 +43,18 @@ const COMPARISONS = [
     blurb:
       "SideScanning gives broad cloud visibility without agents. Pairs naturally with Blackglass for the inside-the-server view that agentless can't reach by definition.",
   },
+  {
+    href: "/vs/tenable",
+    competitor: "Tenable",
+    blurb:
+      "Category-defining vulnerability management (Nessus, Tenable.io). Often paired with Blackglass when the gap is 'what changed inside sshd since we patched?' not 'what CVEs exist?'.",
+  },
+  {
+    href: "/vs/qualys",
+    competitor: "Qualys",
+    blurb:
+      "Enterprise VMDR and Policy Compliance at scale. Blackglass adds baseline-first Linux drift for teams that already standardise on Qualys but still need per-line change evidence.",
+  },
 ];
 
 export default function VsIndexPage() {
@@ -66,7 +78,7 @@ export default function VsIndexPage() {
         comparisons sourced from each vendor&rsquo;s own public marketing.
       </p>
 
-      <section className="mt-10 grid gap-5 sm:grid-cols-2">
+      <section className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {COMPARISONS.map((c) => (
           <Link
             key={c.href}
