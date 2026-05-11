@@ -7,6 +7,7 @@ import {
 } from "@/db";
 import type { TenantRole } from "@/lib/saas/tenant-role";
 import { isTenantRole } from "@/lib/saas/tenant-role";
+import { applyEnterpriseSubscriptionGrant } from "@/lib/saas/enterprise-grant";
 import { TRIAL_DAYS, TRIAL_HOST_LIMIT, TRIAL_PAID_SEAT_LIMIT } from "@/lib/saas/plans";
 import { isTrialReadOnlyState } from "@/lib/saas/trial";
 
@@ -144,7 +145,15 @@ export async function ensureSubscriptionForTenant(tenantId: string) {
   });
 }
 
-export async function getSubscriptionForTenant(tenantId: string) {
+export type GetSubscriptionForTenantOptions = {
+  /** When set (e.g. from Clerk), merged with env + internal enterprise grant lists. */
+  grantUserEmails?: readonly string[];
+};
+
+export async function getSubscriptionForTenant(
+  tenantId: string,
+  options?: GetSubscriptionForTenantOptions,
+) {
   return withTenantRls(tenantId, async (db) => {
     const rows = await db
       .select()
@@ -163,7 +172,7 @@ export async function getSubscriptionForTenant(tenantId: string) {
         sub = { ...sub, status: "trial_expired" };
       }
     }
-    return sub;
+    return applyEnterpriseSubscriptionGrant(sub, tenantId, options?.grantUserEmails);
   });
 }
 

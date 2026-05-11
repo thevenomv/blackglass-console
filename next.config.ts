@@ -76,6 +76,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
+
+  async redirects() {
+    return [{ source: "/janitor", destination: "/charon", permanent: true }];
+  },
 };
 
 export default withSentryConfig(nextConfig, {

@@ -40,6 +40,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: RLS-BYPASS tag parity (withBypassRls callsites)
+        run: npm run check:rls-bypass
+
       - name: Migration file layout check
         run: npm run db:migrate:files
 

@@ -5,6 +5,7 @@ import { useState } from "react";
 export function GenerateInviteButton() {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteLinkHours, setInviteLinkHours] = useState(72);
   const [copied, setCopied] = useState(false);
 
   async function handleGenerate() {
@@ -15,8 +16,9 @@ export function GenerateInviteButton() {
         setState("error");
         return;
       }
-      const data = (await res.json()) as { invite_url: string; note: string };
+      const data = (await res.json()) as { invite_url: string; invite_link_hours?: number };
       setInviteUrl(data.invite_url);
+      setInviteLinkHours(typeof data.invite_link_hours === "number" ? data.invite_link_hours : 72);
       setState("done");
     } catch {
       setState("error");
@@ -54,8 +56,8 @@ export function GenerateInviteButton() {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs text-fg-muted">
-        Share this one-time link with your customer. It grants a 30-day read-only session.
-        Add the token to <span className="font-mono text-fg-primary">INVITE_TOKENS</span> before sharing.
+        Share this one-time link with your customer. They must open it within {inviteLinkHours} hour
+        {inviteLinkHours === 1 ? "" : "s"}; after redemption they get a 30-day read-only session.
       </p>
       <div className="flex items-center gap-2 rounded-card border border-border-default bg-bg-base px-3 py-2">
         <span className="flex-1 truncate font-mono text-xs text-fg-primary">{inviteUrl}</span>
@@ -69,7 +71,7 @@ export function GenerateInviteButton() {
       </div>
       <button
         type="button"
-        onClick={() => { setState("idle"); setInviteUrl(null); }}
+        onClick={() => { setState("idle"); setInviteUrl(null); setInviteLinkHours(72); }}
         className="self-start text-xs text-fg-faint hover:text-fg-muted"
       >
         Generate another

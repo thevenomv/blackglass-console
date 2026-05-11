@@ -38,6 +38,7 @@ their question, link them straight to that section.
 | No `BYPASSRLS` outside migrations        | App role lacks the `BYPASSRLS` attribute; only the migration role has it                       | App role created with default rights — see `drizzle/0000_init_saas_schema.sql`     |
 | Tenant scoping on every API route        | `requireSaasOrLegacyPermission` returns the tenant id; queries are wrapped in `withTenantRls`  | Grep for `requireSaasOrLegacyPermission(`                                          |
 | Partition integrity verification         | `scripts/ops/verify-partition-integrity.mjs` confirms RLS is on and partitions are healthy     | Run weekly via cron or before/after a migration                                    |
+| RLS bypass callsite tagging              | Every `withBypassRls(` call is preceded by `// RLS-BYPASS: <reason>`; PR CI enforces 1:1 counts | `npm run check:rls-bypass` · `scripts/check-rls-bypass-tags.mjs` · `src/db/index.ts` |
 
 ---
 
@@ -94,6 +95,7 @@ their question, link them straight to that section.
 | -------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | Dependency vulnerability scanning      | Dependabot watches `package.json` + Python `requirements.txt`                    | `.github/dependabot.yml`                                                          |
 | Static analysis (SAST)                 | TypeScript strict mode + ESLint (incl. `react-hooks`, `security`)                | `tsconfig.json`, `eslint.config.mjs`                                              |
+| RLS bypass tag parity                  | Fails CI if `// RLS-BYPASS:` lines and `withBypassRls(` callsites fall out of sync | `npm run check:rls-bypass` · `.github/workflows/ci.yml`                             |
 | Secret scanning                        | GitHub native push protection; `gitleaks` recommended for self-hosted forks      | GitHub repo → Security → Secret scanning                                          |
 | Lockfile hygiene                       | `package-lock.json` committed; `npm ci` used in production builds                | `scripts/build-worker.mjs`, DO App Spec                                           |
 | Pre-commit gates                       | `npm run lint && npm run typecheck && npx vitest run` required before push       | `docs/release-checklist.md`                                                       |

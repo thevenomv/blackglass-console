@@ -39,11 +39,11 @@ export const CHANGELOG_ENTRIES: ReadonlyArray<ChangelogEntry> = [
     highlights: [
       {
         kind: "feature",
-        text: "Charon (cloud janitor): link DO / AWS / GCP read credentials, run idle-resource scans, review findings, request cleanups, suppress noise, and wire scan webhooks — all from the new Janitor console.",
+        text: "Charon (cloud janitor): link DO / AWS / GCP read credentials, run idle-resource scans, review findings, request cleanups, suppress noise, and wire scan webhooks — all from the Charon console.",
       },
       {
         kind: "feature",
-        text: "Janitor policies and scheduled scans run through the ops worker queue; Charon enforced through per-workspace add-on entitlements.",
+        text: "Charon policies and scheduled scans run through the ops worker queue; entitlements enforced through per-workspace plan and add-ons.",
       },
       {
         kind: "security",

@@ -1,14 +1,6 @@
-import { AppShell } from "@/components/layout/AppShell";
-import { JanitorConsole } from "@/components/janitor/JanitorConsole";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default function JanitorPage() {
-  return (
-    <AppShell>
-      <div className="charon-surface min-h-full flex-1 bg-bg-base">
-        <JanitorConsole />
-      </div>
-    </AppShell>
-  );
+/** @deprecated Use `/charon` — kept for bookmarks and external links. */
+export default function JanitorRedirectPage() {
+  redirect("/charon");
 }

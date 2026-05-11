@@ -4,6 +4,7 @@ import coreWebVitals from "eslint-config-next/core-web-vitals";
 const eslintConfig = [
   {
     ignores: [
+      "**/canvases/**",
       "**/.next/**",
       "**/node_modules/**",
       "**/out/**",

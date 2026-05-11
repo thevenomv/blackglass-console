@@ -714,7 +714,7 @@ export function JanitorConsole() {
                             <span>{a.lastScanAt ? new Date(a.lastScanAt).toLocaleString() : "—"}</span>
                             {a.lastScanStatus === "failed" && (a.lastScanError?.length ?? 0) > 0 ? (
                               <span
-                                className="max-w-xs text-[11px] text-amber-600 dark:text-amber-400"
+                                className="max-w-xs text-[11px] text-warning"
                                 title={a.lastScanError ?? ""}
                               >
                                 Scan failed — showing last successful findings. Hover for detail.

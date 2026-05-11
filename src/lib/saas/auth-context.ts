@@ -5,6 +5,7 @@ import { applySaasSentryContext } from "@/lib/observability/sentry-saas";
 import { hasPermission, type SaasPermission } from "@/lib/saas/permissions";
 import type { TenantRole } from "@/lib/saas/tenant-role";
 import { isTenantRole } from "@/lib/saas/tenant-role";
+import { applyEnterpriseSubscriptionGrant } from "@/lib/saas/enterprise-grant";
 import {
   getMembership,
   getSubscriptionForTenant,
@@ -98,13 +99,16 @@ export async function requireTenantAuth(): Promise<TenantAuthContext> {
   const org = await client.organizations.getOrganization({ organizationId: orgId });
   const tenant = await ensureTenantForClerkOrg(orgId, org.name ?? "Workspace");
 
-  const subscription = await getSubscriptionForTenant(tenant.id) ??
+  const grantUserEmails = user?.emailAddresses?.map((e) => e.emailAddress) ?? [];
+  let subscription =
+    (await getSubscriptionForTenant(tenant.id, { grantUserEmails })) ??
     // Tenant exists but has no subscription row (e.g. webhook missed, pre-existing tenant).
     // Auto-provision a trial so the user is never blocked by a missing row.
-    await ensureSubscriptionForTenant(tenant.id);
+    (await ensureSubscriptionForTenant(tenant.id));
   if (!subscription) {
     throw new SaasAuthError(500, "no_subscription", "Tenant has no subscription row.");
   }
+  subscription = applyEnterpriseSubscriptionGrant(subscription, tenant.id, grantUserEmails);
 
   let membership = await getMembership(tenant.id, userId);
   if (!membership || membership.status !== "active") {

@@ -25,7 +25,7 @@ const NAV_WORKSPACE: { href: string; label: string }[] = [
   { href: "/drift", label: "Findings" },
   { href: "/evidence", label: "Evidence" },
   { href: "/reports", label: "Reports" },
-  { href: "/janitor", label: "Charon" },
+  { href: "/charon", label: "Charon" },
   { href: "/workspace", label: "Workspace" },
 ];
 

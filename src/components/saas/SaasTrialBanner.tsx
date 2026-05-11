@@ -89,19 +89,19 @@ export function SaasTrialBanner() {
   // Post-expiry — the existing read-only state. Highest urgency.
   if (ctx.trialReadOnly) {
     return (
-      <div className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-3 text-center text-sm text-rose-200">
-        <strong className="text-rose-100">Trial ended — read-only mode.</strong> Your workspace is
-        preserved and you can keep viewing dashboards and exports allowed by policy. Operational
-        actions (scans, host changes, baselines, secrets) stay locked until you upgrade.{" "}
+      <div className="border-b-2 border-danger bg-danger-soft px-4 py-3 text-center text-sm text-danger">
+        <strong className="font-semibold text-danger">Trial ended — read-only mode.</strong> Your
+        workspace is preserved and you can keep viewing dashboards and exports allowed by policy.
+        Operational actions (scans, host changes, baselines, secrets) stay locked until you upgrade.{" "}
         <a
           href="/pricing"
-          className="ml-2 inline-flex h-8 items-center rounded-card border border-rose-300/40 bg-rose-500/20 px-3 text-xs font-medium text-rose-50 hover:bg-rose-500/30"
+          className="ml-2 inline-flex h-8 items-center rounded-card border border-danger bg-danger px-3 text-xs font-semibold text-bg-base shadow-sm hover:opacity-90"
         >
           Upgrade now
         </a>
         <a
           href="/settings/billing"
-          className="ml-2 inline-flex h-8 items-center rounded-card border border-border-default bg-transparent px-3 text-xs font-medium text-fg-primary hover:bg-bg-elevated"
+          className="ml-2 inline-flex h-8 items-center rounded-card border border-border-default bg-bg-panel px-3 text-xs font-medium text-fg-primary hover:bg-bg-elevated"
         >
           View billing
         </a>
@@ -117,9 +117,11 @@ export function SaasTrialBanner() {
   if (days > TRIAL_WARN_DAYS || days < 0) return null;
 
   const urgent = days <= 2;
+  // Use semantic warning tokens (see globals.css) — ≥4.5:1 on light, readable on dark.
+  // Avoid tailwind opacity utilities like text-amber-200 on bg-amber-500/8 (fails on light shell).
   const wrapper = urgent
-    ? "border-b border-amber-400/40 bg-amber-500/15 text-amber-100"
-    : "border-b border-amber-500/25 bg-amber-500/8 text-amber-200";
+    ? "border-b-2 border-warning bg-warning-soft text-warning"
+    : "border-b border-border-default bg-warning-soft text-warning";
   const headline =
     days === 0
       ? "Trial ends today."
@@ -129,18 +131,18 @@ export function SaasTrialBanner() {
 
   return (
     <div className={`${wrapper} px-4 py-3 text-center text-sm`}>
-      <strong className="text-amber-50">{headline}</strong>{" "}
+      <strong className="font-semibold text-warning">{headline}</strong>{" "}
       Add billing to keep baselines, drift history, evidence bundles, and team access without
       interruption — your data stays even after the trial ends, but new scans and writes pause.
       <a
         href="/pricing"
-        className="ml-3 inline-flex h-8 items-center rounded-card border border-amber-300/40 bg-amber-500/20 px-3 text-xs font-semibold text-amber-50 hover:bg-amber-500/30"
+        className="ml-3 inline-flex h-8 items-center rounded-card border border-warning bg-warning px-3 text-xs font-semibold text-bg-base shadow-sm hover:opacity-90"
       >
         Upgrade now
       </a>
       <a
         href="/settings/billing"
-        className="ml-2 inline-flex h-8 items-center rounded-card border border-border-default bg-transparent px-3 text-xs font-medium text-fg-primary hover:bg-bg-elevated"
+        className="ml-2 inline-flex h-8 items-center rounded-card border border-border-default bg-bg-panel px-3 text-xs font-medium text-fg-primary hover:bg-bg-elevated"
       >
         View billing
       </a>

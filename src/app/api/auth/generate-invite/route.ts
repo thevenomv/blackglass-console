@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/session-signing";
-import { generateInviteToken } from "@/lib/auth/invite-tokens";
+import { generateInviteToken, getInviteTokenTtlHours } from "@/lib/auth/invite-tokens";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { checkGenerateInviteRate, clientIp } from "@/lib/server/rate-limit";
 
@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
   }
 
   const token = generateInviteToken();
+  const inviteLinkHours = getInviteTokenTtlHours();
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
     `${request.headers.get("x-forwarded-proto") ?? "https"}://${request.headers.get("host") ?? ""}`;
@@ -37,6 +38,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     token,
     invite_url: inviteUrl,
-    note: "Add this token to the INVITE_TOKENS env var (comma-separated), then share invite_url with your customer.",
+    invite_link_hours: inviteLinkHours,
   });
 }

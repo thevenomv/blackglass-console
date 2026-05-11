@@ -39,6 +39,7 @@
     "node_modules",
     "vitest.config.ts",
     "playwright.config.ts",
-    "drizzle.config.ts"
+    "drizzle.config.ts",
+    "canvases"
   ]
 }

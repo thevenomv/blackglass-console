@@ -22,7 +22,7 @@ export async function notifyCharonCleanupQueuedSlack(
   if (!hook) return;
 
   const base = consoleBaseUrl();
-  const janitorUrl = base ? `${base}/janitor` : "/janitor";
+  const charonConsoleUrl = base ? `${base}/charon` : "/charon";
 
   const body = {
     text: `Charon: ${payload.count} cleanup request(s) queued (${payload.mode}).`,
@@ -42,7 +42,7 @@ export async function notifyCharonCleanupQueuedSlack(
                 {
                   type: "button",
                   text: { type: "plain_text", text: "Open Charon" },
-                  url: janitorUrl,
+                  url: charonConsoleUrl,
                 },
               ],
             },

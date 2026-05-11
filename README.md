@@ -17,6 +17,8 @@ npm run dev
 
 Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or PowerShell helper `scripts/doppler-dev.ps1`.
 
+**Cursor canvases:** [`canvases/project-overview.canvas.tsx`](canvases/project-overview.canvas.tsx) is a [Cursor Canvas](https://cursor.com) packet (imports `cursor/canvas` — not part of the Next.js build). It mirrors the reviewer workflow referenced from `src/db/index.ts` and security docs.
+
 ## NPM scripts
 
 | Script | Purpose |
@@ -24,6 +26,7 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `dev` | Local Next.js dev server |
 | `build` / `start` | Production bundle; `start` assumes prior `next build` with standalone output (`next.config.ts`) |
 | `lint` | ESLint CLI (`eslint.config.mjs`) |
+| `check:rls-bypass` | Enforces `// RLS-BYPASS:` ↔ `withBypassRls(` count parity under `src/` (also in `verify:stage0` + CI) |
 | `typecheck` | `tsc --noEmit` |
 | `test:unit` | Vitest |
 | `test:e2e` | Playwright (needs dev server via config) |
@@ -31,7 +34,7 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `test:e2e:all` | Full Playwright suite including `@pixel` |
 | `check:openapi` | OpenAPI ↔ `route.ts` parity |
 | `schemas:export` | Regenerate `openapi/zod-schemas.json` from Zod |
-| `verify:stage0` | CI-shaped gate (lint + OpenAPI + schema diff + **typecheck** + unit + build — no Playwright) |
+| `verify:stage0` | CI-shaped gate (lint + **check:rls-bypass** + OpenAPI + schema diff + **typecheck** + unit + build — no Playwright) |
 | `verify:stage0:clean` | **`clean:next`** then **`verify:stage0`** — helps Windows cloud-sync **`readlink`** failures |
 | `clean:next` | Deletes **`.next/`** (`scripts/clean-next.mjs`) |
 | `verify:staging` | Hit `STAGING_URL` health/hosts audit (`VERIFY_SECRETS_PROBE=1` optional) |
@@ -62,7 +65,7 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 - **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** flat preset); `next lint` is not used.
 - **SEO / discovery:** **`NEXT_PUBLIC_APP_URL`** feeds canonical/meta Open Graph (**no Twitter / social-account fields**); **`/sitemap.xml`** + **`/robots.txt`**; staging uses **`NEXT_PUBLIC_SITE_NOINDEX=true`** (see [.env.example](.env.example)).
 - **Next.js 16:** `main` ships **next@16**.
-- **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, OpenAPI, Zod schema diff, typecheck, unit tests, production build). Under OneDrive + Windows quirks, prefer **`npm run verify:stage0:clean`** (see [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)).
+- **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, RLS-BYPASS parity, OpenAPI, Zod schema diff, typecheck, unit tests, production build). Under OneDrive + Windows quirks, prefer **`npm run verify:stage0:clean`** (see [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)).
 
 ## Architecture overview
 
