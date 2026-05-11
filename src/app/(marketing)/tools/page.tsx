@@ -99,6 +99,17 @@ export default function ToolsIndexPage() {
           { name: "Tools", url: "/tools" },
         ])}
       />
+      <header className="mb-8">
+        <p className="text-xs font-medium uppercase tracking-wider text-accent-blue">
+          Free tools
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold text-fg-primary">
+          Tools for Linux &amp; cloud teams
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-fg-muted">
+          {DESCRIPTION}
+        </p>
+      </header>
       <section aria-label="Tools list" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {TOOLS.map((tool) => (
           <ToolCardView key={tool.href} tool={tool} />

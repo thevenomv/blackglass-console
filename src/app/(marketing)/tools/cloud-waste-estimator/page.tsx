@@ -41,7 +41,7 @@ export default function CloudWasteEstimatorPage() {
         ])}
       />
       <header className="mb-8">
-        <h2 className="text-2xl font-semibold text-fg-primary">Cloud Waste Estimator</h2>
+        <h1 className="text-2xl font-semibold text-fg-primary">Cloud Waste Estimator</h1>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">
           {DESCRIPTION}
         </p>

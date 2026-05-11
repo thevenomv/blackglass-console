@@ -41,7 +41,7 @@ export default function LinuxDriftRiskPage() {
         ])}
       />
       <header className="mb-8">
-        <h2 className="text-2xl font-semibold text-fg-primary">Linux Drift Risk Score</h2>
+        <h1 className="text-2xl font-semibold text-fg-primary">Linux Drift Risk Score</h1>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">{DESCRIPTION}</p>
         <p className="mt-3 rounded-card border border-accent-blue/25 bg-accent-blue/5 px-4 py-3 text-xs leading-relaxed text-fg-muted">
           A pre-scan planning tool aligned with{" "}

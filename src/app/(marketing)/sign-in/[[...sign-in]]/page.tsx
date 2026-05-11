@@ -1,8 +1,15 @@
-export const dynamic = "force-dynamic";
-
+import type { Metadata } from "next";
 import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Sign in · Blackglass",
+  // Auth surface — must never be indexed (no SEO value, duplicate-content risk).
+  robots: { index: false, follow: false },
+};
 
 export default function SignInPage() {
   if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()) {

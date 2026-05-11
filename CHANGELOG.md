@@ -4,6 +4,38 @@ All notable user-facing and integration-facing changes are summarized here. Inte
 
 ## Unreleased
 
+### SEO infrastructure (2026-05-11 — bucket A + B)
+
+Mechanical follow-on to the P0 / P1 audit shipped a day earlier; locks the
+SEO surface against future regressions and adds the missing per-route
+freshness signals.
+
+#### Bucket A — site surface
+
+- **BreadcrumbList JSON-LD** on the remaining 10 marketing pages — every public route now emits a Home → Section → Leaf trail. Verifiable via Rich Results Test.
+- **`alternates.canonical`** on legal + flow pages that previously inherited only the layout default — `/privacy`, `/terms`, `/dpa`, `/subprocessors`, `/demo`, `/book`, `/pricing/success`, `/recover`. Closes the duplicate-URL signal-dilution gap.
+- **`/pricing/success`** now `robots: { index: false, follow: false, nocache: true }` — the URL carries a per-checkout `session_id` and must never reach SERPs.
+- **`/sign-in/[[...sign-in]]` and `/sign-up/[[...sign-up]]`** marked `noindex` — auth surfaces have no SEO value and create duplicate-content risk against `/recover`.
+- **Sitemap `lastmod` from real git history** (`git log -1 --format=%cI -- <file>`) instead of `new Date()` per route. Per-page freshness signals stop collapsing into a single build-timestamp on every URL. File mtime fallback for ephemeral build environments.
+- **Per-route dynamic Open Graph images** via `next/og` `ImageResponse` — single edge endpoint at `/api/og?title=…&subtitle=…` renders a branded card per page. Wired on home, `/pricing`, `/product`, the how-to guide; static `/og-default.png` remains the fallback for legal + redirect pages. CDN cache key is the URL, so title changes invalidate naturally.
+- **`/changelog/feed.xml`** — RSS 2.0 feed sourced from the same `src/lib/changelog.ts` module the page renders from (no drift). `force-static` + `revalidate=3600`. Surfaced on `/changelog` as a `<link rel="alternate" type="application/rss+xml">` and a visible Subscribe via RSS link.
+- **Custom `not-found.tsx`** — replaces the two-link placeholder with a 5-section navigation hub (18 internal links). `robots: { index: false, follow: true }` so accidental 404s don't pollute the index but Google can re-discover canonical URLs from broken inbound links.
+
+#### Bucket B — engineering quality
+
+- **Unit tests for `src/lib/seo.ts`** (`tests/unit/seo-helpers.test.ts`, +23 tests) — locks every schema factory's required fields, canonical edge cases (trailing slash, missing env, leading slash, query strings), `dynamicOgImages` URL encoding, JSON-serialisability of every emitter.
+- **Marketing-page smoke test** (`tests/unit/marketing-page-seo.test.ts`, +113 tests) — discovers every `page.tsx` under `src/app/(marketing)`, asserts each one declares `alternates.canonical`, declares an OG image when it overrides `openGraph`, renders an `<h1>`, and never hand-rolls a raw `<script type="application/ld+json">` (must use `<JsonLd />`). Documented per-route exceptions for `/pricing/success` (noindex), `/passphrase-recovery` (redirect), `/sign-in/*` and `/sign-up/*` (auth surfaces), `/demo/*` subpages (shared workspace), and `/` (h1 lives in `<LandingPage />`).
+- **`docs/seo.md`** — engineering-side strategy doc covering schema choices, the `<JsonLd />` wrapper rationale, why we use a centralised `/api/og` endpoint instead of per-route `opengraph-image.tsx`, the validation workflow, and the full file map.
+- **Heading hierarchy fixes** — `/tools` and the 3 tool subpages had no `<h1>` (used `<h2>` for the page title); upgraded to `<h1>` so heading hierarchy is well-formed and the smoke test passes without exception.
+- **`src/lib/changelog.ts`** — extracted the `ENTRIES` array from the `/changelog` page component into a shared module so the page and the RSS feed never drift. Same call sites; `formatChangelogDate()` keeps the page rendering "10 May 2026" while the feed emits stable noon-UTC RFC 822 timestamps.
+
+#### Build / test signal
+
+- TypeScript clean (`npx tsc --noEmit`, 0 errors).
+- Vitest: 76 files, 701 passed, 4 skipped, 1 pre-existing skipped (no test added by this change).
+- No new dependencies; `next/og` ships with Next.js.
+- Edge runtime declared on `/api/og` as required by `ImageResponse`.
+
 ### Pricing (2026-05-10 calibration)
 
 - **New Team tier** at **$89/mo** (25 hosts · 3 operator seats · hourly scans · full API · 90 days drift / 180 days audit) sits between Starter and Growth, closing the previous 5× pricing cliff ($39 → $199) that left SMB buyers in the 15–50 host band with no landing pad.
