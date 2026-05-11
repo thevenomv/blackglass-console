@@ -70,7 +70,8 @@ export default function Post() {
       <p className="mt-3 leading-relaxed">
         Some jobs legitimately cross tenant boundaries — billing reconciliation, support with
         explicit customer consent, migration scripts. Those paths use a tiny audited helper and
-        every callsite is tagged <code className="font-mono text-accent-blue">// RLS-BYPASS:&lt;reason&gt;</code>{" "}
+        every callsite is tagged{" "}
+        <code className="font-mono text-accent-blue">{"// RLS-BYPASS:<reason>"}</code>{" "}
         so security review and CI grep stay honest. If you are evaluating us, ask for the bypass
         inventory; it should be boringly small.
       </p>

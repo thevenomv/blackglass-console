@@ -24,7 +24,7 @@ export default function ToolsLayout({ children }: { children: ReactNode }) {
   return (
     <div className="bg-bg-base">
       <div className="border-b border-border-subtle bg-bg-panel/40">
-        <div className="mx-auto max-w-6xl px-4 pt-10 pb-4">
+        <div className="mx-auto max-w-7xl px-4 pt-10 pb-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">
             Blackglass Tools
           </p>
@@ -39,7 +39,7 @@ export default function ToolsLayout({ children }: { children: ReactNode }) {
         </div>
         <nav
           aria-label="Tools sub-navigation"
-          className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 pb-3 text-sm"
+          className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-3 text-sm"
         >
           {SUB_NAV.map((item) => (
             <Link

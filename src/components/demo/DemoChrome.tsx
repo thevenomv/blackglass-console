@@ -29,7 +29,7 @@ export function DemoChrome({ children }: { children: React.ReactNode }) {
         fictional and resets on refresh. Nothing here connects to your infrastructure.
       </div>
       <header className="border-b border-border-default bg-bg-panel px-4 py-3">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-fg-faint">
               Blackglass product tour
@@ -67,7 +67,7 @@ export function DemoChrome({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8">{children}</main>
     </div>
   );
 }

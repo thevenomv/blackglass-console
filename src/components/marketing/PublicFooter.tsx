@@ -11,7 +11,7 @@ const COPYRIGHT_YEAR = new Date().getFullYear();
 export function PublicFooter() {
   return (
     <footer className="border-t border-border-default bg-bg-panel py-12 text-sm text-fg-muted">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mx-auto grid max-w-7xl items-start gap-8 px-4 sm:grid-cols-2 lg:grid-cols-6">
         <div className="lg:col-span-1">
           <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Blackglass</p>
           <p className="mt-2 max-w-sm">
@@ -61,42 +61,38 @@ export function PublicFooter() {
             <li><Link href="/vs/qualys" className="hover:text-fg-primary">vs Qualys</Link></li>
           </ul>
         </div>
-        <div className="space-y-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Resources</p>
-            <ul className="mt-2 space-y-1.5">
-              <li><Link href="/glossary" className="hover:text-fg-primary">Glossary</Link></li>
-              <li><Link href="/blog" className="hover:text-fg-primary">Blog</Link></li>
-              <li><Link href="/changelog" className="hover:text-fg-primary">Changelog</Link></li>
-              <li>
-                <Link href="/changelog/feed.xml" className="hover:text-fg-primary">RSS feed</Link>
-              </li>
-              <li><Link href="/docs/snapshot-freshness" className="hover:text-fg-primary">Snapshot freshness</Link></li>
-              <li><Link href="/docs/api" className="hover:text-fg-primary">API docs &amp; examples</Link></li>
-              <li><Link href="/tools" className="hover:text-fg-primary">Free tools</Link></li>
-              <li><Link href="/tools/cloud-waste-estimator" className="hover:text-fg-primary">Cloud waste estimator</Link></li>
-              <li><Link href="/status" className="hover:text-fg-primary">System status</Link></li>
-            </ul>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Legal</p>
-            <ul className="mt-2 space-y-1.5">
-              <li><Link href="/privacy" className="hover:text-fg-primary">Legal &amp; privacy</Link></li>
-              <li><Link href="/terms" className="hover:text-fg-primary">Terms</Link></li>
-              <li><Link href="/dpa" className="hover:text-fg-primary">Data processing (DPA)</Link></li>
-              <li><Link href="/subprocessors" className="hover:text-fg-primary">Subprocessors</Link></li>
-            </ul>
-          </div>
+        <div className="sm:col-span-2 lg:col-span-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-fg-faint">Resources</p>
+          <ul className="mt-2 space-y-1.5 lg:columns-2 lg:gap-x-8 lg:space-y-0 [&>li]:lg:break-inside-avoid [&>li]:lg:pb-1.5">
+            <li><Link href="/glossary" className="hover:text-fg-primary">Glossary</Link></li>
+            <li><Link href="/blog" className="hover:text-fg-primary">Blog</Link></li>
+            <li><Link href="/changelog" className="hover:text-fg-primary">Changelog</Link></li>
+            <li>
+              <Link href="/changelog/feed.xml" className="hover:text-fg-primary">RSS feed</Link>
+            </li>
+            <li><Link href="/docs/snapshot-freshness" className="hover:text-fg-primary">Snapshot freshness</Link></li>
+            <li><Link href="/docs/api" className="hover:text-fg-primary">API docs &amp; examples</Link></li>
+            <li><Link href="/tools" className="hover:text-fg-primary">Free tools</Link></li>
+            <li><Link href="/tools/cloud-waste-estimator" className="hover:text-fg-primary">Cloud waste estimator</Link></li>
+          </ul>
         </div>
       </div>
-      <div className="mx-auto mt-10 max-w-6xl space-y-1 px-4 text-xs leading-relaxed text-fg-faint">
-        <p>
-          © {COPYRIGHT_YEAR} Obsidian Dynamics Limited (Co. No. 16663833). UK ICO registration{" "}
-          <span className="whitespace-nowrap">ZC141175</span>.
-        </p>
-        <p>
-          Registered office: Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset BH16 6FA.
-        </p>
+      <div className="mx-auto mt-10 max-w-7xl border-t border-border-subtle px-4 pt-8">
+        <nav aria-label="Legal" className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-fg-muted">
+          <Link href="/privacy" className="hover:text-fg-primary">Legal &amp; privacy</Link>
+          <Link href="/terms" className="hover:text-fg-primary">Terms</Link>
+          <Link href="/dpa" className="hover:text-fg-primary">Data processing (DPA)</Link>
+          <Link href="/subprocessors" className="hover:text-fg-primary">Subprocessors</Link>
+        </nav>
+        <div className="mt-6 space-y-1 text-xs leading-relaxed text-fg-faint">
+          <p>
+            © {COPYRIGHT_YEAR} Obsidian Dynamics Limited (Co. No. 16663833). UK ICO registration{" "}
+            <span className="whitespace-nowrap">ZC141175</span>.
+          </p>
+          <p>
+            Registered office: Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset BH16 6FA.
+          </p>
+        </div>
       </div>
     </footer>
   );

@@ -65,7 +65,7 @@ export function LandingPage() {
     <>
       <main>
         <section className="border-b border-border-subtle px-4 py-16 sm:py-24">
-          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
+          <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-2 lg:items-center">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">
                 Clarity for Linux teams
@@ -112,7 +112,7 @@ export function LandingPage() {
         </section>
 
         <section id="problem" className="scroll-mt-20 px-4 py-14 sm:py-16">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-7xl">
             <h2 className="text-2xl font-semibold text-fg-primary">Why small changes add up</h2>
             <p className="mt-4 max-w-3xl text-fg-muted">
               Rules change. Software updates. Someone adjusts remote login settings. Spreadsheets and
@@ -138,7 +138,7 @@ export function LandingPage() {
         </section>
 
         <section id="product" className="scroll-mt-20 border-t border-border-subtle bg-bg-panel/40 px-4 py-14 sm:py-16">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-7xl">
             <h2 className="text-2xl font-semibold text-fg-primary">How it works</h2>
             <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {[
@@ -174,7 +174,7 @@ export function LandingPage() {
         </section>
 
         <section className="border-t border-border-subtle bg-bg-panel/40 px-4 py-14 sm:py-16">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-7xl">
             <h2 className="text-2xl font-semibold text-fg-primary">Optional: Charon for cloud sprawl</h2>
             <p className="mt-4 max-w-3xl text-fg-muted">
               When you enable the Charon add-on, you can link read-scoped credentials for
@@ -209,7 +209,7 @@ export function LandingPage() {
         </section>
 
         <section className="px-4 py-14 sm:py-16">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-7xl">
             <h2 className="text-2xl font-semibold text-fg-primary">Try it without risk</h2>
             <p className="mt-3 max-w-2xl text-fg-muted">
               Walk through a sample workspace with made-up data — same screens and flows you get with a
@@ -227,7 +227,7 @@ export function LandingPage() {
         </section>
 
         <section className="border-t border-border-subtle px-4 py-14 sm:py-16">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-7xl">
             <h2 className="text-2xl font-semibold text-fg-primary">Security and trust</h2>
             <ul className="mt-6 grid gap-3 sm:grid-cols-2">
               {[
@@ -255,7 +255,7 @@ export function LandingPage() {
         </section>
 
         <section className="border-t border-border-subtle bg-bg-panel/50 px-4 py-16">
-          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
+          <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-xl font-semibold text-fg-primary">Ready when you are</h2>
               <p className="mt-2 text-sm text-fg-muted">
@@ -274,7 +274,7 @@ export function LandingPage() {
               </TrialSignupLink>
             </div>
           </div>
-          <p className="mx-auto mt-6 max-w-6xl text-center text-xs text-fg-faint">
+          <p className="mx-auto mt-6 max-w-7xl text-center text-xs text-fg-faint">
             Already using Blackglass?{" "}
             <Link href={signIn} className="text-accent-blue hover:underline">
               Sign in

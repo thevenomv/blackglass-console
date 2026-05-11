@@ -91,7 +91,7 @@ const TOOLS: ToolCard[] = [
 
 export default function ToolsIndexPage() {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-12 sm:py-14">
+    <main className="mx-auto max-w-7xl px-4 py-12 sm:py-14">
       <JsonLd
         id="schema-breadcrumb"
         data={breadcrumbSchema([
