@@ -137,6 +137,13 @@ export default function RootLayout({
         <ThemeProvider>
           {clerkPk ? <ClerkThemedProvider publishableKey={clerkPk}>{inner}</ClerkThemedProvider> : inner}
         </ThemeProvider>
+        <Script
+          id="apollo-tracker"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var n=Math.random().toString(36).substring(7),o=document.createElement("script");o.src="https://assets.apollo.io/micro/website-tracker/tracker.iife.js?nocache="+n,o.async=!0,o.defer=!0,o.onload=function(){window.trackingFunctions.onLoad({appId:"69de4b24cd8c58000d6e1933"})},document.head.appendChild(o)})();`,
+          }}
+        />
       </body>
     </html>
   );

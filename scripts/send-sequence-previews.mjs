@@ -262,12 +262,10 @@ function toHtml(text) {
   const rows = text.split("\n").map((line) => {
     const trimmed = line.trim();
 
-    // Blank line → small spacer row
     if (trimmed === "") {
       return `<tr><td style="height:10px;"></td></tr>`;
     }
 
-    // Line that is ONLY a URL → render as a CTA button
     if (/^https?:\/\/\S+$/.test(trimmed)) {
       const path = trimmed.replace(/^https?:\/\/[^/]+/, "").replace(/^\//, "");
       const label = path === "" ? "Open →" : path === "demo" ? "See the interactive demo →" : path === "security" ? "Read the security overview →" : path === "pricing" ? "View pricing →" : `${path} →`;
@@ -276,7 +274,6 @@ function toHtml(text) {
       </td></tr>`;
     }
 
-    // Regular text line — linkify any embedded URLs
     const escaped = trimmed
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -287,7 +284,8 @@ function toHtml(text) {
   });
 
   const APP_URL_CLEAN = APP_URL.replace(/\/+$/, "");
-  const LOGO_MARK = `<img src="${APP_URL_CLEAN}/brand/logo-email.png" width="200" height="40" alt="Blackglass" style="display:block;border:0;outline:none;text-decoration:none;" />`;
+  // 1774×887px source → display at 140px wide, height auto (correct 2:1 ratio)
+  const LOGO_IMG = `<img src="${APP_URL_CLEAN}/brand/logo-email.png" width="140" style="display:block;width:140px;height:auto;border:0;outline:none;text-decoration:none;" alt="Blackglass" />`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -299,34 +297,27 @@ function toHtml(text) {
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f1f5f9;">
     <tr><td align="center" style="padding:32px 16px 48px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;width:100%;">
 
-        <!-- ── Brand header ── -->
-        <tr><td style="background:#ffffff;border-radius:10px 10px 0 0;padding:24px 32px;border:1px solid #e2e8f0;border-bottom:none;">
-          ${LOGO_MARK}
+      <!-- Single seamless white card, blue top border -->
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"
+             style="max-width:560px;width:100%;background:#ffffff;border-radius:10px;border-top:4px solid #3b82f6;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
+
+        <!-- ── Logo row ── -->
+        <tr><td style="padding:28px 36px 16px;background:#ffffff;">
+          ${LOGO_IMG}
         </td></tr>
 
-        <!-- ── Blue accent bar ── -->
-        <tr><td style="height:3px;background:#3b82f6;font-size:0;line-height:0;">&nbsp;</td></tr>
-
-        <!-- ── Email body ── -->
-        <tr><td style="background:#ffffff;padding:36px 36px 28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+        <!-- ── Body + footer ── -->
+        <tr><td style="padding:4px 36px 28px;background:#ffffff;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
             ${rows.join("\n            ")}
-
-            <!-- ── Divider ── -->
-            <tr><td style="height:1px;background:#e2e8f0;padding:0;margin:0;font-size:0;line-height:0;">&nbsp;</td></tr>
-
-            <!-- ── Footer ── -->
-            <tr><td style="padding-top:20px;font-size:11px;color:#94a3b8;line-height:1.7;">
+            <tr><td style="height:1px;background:#e2e8f0;font-size:0;line-height:0;padding:0;">&nbsp;</td></tr>
+            <tr><td style="padding-top:20px;font-size:11px;color:#94a3b8;line-height:1.7;font-family:Arial,Helvetica,sans-serif;">
               Blackglass is a product of Obsidian Dynamics Limited (Co.&nbsp;No.&nbsp;16663833)<br/>
               Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset BH16&nbsp;6FA, United Kingdom
             </td></tr>
           </table>
         </td></tr>
-
-        <!-- ── Bottom cap ── -->
-        <tr><td style="background:#ffffff;height:6px;border-radius:0 0 10px 10px;border:1px solid #e2e8f0;border-top:none;"></td></tr>
 
       </table>
     </td></tr>

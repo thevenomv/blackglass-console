@@ -35,6 +35,7 @@
     "email:marketing": "node scripts/send-opt-in-marketing.mjs",
     "email:preview-sequences": "node scripts/send-sequence-previews.mjs",
     "prospects:pull": "node scripts/apollo-prospect-pull.mjs",
+    "prospects:enrol": "node scripts/apollo-enrol-sequences.mjs",
     "secrets:init-local": "node scripts/init-local-credentials.mjs",
     "secrets:merge-local": "node scripts/merge-local-secrets.mjs",
     "secrets:verify": "node scripts/verify-outbound-keys.mjs",
