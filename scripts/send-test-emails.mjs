@@ -6,7 +6,7 @@
  * clients, and the messages don't land in spam.
  *
  * Usage:
- *   node scripts/send-test-emails.mjs --to=jamie@obsidiandynamics.co.uk
+ *   node scripts/send-test-emails.mjs --to=hello@blackglasssec.com
  *   node scripts/send-test-emails.mjs --to=you@x.com --template=welcome
  *
  * Env (must be set or sourced from .env.local):

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { stripe } from "@/lib/stripe";
+import { getMarketingContactEmail } from "@/lib/marketing/contact";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { checkCheckoutRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     return jsonError(
       503,
       "billing_unavailable",
-      "Online checkout is not enabled on this deployment. Email jamie@obsidiandynamics.co.uk or book a walkthrough — we will send you a checkout link.",
+      `Online checkout is not enabled on this deployment. Email ${getMarketingContactEmail()} or book a walkthrough — we will send you a checkout link.`,
       requestId,
     );
   }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { marketingMailtoHref } from "@/lib/marketing/contact";
 
 export const metadata: Metadata = {
   title: "Page not found · Blackglass",
@@ -129,7 +130,7 @@ export default function NotFound() {
       <p className="mt-12 text-center text-xs text-fg-faint">
         Hit a 404 from a real link?{" "}
         <a
-          href="mailto:jamie@obsidiandynamics.co.uk?subject=Broken%20link%20on%20blackglasssec.com"
+          href={marketingMailtoHref("Broken link on blackglasssec.com")}
           className="text-accent-blue hover:underline"
         >
           Tell us where

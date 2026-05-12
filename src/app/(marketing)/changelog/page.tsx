@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 import {
   breadcrumbSchema,
   canonical,
@@ -115,8 +116,8 @@ export default function ChangelogPage() {
           RSS
         </a>
         , or email{" "}
-        <a className="text-accent-blue hover:underline" href="mailto:jamie@obsidiandynamics.co.uk">
-          jamie@obsidiandynamics.co.uk
+        <a className="text-accent-blue hover:underline" href={marketingMailtoHref()}>
+          {MARKETING_CONTACT_EMAIL}
         </a>
         {" "}to be looped into release notifications.
       </footer>

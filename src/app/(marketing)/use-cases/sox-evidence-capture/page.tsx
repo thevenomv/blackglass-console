@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getMarketingContactEmail } from "@/lib/marketing/contact";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { breadcrumbSchema, canonical, defaultOgImages } from "@/lib/seo";
 
@@ -185,7 +186,7 @@ export default function SoxEvidenceCapturePage() {
         </Link>
       </div>
       <p className="mt-4 text-xs text-fg-faint">
-        Need a sample evidence bundle for your auditor? Email jamie@obsidiandynamics.co.uk and
+        Need a sample evidence bundle for your auditor? Email {getMarketingContactEmail()} and
         we&rsquo;ll send a redacted one.
       </p>
     </main>

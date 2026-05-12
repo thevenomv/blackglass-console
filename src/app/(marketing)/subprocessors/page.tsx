@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -175,10 +176,10 @@ export default function SubprocessorsPage() {
           To subscribe to material change notifications, or to ask a procurement
           question, contact{" "}
           <a
-            href="mailto:jamie@obsidiandynamics.co.uk?subject=Subprocessors%20notification%20%E2%80%94%20Blackglass"
+            href={marketingMailtoHref("Subprocessors notification — Blackglass")}
             className="text-accent-blue hover:underline"
           >
-            jamie@obsidiandynamics.co.uk
+            {MARKETING_CONTACT_EMAIL}
           </a>
           .
         </p>

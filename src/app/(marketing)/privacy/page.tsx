@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -39,8 +40,8 @@ export default function PrivacyPage() {
         </p>
         <p>
           Contact:{" "}
-          <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
-            jamie@obsidiandynamics.co.uk
+          <a href={marketingMailtoHref()} className="text-accent-blue hover:underline">
+            {MARKETING_CONTACT_EMAIL}
           </a>
           {" "}|{" "}
           <ExternalLink href="https://obsidiandynamics.co.uk">obsidiandynamics.co.uk</ExternalLink>
@@ -163,8 +164,8 @@ export default function PrivacyPage() {
         </ul>
         <p className="mt-2">
           To exercise any of these rights, email{" "}
-          <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
-            jamie@obsidiandynamics.co.uk
+          <a href={marketingMailtoHref()} className="text-accent-blue hover:underline">
+            {MARKETING_CONTACT_EMAIL}
           </a>
           . We will respond within 30 days. You also have the right to lodge a complaint with the
           Information Commissioner&rsquo;s Office (ICO) at{" "}
@@ -234,8 +235,8 @@ export default function PrivacyPage() {
       <Section title="13. Contact and complaints">
         <p>
           Data protection enquiries:{" "}
-          <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
-            jamie@obsidiandynamics.co.uk
+          <a href={marketingMailtoHref()} className="text-accent-blue hover:underline">
+            {MARKETING_CONTACT_EMAIL}
           </a>
           <br />
           <span className="mt-2 block">

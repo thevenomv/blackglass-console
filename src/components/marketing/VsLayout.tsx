@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { marketingMailtoHref } from "@/lib/marketing/contact";
 
 /**
  * Shared layout primitive for the /vs/* comparison pages.
@@ -196,7 +197,7 @@ export function VsLayout(props: VsPageProps) {
           date,{" "}
           <a
             className="text-accent-blue hover:underline"
-            href={`mailto:jamie@obsidiandynamics.co.uk?subject=Comparison%20update%3A%20${encodeURIComponent(competitorName)}`}
+            href={marketingMailtoHref(`Comparison update: ${competitorName}`)}
           >
             tell us where
           </a>{" "}

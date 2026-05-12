@@ -1,3 +1,4 @@
+import { getMarketingContactEmail } from "@/lib/marketing/contact";
 import { siteOrigin } from "@/lib/site";
 
 /**
@@ -24,6 +25,7 @@ export const revalidate = 3600;
 
 export async function GET() {
   const origin = siteOrigin() ?? "https://blackglasssec.com";
+  const marketingEmail = getMarketingContactEmail();
   const body = `# Blackglass
 
 > Operational integrity for Linux fleets. Drift detection, evidence
@@ -95,7 +97,7 @@ export async function GET() {
 
 - [Book a walkthrough](${origin}/book)
 - [Contact sales](${origin}/contact-sales)
-- jamie@obsidiandynamics.co.uk
+- ${marketingEmail}
 `;
 
   return new Response(body, {

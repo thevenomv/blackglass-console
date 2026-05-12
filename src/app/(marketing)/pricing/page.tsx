@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PricingSection from "@/components/pricing/PricingSection";
+import { getMarketingContactEmail, marketingMailtoHref } from "@/lib/marketing/contact";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
   breadcrumbSchema,
@@ -44,6 +45,8 @@ const TIER_SCHEMA: Array<{ name: string; description: string; monthly: number; a
   { name: "Blackglass Business", description: "300 hosts · 10 operator seats · immutable audit log · Remediator add-on included · priority support.",          monthly:  499, annual: 4990 },
   { name: "Blackglass Enterprise", description: "Unlimited hosts/seats, SSO, BYOK, air-gapped option, named CSM, signed SLA. Anchor pricing from $2,500/mo.",  monthly: 2500, annual: 25000 },
 ];
+
+const marketingContactEmail = getMarketingContactEmail();
 
 const FAQ = [
   {
@@ -112,7 +115,7 @@ const FAQ = [
   },
   {
     q: "Can we complete a vendor security questionnaire?",
-    a: "Yes. Send your SIG Lite, CAIQ, or custom spreadsheet to jamie@obsidiandynamics.co.uk — we return completed answers within five business days for standard questionnaires, or faster on Enterprise with an NDA in place. The public security page already covers encryption, RLS, retention, subprocessors, and air-gapped mode.",
+    a: `Yes. Send your SIG Lite, CAIQ, or custom spreadsheet to ${marketingContactEmail} — we return completed answers within five business days for standard questionnaires, or faster on Enterprise with an NDA in place. The public security page already covers encryption, RLS, retention, subprocessors, and air-gapped mode.`,
   },
   {
     q: "Where is data hosted? Can we stay in the EU or UK?",
@@ -192,7 +195,7 @@ export default function PricingPage() {
             </dl>
             <p className="mt-8 text-sm">
               More questions?{" "}
-              <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
+              <a href={marketingMailtoHref()} className="text-accent-blue hover:underline">
                 Email us
               </a>{" "}
               or{" "}

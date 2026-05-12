@@ -18,6 +18,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import type { TenantRole } from "@/lib/saas/tenant-role";
 import { sendEmail } from "@/lib/email/send";
 import { welcomeEmailHtml, welcomeEmailText } from "@/lib/email/templates/welcome";
+import { getMarketingContactEmail } from "@/lib/marketing/contact";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
                   subject: "Welcome to Blackglass — your trial is ready",
                   html: welcomeEmailHtml({ firstName, orgName: readOrgName(evt.data), consoleUrl }),
                   text: welcomeEmailText({ firstName, orgName: readOrgName(evt.data), consoleUrl }),
-                  replyTo: "jamie@obsidiandynamics.co.uk",
+                  replyTo: getMarketingContactEmail(),
                 });
               }
             }

@@ -9,6 +9,7 @@
  * https://validator.schema.org/ before shipping.
  */
 
+import { getMarketingContactEmail } from "@/lib/marketing/contact";
 import { siteOrigin } from "@/lib/site";
 
 /**
@@ -138,7 +139,7 @@ export function organizationSchema(): Record<string, unknown> {
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "sales",
-      email: "jamie@obsidiandynamics.co.uk",
+      email: getMarketingContactEmail(),
       availableLanguage: ["English"],
     },
     sameAs: [

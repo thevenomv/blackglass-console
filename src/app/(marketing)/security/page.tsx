@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getSecurityContactEmail, securityMailtoHref } from "@/lib/marketing/contact";
 import { breadcrumbSchema, canonical, defaultOgImages, faqPageSchema } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 
@@ -74,6 +75,8 @@ const DRIFT_CATEGORIES = [
   ["Environment", "/etc/hosts changes (DNS hijack detection)"],
 ];
 
+const securityContactEmail = getSecurityContactEmail();
+
 const SECURITY_FAQ = [
   {
     q: "Is Blackglass a SIEM replacement?",
@@ -97,7 +100,7 @@ const SECURITY_FAQ = [
   },
   {
     q: "How do you handle vulnerability disclosure?",
-    a: "Report security issues to jamie@obsidiandynamics.co.uk with encrypted detail if needed. We commit to timely triage, workarounds where possible, and coordinated disclosure for confirmed issues affecting customer data.",
+    a: `Report security issues to ${securityContactEmail} with encrypted detail if needed. We commit to timely triage, workarounds where possible, and coordinated disclosure for confirmed issues affecting customer data.`,
   },
 ];
 
@@ -470,8 +473,8 @@ export default function SecurityPage() {
         {/* Footer */}
         <div className="flex flex-wrap items-center gap-4 border-t border-border-subtle pt-6 text-xs text-fg-faint">
           <span>Questions?{" "}
-            <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
-              jamie@obsidiandynamics.co.uk
+            <a href={securityMailtoHref()} className="text-accent-blue hover:underline">
+              {securityContactEmail}
             </a>
           </span>
           <span>·</span>

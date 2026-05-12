@@ -14,6 +14,7 @@ import { checkDemoCtaRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { sendEmail } from "@/lib/email/send";
+import { getDefaultSalesInboxEmail } from "@/lib/marketing/contact";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Notify the sales inbox — fire-and-forget; never block the response on send failure.
-  const salesInbox = process.env.SALES_NOTIFICATION_EMAIL ?? "jamie@obsidiandynamics.co.uk";
+  const salesInbox = process.env.SALES_NOTIFICATION_EMAIL ?? getDefaultSalesInboxEmail();
   sendEmail({
     to: salesInbox,
     subject: `Demo lead: ${email}`,

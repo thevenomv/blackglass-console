@@ -2,6 +2,7 @@
 
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import Link from "next/link";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 
 // ---------------------------------------------------------------------------
 // Atoms
@@ -280,7 +281,7 @@ export function SecurityOverviewSection() {
           <Link href="/settings" className="text-accent-blue hover:underline">
             Configure secrets backend
           </Link>
-          <span>Questions? <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">jamie@obsidiandynamics.co.uk</a></span>
+          <span>Questions? <a href={marketingMailtoHref()} className="text-accent-blue hover:underline">{MARKETING_CONTACT_EMAIL}</a></span>
           <span className="text-fg-faint">·</span>
           <a href="https://obsidiandynamics.co.uk" target="_blank" rel="noopener noreferrer" className="text-accent-blue hover:underline">obsidiandynamics.co.uk</a>
           <span className="text-fg-faint">·</span>

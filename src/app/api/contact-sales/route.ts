@@ -4,8 +4,9 @@
  * Public lead-intake endpoint for the Enterprise tier. Accepts a small
  * structured payload, applies basic validation + rate-limiting, then
  * fans the lead out to (a) Slack #sales (when SLACK_SALES_WEBHOOK_URL
- * is set), (b) email to SALES_LEAD_EMAIL (default
- * jamie@obsidiandynamics.co.uk) via Resend, and (c) the audit log so
+ * is set), (b) email to SALES_LEAD_EMAIL (defaults to the marketing inbox
+ * from `getDefaultSalesInboxEmail()` / NEXT_PUBLIC_MARKETING_CONTACT_EMAIL)
+ * via Resend, and (c) the audit log so
  * leads survive the email/webhook hops.
  *
  * Why a server endpoint vs mailto: this keeps the lead in our
@@ -20,6 +21,7 @@
 
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/email/send";
+import { getDefaultSalesInboxEmail } from "@/lib/marketing/contact";
 import { appendAudit, AUDIT_ACTIONS, formatAuditDetail } from "@/lib/server/audit-log";
 import { jsonError } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
     return jsonError(
       429,
       "rate_limited",
-      "Too many enquiries from this IP. Please retry in a few minutes or email jamie@obsidiandynamics.co.uk directly.",
+      `Too many enquiries from this IP. Please retry in a few minutes or email ${getDefaultSalesInboxEmail()} directly.`,
       requestId,
     );
   }
@@ -96,7 +98,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const salesEmail = process.env.SALES_LEAD_EMAIL?.trim() || "jamie@obsidiandynamics.co.uk";
+  const salesEmail = process.env.SALES_LEAD_EMAIL?.trim() || getDefaultSalesInboxEmail();
   const slackUrl = process.env.SLACK_SALES_WEBHOOK_URL?.trim() || process.env.SLACK_ALERT_WEBHOOK_URL?.trim();
 
   // Audit-log the lead first — we never want a lead to be lost just

@@ -1,7 +1,7 @@
 /**
  * POST /api/admin/test-email
  *
- * Fires every transactional email template â€” or a single named one â€”
+ * Fires every transactional email template — or a single named one —
  * to a target inbox so an operator can validate Resend is configured,
  * the From domain is authenticated (SPF/DKIM/DMARC), templates render
  * cleanly across mail clients, and the messages don't land in spam.
@@ -39,6 +39,7 @@ import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { checkContactSalesRate, clientIp } from "@/lib/server/rate-limit";
 import { sendEmail } from "@/lib/email/send";
+import { getDefaultSalesInboxEmail } from "@/lib/marketing/contact";
 import {
   welcomeEmailHtml,
   welcomeEmailText,
@@ -273,7 +274,7 @@ export async function POST(request: Request) {
   const to =
     parsed.data.to?.trim() ||
     process.env.SALES_LEAD_EMAIL?.trim() ||
-    "jamie@obsidiandynamics.co.uk";
+    getDefaultSalesInboxEmail();
   const template = parsed.data.template ?? "all";
 
   if (!process.env.RESEND_API_KEY?.trim()) {

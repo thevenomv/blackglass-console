@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -30,8 +31,8 @@ export default function TermsPage() {
           Our website is{" "}
           <ExternalLink href="https://obsidiandynamics.co.uk">obsidiandynamics.co.uk</ExternalLink>.
           Contact us at{" "}
-          <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
-            jamie@obsidiandynamics.co.uk
+          <a href={marketingMailtoHref()} className="text-accent-blue hover:underline">
+            {MARKETING_CONTACT_EMAIL}
           </a>
           .
         </p>
@@ -198,8 +199,8 @@ export default function TermsPage() {
       <Section title="13. Contact">
         <p>
           For questions about these Terms, contact us at{" "}
-          <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
-            jamie@obsidiandynamics.co.uk
+          <a href={marketingMailtoHref()} className="text-accent-blue hover:underline">
+            {MARKETING_CONTACT_EMAIL}
           </a>{" "}
           or via{" "}
           <ExternalLink href="https://obsidiandynamics.co.uk">obsidiandynamics.co.uk</ExternalLink>.

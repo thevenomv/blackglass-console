@@ -35,7 +35,7 @@ Internal checklist for Obsidian Dynamics Limited (Blackglass). Not legal advice;
 ## 6. Contacts (fill in if they change)
 
 - **ICO:** [ico.org.uk](https://ico.org.uk) — report a breach via their online form.
-- **Internal:** primary data protection contact `jamie@obsidiandynamics.co.uk`.
+- **Internal:** primary data protection contact `security@blackglasssec.com` (see `/.well-known/security.txt`).
 - **Company:** Obsidian Dynamics Limited, ICO registration ZC141175.
 
 ## 7. Annual reminder

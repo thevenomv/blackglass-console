@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ContactSalesForm } from "@/components/marketing/ContactSalesForm";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 import { breadcrumbSchema, canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 
@@ -45,8 +46,8 @@ export default function ContactSalesPage() {
           Tell us about your fleet, your compliance regime, and how you&apos;d like to use
           Blackglass. We typically reply within one business day. For urgent help,
           email{" "}
-          <a className="text-accent-blue hover:underline" href="mailto:jamie@obsidiandynamics.co.uk">
-            jamie@obsidiandynamics.co.uk
+          <a className="text-accent-blue hover:underline" href={marketingMailtoHref()}>
+            {MARKETING_CONTACT_EMAIL}
           </a>
           {" "}or{" "}
           <a className="text-accent-blue hover:underline" href="/book">

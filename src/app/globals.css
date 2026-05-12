@@ -110,6 +110,8 @@ html[data-theme="dark"] {
 }
 
 body {
+  /* font-sans → IBM Plex Sans (next/font) + system-ui; latin + latin-ext subsets reduce
+     per-glyph fallback that can look like “random” mixed typography for EU names. */
   @apply min-h-screen bg-bg-base text-fg-primary antialiased font-sans;
 }
 

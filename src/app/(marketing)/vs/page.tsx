@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { marketingMailtoHref } from "@/lib/marketing/contact";
 import { breadcrumbSchema, canonical, dynamicOgImages } from "@/lib/seo";
 
 const TITLE = "Blackglass vs cloud security platforms";
@@ -128,7 +129,7 @@ export default function VsIndexPage() {
         Want a comparison page that isn&rsquo;t listed?{" "}
         <a
           className="text-accent-blue hover:underline"
-          href="mailto:jamie@obsidiandynamics.co.uk?subject=Comparison%20request"
+          href={marketingMailtoHref("Comparison request")}
         >
           Tell us which vendor
         </a>{" "}

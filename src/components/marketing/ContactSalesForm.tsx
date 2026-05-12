@@ -18,6 +18,7 @@
  */
 
 import { useState, type FormEvent } from "react";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 
 type Status =
   | { kind: "idle" }
@@ -78,7 +79,7 @@ export function ContactSalesForm() {
       setStatus({
         kind: "error",
         message:
-          body.detail ?? body.message ?? `Server returned ${res.status}. Please try again or email jamie@obsidiandynamics.co.uk.`,
+          body.detail ?? body.message ?? `Server returned ${res.status}. Please try again or email ${MARKETING_CONTACT_EMAIL}.`,
       });
     } catch (err) {
       setStatus({
@@ -98,8 +99,8 @@ export function ContactSalesForm() {
         <p className="mt-2 text-sm text-fg-muted">
           A human will reply within one business day. If you don&rsquo;t see anything in 48
           hours, please check your spam folder or email{" "}
-          <a className="text-accent-blue hover:underline" href="mailto:jamie@obsidiandynamics.co.uk">
-            jamie@obsidiandynamics.co.uk
+          <a className="text-accent-blue hover:underline" href={marketingMailtoHref()}>
+            {MARKETING_CONTACT_EMAIL}
           </a>
           .
         </p>

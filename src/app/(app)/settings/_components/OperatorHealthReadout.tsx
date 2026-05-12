@@ -1,5 +1,6 @@
 import { baselineStoreHealth } from "@/lib/server/baseline-store";
 import { collectorRuntimeHealth } from "@/lib/server/collector-runtime";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 
 export function OperatorHealthReadout() {
   const c = collectorRuntimeHealth();
@@ -47,10 +48,10 @@ export function OperatorHealthReadout() {
                 </a>{" "}
                 below for setup instructions, or email{" "}
                 <a
-                  href="mailto:jamie@obsidiandynamics.co.uk?subject=SSH%20key%20setup%20for%20Blackglass"
+                  href={marketingMailtoHref("SSH key setup for Blackglass")}
                   className="text-accent-blue hover:underline"
                 >
-                  jamie@obsidiandynamics.co.uk
+                  {MARKETING_CONTACT_EMAIL}
                 </a>
                 .
               </span>

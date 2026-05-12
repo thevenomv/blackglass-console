@@ -128,7 +128,7 @@ This is the part nobody skips. **Five critical queries**, all run
 against the restored staging app. Tick each one off; record the
 wall-clock at first successful render.
 
-- [ ] **Sign in** as `jamie@obsidiandynamics.co.uk` via Clerk → land on
+- [ ] **Sign in** as your workspace admin via Clerk → land on
       `/dashboard`. Tenant context should resolve correctly.
 - [ ] **Fleet roster:** `GET /api/v1/hosts` returns the same host
       count as production at the snapshot time (compare against a

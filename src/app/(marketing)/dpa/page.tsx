@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -130,10 +131,10 @@ export default function DpaPage() {
           where required by law and your agreement; subscribe to those
           notifications via{" "}
           <a
-            href="mailto:jamie@obsidiandynamics.co.uk?subject=Subprocessors%20notification%20%E2%80%94%20Blackglass"
+            href={marketingMailtoHref("Subprocessors notification — Blackglass")}
             className="text-accent-blue hover:underline"
           >
-            jamie@obsidiandynamics.co.uk
+            {MARKETING_CONTACT_EMAIL}
           </a>
           .
         </p>
@@ -159,8 +160,8 @@ export default function DpaPage() {
         <p>
           This web DPA reflects our standard commitment to organisational customers. For procurement
           requiring a countersigned order form or custom schedules, contact{" "}
-          <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
-            jamie@obsidiandynamics.co.uk
+          <a href={marketingMailtoHref()} className="text-accent-blue hover:underline">
+            {MARKETING_CONTACT_EMAIL}
           </a>
           . Each party should retain a copy of any countersigned DPA or order form (including
           version or effective date) with its contract records for the life of the agreement and any

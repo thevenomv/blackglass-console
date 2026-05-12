@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { marketingMailtoHref } from "@/lib/marketing/contact";
 
 interface CheckoutButtonProps {
   className: string;
@@ -101,7 +102,7 @@ export default function CheckoutButton({
                 Book a walkthrough
               </Link>{" "}
               ·{" "}
-              <a href="mailto:jamie@obsidiandynamics.co.uk?subject=Blackglass%20billing" className="font-medium text-accent-blue hover:underline">
+              <a href={marketingMailtoHref("Blackglass billing")} className="font-medium text-accent-blue hover:underline">
                 Email billing
               </a>
             </>

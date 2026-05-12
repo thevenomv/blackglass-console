@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { StatusBoard } from "@/components/marketing/StatusBoard";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 import { breadcrumbSchema, canonical, defaultOgImages, defaultTwitterImages } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 
@@ -52,8 +53,8 @@ export default function StatusPage() {
 
       <section className="mt-12 rounded-card border border-border-default bg-bg-panel/50 p-4 text-xs leading-relaxed text-fg-muted">
         Want a heads-up the moment something goes red? Subscribe via{" "}
-        <a className="text-accent-blue hover:underline" href="mailto:jamie@obsidiandynamics.co.uk?subject=Status%20notifications%20please">
-          jamie@obsidiandynamics.co.uk
+        <a className="text-accent-blue hover:underline" href={marketingMailtoHref("Status notifications please")}>
+          {MARKETING_CONTACT_EMAIL}
         </a>
         {" "}— we&rsquo;ll add you to the incident list. For ongoing reliability questions
         the{" "}

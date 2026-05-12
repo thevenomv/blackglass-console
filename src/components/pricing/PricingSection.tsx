@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { MARKETING_CONTACT_EMAIL, marketingMailtoHref } from "@/lib/marketing/contact";
 import { ADD_ONS } from "@/lib/saas/plans";
 import CheckoutButton from "./CheckoutButton";
 
@@ -323,7 +324,7 @@ function TierCard({ tier, billingCycle }: { tier: PricingTier; billingCycle: Bil
           </CheckoutButton>
         ) : (
           <a
-            href={tier.ctaHref ?? "mailto:jamie@obsidiandynamics.co.uk"}
+            href={tier.ctaHref ?? marketingMailtoHref()}
             className="block w-full rounded-card border border-border-default bg-bg-elevated py-2.5 text-center text-sm font-semibold text-fg-primary transition-colors hover:border-accent-blue hover:text-accent-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-bg-panel"
           >
             {tier.cta}
@@ -541,8 +542,8 @@ export default function PricingSection() {
             Obsidian Dynamics Limited
           </a>
           {" "}(Co. No. 16663833, England &amp; Wales).{" "}Questions?{" "}
-          <a href="mailto:jamie@obsidiandynamics.co.uk" className="text-accent-blue hover:underline">
-            jamie@obsidiandynamics.co.uk
+          <a href={marketingMailtoHref()} className="text-accent-blue hover:underline">
+            {MARKETING_CONTACT_EMAIL}
           </a>
           {" "}·{" "}
           <Link href="/terms" className="text-accent-blue hover:underline">Terms</Link>
