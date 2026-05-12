@@ -40,6 +40,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Ops workflow script path parity
+        run: node scripts/ops-automation-selfcheck.mjs
+
       - name: RLS-BYPASS tag parity (withBypassRls callsites)
         run: npm run check:rls-bypass
 

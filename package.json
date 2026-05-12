@@ -31,6 +31,8 @@
     "sbom": "npx --yes @cyclonedx/cyclonedx-npm --output-file cyclonedx-sbom.json",
     "blackglassctl": "node scripts/blackglassctl.mjs",
     "env:check": "tsx scripts/validate-env.ts",
+    "email:test": "node scripts/send-test-emails.mjs",
+    "ops:selfcheck": "node scripts/ops-automation-selfcheck.mjs",
     "prune:webhooks": "node scripts/prune-webhook-idempotency.mjs",
     "reconcile:billing": "node scripts/reconcile-saas-billing.mjs",
     "db:generate": "drizzle-kit generate",

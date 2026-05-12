@@ -23,8 +23,14 @@ jobs:
           echo "OK: /api/health returned 200"
 
       - name: Slack alert on failure
-        if: failure() && secrets.SLACK_ALERT_WEBHOOK_URL != ''
+        if: failure()
+        env:
+          SLACK_ALERT_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }}
         run: |
-          curl -s -X POST "${{ secrets.SLACK_ALERT_WEBHOOK_URL }}" \
+          if [ -z "${SLACK_ALERT_WEBHOOK_URL}" ]; then
+            echo "No SLACK_ALERT_WEBHOOK_URL — skipping Slack ping."
+            exit 0
+          fi
+          curl -s -X POST "${SLACK_ALERT_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
             -d "{\"text\":\":rotating_light: *BLACKGLASS health check failed* — \`/api/health\` returned HTTP ${{ steps.health.outputs.status }} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"

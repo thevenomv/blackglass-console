@@ -1,0 +1,42 @@
+# Weekly unattended checks: workflow script path parity + Resend domain table.
+# Also runnable via workflow_dispatch.
+#
+# Does not send email or touch production data (except Resend read-only domains list).
+
+name: Ops weekly self-check
+
+on:
+  schedule:
+    - cron: "15 7 * * 1" # Mondays 07:15 UTC (after Dependabot Monday 08:00 in other TZ overlap is fine)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  script-path-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Verify workflow → script references
+        run: node scripts/ops-automation-selfcheck.mjs
+
+  resend-domains:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.RESEND_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resend domain verification status
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: node scripts/resend-domain-status.mjs

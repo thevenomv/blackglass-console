@@ -15,6 +15,8 @@ cp .env.example .env.local   # Linux/macOS — on Windows copy manually
 npm run dev
 ```
 
+**Postgres + Redis via Docker:** `docker compose -f docker-compose.dev.yml up -d`, then merge the env block in [docs/local-dev-docker.md](docs/local-dev-docker.md) into `.env.local` and run `npm run db:migrate`.
+
 Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or PowerShell helper `scripts/doppler-dev.ps1`.
 
 **Cursor canvases:** [`canvases/project-overview.canvas.tsx`](canvases/project-overview.canvas.tsx) is a [Cursor Canvas](https://cursor.com) packet (imports `cursor/canvas` — not part of the Next.js build). It mirrors the reviewer workflow referenced from `src/db/index.ts` and security docs.
@@ -43,6 +45,8 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `load:rate-local` | Burst `POST /api/v1/scans` until HTTP 429 (local dev; `BASE_URL`, `BURST_LIMIT`) |
 | `pen-test:smoke` | Print curl snippets for quick manual probes (`BASE_URL` optional) |
 | `blackglassctl` | Minimal health / scan CLI (`node scripts/blackglassctl.mjs help` pattern) |
+| `email:test` | Resend marketing/transactional template probe — `npm run email:test -- --to=you@example.com` (needs **`RESEND_API_KEY`** in env or `.env.local`; optional `EMAIL_FROM`, `NEXT_PUBLIC_APP_URL`) |
+| `ops:selfcheck` | Fail CI if any `.github/workflows` `node scripts/…` reference points at a missing file (`scripts/ops-automation-selfcheck.mjs`) |
 | `prune:webhooks` | Delete old `saas_webhook_idempotency` rows (`DATABASE_URL`, optional `--days=`) |
 | `stripe:setup` | Interactive Stripe webhook/price bootstrap ([script](scripts/stripe-setup.mjs)) |
 | `do:apply-stage0` | Applies Stage-0 auth env on an existing DO app |
@@ -116,6 +120,11 @@ Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. De
 
 ## Operators
 
+- **Local Docker stack:** [docs/local-dev-docker.md](docs/local-dev-docker.md) · [docker-compose.dev.yml](docker-compose.dev.yml)
+- **Public roadmap:** [ROADMAP.md](ROADMAP.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) · **Security reporting:** [SECURITY.md](SECURITY.md)
+- **API integration examples:** [examples/api/README.md](examples/api/README.md)
+- **Terraform (optional DO managed Postgres / Valkey):** [terraform/digitalocean/README.md](terraform/digitalocean/README.md)
+- **Unattended ops checks:** [.github/workflows/ops-weekly-selfcheck.yml](.github/workflows/ops-weekly-selfcheck.yml) (weekly + manual) validates every workflow `node scripts/…` path exists and prints Resend domain verification; **`npm run ops:selfcheck`** runs the path check locally and in **CI** on every push
 - Deploy specs: [.do/](.do/) (see [.do/README.md](.do/README.md)) · Helm chart: [deploy/helm/blackglass](deploy/helm/blackglass)
 - Runbooks: [docs/operator-guide.md](docs/operator-guide.md), [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md)
 - Local Windows / OneDrive builds: [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)
@@ -183,4 +192,4 @@ sequenceDiagram
 
 ## Responsible disclosure
 
-If you discover a security issue: open a **private** advisory with repo maintainers; do not file public tickets with exploit details until coordinated.
+If you discover a security issue: follow **[SECURITY.md](SECURITY.md)** (private advisory or email). Do not file public tickets with exploit details until coordinated.
