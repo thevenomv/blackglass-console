@@ -38,7 +38,7 @@ jobs:
       DO_DB_CLUSTER_ID: "4d063be8-1cc1-4b45-8b57-2a96a9c77161"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
