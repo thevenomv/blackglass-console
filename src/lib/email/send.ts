@@ -24,6 +24,8 @@ export interface SendEmailOptions {
   from?: string;
   /** Optional Reply-To header. */
   replyTo?: string;
+  /** Optional extra headers (e.g. List-Unsubscribe for marketing sends). */
+  headers?: Record<string, string>;
 }
 
 let _resend: Resend | null = null;
@@ -61,6 +63,7 @@ export async function sendEmail(opts: SendEmailOptions): Promise<{ id?: string; 
     html: opts.html,
     text: opts.text,
     ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+    ...(opts.headers && Object.keys(opts.headers).length ? { headers: opts.headers } : {}),
   });
 
   if (error) {

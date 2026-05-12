@@ -46,6 +46,10 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `pen-test:smoke` | Print curl snippets for quick manual probes (`BASE_URL` optional) |
 | `blackglassctl` | Minimal health / scan CLI (`node scripts/blackglassctl.mjs help` pattern) |
 | `email:test` | Resend marketing/transactional template probe — `npm run email:test -- --to=you@example.com` (needs **`RESEND_API_KEY`** in env or `.env.local`; optional `EMAIL_FROM`, `NEXT_PUBLIC_APP_URL`) |
+| `email:marketing` | Resend **single-recipient** opt-in/warm note — `npm run email:marketing -- --to=you@example.com` (same key; optional `EMAIL_MARKETING_FROM`, `EMAIL_MARKETING_REPLY_TO`, `EMAIL_LIST_UNSUBSCRIBE_URL`) |
+| `secrets:init-local` | Create gitignored `.local/credentials.json` from `scripts/local-credentials.example.json` (then edit + `secrets:merge-local`) |
+| `secrets:merge-local` | Merge `RESEND_API_KEY` / `APOLLO_API_KEY` from `.local/credentials.json` into `.env.local`, then remove the JSON (use `--keep-source` on the inner script via `node scripts/merge-local-secrets.mjs --keep-source` if you prefer to keep it) |
+| `secrets:verify` | HTTP check Resend domains + Apollo `/v1/auth/health` using env / `.env.local` — prints status only |
 | `ops:selfcheck` | Fail CI if any `.github/workflows` `node scripts/…` reference points at a missing file (`scripts/ops-automation-selfcheck.mjs`) |
 | `prune:webhooks` | Delete old `saas_webhook_idempotency` rows (`DATABASE_URL`, optional `--days=`) |
 | `stripe:setup` | Interactive Stripe webhook/price bootstrap ([script](scripts/stripe-setup.mjs)) |

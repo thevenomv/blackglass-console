@@ -80,3 +80,12 @@ __pycache__/
 # Scratch commit-message temp files used by the agent when piping
 # multi-line messages on PowerShell (which can't handle bash heredocs).
 .git-commit-msg.tmp
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json

@@ -1,12 +1,12 @@
 /**
- * Inner worker for scripts/send-test-emails.mjs â€” invoked through tsx.
+ * Inner worker for scripts/send-test-emails.mjs - invoked through tsx.
  *
  * Imports the templates (which only use relative imports) but calls
  * Resend directly so we don't have to wire @/ aliases for tsx in
  * scripts/. Self-contained on purpose: this is a deployment-readiness
  * probe, not an application path.
  *
- * Don't invoke this directly â€” use `node scripts/send-test-emails.mjs`.
+ * Do not invoke this directly - use `node scripts/send-test-emails.mjs`.
  */
 import process from "node:process";
 import { Resend } from "resend";
@@ -76,7 +76,7 @@ async function send(subject: string, html: string, text: string): Promise<{ id?:
 const senders: Record<string, () => Promise<{ id?: string }>> = {
   welcome: () =>
     send(
-      "[Blackglass] Test send â€” Welcome email",
+      "[Blackglass] Test send - Welcome email",
       welcomeEmailHtml({ firstName: TEST.firstName, orgName: TEST.orgName, consoleUrl, trialDays: 14 }),
       welcomeEmailText({ firstName: TEST.firstName, orgName: TEST.orgName, consoleUrl, trialDays: 14 }),
     ),
@@ -87,7 +87,7 @@ const senders: Record<string, () => Promise<{ id?: string }>> = {
       { title: "Disabled UFW firewall", category: "hardening", severity: "high" },
     ];
     return send(
-      "[Blackglass] Test send â€” High-severity drift alert",
+      "[Blackglass] Test send - High-severity drift alert",
       driftAlertHtml({ hostname: TEST.hostname, jobId: "scan-test-0001", appUrl: consoleUrl, findings }),
       driftAlertText({ hostname: TEST.hostname, jobId: "scan-test-0001", appUrl: consoleUrl, findings }),
     );
@@ -110,7 +110,7 @@ const senders: Record<string, () => Promise<{ id?: string }>> = {
       affectedHosts: 8,
     };
     return send(
-      "[Blackglass] Test send â€” Findings digest (last 7 days)",
+      "[Blackglass] Test send - Findings digest (last 7 days)",
       driftDigestHtml(opts),
       driftDigestText(opts),
     );
@@ -124,7 +124,7 @@ const senders: Record<string, () => Promise<{ id?: string }>> = {
       checkoutUrl: `${consoleUrl}/pricing`,
     };
     return send(
-      "[Blackglass] Test send â€” Trial expiring (3 days left)",
+      "[Blackglass] Test send - Trial expiring (3 days left)",
       trialExpiringEmailHtml(opts),
       trialExpiringEmailText(opts),
     );
@@ -137,7 +137,7 @@ const senders: Record<string, () => Promise<{ id?: string }>> = {
       checkoutUrl: `${consoleUrl}/pricing`,
     };
     return send(
-      "[Blackglass] Test send â€” Trial expired",
+      "[Blackglass] Test send - Trial expired",
       trialExpiredEmailHtml(opts),
       trialExpiredEmailText(opts),
     );
