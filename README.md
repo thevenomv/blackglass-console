@@ -19,7 +19,7 @@ npm run dev
 
 Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or PowerShell helper `scripts/doppler-dev.ps1`.
 
-**Cursor canvases:** [`canvases/project-overview.canvas.tsx`](canvases/project-overview.canvas.tsx) is a [Cursor Canvas](https://cursor.com) packet (imports `cursor/canvas` — not part of the Next.js build). It mirrors the reviewer workflow referenced from `src/db/index.ts` and security docs.
+**Cursor canvases:** [`canvases/project-overview.canvas.tsx`](canvases/project-overview.canvas.tsx) is the stakeholder review packet; [`canvases/outstanding-actions.canvas.tsx`](canvases/outstanding-actions.canvas.tsx) is the prioritised founder/operator queue (both are [Cursor Canvas](https://cursor.com) files — import `cursor/canvas`, not part of the Next.js build). Open them from the Cursor project `canvases/` directory beside the chat; the copies under `canvases/` in this repo are mirrors for version control.
 
 ## NPM scripts
 
@@ -89,7 +89,7 @@ Multi-tenant SaaS console with:
 - **Edge security** — security-headers middleware applies CSP (Report-Only by default; flip with `SECURITY_HEADERS_CSP_ENFORCE=true`), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `COOP` on every response — see [src/lib/server/http/security-headers.ts](src/lib/server/http/security-headers.ts)
 - **Deployment** — **DigitalOcean App Platform** for hosted; **Helm chart** ([deploy/helm/blackglass](deploy/helm/blackglass)) with opt-in `sandbox-worker` for self-hosted Kubernetes
 
-See [docs/architecture-overview.md](docs/architecture-overview.md) for the layer map and rules between layers, and [docs/security-compliance.md](docs/security-compliance.md) for the buyer-facing security mapping (RLS, encryption, audit, vendor inventory, DR). Stakeholder **review packet**: open the **Project overview** canvas in Cursor (`canvases/project-overview.canvas.tsx` under this workspace’s Cursor project directory — same folder as other `.canvas.tsx` files).
+See [docs/architecture-overview.md](docs/architecture-overview.md) for the layer map and rules between layers, and [docs/security-compliance.md](docs/security-compliance.md) for the buyer-facing security mapping (RLS, encryption, audit, vendor inventory, DR). Stakeholder **review packet**: open the **Project overview** canvas in Cursor (`canvases/project-overview.canvas.tsx`). **Live queue**: `canvases/outstanding-actions.canvas.tsx` (same Cursor canvases folder as other `.canvas.tsx` files).
 
 ### Key data-flow invariants
 

@@ -23,7 +23,7 @@ const SHIPPED = (
   </Pill>
 );
 
-/** Review packet v2.4 — reviewer refinements: staleness, SEO/noindex, RLS norms, CI blocking, org triggers (2026-05-11). */
+/** Review packet v2.5 — v2.4 plus ops self-check, public artifacts, Apollo playbook pointer, outstanding-actions canvas (2026-05-12). */
 export default function ProjectOverview() {
   return (
     <Stack gap={22}>
@@ -31,7 +31,7 @@ export default function ProjectOverview() {
       <Stack gap={10}>
         <Stack gap={6}>
           <Text tone="secondary" size="small">
-            Version 2.4 · 2026-05-11 · Living artifact — refresh after major
+            Version 2.5 · 2026-05-12 · Living artifact — refresh after major
             features, new stores, or security-relevant Charon changes. v2.4 tightens
             reviewer ergonomics: explicit staleness rule on cover, §0 execution
             pointers + next review window, softer ARR comparables wording, marketing
@@ -45,7 +45,16 @@ export default function ProjectOverview() {
             <Code>max-w-7xl</Code>), <Code>seo-follow-up.canvas.tsx</Code>,{" "}
             <Code>cf:public-seo-check</Code> / <Code>cf:audit-edge</Code> (token in
             env only). Earlier: v2.2 §13a + Charon guarantees + §12; v2.1 §0
-            strategic refresh.
+            strategic refresh. v2.5 adds: root <Code>SECURITY.md</Code> and{" "}
+            <Code>ROADMAP.md</Code>; <Code>docker-compose.dev.yml</Code> +{" "}
+            <Code>docs/local-dev-docker.md</Code>; <Code>examples/api/</Code> curl/Node
+            samples; optional <Code>terraform/digitalocean</Code> starter; GitHub issue
+            templates; <Code>docs/sales/apollo-cold-email-sequences.md</Code> for Apollo
+            paste-in; CI <Code>ops:selfcheck</Code> + weekly{" "}
+            <Code>ops-weekly-selfcheck.yml</Code> (workflow-to-script parity + Resend
+            domain table); <Code>uptime.yml</Code> dispatch fix; and{" "}
+            <strong>outstanding-actions.canvas.tsx</strong> for the live founder/operator
+            queue (kept separate so this packet stays navigable).
           </Text>
           <Text size="small" tone="secondary">
             <strong>Staleness:</strong> if this document date is more than six months
@@ -93,6 +102,11 @@ export default function ProjectOverview() {
             ["docs/compliance/review-cadence.md", "Post-deploy and annual checks."],
             ["README.md (repo root)", "Quick start, full npm script matrix, architecture spine, SEO env (NEXT_PUBLIC_APP_URL, noindex)."],
             ["canvases/seo-follow-up.canvas.tsx", "Operational SEO checklist (Search Console, Rich Results, Cloudflare) — Cursor project canvases folder."],
+            ["canvases/outstanding-actions.canvas.tsx", "Prioritised founder/operator queue (Resend, DO, Apollo, SOC2 triggers) — same canvases folder; refresh after each planning pass."],
+            ["SECURITY.md (repo root)", "Vulnerability reporting policy for reviewers and GitHub private advisories."],
+            ["ROADMAP.md (repo root)", "Buyer-safe public roadmap summary (internal detail stays in docs/saas-customer-roadmap.md)."],
+            ["docs/local-dev-docker.md", "Disposable Postgres + Redis via docker-compose.dev.yml for laptop onboarding."],
+            ["docs/sales/apollo-cold-email-sequences.md", "Internal Apollo cold-email sequences; send via connected mailboxes, not product Resend."],
           ]}
         />
 
@@ -277,6 +291,34 @@ export default function ProjectOverview() {
               <strong>Branding:</strong> Image wordmark in nav/footer was tried and
               removed from <Code>main</Code>; keep text chrome until a proper SVG
               lockup exists.
+            </Text>
+          </Stack>
+        </Callout>
+
+        <Callout tone="info" title="Ops automation and mail health (2026-05-12)">
+          <Stack gap={4}>
+            <Text size="small">
+              <strong>CI:</strong> every PR runs <Code>node scripts/ops-automation-selfcheck.mjs</Code>{" "}
+              after lint so a missing <Code>scripts/*.mjs</Code> file cannot merge behind a
+              workflow reference.
+            </Text>
+            <Text size="small">
+              <strong>Weekly:</strong> <Code>.github/workflows/ops-weekly-selfcheck.yml</Code>{" "}
+              (Mondays 07:15 UTC + manual dispatch) re-runs the same parity check and appends
+              a Resend domain verification table when <Code>RESEND_API_KEY</Code> is configured
+              in repository secrets.
+            </Text>
+            <Text size="small">
+              <strong>Schedules already live:</strong> maintenance (trial lifecycle mail,
+              Sunday prunes, billing reconcile when secrets set), uptime <Code>/api/health</Code>{" "}
+              every 15 minutes, staging smoke — all require correct GitHub secrets; see{" "}
+              <Code>README.md</Code> Operators section.
+            </Text>
+            <Text size="small">
+              <strong>Still manual:</strong> verify <Code>blackglasssec.com</Code> in Resend for
+              production <Code>EMAIL_FROM</Code>; rotate any API token ever pasted into chat;
+              paste Apollo sequences from <Code>docs/sales/apollo-cold-email-sequences.md</Code>.
+              The consolidated checklist lives in <strong>outstanding-actions.canvas.tsx</strong>.
             </Text>
           </Stack>
         </Callout>
@@ -1322,7 +1364,7 @@ export default function ProjectOverview() {
 
       <Row gap={8} align="center" wrap>
         <Pill tone="neutral" size="sm">
-          End of packet v2.4
+          End of packet v2.5
         </Pill>
         <Text size="small" tone="tertiary">
           Prefer depth in companion markdown; keep this canvas navigable.
