@@ -1,10 +1,15 @@
 /**
- * Public-facing contact inboxes (blackglasssec.com).
+ * Public-facing contact addresses (mailto + visible copy + sales defaults).
  *
- * Override with env at build time for the browser bundle:
- * - NEXT_PUBLIC_MARKETING_CONTACT_EMAIL — sales / general enquiries (mailto + copy)
- * - NEXT_PUBLIC_SECURITY_CONTACT_EMAIL — vuln disclosure + security.txt (optional; defaults to security@)
+ * **Operational default:** mail goes to the working operator inbox until
+ * dedicated `hello@` / `security@` addresses exist on blackglasssec.com.
+ * Override at build time for the browser bundle:
+ * - `NEXT_PUBLIC_MARKETING_CONTACT_EMAIL` — general / sales mailto + schema.org sales contact
+ * - `NEXT_PUBLIC_SECURITY_CONTACT_EMAIL` — vuln disclosure + `/.well-known/security.txt` (optional)
  */
+
+/** Inbox that actually receives replies today — change only when blackglasssec mailboxes are live. */
+const OPERATOR_INBOX_FALLBACK = "jamie@obsidiandynamics.co.uk";
 
 function normalizeEmail(raw: string | undefined, fallback: string): string {
   const t = raw?.trim();
@@ -14,12 +19,12 @@ function normalizeEmail(raw: string | undefined, fallback: string): string {
 
 /** General sales / marketing / “talk to us” mailbox. */
 export function getMarketingContactEmail(): string {
-  return normalizeEmail(process.env.NEXT_PUBLIC_MARKETING_CONTACT_EMAIL, "hello@blackglasssec.com");
+  return normalizeEmail(process.env.NEXT_PUBLIC_MARKETING_CONTACT_EMAIL, OPERATOR_INBOX_FALLBACK);
 }
 
-/** Vulnerability disclosure + security.txt. */
+/** Vulnerability disclosure + security.txt (same inbox by default; split later with env). */
 export function getSecurityContactEmail(): string {
-  return normalizeEmail(process.env.NEXT_PUBLIC_SECURITY_CONTACT_EMAIL, "security@blackglasssec.com");
+  return normalizeEmail(process.env.NEXT_PUBLIC_SECURITY_CONTACT_EMAIL, OPERATOR_INBOX_FALLBACK);
 }
 
 /**

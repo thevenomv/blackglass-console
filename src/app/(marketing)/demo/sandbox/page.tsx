@@ -15,6 +15,7 @@
 
 import Link from "next/link";
 import type { Metadata } from "next";
+import { marketingMailtoHref } from "@/lib/marketing/contact";
 
 export const metadata: Metadata = {
   title: "What a Blackglass scan looks like",
@@ -149,7 +150,7 @@ const SEV_STYLE: Record<Severity, { dot: string; pill: string }> = {
 };
 
 const BOOK_DEMO_HREF =
-  process.env.NEXT_PUBLIC_BOOK_DEMO_URL?.trim() || "mailto:hello@blackglasssec.com?subject=Blackglass%20live%20demo";
+  process.env.NEXT_PUBLIC_BOOK_DEMO_URL?.trim() || marketingMailtoHref("Blackglass live demo");
 
 export default function SandboxWalkthroughPage() {
   return (

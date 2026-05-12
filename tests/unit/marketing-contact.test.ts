@@ -12,8 +12,8 @@ describe("marketing contact", () => {
 
   it("defaults marketing and security inboxes", async () => {
     const { getMarketingContactEmail, getSecurityContactEmail } = await import("@/lib/marketing/contact");
-    expect(getMarketingContactEmail()).toBe("hello@blackglasssec.com");
-    expect(getSecurityContactEmail()).toBe("security@blackglasssec.com");
+    expect(getMarketingContactEmail()).toBe("jamie@obsidiandynamics.co.uk");
+    expect(getSecurityContactEmail()).toBe("jamie@obsidiandynamics.co.uk");
   });
 
   it("accepts NEXT_PUBLIC overrides when valid", async () => {
@@ -27,7 +27,7 @@ describe("marketing contact", () => {
   it("rejects invalid override and falls back", async () => {
     vi.stubEnv("NEXT_PUBLIC_MARKETING_CONTACT_EMAIL", "not-an-email");
     const { getMarketingContactEmail } = await import("@/lib/marketing/contact");
-    expect(getMarketingContactEmail()).toBe("hello@blackglasssec.com");
+    expect(getMarketingContactEmail()).toBe("jamie@obsidiandynamics.co.uk");
   });
 
   it("builds mailto with encoded subject", async () => {
