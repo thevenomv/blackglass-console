@@ -1,8 +1,7 @@
 /**
- * IBM Plex via `next/font/google` — shared subsets/weights so UI and tests stay aligned.
- *
- * We include **latin-ext** alongside **latin** so Central/Western European diacritics
- * render from the loaded webfont instead of falling back per-glyph (which can look
- * like “random” mixed fonts or tofu boxes when only `latin` was requested).
+ * IBM Plex subset list — **must match** the static `subsets: [...]` literals in
+ * `src/app/layout.tsx` (`next/font/google`). Turbopack cannot analyze a spread
+ * into `subsets`, so the layout file duplicates these values; this export exists
+ * for tests and so grep finds a single source of truth for the subset names.
  */
 export const PLEX_GOOGLE_SUBSETS = ["latin", "latin-ext"] as const;

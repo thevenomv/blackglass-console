@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
-import { PLEX_GOOGLE_SUBSETS } from "@/lib/fonts/plex";
 import "./globals.css";
 import { SessionProvider } from "@/components/auth/SessionProvider";
 import { Providers } from "@/components/providers/Providers";
@@ -12,14 +11,16 @@ import { organizationSchema } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 
 const plexSans = IBM_Plex_Sans({
-  subsets: [...PLEX_GOOGLE_SUBSETS],
+  // Must be a static array literal — Turbopack rejects `subsets: [...PLEX_GOOGLE_SUBSETS]`
+  // for next/font (see DO build). Keep in sync with `src/lib/fonts/plex.ts`.
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600"],
   variable: "--font-plex-sans",
   display: "swap",
 });
 
 const plexMono = IBM_Plex_Mono({
-  subsets: [...PLEX_GOOGLE_SUBSETS],
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500"],
   variable: "--font-plex-mono",
   display: "swap",
