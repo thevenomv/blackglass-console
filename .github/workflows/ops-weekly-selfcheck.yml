@@ -28,7 +28,6 @@ jobs:
 
   resend-domains:
     runs-on: ubuntu-latest
-    if: ${{ secrets.RESEND_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -39,4 +38,10 @@ jobs:
       - name: Resend domain verification status
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-        run: node scripts/resend-domain-status.mjs
+        run: |
+          if [ -z "${RESEND_API_KEY}" ]; then
+            echo "## Resend domains" >> "$GITHUB_STEP_SUMMARY"
+            echo "Skipped — \`RESEND_API_KEY\` repository secret is not set." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node scripts/resend-domain-status.mjs
