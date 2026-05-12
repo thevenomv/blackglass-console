@@ -33,6 +33,8 @@
     "env:check": "tsx scripts/validate-env.ts",
     "email:test": "node scripts/send-test-emails.mjs",
     "email:marketing": "node scripts/send-opt-in-marketing.mjs",
+    "email:preview-sequences": "node scripts/send-sequence-previews.mjs",
+    "prospects:pull": "node scripts/apollo-prospect-pull.mjs",
     "secrets:init-local": "node scripts/init-local-credentials.mjs",
     "secrets:merge-local": "node scripts/merge-local-secrets.mjs",
     "secrets:verify": "node scripts/verify-outbound-keys.mjs",
