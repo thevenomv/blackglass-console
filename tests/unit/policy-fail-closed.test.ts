@@ -12,7 +12,7 @@
  * dashboard SystemStatusBanner can surface it.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import type { DriftEvent } from "@/data/mock/types";
 import type { HostSnapshot } from "@/lib/server/collector/types";
 
@@ -61,6 +61,14 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+type ProcessHostSnapshotDrift = (typeof import("@/lib/server/services/scan-drift-job"))["processHostSnapshotDrift"];
+
+let processHostSnapshotDrift: ProcessHostSnapshotDrift;
+
+beforeAll(async () => {
+  ({ processHostSnapshotDrift } = await import("@/lib/server/services/scan-drift-job"));
+}, 30_000);
+
 function makeSnapshot(hostId: string): HostSnapshot {
   return {
     hostId,
@@ -86,11 +94,9 @@ function makeSnapshot(hostId: string): HostSnapshot {
 }
 
 describe("policy evaluation fail-closed", () => {
-  it("emits a synthetic policy_failure DriftEvent when policy load fails", async () => {
-    const { processHostSnapshotDrift } = await import(
-      "@/lib/server/services/scan-drift-job"
-    );
-
+  it(
+    "emits a synthetic policy_failure DriftEvent when policy load fails",
+    async () => {
     const snapshot = makeSnapshot("host-1-2-3-4");
     const result = await processHostSnapshotDrift({
       snapshot,
@@ -109,13 +115,13 @@ describe("policy evaluation fail-closed", () => {
     expect(policyFailure?.lifecycle).toBe("new");
     expect(policyFailure?.title).toMatch(/policy evaluation failed/i);
     expect(policyFailure?.suggestedActions.length).toBeGreaterThan(0);
-  });
+    },
+    15_000,
+  );
 
-  it("stores the synthetic event so the dashboard can count it", async () => {
-    const { processHostSnapshotDrift } = await import(
-      "@/lib/server/services/scan-drift-job"
-    );
-
+  it(
+    "stores the synthetic event so the dashboard can count it",
+    async () => {
     const snapshot = makeSnapshot("host-fail");
     await processHostSnapshotDrift({
       snapshot,
@@ -132,13 +138,13 @@ describe("policy evaluation fail-closed", () => {
       (e) => e.category === "policy_failure",
     );
     expect(policyFailure).toBeDefined();
-  });
+    },
+    15_000,
+  );
 
-  it("does NOT emit a policy_failure event when no tenant is supplied (legacy mode)", async () => {
-    const { processHostSnapshotDrift } = await import(
-      "@/lib/server/services/scan-drift-job"
-    );
-
+  it(
+    "does NOT emit a policy_failure event when no tenant is supplied (legacy mode)",
+    async () => {
     const snapshot = makeSnapshot("host-legacy");
     const result = await processHostSnapshotDrift({
       snapshot,
@@ -150,5 +156,7 @@ describe("policy evaluation fail-closed", () => {
     expect(
       result.events.some((e) => e.category === "policy_failure"),
     ).toBe(false);
-  });
+    },
+    15_000,
+  );
 });

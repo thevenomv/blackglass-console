@@ -24,7 +24,12 @@ describe("invite-tokens", () => {
   it("rejects tampered iv1 token", async () => {
     const { generateInviteToken, validateInviteToken } = await import("@/lib/auth/invite-tokens");
     const t = generateInviteToken();
-    const broken = t.slice(0, -1) + (t.endsWith("a") ? "b" : "a");
+    const m = /^iv1\.(.+)\.(.+)$/.exec(t);
+    expect(m).not.toBeNull();
+    const encPayload = m![1]!;
+    // Do not flip only the last base64url character — Node's decoder can decode
+    // some adjacent strings to the same bytes, so the HMAC can still match.
+    const broken = `iv1.${encPayload}.zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz`;
     expect(validateInviteToken(broken)).toBe(false);
   });
 

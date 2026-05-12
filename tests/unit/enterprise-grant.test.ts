@@ -56,10 +56,15 @@ describe("applyEnterpriseSubscriptionGrant", () => {
     expect(next.planCode).toBe("enterprise");
   });
 
-  it("upgrades via built-in founder email (case-insensitive)", () => {
+  it("does not upgrade by email when env list is empty", () => {
     const sub = mockSub({ planCode: "lab" });
-    const next = applyEnterpriseSubscriptionGrant(sub, "some-other-tenant-id", ["JamieSibley5@gmail.com"]);
+    expect(applyEnterpriseSubscriptionGrant(sub, "some-other-tenant-id", ["founder@company.com"])).toBe(sub);
+  });
+
+  it("matches env email case-insensitively", () => {
+    vi.stubEnv("BLACKGLASS_ENTERPRISE_GRANT_EMAILS", "Founder@Company.COM");
+    const sub = mockSub({ planCode: "trial" });
+    const next = applyEnterpriseSubscriptionGrant(sub, "other-tenant", ["founder@company.com"]);
     expect(next.planCode).toBe("enterprise");
-    expect(next.status).toBe("active");
   });
 });

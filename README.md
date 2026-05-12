@@ -55,7 +55,8 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 2. **Database:** apply migrations against target Postgres — `npm run db:migrate` (see `drizzle/*.sql`).
 3. **Workers:** with **Redis**, run **ops-worker** alongside the web app (retention, webhooks, exports; also expires stuck async baseline capture jobs).
 4. **Smoke (prod):** baseline capture, report PDF download, legal links from the console.
-5. **Compliance cadence & incidents:** [docs/compliance/review-cadence.md](docs/compliance/review-cadence.md), [docs/runbooks/data-breach-response.md](docs/runbooks/data-breach-response.md), [docs/runbooks/operations.md](docs/runbooks/operations.md).
+5. **Console gate + invites:** when `AUTH_REQUIRED=true`, keep **`AUTH_SESSION_SECRET`** set in production — it signs admin sessions and **HMAC-signed invite links** (`iv1.*`); optional dedicated **`INVITE_SIGNING_SECRET`** overrides invite signing only.
+6. **Compliance cadence & incidents:** [docs/compliance/review-cadence.md](docs/compliance/review-cadence.md), [docs/runbooks/data-breach-response.md](docs/runbooks/data-breach-response.md), [docs/runbooks/operations.md](docs/runbooks/operations.md).
 
 ## Maintenance & upgrades
 

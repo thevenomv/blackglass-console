@@ -2,16 +2,13 @@ import type { SaasSubscription } from "@/db/schema";
 import { getPlanDefinition } from "@/lib/saas/plans";
 
 /**
- * Founder / operator accounts that always resolve to an effective Enterprise
- * subscription at read time (without mutating Stripe or `saas_subscriptions`).
+ * Operator-controlled Enterprise effective subscription at read time (without
+ * mutating Stripe or `saas_subscriptions`).
  *
- * Additional emails: `BLACKGLASS_ENTERPRISE_GRANT_EMAILS` (comma-separated).
+ * Set `BLACKGLASS_ENTERPRISE_GRANT_EMAILS` (comma-separated Clerk user emails).
  * For agent ingest + background jobs (no Clerk session), also set
  * `BLACKGLASS_ENTERPRISE_GRANT_TENANT_IDS` to the workspace UUID (see SaaS context JSON).
  */
-const INTERNAL_ENTERPRISE_GRANT_EMAILS: ReadonlySet<string> = new Set(
-  ["jamiesibley5@gmail.com"].map((e) => e.trim().toLowerCase()).filter(Boolean),
-);
 
 function normalizeEmailList(raw: string | undefined): Set<string> {
   const out = new Set<string>();
@@ -34,9 +31,7 @@ function normalizeTenantIdList(raw: string | undefined): Set<string> {
 }
 
 function envEnterpriseGrantEmails(): Set<string> {
-  const fromEnv = normalizeEmailList(process.env.BLACKGLASS_ENTERPRISE_GRANT_EMAILS);
-  for (const e of INTERNAL_ENTERPRISE_GRANT_EMAILS) fromEnv.add(e);
-  return fromEnv;
+  return normalizeEmailList(process.env.BLACKGLASS_ENTERPRISE_GRANT_EMAILS);
 }
 
 function envEnterpriseGrantTenantIds(): Set<string> {
