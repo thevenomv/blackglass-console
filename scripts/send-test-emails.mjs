@@ -23,9 +23,10 @@
  * dashboard for delivery + open tracking.
  */
 import process from "node:process";
+import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -58,20 +59,16 @@ if (!ALLOWED.has(template)) {
 
 if (!process.env.RESEND_API_KEY) {
   // Try to source from .env.local — convenience for local dev.
-  // In production / CI the key is expected to come from the env directly.
-  const dotenv = spawnSync(
-    process.execPath,
-    ["-e", "require('dotenv').config({ path: '.env.local' }); process.stdout.write(JSON.stringify(process.env));"],
-    { encoding: "utf8" },
-  );
-  if (dotenv.status === 0 && dotenv.stdout) {
-    try {
-      const parsed = JSON.parse(dotenv.stdout);
-      for (const [k, v] of Object.entries(parsed)) {
-        if (process.env[k] === undefined) process.env[k] = v;
-      }
-    } catch {
-      /* ignore — we'll error below if the key is still missing */
+  const envPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", ".env.local");
+  if (fs.existsSync(envPath)) {
+    for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx < 1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
+      if (process.env[key] === undefined) process.env[key] = val;
     }
   }
 }

@@ -45,7 +45,8 @@
 
 import process from "node:process";
 import fs from "node:fs";
-import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import readline from "node:readline";
 
 // ---------------------------------------------------------------------------
@@ -73,24 +74,20 @@ const outFile = arg("out", `prospects-${persona.toLowerCase()}-${dateStamp}.csv`
 // Load API key
 // ---------------------------------------------------------------------------
 function loadDotenvLocal() {
-  try {
-    const result = spawnSync(
-      process.execPath,
-      ["-e", "require('dotenv').config({ path: '.env.local' }); process.stdout.write(JSON.stringify(process.env));"],
-      { encoding: "utf8" },
-    );
-    if (result.status === 0 && result.stdout) {
-      const env = JSON.parse(result.stdout);
-      for (const [k, v] of Object.entries(env)) {
-        if (!process.env[k]) process.env[k] = v;
-      }
-    }
-  } catch {
-    // dotenv not installed — ignore, rely on actual env
+  const envPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", ".env.local");
+  if (!fs.existsSync(envPath)) return;
+  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx < 1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
+    if (process.env[key] === undefined) process.env[key] = val;
   }
 }
 
-if (!process.env.APOLLO_API_KEY) loadDotenvLocal();
+loadDotenvLocal();
 
 const APOLLO_KEY = process.env.APOLLO_API_KEY?.trim();
 if (!APOLLO_KEY) {
@@ -161,7 +158,7 @@ const HEADCOUNT_RANGES = ["1,20", "21,50", "51,100", "101,200"];
 // ---------------------------------------------------------------------------
 // Apollo API helpers
 // ---------------------------------------------------------------------------
-const APOLLO_BASE = "https://api.apollo.io/api/v1";
+const APOLLO_BASE = "https://api.apollo.io/v1";
 
 async function apolloPost(path, body) {
   const res = await fetch(`${APOLLO_BASE}${path}`, {
