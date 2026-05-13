@@ -12,6 +12,7 @@
  *   --reveal-only     Only reveal emails, write updated CSV, do not enrol
  *   --enrol-only      Skip reveal step (assumes emails already in CSV), go straight to enrol
  *   --dry-run         Print what would happen, spend nothing
+ *   --yes             Skip the interactive confirmation prompt (for scripted/CI use)
  *
  * SEQUENCE MAP (edit to match your Apollo sequence IDs after creating them in Apollo UI)
  *   BG-A Platform-Reliability  → SEQUENCE_ID_A
@@ -85,6 +86,7 @@ const csvFile    = arg("csv", "prospects-combined-2026-05-12.csv");
 const revealOnly = flag("reveal-only");
 const enrolOnly  = flag("enrol-only");
 const dryRun     = flag("dry-run");
+const autoYes    = flag("yes");
 
 // CLI flags override env vars (workaround for env loading issues)
 if (arg("seq-a", "")) SEQUENCE_IDS["BG-A Platform-Reliability"] = arg("seq-a", "");
@@ -290,7 +292,7 @@ if (dryRun) {
   process.exit(0);
 }
 
-const confirm = await prompt(`Enrol ${toEnrol.length} contacts in Apollo sequences? (yes/no): `);
+const confirm = autoYes ? "yes" : await prompt(`Enrol ${toEnrol.length} contacts in Apollo sequences? (yes/no): `);
 if (confirm !== "yes") {
   console.log("Aborted.");
   process.exit(0);

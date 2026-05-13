@@ -92,6 +92,20 @@ async function revealEmail(apolloId) {
 // ── Search cohorts ────────────────────────────────────────────────────────────
 const COHORTS = [
   {
+    name: "Platform/Reliability",
+    seq: "BG-A Platform-Reliability",
+    titles: [
+      "Head of Platform",
+      "VP Engineering",
+      "VP of Engineering",
+      "Director of Engineering",
+      "Head of Infrastructure",
+      "Engineering Manager",
+      "Platform Engineering Manager",
+      "Infrastructure Lead",
+    ],
+  },
+  {
     name: "SRE",
     seq: "BG-C DevOps-EngMgr",
     titles: [
