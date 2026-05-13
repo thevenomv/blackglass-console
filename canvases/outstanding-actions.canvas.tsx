@@ -33,7 +33,7 @@ export default function OutstandingActions() {
       <Stack gap={6}>
         <H1>Outstanding actions</H1>
         <Text tone="secondary" size="small">
-          Last pass: 2026-05-12. Items are ordered roughly by leverage
+          Last pass: 2026-05-13. Items are ordered roughly by leverage
           (trust, revenue, or incident prevention first). Mark rows done
           in this file when you ship them so the canvas stays honest.
         </Text>
@@ -46,6 +46,40 @@ export default function OutstandingActions() {
           in GitHub Actions secrets or Doppler, never in git.
         </Text>
       </Callout>
+
+      <H2>Immediate (this week) — MANUAL ACTION REQUIRED</H2>
+      <Callout tone="error" title="These two items block all outbound email — nothing sends until both are done">
+        <Text size="small">
+          210 prospects are enrolled across BG-A/B/C but zero emails have been sent.
+          Both blockers below must be resolved in the Apollo UI.
+        </Text>
+      </Callout>
+      <Table
+        headers={["#", "Item", "Owner", "Done when"]}
+        columnAlign={["right", "left", "center", "left"]}
+        rows={[
+          [
+            "I-1",
+            "Apollo → Settings → Email Accounts → DELETE the Gmail OAuth connection for jamie@obsidiandynamics.co.uk → re-add as SMTP/IMAP using a Google App Password (smtp.gmail.com:587). OAuth tokens from unverified apps revoke periodically; App Passwords never expire. Warmbox's concurrent Gmail grant accelerates revocation.",
+            USER,
+            "Apollo email account shows 'Connected via SMTP' and the send-test button succeeds.",
+          ],
+          [
+            "I-2",
+            "Apollo → Each of BG-A, BG-B, BG-C sequences → review and approve email step content (status_reason: manual_approve). Apollo will not schedule any step until approved.",
+            USER,
+            "Sequences show 'Active / Sending' in Apollo UI; first emails appear in Sent within 24 h of business hours.",
+          ],
+          [
+            "I-3",
+            "Doppler prd: set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to the live pk_live_* key from Stripe Dashboard → Developers → API keys. Without this, client-side Stripe.js (the checkout form) cannot initialise in production.",
+            USER,
+            "'doppler secrets --config prd' shows NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY with a pk_live_* value.",
+          ],
+        ]}
+      />
+
+      <Divider />
 
       <H2>Immediate (this week)</H2>
       <Table
@@ -93,10 +127,10 @@ export default function OutstandingActions() {
         columnAlign={["right", "left", "center", "left"]}
         rows={[
           [
-            "6",
-            "Paste Apollo sequences from docs/sales/apollo-cold-email-sequences.md; connect warmed mailboxes; start a small enrolled cohort.",
+            "6 ✓",
+            "Apollo sequences live: BG-A (40 contacts), BG-B (85), BG-C (85) enrolled. 4 steps each. Blocked on I-1 + I-2 above before first email sends.",
             USER,
-            "First sequence live with reply tracking; one weekly review of bounces and replies.",
+            "DONE — sequences enrolled. Unblocked by I-1 + I-2.",
           ],
           [
             "7",
@@ -115,16 +149,16 @@ export default function OutstandingActions() {
         columnAlign={["right", "left", "center", "left"]}
         rows={[
           [
-            "8",
-            "Per-tenant scan-cost telemetry (Section 0 issues table P9) — Postgres counter from scan-worker for unit-economics visibility.",
+            "8 ✓",
+            "Per-tenant scan-cost telemetry: saas_scan_usage table + migration 0026 + recordScanUsage() wired into executeDriftScanJobImpl. Monthly counters (scan_jobs, host_scans) increment atomically after each successful SaaS scan.",
             ENG,
-            "Metric visible per tenant in console or export; documented in operator runbook.",
+            "DONE — visible via psql: SELECT * FROM saas_scan_usage ORDER BY period_start DESC.",
           ],
           [
-            "9",
-            "Comparison landing pages beyond existing /vs/* (e.g. /compare/wazuh) per Section 0 P5.",
+            "9 ✓",
+            "Comparison landing pages: /vs/wazuh and /vs/sentinelone added (7-row capability tables, pick-when sections, source citations). /vs index updated to 7 comparisons with updated intro copy.",
             ENG,
-            "At least one new URL indexed; internal link from /tools or product nav.",
+            "DONE — pages live at /vs/wazuh and /vs/sentinelone.",
           ],
           [
             "10",
@@ -167,7 +201,7 @@ export default function OutstandingActions() {
 
       <Row gap={8} align="center" wrap>
         <Pill tone="neutral" size="sm">
-          Queue v2026-05-12
+          Queue v2026-05-13
         </Pill>
         <Text size="small" tone="tertiary">
           Deep engineering backlog narrative: next-50-and-review.canvas.tsx.

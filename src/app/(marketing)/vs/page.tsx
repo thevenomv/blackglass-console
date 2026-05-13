@@ -4,9 +4,9 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { marketingMailtoHref } from "@/lib/marketing/contact";
 import { breadcrumbSchema, canonical, dynamicOgImages } from "@/lib/seo";
 
-const TITLE = "Blackglass vs cloud security platforms";
+const TITLE = "Blackglass vs security platforms";
 const DESCRIPTION =
-  "Honest, public-info comparisons of Blackglass against Wiz, Lacework, and Orca. Most teams keep their cloud-posture tool and add Blackglass for the in-server visibility it can't reach.";
+  "Honest, public-info comparisons of Blackglass against Wiz, Lacework, Orca, Tenable, Qualys, Wazuh, and SentinelOne. Most teams keep their existing security tool and add Blackglass for the baseline-first Linux configuration drift evidence it can't produce.";
 
 export const metadata: Metadata = {
   title: `${TITLE} · Blackglass`,
@@ -19,8 +19,8 @@ export const metadata: Metadata = {
     siteName: "Blackglass",
     url: canonical("/vs"),
     images: dynamicOgImages({
-      title: "Blackglass vs cloud security platforms",
-      subtitle: "Honest comparisons · Wiz, Lacework, Orca",
+      title: "Blackglass vs security platforms",
+      subtitle: "Honest comparisons · Wiz, Lacework, Orca, Tenable, Qualys, Wazuh, SentinelOne",
     }),
   },
 };
@@ -56,6 +56,18 @@ const COMPARISONS = [
     blurb:
       "Enterprise VMDR and Policy Compliance at scale. Blackglass adds baseline-first Linux drift for teams that already standardise on Qualys but still need per-line change evidence.",
   },
+  {
+    href: "/vs/wazuh",
+    competitor: "Wazuh",
+    blurb:
+      "Open-source SIEM/XDR with broad HIDS, FIM, and compliance coverage. Blackglass adds an explicit approved-baseline layer and per-line auditor evidence when Wazuh's change-event logs aren't enough for compliance.",
+  },
+  {
+    href: "/vs/sentinelone",
+    competitor: "SentinelOne",
+    blurb:
+      "AI-powered EDR/XDR for runtime threat detection and autonomous response. Blackglass covers the orthogonal question: what changed inside Linux configuration since the baseline you approved?",
+  },
 ];
 
 export default function VsIndexPage() {
@@ -70,10 +82,10 @@ export default function VsIndexPage() {
       />
       <p className="text-xs font-semibold uppercase tracking-widest text-accent-blue">Compare</p>
       <h1 className="mt-4 text-3xl font-semibold tracking-tight text-fg-primary">
-        Blackglass vs cloud security platforms
+        Blackglass vs security platforms
       </h1>
       <p className="mt-4 text-lg leading-relaxed">
-        We get asked this a lot: &ldquo;we already have Wiz / Lacework / Orca — do we need
+        We get asked this a lot: &ldquo;we already have Wiz / SentinelOne / Wazuh — do we need
         Blackglass too?&rdquo; Short answer: usually yes, because they&rsquo;re looking at
         different things. The pages below set out the boundary in detail, with capability
         comparisons sourced from each vendor&rsquo;s own public marketing.
@@ -102,12 +114,16 @@ export default function VsIndexPage() {
           The short version, in one sentence
         </h2>
         <p className="mt-3 text-sm leading-relaxed">
-          Cloud-native security platforms (Wiz, Lacework, Orca) tell you about the{" "}
-          <em>shape of your cloud</em> — IAM, network exposure, vulnerable images, posture
-          drift across accounts. Blackglass tells you about the{" "}
-          <em>state inside each Linux server</em> — sshd config, sudoers, package versions,
-          hardening profile, every drift event captured against a baseline you approved. Both
-          views are necessary; neither is sufficient.
+          EDR and XDR platforms (SentinelOne, Wazuh) watch what&rsquo;s{" "}
+          <em>running</em> — processes, file execution, network connections. Cloud-native
+          platforms (Wiz, Lacework, Orca) watch the{" "}
+          <em>shape of your cloud</em> — IAM, posture, exposed images. Vulnerability scanners
+          (Tenable, Qualys) watch what&rsquo;s{" "}
+          <em>unpatched</em>. Blackglass watches what&rsquo;s{" "}
+          <em>changed inside each Linux server since baseline</em> — sshd config, sudoers,
+          package versions, hardening profile — captured against a state you approved, with
+          per-line evidence ready for auditors. All four views are necessary; none is
+          sufficient on its own.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link

@@ -15,6 +15,7 @@ import type { DriftEvent } from "@/data/mock/types";
 import { evaluatePolicies, listPolicies, type PolicyViolation } from "./policy-service";
 import { getTenantNotifications } from "./notifications-service";
 import { applyMutes, listActiveMutesForWorker } from "./drift-mute-service";
+import { recordScanUsage } from "./scan-usage-service";
 import type { HostSnapshot } from "@/lib/server/collector/types";
 
 // ---------------------------------------------------------------------------
@@ -437,6 +438,12 @@ async function executeDriftScanJobImpl(
     } else {
       await recordDriftScanDayStamp(totalDrift);
       resolveScan(jobId, "succeeded", failures.length ? failures.join("; ") : undefined, totalDrift);
+
+      // Per-tenant scan-cost telemetry — fire-and-forget, never blocks the pipeline.
+      if (collectOpts.tenantId) {
+        const successCount = results.length - failures.length;
+        void recordScanUsage({ tenantId: collectOpts.tenantId, hostScans: successCount });
+      }
 
       // Auto-generate evidence bundle for tenants in SaaS mode (fire-and-forget).
       if (collectOpts.tenantId && process.env.DATABASE_URL?.trim()) {
