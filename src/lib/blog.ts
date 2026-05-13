@@ -31,6 +31,19 @@ export interface BlogPost {
 
 export const BLOG_POSTS: ReadonlyArray<BlogPost> = [
   {
+    slug: "linux-change-record-soc2-audit",
+    title: "The Linux change record problem: what SOC 2 actually asks for",
+    excerpt:
+      "CC6.8 assumes you have a reliable history of what changed on your systems. Linux is usually where that record breaks down — and reconstructing it from scattered logs is not what auditors want to see.",
+    date: "2026-05-13",
+    readingTime: "~7 min read",
+    tags: ["security", "compliance", "operations"],
+    author: {
+      name: "Jamie",
+      role: "Founder, Blackglass",
+    },
+  },
+  {
     slug: "snapshot-freshness-for-linux-evidence",
     title: "Snapshot freshness: why 'last seen' timestamps matter for Linux evidence",
     excerpt:

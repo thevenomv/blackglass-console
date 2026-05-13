@@ -11,10 +11,10 @@
  * Env (set in .env.local):
  *   RESEND_API_KEY   — required. Rotate at resend.com/api-keys if compromised.
  *
- * What gets sent (9 emails, one per sequence step):
+ * What gets sent (11 emails, one per sequence step):
  *   Sequence A (Platform / Reliability): A1, A2, A3, A4-breakup
- *   Sequence B (Security / Governance):  B1, B2, B3
- *   Sequence C (DevOps / EngMgr):        C1, C2, C3
+ *   Sequence B (Security / Governance):  B1, B2, B3, B-RE (re-engagement at 21d)
+ *   Sequence C (DevOps / EngMgr):        C1, C2, C3, C-RE (re-engagement at 21d)
  *
  * Each email subject is prefixed with [PREVIEW] and the persona/step so you
  * can find them quickly in your inbox.
@@ -250,6 +250,38 @@ Won't bother you again after this.
 If Linux config hygiene ever lands firmly on your plate — before it pages you — Blackglass is worth 10 minutes of your time.
 
 ${DEMO_URL}
+
+${SENDER}`,
+  },
+
+  // ── Re-engagement (sent ~21 days after sequences B and C complete) ───────
+  {
+    id: "B-RE",
+    label: "Sequence B — Re-engagement Step (21 days after step 1, no reply)",
+    subject: `[PREVIEW B-RE] one more thing on the Linux change record`,
+    body: `Hi ${FIRST_NAME},
+
+Quick one before I stop chasing.
+
+A few CISOs I've spoken with recently hit a gap when their audit asked for a Linux change record: not because they were disorganised, just because nothing was capturing it systematically. The answer ended up being "we'd have to reconstruct that from three tools."
+
+If that's a live risk at ${COMPANY} heading into H2, Blackglass solves it in about an afternoon of setup. Happy to show you the 20-second evidence export that most audit teams accept straight away.
+
+${SENDER}`,
+  },
+  {
+    id: "C-RE",
+    label: "Sequence C — Re-engagement Step (21 days after step 1, no reply)",
+    subject: `[PREVIEW C-RE] following up on the drift question`,
+    body: `Hi ${FIRST_NAME},
+
+Last one, I promise.
+
+If your team has had any incidents in the past month where someone asked "what changed on that host?" and the answer involved archaeology across Ansible logs, git history, and SSH session records — that's exactly what Blackglass is designed to skip.
+
+Baseline captures state. Every scan shows you the diff. Evidence exports in seconds.
+
+Worth 10 minutes?
 
 ${SENDER}`,
   },

@@ -1,5 +1,16 @@
 #!/usr/bin/env node
 /**
+ * @deprecated Use apollo-prospect-search.mjs instead.
+ *
+ * apollo-prospect-pull.mjs is retained for reference only. Its search
+ * queries and persona-mapping have been superseded by apollo-prospect-search.mjs,
+ * which supports all three ICP cohorts (BG-A/B/C), handles quoted-comma CSV
+ * output correctly, and shares the same native env-loader pattern.
+ *
+ * npm run prospects:search  ← replaces this script
+ */
+
+/**
  * Pull a shortlist of ICP-matched prospects from Apollo.io and write them
  * to a CSV for human review. Does NOT enrol anyone in sequences or send
  * any emails.
