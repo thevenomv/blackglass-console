@@ -21,24 +21,24 @@
  */
 
 import process from "node:process";
-import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Env
 // ---------------------------------------------------------------------------
 function loadDotenvLocal() {
-  const result = spawnSync(
-    process.execPath,
-    ["-e", "require('dotenv').config({ path: '.env.local' }); process.stdout.write(JSON.stringify(process.env));"],
-    { encoding: "utf8" },
-  );
-  if (result.status === 0 && result.stdout) {
-    try {
-      const parsed = JSON.parse(result.stdout);
-      for (const [k, v] of Object.entries(parsed)) {
-        if (process.env[k] === undefined) process.env[k] = v;
-      }
-    } catch { /* ignore */ }
+  const envPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", ".env.local");
+  if (!fs.existsSync(envPath)) return;
+  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx < 1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
+    if (process.env[key] === undefined) process.env[key] = val;
   }
 }
 
@@ -47,7 +47,7 @@ function arg(name, fallback) {
   return hit ? hit.slice(`--${name}=`.length) : fallback;
 }
 
-if (!process.env.RESEND_API_KEY) loadDotenvLocal();
+loadDotenvLocal();
 
 const RESEND_KEY = process.env.RESEND_API_KEY?.trim();
 if (!RESEND_KEY) {

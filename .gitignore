@@ -81,6 +81,9 @@ __pycache__/
 # multi-line messages on PowerShell (which can't handle bash heredocs).
 .git-commit-msg.tmp
 
+# Prospect/outreach CSVs — contain PII (email addresses). Keep local only.
+prospects*.csv
+
 # Terraform
 .terraform/
 *.tfstate

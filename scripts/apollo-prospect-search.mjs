@@ -28,13 +28,33 @@ const env = fs.readFileSync(envPath, "utf8").split("\n").reduce((o, l) => {
 const KEY = env.APOLLO_API_KEY;
 const h   = { "Content-Type": "application/json", "x-api-key": KEY };
 
+// ── CSV row parser (handles quoted commas) ────────────────────────────────────
+function parseCSVRow(line) {
+  const result = [];
+  let cur = "", inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if (ch === ',' && !inQuote) {
+      result.push(cur); cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
 // ── Load existing prospects (dedup by email + apollo_id) ─────────────────────
 const existingEmails = new Set();
 const existingIds    = new Set();
 const csvFiles = fs.readdirSync(".").filter(f => f.startsWith("prospects") && f.endsWith(".csv"));
 for (const f of csvFiles) {
   fs.readFileSync(f, "utf8").split("\n").slice(1).forEach(line => {
-    const cols = line.split(",").map(c => c.replace(/^"|"$/g, "").trim());
+    if (!line.trim()) return;
+    const cols = parseCSVRow(line);
     if (cols[6]) existingEmails.add(cols[6].toLowerCase());
     if (cols[8]) existingIds.add(cols[8]);
   });

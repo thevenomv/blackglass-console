@@ -58,6 +58,10 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+// Email account to send sequences from (jamie@obsidiandynamics.co.uk).
+// Set APOLLO_EMAIL_ACCOUNT_ID in .env.local to override.
+const EMAIL_ACCOUNT_ID = (process.env.APOLLO_EMAIL_ACCOUNT_ID ?? "6a036a25ee2332000d4d4abc").trim();
+
 // ---------------------------------------------------------------------------
 // ⚠️  SET THESE AFTER CREATING YOUR SEQUENCES IN APOLLO UI
 //     Sequences → New Sequence → copy ID from URL
@@ -178,7 +182,7 @@ async function enrolInSequence(contactId, sequenceId) {
   const { ok, status, data } = await apolloPost(`/emailer_campaigns/${sequenceId}/add_contact_ids`, {
     emailer_campaign_id: sequenceId,
     contact_ids: [contactId],
-    send_email_from_email_account_id: "6a036a25ee2332000d4d4abc",
+    send_email_from_email_account_id: EMAIL_ACCOUNT_ID,
   });
   return { ok, status, error: data?.error_message ?? data?.error ?? data?.message ?? JSON.stringify(data) };
 }
