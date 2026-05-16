@@ -34,9 +34,11 @@ export async function createQueuedBaselineJob(params: {
   };
   if (params.tenantId) {
     return withTenantRls(params.tenantId, async (tx) => {
-      const [row] = await tx.insert(schema.saasBaselineCaptureJobs).values(values).returning({
+      const rows = await tx.insert(schema.saasBaselineCaptureJobs).values(values).returning({
         id: schema.saasBaselineCaptureJobs.id,
       });
+      const row = rows[0];
+      if (!row) throw new Error("baseline capture job insert returned no rows");
       return row.id;
     });
   }
@@ -44,9 +46,11 @@ export async function createQueuedBaselineJob(params: {
   // tenantId — job row is created without a tenant FK and its lifecycle
   // is read-only by the caller via getBaselineJobRowBypass below.
   return withBypassRls(async (tx) => {
-    const [row] = await tx.insert(schema.saasBaselineCaptureJobs).values(values).returning({
+    const rows = await tx.insert(schema.saasBaselineCaptureJobs).values(values).returning({
       id: schema.saasBaselineCaptureJobs.id,
     });
+    const row = rows[0];
+    if (!row) throw new Error("baseline capture job insert returned no rows");
     return row.id;
   });
 }

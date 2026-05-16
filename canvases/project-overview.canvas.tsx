@@ -47,7 +47,7 @@ export default function ProjectOverview() {
             env only). Earlier: v2.2 §13a + Charon guarantees + §12; v2.1 §0
             strategic refresh. v2.5 adds: root <Code>SECURITY.md</Code> and{" "}
             <Code>ROADMAP.md</Code>; <Code>docker-compose.dev.yml</Code> +{" "}
-            <Code>docs/local-dev-docker.md</Code>; <Code>examples/api/</Code> curl/Node
+            <Code>docs/operations/local-dev-docker.md</Code>; <Code>examples/api/</Code> curl/Node
             samples; optional <Code>terraform/digitalocean</Code> starter; GitHub issue
             templates; <Code>docs/sales/apollo-cold-email-sequences.md</Code> for Apollo
             paste-in; CI <Code>ops:selfcheck</Code> + weekly{" "}
@@ -94,18 +94,18 @@ export default function ProjectOverview() {
           headers={["Path", "Purpose"]}
           columnAlign={["left", "left"]}
           rows={[
-            ["docs/security-compliance.md", "Questionnaire-style controls (incl. §8a Charon, §8b migrations)."],
-            ["docs/architecture-overview.md", "Layer map, invariants, Charon queue notes."],
-            ["docs/charon.md", "Janitor trust model, IAM starters, multi-region AWS JSON shape."],
-            ["docs/first-baseline-runbook.md", "Pilot success criteria, error codes, remedies."],
-            ["docs/vendor-inventory.md", "Sub-processors; Charon vs tenant-cloud APIs."],
+            ["docs/security/security-compliance.md", "Questionnaire-style controls (incl. §8a Charon, §8b migrations)."],
+            ["docs/architecture/architecture-overview.md", "Layer map, invariants, Charon queue notes."],
+            ["docs/operations/charon.md", "Janitor trust model, IAM starters, multi-region AWS JSON shape."],
+            ["docs/operations/first-baseline-runbook.md", "Pilot success criteria, error codes, remedies."],
+            ["docs/architecture/vendor-inventory.md", "Sub-processors; Charon vs tenant-cloud APIs."],
             ["docs/compliance/review-cadence.md", "Post-deploy and annual checks."],
             ["README.md (repo root)", "Quick start, full npm script matrix, architecture spine, SEO env (NEXT_PUBLIC_APP_URL, noindex)."],
             ["canvases/seo-follow-up.canvas.tsx", "Operational SEO checklist (Search Console, Rich Results, Cloudflare) — Cursor project canvases folder."],
             ["canvases/outstanding-actions.canvas.tsx", "Prioritised founder/operator queue (Resend, DO, Apollo, SOC2 triggers) — same canvases folder; refresh after each planning pass."],
             ["SECURITY.md (repo root)", "Vulnerability reporting policy for reviewers and GitHub private advisories."],
-            ["ROADMAP.md (repo root)", "Buyer-safe public roadmap summary (internal detail stays in docs/saas-customer-roadmap.md)."],
-            ["docs/local-dev-docker.md", "Disposable Postgres + Redis via docker-compose.dev.yml for laptop onboarding."],
+            ["ROADMAP.md (repo root)", "Buyer-safe public roadmap summary (internal detail stays in docs/saas/saas-customer-roadmap.md)."],
+            ["docs/operations/local-dev-docker.md", "Disposable Postgres + Redis via docker-compose.dev.yml for laptop onboarding."],
             ["docs/sales/apollo-cold-email-sequences.md", "Internal Apollo cold-email sequences; send via connected mailboxes, not product Resend."],
           ]}
         />
@@ -867,7 +867,7 @@ export default function ProjectOverview() {
             <Text size="small">
               <strong>Customer IAM scope.</strong> We document recommended
               read-only / minimum-permission scopes in{" "}
-              <Code>docs/charon.md</Code> and surface a recommended-policy JSON
+              <Code>docs/operations/charon.md</Code> and surface a recommended-policy JSON
               per provider, but customers can grant broader scopes; we cannot
               guarantee a customer's IAM is safely scoped, only enforce what
               the credential allows.
@@ -957,7 +957,7 @@ export default function ProjectOverview() {
           migration and verified.
         </Text>
         <Text size="small" tone="tertiary">
-          Runner + governance: scripts/ops/apply-migrations.mjs · docs/security-compliance.md §8b
+          Runner + governance: scripts/ops/apply-migrations.mjs · docs/security/security-compliance.md §8b
         </Text>
 
         <Callout tone="warning" title="Risk spotlight (focus here first)">
@@ -1071,7 +1071,7 @@ export default function ProjectOverview() {
           <Text size="small">
             First ingest within ~10 minutes of a correct install; baseline pinned
             deliberately after bundle preview; transient errors clear with one retry
-            or documented remedy — see docs/first-baseline-runbook.md.
+            or documented remedy — see docs/operations/first-baseline-runbook.md.
           </Text>
         </Callout>
         <Text size="small" weight="semibold">
@@ -1324,10 +1324,10 @@ export default function ProjectOverview() {
                 match what your account team quoted. (2) Skim <Code>§0</Code>{" "}
                 (Strategic refresh) + <Code>§4</Code> (Legal routes) +{" "}
                 <Code>§12</Code> (Org decisions / Trigger criteria). (3) Email
-                your security contact <Code>docs/security-compliance.md</Code>{" "}
+                your security contact <Code>docs/security/security-compliance.md</Code>{" "}
                 and ask for a signed copy of the latest one alongside the MSA.
               </span>,
-              "A go/no-go on whether pricing + legal posture clears your bar without further engineering time. Ask to receive back: this packet version string, the latest signed or current <Code>docs/security-compliance.md</Code>, and a sub-processor list that matches the public <Code>/subprocessors</Code> page. If §12 trigger criteria match a procurement requirement (e.g. SOC 2), you have a concrete next-step instead of a blocker.",
+              "A go/no-go on whether pricing + legal posture clears your bar without further engineering time. Ask to receive back: this packet version string, the latest signed or current <Code>docs/security/security-compliance.md</Code>, and a sub-processor list that matches the public <Code>/subprocessors</Code> page. If §12 trigger criteria match a procurement requirement (e.g. SOC 2), you have a concrete next-step instead of a blocker.",
             ],
             [
               "Security reviewer",
@@ -1337,7 +1337,7 @@ export default function ProjectOverview() {
                 surrounding code. (2) Read <Code>§6</Code> (Charon
                 Guarantees vs Non-guarantees). (3) Walk Step 1–4 of the §13
                 checklist and confirm the named files do what the table
-                claims. (4) Open <Code>docs/security-compliance.md</Code>{" "}
+                claims. (4) Open <Code>docs/security/security-compliance.md</Code>{" "}
                 §3 + §8a and check it agrees with what you saw in code.
               </span>,
               "An evidence-anchored opinion on tenant isolation + Charon safety. The greppable RLS-BYPASS tag means you can audit cross-tenant code paths in minutes, not days. If live <Code>rg</Code> counts disagree with the invariant in §2 / this checklist, treat that as a red flag and escalate before sign-off.",
@@ -1351,7 +1351,7 @@ export default function ProjectOverview() {
                 stack from <Code>README.md</Code> and run{" "}
                 <Code>npm run typecheck</Code> + <Code>npm run test:unit</Code>. (3)
                 Open one BullMQ job handler (e.g.{" "}
-                <Code>src/worker/sandbox-worker.ts</Code>) and trace it from enqueue (
+                <Code>src/worker/sandbox/index.ts</Code>) and trace it from enqueue (
                 <Code>src/lib/server/queue/</Code>) to the row update. (4) Pick a route
                 from <Code>openapi/blackglass.yaml</Code> and follow it from handler →
                 service → DB.

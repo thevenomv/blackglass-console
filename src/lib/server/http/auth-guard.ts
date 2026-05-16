@@ -9,7 +9,7 @@
 
 import { cookies } from "next/headers";
 import { verifySession } from "@/lib/auth/session-signing";
-import type { Role } from "@/lib/auth/permissions";
+import type { Role } from "@/lib/auth/legacy-permissions";
 import { jsonError } from "./json-error";
 
 type GuardOk = { ok: true; role: Role };

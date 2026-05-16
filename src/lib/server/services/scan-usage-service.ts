@@ -5,7 +5,7 @@
  * tenant scan completes (success or partial).  Failures are logged but
  * never surface to the scan pipeline.
  *
- * Schema: src/db/schema.ts → saasScanUsage
+ * Schema: src/db/schema/scan-usage.ts → saasScanUsage
  * Migration: drizzle/0026_tenant_scan_usage.sql
  */
 import { sql } from "drizzle-orm";

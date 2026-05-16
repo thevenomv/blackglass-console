@@ -5,11 +5,11 @@ import {
   requireRecentPrimaryVerification,
   requireTenantAuth,
   type TenantAuthContext,
-} from "@/lib/saas/auth-context";
+} from "@/lib/saas/tenant-context";
 import { canRunScansForTenant } from "@/lib/saas/operations";
 import { jsonError } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
-import type { Role } from "@/lib/auth/permissions";
+import type { Role } from "@/lib/auth/legacy-permissions";
 import { toLegacyApiRole } from "@/lib/saas/plans";
 import type { SaasPermission } from "@/lib/saas/permissions";
 import type { TenantRole } from "@/lib/saas/tenant-role";

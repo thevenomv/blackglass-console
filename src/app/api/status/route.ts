@@ -125,13 +125,13 @@ export async function GET(request: Request) {
     probeDatabase(),
   ]);
 
-  const components: Record<string, ProbeResult> = {
-    console: { status: "ok", latencyMs: 0 },
-    api: { status: "ok", latencyMs: 0 },
+  const components = {
+    console: { status: "ok", latencyMs: 0 } as ProbeResult,
+    api: { status: "ok", latencyMs: 0 } as ProbeResult,
     database,
     redis,
     spaces,
-  };
+  } satisfies Record<string, ProbeResult>;
 
   // Overall is the worst component status, ignoring not_configured
   // (a self-hosted deployment without Spaces shouldn't show "down"

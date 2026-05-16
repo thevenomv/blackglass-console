@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { EvidenceBody } from "./_components/EvidenceBody";
@@ -7,7 +7,7 @@ import { getLimits } from "@/lib/plan";
 import { mockLatency } from "@/lib/mockLatency";
 import { Suspense } from "react";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
-import { requireTenantAuth, SaasAuthError } from "@/lib/saas/auth-context";
+import { requireTenantAuth, SaasAuthError } from "@/lib/saas/tenant-context";
 import { hasPermission } from "@/lib/saas/permissions";
 
 /**

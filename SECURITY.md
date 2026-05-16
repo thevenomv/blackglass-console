@@ -25,4 +25,4 @@ If you make a good-faith effort to avoid privacy violations, degradation of prod
 
 ## More detail
 
-Operator-facing control mapping and architecture notes live in [docs/security-compliance.md](docs/security-compliance.md) (repository access only; not linked from public marketing footers per [docs/README.md](docs/README.md)).
+Operator-facing control mapping and architecture notes live in [docs/security/security-compliance.md](docs/security/security-compliance.md) (repository access only; not linked from public marketing footers per [docs/README.md](docs/README.md)).

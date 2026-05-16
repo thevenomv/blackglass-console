@@ -17,14 +17,14 @@ Thank you for helping improve Blackglass. This repository powers a production Sa
    npm run verify:stage0:clean
    ```
 
-3. **Migrations** — If you change `src/db/schema.ts`, generate Drizzle SQL and include it in `drizzle/` per existing conventions; never hand-edit applied migration history.
+3. **Migrations** — If you change the Drizzle schema (under `src/db/schema/`), generate Drizzle SQL and include it in `drizzle/` per existing conventions; never hand-edit applied migration history.
 4. **RLS** — Tenant reads/writes go through `withTenantRls`. Any new `withBypassRls` usage must include a `// RLS-BYPASS:` tag and stay rare (webhooks, migrations, API key bootstrap only). CI enforces tag parity.
 5. **OpenAPI** — If you add or change `/api/v1` routes, update `openapi/blackglass.yaml` so `npm run check:openapi` passes, then run `npm run schemas:export` and commit `openapi/zod-schemas.json` when the exporter changes it.
 
 ## Local development
 
 - **Quick path:** [README.md](README.md) (`npm ci`, `.env.local`, `npm run dev`).
-- **Docker Postgres + Redis:** [docs/local-dev-docker.md](docs/local-dev-docker.md) and [docker-compose.dev.yml](docker-compose.dev.yml).
+- **Docker Postgres + Redis:** [docs/operations/local-dev-docker.md](docs/operations/local-dev-docker.md) and [docker-compose.dev.yml](docker-compose.dev.yml).
 
 ## API examples
 

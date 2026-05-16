@@ -1,6 +1,6 @@
 # Public roadmap
 
-This is a **high-level, buyer-safe** summary. It is not a sprint plan or contractual commitment. Engineering detail and internal sequencing live in `docs/saas-customer-roadmap.md` (private to the repo).
+This is a **high-level, buyer-safe** summary. It is not a sprint plan or contractual commitment. Engineering detail and internal sequencing live in `docs/saas/saas-customer-roadmap.md` (private to the repo).
 
 ## Shipped themes
 
@@ -32,5 +32,5 @@ Examples of backlog themes without committed delivery dates:
 
 ## How to respond in sales or procurement
 
-- Point security reviewers at the in-repo **security packet** referenced from the root `README.md` (`docs/security-compliance.md`, architecture overview, runbooks).
+- Point security reviewers at the in-repo **security packet** referenced from the root `README.md` (`docs/security/security-compliance.md`, architecture overview, runbooks).
 - For “when will X ship,” prefer a direct commercial thread; this file is intentionally conservative.

@@ -325,7 +325,7 @@ export function HostsView({
                 style={{ height: rowVirtualizer.getTotalSize() }}
               >
                 {rowVirtualizer.getVirtualItems().map((vi) => {
-                  const h = filtered[vi.index];
+                  const h = filtered[vi.index]!;
                   return (
                     <div
                       key={h.id}

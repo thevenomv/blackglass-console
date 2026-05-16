@@ -41,7 +41,7 @@ jobs:
         run: npm run lint
 
       - name: Ops workflow script path parity
-        run: node scripts/ops-automation-selfcheck.mjs
+        run: node scripts/verify/ops-automation-selfcheck.mjs
 
       - name: RLS-BYPASS tag parity (withBypassRls callsites)
         run: npm run check:rls-bypass
@@ -296,4 +296,4 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         env:
           STAGING_URL: ${{ secrets.STAGING_URL }}
-        run: node scripts/verify-staging.mjs
+        run: node scripts/verify/verify-staging.mjs

@@ -23,7 +23,7 @@ import { emitSaasAudit } from "@/lib/saas/event-log";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { applySaasSentryContext } from "@/lib/observability/sentry-saas";
 import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
-import type { TenantAuthContext } from "@/lib/saas/auth-context";
+import type { TenantAuthContext } from "@/lib/saas/tenant-context";
 import {
   baselineAsyncJobsEnabled,
   captureBaselinesSyncLegacy,

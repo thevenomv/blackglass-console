@@ -17,7 +17,7 @@ export function parseListeners(raw: string, proto: "tcp" | "udp" = "tcp"): Liste
     // TCP: "LISTEN  0  128  0.0.0.0:22  ..."
     // UDP: "UNCONN  0  0    0.0.0.0:53  ..." (ss reports stateless sockets as UNCONN)
     const m = line.match(/^(?:LISTEN|UNCONN)\s+\d+\s+\d+\s+([\d.*:[\]a-f%\w]+):(\d+)\s/i);
-    if (!m) continue;
+    if (!m || !m[1] || !m[2]) continue;
     const bind = m[1].replace(/^\[/, "").replace(/\]$/, "").replace(/%\w+$/, "");
     const port = parseInt(m[2], 10);
     if (bind.startsWith("127.") || bind === "::1") continue;
@@ -33,9 +33,9 @@ export function parseUsers(raw: string): LocalUser[] {
     .filter(Boolean)
     .map((l) => {
       const [username, uid] = l.split(":");
-      return { username: username.trim(), uid: parseInt(uid, 10) };
+      return { username: (username ?? "").trim(), uid: parseInt(uid ?? "", 10) };
     })
-    .filter((u) => !isNaN(u.uid));
+    .filter((u) => u.username.length > 0 && !isNaN(u.uid));
 }
 
 export function parseSudoers(raw: string): string[] {
@@ -133,8 +133,8 @@ export function parseAuthorizedKeys(raw: string): AuthorizedKey[] {
     if (!rest || rest.startsWith("#")) continue;
     const parts = rest.split(/\s+/);
     if (parts.length < 2) continue;
-    const keyType = parts[0];
-    const keyData = parts[1];
+    const keyType = parts[0]!;
+    const keyData = parts[1]!;
     const comment = parts.slice(2).join(" ") || "";
     // Last 16 chars of key material are stable enough to identify a specific key
     const keyFingerprint = keyData.slice(-16);
@@ -151,7 +151,7 @@ export function parseFileHashes(raw: string): FileHash[] {
   const results: FileHash[] = [];
   for (const line of raw.split("\n")) {
     const m = line.match(/^([a-f0-9]{32})\s+(.+)$/);
-    if (!m) continue;
+    if (!m || !m[1] || !m[2]) continue;
     results.push({ path: m[2].trim(), hash: m[1] });
   }
   return results;
@@ -168,7 +168,7 @@ export function parseHostsEntries(raw: string): HostsEntry[] {
     if (!trimmed || trimmed.startsWith("#")) continue;
     const parts = trimmed.split(/\s+/);
     if (parts.length < 2) continue;
-    const ip = parts[0];
+    const ip = parts[0]!;
     const hostnames = parts.slice(1).filter((h) => !h.startsWith("#"));
     if (hostnames.length > 0) results.push({ ip, hostnames });
   }
@@ -240,7 +240,7 @@ export function parseInstalledPackages(raw: string): InstalledPackage[] {
     // First two non-space tokens are status flags; we only accept "ii" (installed-installed)
     // so half-installed / config-files-only packages don't pollute the diff.
     const dpkgMatch = trimmed.match(/^ii\s+(\S+)\s+(\S+)/);
-    if (dpkgMatch) {
+    if (dpkgMatch && dpkgMatch[1] && dpkgMatch[2]) {
       results.push({ name: dpkgMatch[1], version: dpkgMatch[2] });
     }
   }

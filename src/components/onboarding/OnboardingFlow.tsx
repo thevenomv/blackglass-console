@@ -32,7 +32,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { runBaselineCaptureFromBrowser } from "@/lib/client/baseline-capture";
-import { ONBOARDING_TIPS, tipForCode } from "@/lib/onboarding/troubleshooting";
+import { ONBOARDING_TIPS, tipForCode } from "@/lib/client/onboarding-troubleshooting";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -330,6 +330,7 @@ function ConnectHostStep({
       const t = window.setTimeout(onNext, 1200);
       return () => window.clearTimeout(t);
     }
+    return undefined;
   }, [stage, onNext]);
 
   // ---------- Render -------------------------------------------------------

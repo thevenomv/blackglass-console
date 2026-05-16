@@ -1,4 +1,4 @@
-import type { Role } from "@/lib/auth/permissions";
+import type { Role } from "@/lib/auth/legacy-permissions";
 
 export const apiConfig = {
   /** Opt-in: set `NEXT_PUBLIC_USE_MOCK=true` for legacy demo inventory (e2e). Production uses live/empty. */

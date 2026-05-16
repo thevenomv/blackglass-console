@@ -2,7 +2,6 @@
  * GET /api/v1/collector/keys — masked push-ingest credentials (INGEST_API_KEY / per-host map).
  */
 
-import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";

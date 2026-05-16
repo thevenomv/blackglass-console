@@ -4,7 +4,7 @@
  * One source of truth — used by:
  *   - The agent-push route (POST /api/v1/ingest/agent) when returning 4xx/5xx
  *   - The onboarding wizard (renders the matching remedy)
- *   - The runbook (`docs/first-baseline-runbook.md`)
+ *   - The runbook (`docs/operations/first-baseline-runbook.md`)
  *   - The agent install script (`/install-agent.sh`) when echoing the error
  *
  * If you add a code, add the remedy AND the runbook entry in the same PR.

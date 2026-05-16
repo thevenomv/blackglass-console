@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
-import { requireTenantAuth, SaasAuthError } from "@/lib/saas/auth-context";
+import { requireTenantAuth, SaasAuthError } from "@/lib/saas/tenant-context";
 import { emitSaasAudit } from "@/lib/saas/event-log";
 import { readJsonBodyOptional, jsonError } from "@/lib/server/http/json-error";
 import { z } from "zod";

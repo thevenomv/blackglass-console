@@ -262,7 +262,7 @@ export default function Post() {
           drop us a line
         </Link>{" "}
         — we&rsquo;ll happily walk you through the patterns. The whole audit is also documented in{" "}
-        <code>docs/seo.md</code> in the repo (semi-public; ask if you&rsquo;d like a pointer).
+        <code>docs/marketing/seo.md</code> in the repo (semi-public; ask if you&rsquo;d like a pointer).
       </p>
 
       <div className="mt-12 rounded-card border border-accent-blue/40 bg-accent-blue/5 p-6">

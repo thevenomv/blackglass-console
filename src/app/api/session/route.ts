@@ -1,11 +1,11 @@
-import type { Role } from "@/lib/auth/permissions";
+import type { Role } from "@/lib/auth/legacy-permissions";
 import { verifySession } from "@/lib/auth/session-signing";
 import { apiConfig, defaultGuestRole } from "@/lib/api/config";
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
-import { requireTenantAuth } from "@/lib/saas/auth-context";
+import { requireTenantAuth } from "@/lib/saas/tenant-context";
 import { toLegacyApiRole } from "@/lib/saas/plans";
 import { checkSaasContextRate, clientIpFromHeaders } from "@/lib/server/rate-limit";
 

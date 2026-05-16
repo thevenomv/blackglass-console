@@ -4,6 +4,110 @@ All notable user-facing and integration-facing changes are summarized here. Inte
 
 ## Unreleased
 
+### Repository layout refactor (2026-05-16 — autonomous batch)
+
+A multi-pass cleanup of the repo's top-level shape. **No runtime behaviour
+changed** — this is internal layering and verify-pipeline ergonomics. The
+moves below are listed in case anyone is rebasing a long-lived branch.
+
+#### tsconfig + verify scripts
+
+- TypeScript `target` bumped `ES2017` → `ES2022`; `noFallthroughCasesInSwitch`
+  and `noImplicitReturns` enabled (one real bug fixed in
+  `src/components/onboarding/OnboardingFlow.tsx`).
+- `verify:stage0` split into `verify:fast` (lint + typecheck + unit),
+  `verify:contract` (RLS-bypass + OpenAPI + schemas-export + migrations) and
+  `verify:build`. The old `verify:stage0` still exists and runs all three in
+  order; CI is unchanged.
+
+#### ESLint architectural boundaries
+
+- `no-restricted-imports` for `src/app/api/**` to block direct imports of
+  `@/lib/auth/legacy-permissions` — route handlers must go through
+  `@/lib/server/http/saas-access`. `/api/session` is the documented exception.
+
+#### Renames (import sites updated)
+
+| Before | After |
+|---|---|
+| `src/lib/auth/permissions.ts` | `src/lib/auth/legacy-permissions.ts` |
+| `src/lib/remediation-snippets.ts` | `src/lib/client/remediation-snippets.ts` |
+| `src/lib/onboarding/troubleshooting.ts` | `src/lib/client/onboarding-troubleshooting.ts` |
+| `src/lib/billing/provision.ts` | `src/lib/server/billing/provision.ts` |
+| `src/lib/server/audit-append-pg.ts` | `src/lib/server/store/legacy/audit-append-pg.ts` |
+| `src/lib/server/store/baseline-pg.ts` | `src/lib/server/store/legacy/baseline-pg.ts` |
+| `src/lib/server/store/driftevents-pg.ts` | `src/lib/server/store/legacy/driftevents-pg.ts` |
+| `src/lib/server/store/drifthistory-pg.ts` | `src/lib/server/store/legacy/drifthistory-pg.ts` |
+| `src/lib/server/remediation-snippets.ts` | **deleted** (dead code; client mirror is canonical) |
+| `scripts/_scratch/_send-test-emails.ts` | `scripts/email/_send-test-emails.ts` |
+
+#### Folder restructure (no behaviour change)
+
+- **`src/db/schema.ts`** (742 lines, 36 KB) → `src/db/schema/{saas,credentials,hosts,sandboxes,evidence,drift,notifications,kms,retention,scan-usage,janitor,index}.ts`. The barrel re-exports everything; `import { … } from "@/db/schema"` still works.
+- **`src/lib/server/drift-engine.ts`** and **`src/lib/server/outbound-webhook.ts`** converted to folder modules with `REFACTOR.md` plans for incremental carve-up.
+- **`tests/unit/`** — 80 flat files → 20 domain subfolders.
+- **`scripts/`** — 51 flat scripts → 16 domain subfolders.
+- **`docs/`** — 33 flat docs → 5 domain subfolders (`architecture/`, `security/`, `operations/`, `saas/`, `marketing/`). `docs/README.md` is now a navigation index.
+- **`docs/migrations/`** → **`docs/sql/`** (numeric prefixes dropped; `docs/sql/README.md` explains the out-of-band SQL scripts).
+
+#### Governance / docs added
+
+- `.github/CODEOWNERS` — `@thevenomv` owns everything; hot-path entries call out auth, db schema, OpenAPI, deploy/Helm/Terraform, and the verify pipeline.
+- `docs/architecture/adr/0001-repo-layering-conventions.md` — records the layering rules so future moves stay consistent.
+
+#### Static asset optimisation
+
+- **OG images re-encoded** — `public/og-default.png` (1.6 MB → 262 KB, -83%),
+  `public/og-tools.png` (1.6 MB → 254 KB, -84%), `public/brand/logo-email.png`
+  (878 KB → 26 KB, -97%). Total static-asset payload down ~3.5 MB. Filenames
+  unchanged so cached LinkedIn / Slack / Facebook previews don't re-fetch.
+- **WebP siblings emitted** at `public/og-default.webp`, `public/og-tools.webp`,
+  `public/brand/logo-email.webp` (28 KB / 27 KB / 7 KB) for crawlers that
+  accept `image/webp` — no metadata wiring yet, ship-ready for a follow-up.
+- **`npm run build:optimize-og`** — idempotent re-encoder (sharp, transitive
+  through `next`). Re-run whenever the source PNGs change.
+
+#### Drift engine + outbound webhook carve-up
+
+- **`src/lib/server/drift-engine/`** split into `index.ts` (public re-export),
+  `compute.ts` (the diff function), `store.ts` (sync in-memory + JSON file
+  persistence), `store-async.ts` (Postgres-backed reads with cross-process
+  freshness), `helpers.ts` (`id()` / `now()` leaf utilities). `REFACTOR.md`
+  notes the remaining per-category split for `compute.ts`.
+- **`src/lib/server/outbound-webhook/`** split into `index.ts` (public API
+  only), `types.ts`, `signing.ts`, `config.ts`, `dispatch.ts`, and
+  `platforms/{detect,format,slack,pagerduty,servicenow,jira,datadog,linear,github,splunk,asff,sentinel,ocsf}.ts`.
+  Public exports unchanged (`dispatchDriftWebhook`, `dispatchTenantJsonWebhooks`,
+  `sendTestWebhook`, `deliverWebhookInline`, `webhookUrls`, `__internals`).
+
+#### Strict TypeScript + lint
+
+- **`tsconfig.noUncheckedIndexedAccess: true`** — all 170+ resulting errors
+  fixed (non-null assertions where flow guarantees the value, optional chaining
+  where it doesn't, explicit checks on Drizzle `insert().returning()` results).
+- **`@typescript-eslint/eslint-plugin`** added (warn on `no-explicit-any` and
+  `no-unused-vars`).
+- **`eslint-plugin-import`** added (`no-self-import`, `no-empty-named-blocks`,
+  `no-duplicates` all error-level).
+- Duplicate-import warnings cleaned up across 5 files.
+
+#### Other layout polish
+
+- **`src/components/dashboard/`** consolidated into the dashboard route's
+  `_components/` folder (`DriftTrendChart`, `SystemStatusBanner`,
+  `ValueRecapBanner`). Frees the top-level `components/` of route-local UI.
+- **`src/lib/saas/auth-context.ts` → `tenant-context.ts`** — same file, clearer
+  name. 17 import sites updated. All exports unchanged.
+- **`src/worker/`** — flat `scan-worker.ts` / `ops-worker.ts` /
+  `sandbox-worker.ts` re-shaped into `src/worker/{scan,ops,sandbox}/index.ts`.
+  `package.json` / `Dockerfile.worker` / `scripts/build/build-worker.mjs`
+  updated to match.
+- **`tests/unit/**/*.test.ts`** — all relative imports
+  (`../../../src/lib/...`) migrated to the `@/` alias (13 files).
+- **`openapi/README.md`** added — documents the single-file `blackglass.yaml`
+  layout and the planned ref-based split (deferred; needs verify-pipeline
+  rewrite).
+
 ### Marketing SEO follow-up (2026-05-11 — autonomous batch)
 
 - **`articleSchema()`** in `src/lib/seo.ts` + **Article JSON-LD** on all blog posts (including new posts).
@@ -39,7 +143,7 @@ freshness signals.
 
 - **Unit tests for `src/lib/seo.ts`** (`tests/unit/seo-helpers.test.ts`, +23 tests) — locks every schema factory's required fields, canonical edge cases (trailing slash, missing env, leading slash, query strings), `dynamicOgImages` URL encoding, JSON-serialisability of every emitter.
 - **Marketing-page smoke test** (`tests/unit/marketing-page-seo.test.ts`, +113 tests) — discovers every `page.tsx` under `src/app/(marketing)`, asserts each one declares `alternates.canonical`, declares an OG image when it overrides `openGraph`, renders an `<h1>`, and never hand-rolls a raw `<script type="application/ld+json">` (must use `<JsonLd />`). Documented per-route exceptions for `/pricing/success` (noindex), `/passphrase-recovery` (redirect), `/sign-in/*` and `/sign-up/*` (auth surfaces), `/demo/*` subpages (shared workspace), and `/` (h1 lives in `<LandingPage />`).
-- **`docs/seo.md`** — engineering-side strategy doc covering schema choices, the `<JsonLd />` wrapper rationale, why we use a centralised `/api/og` endpoint instead of per-route `opengraph-image.tsx`, the validation workflow, and the full file map.
+- **`docs/marketing/seo.md`** — engineering-side strategy doc covering schema choices, the `<JsonLd />` wrapper rationale, why we use a centralised `/api/og` endpoint instead of per-route `opengraph-image.tsx`, the validation workflow, and the full file map.
 - **Heading hierarchy fixes** — `/tools` and the 3 tool subpages had no `<h1>` (used `<h2>` for the page title); upgraded to `<h1>` so heading hierarchy is well-formed and the smoke test passes without exception.
 - **`src/lib/changelog.ts`** — extracted the `ENTRIES` array from the `/changelog` page component into a shared module so the page and the RSS feed never drift. Same call sites; `formatChangelogDate()` keeps the page rendering "10 May 2026" while the feed emits stable noon-UTC RFC 822 timestamps.
 
@@ -82,10 +186,10 @@ freshness signals.
 - **Slack fan-out switched to Block Kit `plain_text` blocks** — eliminates the mrkdwn injection vector where a malicious `org` value of `<!channel> :rocket:` would have pinged the whole sales channel. Top-level `text` fallback is now a static, user-input-free string.
 - **CSP allowlists Plausible** on both `script-src` and `connect-src` (default `https://plausible.io` plus the host parsed from `NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL` when self-hosting). Without this, flipping `SECURITY_HEADERS_CSP_ENFORCE=true` would silently break analytics on launch day.
 - **Inventory diff client caps uploads at 10 MB** with a friendly per-file error state. UX guardrail (FileReader runs locally; nothing to defend server-side) but stops 500 MB JSON files from locking up a tab before the parser surfaces the issue.
-- **GDPR Art. 5(e) retention obligation documented** in `docs/audit-trail.md` → "PII in process-global audit rows", covering both `marketing.contact_sales_lead` and `tools.cloud_waste.report_requested`. Retention matrix per sink + right-to-erasure lookup pattern. Cross-referenced from the API route docstring.
+- **GDPR Art. 5(e) retention obligation documented** in `docs/architecture/audit-trail.md` → "PII in process-global audit rows", covering both `marketing.contact_sales_lead` and `tools.cloud_waste.report_requested`. Retention matrix per sink + right-to-erasure lookup pattern. Cross-referenced from the API route docstring.
 - **Audit-log injection neutralised** — new `formatAuditDetail()` helper in `src/lib/server/audit-log.ts` JSON-escapes every value going into the `detail` string. Previously, a hostile `org` of `Acme" injected="malicious` would have escaped the `key="value"` grammar and tricked downstream log parsers; embedded newlines or ANSI escape codes (`\x1b[31m`) could have corrupted operator terminals viewing the file directly. Applied to both `POST /api/tools/cloud-waste-report` (new in this release) **and** to the pre-existing `POST /api/contact-sales` route, which had the identical vulnerability.
 - **`/api/contact-sales` Slack fan-out hardened** — same Block Kit `plain_text` fix applied to the older sibling endpoint, closing an `<!channel>`-injection path via the lead `name` / `company` / `message` fields. Top-level `text` fallback is now a static notification string.
-- **Deployment trust boundary documented** — `clientIp()` and `docs/http-rate-limit-budgets.md` now spell out the requirement that the edge proxy MUST strip and replace any client-supplied `x-real-ip` and `x-forwarded-for` headers. Without that stripping (DO App Platform default; nginx requires explicit `proxy_set_header` directives), an attacker can rotate `x-real-ip` per request and bypass every per-IP rate limit. Includes a one-line `curl` smoke check operators can run post-deploy.
+- **Deployment trust boundary documented** — `clientIp()` and `docs/security/http-rate-limit-budgets.md` now spell out the requirement that the edge proxy MUST strip and replace any client-supplied `x-real-ip` and `x-forwarded-for` headers. Without that stripping (DO App Platform default; nginx requires explicit `proxy_set_header` directives), an attacker can rotate `x-real-ip` per request and bypass every per-IP rate limit. Includes a one-line `curl` smoke check operators can run post-deploy.
 
 ### Integrations (breaking for strict parsers)
 

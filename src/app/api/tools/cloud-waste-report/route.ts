@@ -40,7 +40,7 @@
  * clear text — needed for legitimate follow-up. Lawful basis is consent
  * (form submission). GDPR Art. 5(e) requires a defined retention window:
  * any persistent audit sink (file / Postgres / Spaces) MUST have a
- * lifecycle policy applied by the operator. See `docs/audit-trail.md`
+ * lifecycle policy applied by the operator. See `docs/architecture/audit-trail.md`
  * → "PII in process-global audit rows" for the full retention matrix
  * and right-to-erasure path.
  *

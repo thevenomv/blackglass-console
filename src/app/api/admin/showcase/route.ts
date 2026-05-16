@@ -21,7 +21,7 @@
 import { NextResponse } from "next/server";
 import { withBypassRls, schema } from "@/db";
 import { and, desc, eq, ne } from "drizzle-orm";
-import { requireTenantAuth, SaasAuthError } from "@/lib/saas/auth-context";
+import { requireTenantAuth, SaasAuthError } from "@/lib/saas/tenant-context";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

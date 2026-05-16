@@ -59,7 +59,7 @@ export const hosts: HostRecord[] = [
 
 const details: Record<string, HostDetail> = {
   "host-07": {
-    ...hosts[0],
+    ...hosts[0]!,
     baselineId: "bl-host-07-prod",
     baselineLabel: "prod-bootstrap-2026-04-12",
     integrityBars: {

@@ -481,7 +481,7 @@ export function DriftEventsView({
             ) : useVirtual ? (
               <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
                 {rowVirtualizer.getVirtualItems().map((vi) => {
-                  const e = filtered[vi.index];
+                  const e = filtered[vi.index]!;
                   return (
                     <div
                       key={e.id}

@@ -25,7 +25,7 @@ terraform apply -var="create_managed_postgres=true"
 # terraform apply -var="create_managed_valkey=true"
 ```
 
-Copy the sensitive output connection strings into your secrets manager (Doppler, DO Secrets, Vault) and map them to `DATABASE_URL`, `REDIS_QUEUE_URL`, and `RATE_LIMIT_REDIS_URL` (Valkey URIs use the same Redis URL format expected by BullMQ and the rate limiter) as described in the root `.env.example` and [docs/operator-guide.md](../../docs/operator-guide.md).
+Copy the sensitive output connection strings into your secrets manager (Doppler, DO Secrets, Vault) and map them to `DATABASE_URL`, `REDIS_QUEUE_URL`, and `RATE_LIMIT_REDIS_URL` (Valkey URIs use the same Redis URL format expected by BullMQ and the rate limiter) as described in the root `.env.example` and [docs/operations/operator-guide.md](../../docs/operations/operator-guide.md).
 
 ## Outputs
 

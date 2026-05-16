@@ -2,7 +2,7 @@
  * BullMQ-backed data-export queue.
  *
  * Producer for tenant data exports. The consumer lives in
- * `src/worker/ops-worker.ts` and calls `runExportJob()` from
+ * `src/worker/ops/index.ts` and calls `runExportJob()` from
  * `services/export-service.ts`.
  *
  * When REDIS_QUEUE_URL is unset the producer returns false so the caller

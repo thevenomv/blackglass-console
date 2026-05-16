@@ -27,8 +27,7 @@
  *     applies even to error pages middleware doesn't touch.
  */
 
-import type { NextRequest } from "next/server";
-import type { NextResponse } from "next/server";
+import type { NextRequest, NextResponse } from "next/server";
 
 /**
  * The CSP report endpoint. Setting `SECURITY_HEADERS_CSP_REPORT_URI`

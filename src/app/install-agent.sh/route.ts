@@ -13,7 +13,7 @@
  *      `python3` + `curl` if missing.
  *   2. Creates the `blackglass` system user.
  *   3. Drops `/usr/local/bin/blackglass-agent.sh` (the bundle agent — the
- *      same script that ships in `scripts/blackglass-agent.sh`, embedded
+ *      same script that ships in `scripts/systemd/blackglass-agent.sh`, embedded
  *      here so the installer is hermetic and survives a server reboot
  *      mid-install).
  *   4. Writes `/etc/blackglass-agent.env` (mode 0600) with the user's
@@ -64,7 +64,7 @@ const TOMBSTONE_AUTO_CLEAR_WINDOW_MS = 10 * 60 * 1000;
 let cachedAgentScript: string | null = null;
 async function readAgentScript(): Promise<string> {
   if (cachedAgentScript) return cachedAgentScript;
-  const p = path.join(process.cwd(), "scripts", "blackglass-agent.sh");
+  const p = path.join(process.cwd(), "scripts", "systemd", "blackglass-agent.sh");
   cachedAgentScript = await fs.readFile(p, "utf8");
   return cachedAgentScript;
 }

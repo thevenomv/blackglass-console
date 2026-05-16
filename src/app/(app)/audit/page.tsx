@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
-import { requireTenantAuth, SaasAuthError } from "@/lib/saas/auth-context";
+import { requireTenantAuth, SaasAuthError } from "@/lib/saas/tenant-context";
 import { hasPermission } from "@/lib/saas/permissions";
 import type { TenantRole } from "@/lib/saas/tenant-role";
 import { AuditLogView } from "./_components/AuditLogView";

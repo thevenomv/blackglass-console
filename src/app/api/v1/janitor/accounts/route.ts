@@ -215,7 +215,7 @@ export async function POST(request: Request) {
   const encrypted = await encryptKey(tenantId, apiToken);
   const encryptedApiKey = JSON.stringify(encrypted);
 
-  const [row] = await withTenantRls(tenantId, (db) =>
+  const rowsInserted = await withTenantRls(tenantId, (db) =>
     db
       .insert(janitorAccounts)
       .values({
@@ -249,6 +249,10 @@ export async function POST(request: Request) {
         createdAt: janitorAccounts.createdAt,
       }),
   );
+  const row = rowsInserted[0];
+  if (!row) {
+    return jsonError(500, "insert_failed", "janitor account upsert returned no rows", requestId);
+  }
 
   await emitSaasAudit({
     tenantId,

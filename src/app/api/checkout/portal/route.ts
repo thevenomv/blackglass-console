@@ -4,7 +4,7 @@ import { checkPortalRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
 import { z } from "zod";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
-import { requireTenantAuth, SaasAuthError, requireRecentPrimaryVerification } from "@/lib/saas/auth-context";
+import { requireTenantAuth, SaasAuthError, requireRecentPrimaryVerification } from "@/lib/saas/tenant-context";
 import { hasPermission } from "@/lib/saas/permissions";
 import { canChangeBillingForTenant } from "@/lib/saas/operations";
 

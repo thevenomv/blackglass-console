@@ -1,6 +1,6 @@
 /**
  * BullMQ queue for Charon (read-only cloud scans).
- * Consumer: `src/worker/ops-worker.ts` → `executeJanitorScanJob`.
+ * Consumer: `src/worker/ops/index.ts` → `executeJanitorScanJob`.
  */
 
 import { randomUUID } from "node:crypto";

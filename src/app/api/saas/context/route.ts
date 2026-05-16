@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireTenantAuth, SaasAuthError } from "@/lib/saas/auth-context";
+import { requireTenantAuth, SaasAuthError } from "@/lib/saas/tenant-context";
 import { listMembershipsForTenant } from "@/lib/saas/tenant-service";
 import { getSeatUsage } from "@/lib/saas/seats";
 import { isTrialReadOnlyState } from "@/lib/saas/trial";

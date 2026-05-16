@@ -15,12 +15,11 @@
  */
 
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
-import { saveBaseline } from "@/lib/server/baseline-store";
+import { saveBaseline, listBaselineHostIds } from "@/lib/server/baseline-store";
 import { jsonError, readJsonBodyOptional, zodErrorResponse } from "@/lib/server/http/json-error";
 import { IngestPayloadSchema } from "@/lib/server/http/schemas";
 import { checkIngestRate } from "@/lib/server/rate-limit";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
-import { listBaselineHostIds } from "@/lib/server/baseline-store";
 import { withinHostAllowance } from "@/lib/saas/operations";
 import { getSubscriptionForTenant } from "@/lib/saas/tenant-service";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";

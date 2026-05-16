@@ -30,7 +30,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # esbuild is available transitively through Next; mark runtime-only native deps external.
-RUN node_modules/.bin/esbuild src/worker/scan-worker.ts \
+RUN node_modules/.bin/esbuild src/worker/scan/index.ts \
     --bundle \
     --platform=node \
     --target=node22 \

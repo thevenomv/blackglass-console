@@ -301,11 +301,15 @@ export async function POST(request: Request) {
     // attribution in their dashboard and avoids triggering their
     // burst rate limit on a fresh API key.
     results = [];
-    for (const name of Object.keys(senders)) {
-      results.push(await senders[name](to));
+    for (const sender of Object.values(senders)) {
+      results.push(await sender(to));
     }
   } else {
-    results = [await senders[template](to)];
+    const sender = senders[template];
+    if (!sender) {
+      return NextResponse.json({ ok: false, error: `unknown template: ${template}` }, { status: 400 });
+    }
+    results = [await sender(to)];
   }
 
   appendAudit({

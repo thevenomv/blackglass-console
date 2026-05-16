@@ -233,7 +233,7 @@ export async function GET(request: Request) {
     warnings.push(
       `TCP connect to ${host}:${port} failed within ${PROBE_TIMEOUT_MS}ms and no recent agent ingest was found — ` +
         `confirm the DigitalOcean Cloud Firewall ingress rule for port ${port} is in place, OR install the push-agent ` +
-        `(scripts/blackglass-agent.sh) on the host.`,
+        `(scripts/systemd/blackglass-agent.sh) on the host.`,
     );
   } else if (!bannerLooksHealthy) {
     warnings.push(
@@ -248,7 +248,7 @@ export async function GET(request: Request) {
   if (agentHostId && !agentLastSeenAt && !sshHealthy) {
     warnings.push(
       `No baseline snapshot found for hostId=${agentHostId}; if you intend to use push-mode collection, ` +
-        `install scripts/blackglass-agent.sh on ${host} (it ships an env file + systemd timer) and verify ` +
+        `install scripts/systemd/blackglass-agent.sh on ${host} (it ships an env file + systemd timer) and verify ` +
         `INGEST_API_KEY (or INGEST_HOST_KEYS_JSON) is configured on the BLACKGLASS instance.`,
     );
   } else if (agentHostId && agentLastSeenAt && !agentFresh) {

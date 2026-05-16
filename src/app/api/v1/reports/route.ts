@@ -11,11 +11,9 @@ import { jsonError, zodErrorResponse } from "@/lib/server/http/json-error";
 import { requireRole } from "@/lib/server/http/auth-guard";
 import { checkReportsPostRate, clientIp } from "@/lib/server/rate-limit";
 import { getDriftEventsAsync } from "@/lib/server/drift-engine";
-import { readAudit } from "@/lib/server/audit-log";
-import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
+import { readAudit, appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import {
   addReport,
-  getReportContent,
   listReports,
   saveReportContent,
   updateReport,

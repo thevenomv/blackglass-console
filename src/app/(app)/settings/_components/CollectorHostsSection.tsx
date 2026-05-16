@@ -196,21 +196,22 @@ export function CollectorHostsSection() {
     // Detect a header row: any line that contains "hostname" as a token.
     let header: string[] | null = null;
     let dataStart = 0;
-    const firstParts = lines[0].split(/[,\t]/).map((s) => s.trim().toLowerCase());
+    const firstParts = lines[0]!.split(/[,\t]/).map((s) => s.trim().toLowerCase());
     if (firstParts.includes("hostname")) {
       header = firstParts;
       dataStart = 1;
     }
 
     for (let i = dataStart; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       const parts = line.split(/[,\t]/).map((s) => s.trim());
       const lineNo = i + 1;
 
       if (header) {
         const obj: Record<string, string> = {};
         header.forEach((h, idx) => {
-          if (parts[idx] !== undefined && parts[idx] !== "") obj[h] = parts[idx];
+          const val = parts[idx];
+          if (val !== undefined && val !== "") obj[h] = val;
         });
         const hostname = obj["hostname"];
         if (!hostname) {
@@ -223,10 +224,11 @@ export function CollectorHostsSection() {
           parseErrors.push({ line: lineNo, raw: line, error: `invalid port "${sshPortRaw}"` });
           continue;
         }
+        const sshUser = obj["sshuser"] ?? obj["user"];
         rows.push({
           hostname,
           ...(obj["label"] ? { label: obj["label"] } : {}),
-          ...(obj["sshuser"] ?? obj["user"] ? { sshUser: obj["sshuser"] ?? obj["user"] } : {}),
+          ...(sshUser ? { sshUser } : {}),
           ...(sshPort !== undefined ? { sshPort } : {}),
         });
       } else {
@@ -254,7 +256,7 @@ export function CollectorHostsSection() {
     setBulkResult(null);
     const { rows, parseErrors } = parseBulkText(bulkText);
     if (parseErrors.length > 0) {
-      const first = parseErrors[0];
+      const first = parseErrors[0]!;
       toastRef.current(`Line ${first.line}: ${first.error}`, "warning");
       return;
     }

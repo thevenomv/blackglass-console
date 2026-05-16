@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { TenantAuthContext } from "@/lib/saas/auth-context";
+import type { TenantAuthContext } from "@/lib/saas/tenant-context";
 import { applySaasSentryContext } from "@/lib/observability/sentry-saas";
 import { getOrCreateRequestId } from "./request-id";
 

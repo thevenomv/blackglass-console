@@ -1,7 +1,7 @@
 "use client";
 
-import type { Role } from "@/lib/auth/permissions";
-import { can } from "@/lib/auth/permissions";
+import type { Role } from "@/lib/auth/legacy-permissions";
+import { can } from "@/lib/auth/legacy-permissions";
 import type { TenantRole } from "@/lib/saas/tenant-role";
 import {
   createContext,

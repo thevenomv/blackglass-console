@@ -1,4 +1,4 @@
-# Optional weekly + manual staging checks via `scripts/verify-staging.mjs`.
+# Optional weekly + manual staging checks via `scripts/verify/verify-staging.mjs`.
 #
 # - **Cron:** Runs only when repository secret **`STAGING_URL`** is set.
 # - **Manual:** Run with repo secret OR pass **`staging_url_override`** workflow input for ad-hoc hosts.
@@ -68,4 +68,4 @@ jobs:
           # Enable the /api/health?probe=secrets synthetic check on every run.
           # The verify-staging script respects this flag and counts it as a check.
           VERIFY_SECRETS_PROBE: "1"
-        run: node scripts/verify-staging.mjs
+        run: node scripts/verify/verify-staging.mjs

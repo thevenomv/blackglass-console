@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { provisionPlan, deprovisionPlan } from "@/lib/billing/provision";
+import { provisionPlan, deprovisionPlan } from "@/lib/server/billing/provision";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
 import { checkStripeWebhookRate, clientIp } from "@/lib/server/rate-limit";
 import { tryGetDb } from "@/db";

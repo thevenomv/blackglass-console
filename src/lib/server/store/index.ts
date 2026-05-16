@@ -11,11 +11,11 @@ import type { BaselineRepository, DriftHistoryRepository } from "./types";
 import { MemoryBaselineRepository } from "./baseline-memory";
 import { FilesystemBaselineRepository } from "./baseline-fs";
 import { SpacesBaselineRepository } from "./baseline-spaces";
-import { PostgresBaselineRepository } from "./baseline-pg";
+import { PostgresBaselineRepository } from "./legacy/baseline-pg";
 import { MemoryDriftHistoryRepository } from "./drifthistory-memory";
 import { FilesystemDriftHistoryRepository } from "./drifthistory-fs";
 import { SpacesDriftHistoryRepository } from "./drifthistory-spaces";
-import { PostgresDriftHistoryRepository } from "./drifthistory-pg";
+import { PostgresDriftHistoryRepository } from "./legacy/drifthistory-pg";
 
 type SpacesConfig = {
   key: string;
@@ -32,7 +32,7 @@ function spacesConfig(): SpacesConfig | null {
   const endpoint = process.env.DO_SPACES_ENDPOINT;
   if (!key || !secret || !bucket || !endpoint) return null;
   // Derive region from the subdomain of the endpoint URL when not explicitly set
-  const region = process.env.DO_SPACES_REGION ?? new URL(endpoint).hostname.split(".")[0];
+  const region = process.env.DO_SPACES_REGION ?? new URL(endpoint).hostname.split(".")[0] ?? "us-east-1";
   return { key, secret, bucket, endpoint, region };
 }
 

@@ -243,7 +243,7 @@ export async function POST(request: Request, { params }: Params) {
       result.summary = agent.lastSeenAt
         ? `TCP probe failed AND last push-agent ingest was ${agent.ageSeconds}s ago (stale). ` +
           `Check the host's network firewall AND the blackglass-agent.timer status on the host.`
-        : "TCP probe failed — check the IP / port / network firewall, OR install the push-agent (scripts/blackglass-agent.sh) on the host.";
+        : "TCP probe failed — check the IP / port / network firewall, OR install the push-agent (scripts/systemd/blackglass-agent.sh) on the host.";
     }
     await emitTestAudit(ctx.tenant.id, ctx.userId, host.id, host.hostname, result);
     return jsonWithRequestId(result, requestId);

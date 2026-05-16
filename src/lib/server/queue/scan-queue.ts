@@ -4,7 +4,7 @@
  * Used only when REDIS_QUEUE_URL is set — the scan POST route gracefully falls
  * back to in-process execution when the queue is not configured (Stage 0/1).
  *
- * Worker entry: src/worker/scan-worker.ts
+ * Worker entry: src/worker/scan/index.ts
  *
  * Queue names are exported from QUEUE_NAMES so that the worker, routes, and
  * observability code share a single source of truth without string literals.

@@ -20,7 +20,7 @@
 export const dynamic = "force-dynamic";
 
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
-import { requireTenantAuth, SaasAuthError } from "@/lib/saas/auth-context";
+import { requireTenantAuth, SaasAuthError } from "@/lib/saas/tenant-context";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/(auth)/login/actions";
 import { AppShell } from "@/components/layout/AppShell";

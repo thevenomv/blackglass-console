@@ -90,10 +90,10 @@ const BYPASS_SENTINEL_TENANT_UUID = "00000000-0000-0000-0000-000000000000";
  * The `RLS-BYPASS:` prefix is the greppable tag reviewers use to enumerate
  * every cross-tenant code path in a single search. Adding a `withBypassRls`
  * call without the tag is a review-blocker. CI enforces a 1:1 tag/call count via
- * `npm run check:rls-bypass` (scripts/check-rls-bypass-tags.mjs).
+ * `npm run check:rls-bypass` (scripts/build/check-rls-bypass-tags.mjs).
  *
  * @see drizzle/0016_consolidate_rls_gucs.sql for the canonical RLS policy set
- * @see docs/security-compliance.md § 3 for the operator-facing RLS story
+ * @see docs/security/security-compliance.md § 3 for the operator-facing RLS story
  * @see canvases/project-overview.canvas.tsx (§2 / §13 reviewer workflow — Cursor canvas)
  */
 export async function withBypassRls<T>(fn: (db: BlackglassDb) => Promise<T>): Promise<T> {

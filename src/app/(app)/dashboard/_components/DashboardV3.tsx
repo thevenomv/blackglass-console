@@ -14,12 +14,12 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ProgressRow } from "@/components/ui/ProgressBar";
 import { SecurityOverviewSection } from "./SecurityOverviewSection";
-import { ValueRecapBanner, type ValueRecap } from "@/components/dashboard/ValueRecapBanner";
-import { DriftTrendChart } from "@/components/dashboard/DriftTrendChart";
+import { ValueRecapBanner, type ValueRecap } from "./ValueRecapBanner";
+import { DriftTrendChart } from "./DriftTrendChart";
 import {
   SystemStatusBanner,
   type SystemStatusItem,
-} from "@/components/dashboard/SystemStatusBanner";
+} from "./SystemStatusBanner";
 import { formatAbsoluteUtc, formatRelativeTime } from "@/lib/format-time";
 import Link from "next/link";
 import { useState } from "react";

@@ -20,10 +20,14 @@ async function ensureTenantForClerkOrgWithDb(db: BlackglassDb, clerkOrgId: strin
     .limit(1);
   if (existing[0]) return existing[0];
 
-  const [tenant] = await db
+  const inserted = await db
     .insert(saasTenants)
     .values({ clerkOrgId, name: orgName })
     .returning();
+  const tenant = inserted[0];
+  if (!tenant) {
+    throw new Error("saas_tenants insert returned no rows");
+  }
 
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86400000);
   await db.insert(saasSubscriptions).values({
@@ -128,7 +132,7 @@ export async function ensureSubscriptionForTenant(tenantId: string) {
       .limit(1);
     if (existing[0]) return existing[0];
     const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86400000);
-    const [sub] = await db
+    const insertedSubs = await db
       .insert(saasSubscriptions)
       .values({
         tenantId,
@@ -141,6 +145,10 @@ export async function ensureSubscriptionForTenant(tenantId: string) {
         features: {},
       })
       .returning();
+    const sub = insertedSubs[0];
+    if (!sub) {
+      throw new Error("saas_subscriptions insert returned no rows");
+    }
     return sub;
   });
 }

@@ -1,5 +1,5 @@
 # Local Postgres + Redis for Blackglass development.
-# See docs/local-dev-docker.md for wiring into `.env.local` and migrations.
+# See docs/operations/local-dev-docker.md for wiring into `.env.local` and migrations.
 #
 #   docker compose -f docker-compose.dev.yml up -d
 #   docker compose -f docker-compose.dev.yml down

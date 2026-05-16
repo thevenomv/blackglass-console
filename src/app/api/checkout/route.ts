@@ -103,8 +103,12 @@ export async function POST(request: Request) {
     business: { name: "Blackglass Business", description: "300 hosts · 10 operator seats · immutable audit · Remediator incl", monthlyAmount: 49900 },
   };
 
-  const priceId = PLAN_PRICE_ENV[planCode][billingCycle];
+  const planEnv = PLAN_PRICE_ENV[planCode];
   const fallback = PLAN_FALLBACK[planCode];
+  if (!planEnv || !fallback) {
+    return NextResponse.json({ error: `unknown plan: ${planCode}` }, { status: 400 });
+  }
+  const priceId = planEnv[billingCycle];
   const interval: "month" | "year" = billingCycle === "annual" ? "year" : "month";
   const amount = billingCycle === "annual" ? fallback.monthlyAmount * 10 : fallback.monthlyAmount;
 

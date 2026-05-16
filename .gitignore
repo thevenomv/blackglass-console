@@ -47,6 +47,8 @@ yarn-error.log*
 build*.log
 build2.log
 migration-output.txt
+strict-index*.log
+verify-p*.log
 
 # Env
 .env*.local
@@ -56,14 +58,15 @@ migration-output.txt
 # Local snapshots / API payloads pulled via the DO API for one-off ops
 .do/app-current.json
 .do/app-update-payload.json
-# One-off secrets generated for lab installs (per-host ingest keys, etc.)
-.lab-bg-key.local
-.lab-host-keys.local
 
-# Local-only operator artefacts (rotated passphrases, scratch one-off scripts,
-# anything you do NOT want in source control). Convention: any file under
-# /.local/ stays on the operator's machine.
+# Local-only operator artefacts: rotated passphrases, scratch one-off scripts,
+# per-host ingest keys (.lab-*.local), prospect CSVs with PII, and anything
+# else you do NOT want in source control. Convention: any file under /.local/
+# stays on the operator's machine.
 /.local/
+
+# Prospect / outreach CSVs — may contain PII. Keep them out of source control.
+prospects-*.csv
 
 # Python
 __pycache__/
@@ -80,9 +83,6 @@ __pycache__/
 # Scratch commit-message temp files used by the agent when piping
 # multi-line messages on PowerShell (which can't handle bash heredocs).
 .git-commit-msg.tmp
-
-# Prospect/outreach CSVs — contain PII (email addresses). Keep local only.
-prospects*.csv
 
 # Terraform
 .terraform/

@@ -92,7 +92,7 @@ export async function GET(request: Request) {
   const { Queue } = await import("bullmq");
 
   const entries = await Promise.allSettled(
-    Object.entries(QUEUE_NAMES).map(async ([key, name]) => {
+    Object.entries(QUEUE_NAMES).map(async ([_key, name]) => {
       const stats = await statsForQueue(Queue, name, redisUrl);
       return [name, stats] as const;
     }),

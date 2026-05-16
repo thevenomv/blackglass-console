@@ -171,7 +171,7 @@ healthy and the From domain is authenticated:
 
 ```bash
 # Local, against real Resend
-RESEND_API_KEY=re_... node scripts/send-test-emails.mjs --to=you@example.com
+RESEND_API_KEY=re_... node scripts/email/send-test-emails.mjs --to=you@example.com
 
 # Or, against the live deployment as an admin
 curl -X POST https://blackglasssec.com/api/admin/test-email \

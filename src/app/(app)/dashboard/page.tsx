@@ -15,7 +15,7 @@ import { fleetRiskScore, riskPriorityFromScore } from "@/lib/server/risk-score";
 import type { HostRecord } from "@/data/mock/types";
 import { loadHosts } from "@/lib/server/inventory";
 import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
-import type { ValueRecap } from "@/components/dashboard/ValueRecapBanner";
+import type { ValueRecap } from "./_components/ValueRecapBanner";
 
 export const dynamic = "force-dynamic";
 

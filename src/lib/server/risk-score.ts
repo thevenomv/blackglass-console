@@ -139,7 +139,7 @@ const RECOMMENDATIONS: Record<DriftCategory | string, Record<DriftSeverity | "cr
 function getRecommendation(category: string, severity: string): string {
   const cat = RECOMMENDATIONS[category] ?? RECOMMENDATIONS.integrity;
   return (
-    cat[severity as DriftSeverity | "critical"] ??
+    cat?.[severity as DriftSeverity | "critical"] ??
     "Investigate this finding and update the baseline once the change is confirmed safe."
   );
 }

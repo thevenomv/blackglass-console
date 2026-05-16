@@ -29,8 +29,8 @@ export function useFocusTrap(active: boolean, onEscape?: () => void) {
       }
       if (e.key !== "Tab" || focusables.length === 0) return;
 
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
       const cur = document.activeElement as HTMLElement | null;
 
       if (e.shiftKey) {

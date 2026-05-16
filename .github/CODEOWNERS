@@ -1,0 +1,60 @@
+# CODEOWNERS for Blackglass
+#
+# Lines are tested in order; the last matching line wins. See
+# https://docs.github.com/articles/about-code-owners for full syntax.
+#
+# This file currently lists @thevenomv as the sole owner. As the team grows,
+# split hot paths between security, db, and saas-authz reviewers.
+
+# ----------------------------------------------------------------------------
+# Default owner for everything
+# ----------------------------------------------------------------------------
+*                                       @thevenomv
+
+# ----------------------------------------------------------------------------
+# Security-sensitive: auth, RBAC, RLS boundaries
+# ----------------------------------------------------------------------------
+/.cursor/rules/saas-authz-boundaries.mdc @thevenomv
+/src/lib/auth/                          @thevenomv
+/src/lib/server/http/saas-access.ts     @thevenomv
+/src/lib/server/http/saas-access-*.ts   @thevenomv
+/src/lib/saas/                          @thevenomv
+/src/middleware.ts                      @thevenomv
+/src/lib/server/rls/                    @thevenomv
+/scripts/verify/check-rls-bypass*       @thevenomv
+
+# ----------------------------------------------------------------------------
+# Database schema + migrations (anything that touches the canonical schema
+# must be reviewed by a schema owner)
+# ----------------------------------------------------------------------------
+/src/db/                                @thevenomv
+/drizzle/                               @thevenomv
+/drizzle.config.ts                      @thevenomv
+/docs/sql/                              @thevenomv
+
+# ----------------------------------------------------------------------------
+# Public contract: OpenAPI, exported Zod schemas, install/agent endpoints
+# ----------------------------------------------------------------------------
+/openapi/                               @thevenomv
+/src/app/install-agent.sh/              @thevenomv
+/scripts/systemd/                       @thevenomv
+/scripts/verify/check-openapi*          @thevenomv
+/src/lib/openapi/                       @thevenomv
+
+# ----------------------------------------------------------------------------
+# Deployment + infrastructure
+# ----------------------------------------------------------------------------
+/.do/                                   @thevenomv
+/.github/workflows/                     @thevenomv
+/helm/                                  @thevenomv
+/terraform/                             @thevenomv
+/Dockerfile                             @thevenomv
+
+# ----------------------------------------------------------------------------
+# Build + verify pipeline (CI gates)
+# ----------------------------------------------------------------------------
+/package.json                           @thevenomv
+/tsconfig.json                          @thevenomv
+/eslint.config.mjs                      @thevenomv
+/vitest.config.ts                       @thevenomv
+/scripts/verify/                        @thevenomv

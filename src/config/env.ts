@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Validated environment slice — expand as you tighten production contracts.
- * Run `npm run env:check` (uses `scripts/validate-env.ts`) in CI or before deploy.
+ * Run `npm run env:check` (uses `scripts/verify/validate-env.ts`) in CI or before deploy.
  */
 export const serverEnvSchema = z
   .object({

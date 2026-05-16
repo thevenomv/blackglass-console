@@ -10,7 +10,7 @@
 import { createHash } from "crypto";
 import { withTenantRls, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
-import { PostgresDriftEventsRepository } from "@/lib/server/store/driftevents-pg";
+import { PostgresDriftEventsRepository } from "@/lib/server/store/legacy/driftevents-pg";
 import type { DriftEvent } from "@/data/mock/types";
 import type { HostSnapshot } from "@/lib/server/collector/types";
 
@@ -112,7 +112,7 @@ export async function generateEvidenceBundle(input: GenerateBundleInput): Promis
   const sha256 = createHash("sha256").update(payloadJson).digest("hex");
 
   // Persist via RLS
-  const [bundle] = await withTenantRls(tenantId, (db) =>
+  const bundles = await withTenantRls(tenantId, (db) =>
     db
       .insert(saasEvidenceBundles)
       .values({
@@ -132,9 +132,17 @@ export async function generateEvidenceBundle(input: GenerateBundleInput): Promis
         createdAt: saasEvidenceBundles.createdAt,
       }),
   );
+  const bundle = bundles[0];
+  if (!bundle) {
+    throw new Error("saas_evidence_bundles insert returned no rows");
+  }
 
   return {
-    ...bundle,
+    id: bundle.id!,
+    title: bundle.title!,
+    scope: bundle.scope!,
+    sha256: bundle.sha256!,
+    generatedBy: bundle.generatedBy ?? null,
     createdAt: bundle.createdAt.toISOString(),
   };
 }

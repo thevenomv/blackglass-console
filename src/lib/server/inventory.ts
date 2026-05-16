@@ -4,7 +4,7 @@ import { getHostDetail, hosts } from "@/data/mock/hosts";
 import { apiConfig } from "@/lib/api/config";
 import { mockLatency } from "@/lib/mockLatency";
 import { collectorConfigured, configuredHostCount } from "./collector";
-import { getDriftEvents, getDriftEventsAsync, hasDriftData, hasDriftDataAsync } from "./drift-engine";
+import { getDriftEventsAsync, hasDriftData } from "./drift-engine";
 import { getBaseline, listBaselineHostIds } from "./baseline-store";
 import { getDriftVolumeChartFromHistory } from "./drift-history";
 import { evidenceBundleCatalogSize } from "./evidence-catalog";

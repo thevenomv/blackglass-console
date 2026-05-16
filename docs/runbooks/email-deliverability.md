@@ -53,7 +53,7 @@ the From domain match the link domain in the email body.
    patch `EMAIL_FROM` in place, then `doctl apps update $APP_ID --spec
    /tmp/spec.yaml`.
 
-6. Re-run `scripts/send-test-emails.mjs --to=you@example.com` and confirm
+6. Re-run `scripts/email/send-test-emails.mjs --to=you@example.com` and confirm
    the From address shows `noreply@blackglasssec.com`.
 
 ## DMARC / SPF alignment
@@ -73,7 +73,7 @@ move to `p=quarantine`, then `p=reject` after another two weeks.
 # Local — fastest path, requires RESEND_API_KEY in env
 $env:RESEND_API_KEY = "re_..."
 $env:EMAIL_FROM = "Blackglass <noreply@obsidiandynamics.co.uk>"
-node scripts/send-test-emails.mjs --to=you@example.com
+node scripts/email/send-test-emails.mjs --to=you@example.com
 
 # Or against the live deployment via the public sandbox-lead probe
 curl -X POST https://blackglasssec.com/api/public/sandbox-lead \

@@ -83,7 +83,7 @@ const PHASE_SCHEDULE_MINUTES = [3, 8, 18, 28, 38, 48, 58, 68, 78] as const;
 function effectivePhaseFromAge(ageMs: number): number {
   let phase = 0;
   for (let i = 0; i < PHASE_SCHEDULE_MINUTES.length; i++) {
-    if (ageMs >= PHASE_SCHEDULE_MINUTES[i] * 60_000) phase = i;
+    if (ageMs >= PHASE_SCHEDULE_MINUTES[i]! * 60_000) phase = i;
   }
   return Math.min(8, phase);
 }

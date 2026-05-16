@@ -69,7 +69,7 @@ services:
       # other user-owned Droplets is silently blackholed by the DO network
       # fabric — meaning the SSH pull collector cannot reach those hosts
       # even when their firewall, sshd, and routing are healthy. The push
-      # agent (scripts/blackglass-agent.sh) inverts the flow: the host
+      # agent (scripts/systemd/blackglass-agent.sh) inverts the flow: the host
       # POSTs to /api/v1/ingest/agent over plain HTTPS through DO's load
       # balancer, which works regardless of the egress restriction.
       #
@@ -120,7 +120,7 @@ services:
         scope: RUN_TIME
         type: SECRET
       # Optional: JIT secrets — set SECRET_PROVIDER to doppler or infisical and use provider
-      # tokens instead of storing SSH_PRIVATE_KEY here (see docs/operator-guide.md §2c-b).
+      # tokens instead of storing SSH_PRIVATE_KEY here (see docs/operations/operator-guide.md §2c-b).
       # - SECRET_PROVIDER: doppler | infisical | env (default)
       # - DOPPLER_TOKEN / DOPPLER_PROJECT / DOPPLER_CONFIG, or Infisical machine identity vars
       # --- Persistence (mount a DO Volume on the service, then set these paths on the volume)
@@ -137,7 +137,7 @@ services:
       #   value: postgresql://doadmin:...@db-host:25060/blackglass?sslmode=require
       #   scope: RUN_TIME
       #   type: SECRET
-      # Apply: `npm run db:migrate` (drizzle/) for the canonical SaaS schema; docs/migrations/{001,002}.sql for the legacy single-tenant blackglass_audit / baselines / drift_history tables.
+      # Apply: `npm run db:migrate` (drizzle/) for the canonical SaaS schema; docs/sql/*.sql for legacy single-tenant blackglass_audit / baselines / drift_history tables.
       #
       # Optional: same cluster with different schema, or separate DB for audit-only isolation:
       # - key: AUDIT_DATABASE_URL
@@ -145,7 +145,7 @@ services:
       #   type: SECRET
       #
       # --- DigitalOcean Managed Redis / Valkey (multi-instance rate limits + BullMQ scan queue)
-      # Fill in the DO console after provisioning: scripts/provision-do-redis.ps1
+      # Fill in the DO console after provisioning: scripts/do/provision-do-redis.ps1
       - key: RATE_LIMIT_REDIS_URL
         value: ""
         scope: RUN_TIME
@@ -192,7 +192,7 @@ jobs:
 
 # ---------------------------------------------------------------------------
 # Scan worker — BullMQ consumer; decouples SSH fan-out from the web tier.
-# Activate after provisioning Redis (scripts/provision-do-redis.ps1) and
+# Activate after provisioning Redis (scripts/do/provision-do-redis.ps1) and
 # setting REDIS_QUEUE_URL above. Uses the same GitHub source as the web service
 # but runs `npm run worker` and carries no HTTP port.
 # ---------------------------------------------------------------------------

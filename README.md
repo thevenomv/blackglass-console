@@ -15,9 +15,9 @@ cp .env.example .env.local   # Linux/macOS — on Windows copy manually
 npm run dev
 ```
 
-**Postgres + Redis via Docker:** `docker compose -f docker-compose.dev.yml up -d`, then merge the env block in [docs/local-dev-docker.md](docs/local-dev-docker.md) into `.env.local` and run `npm run db:migrate`.
+**Postgres + Redis via Docker:** `docker compose -f docker-compose.dev.yml up -d`, then merge the env block in [docs/operations/local-dev-docker.md](docs/operations/local-dev-docker.md) into `.env.local` and run `npm run db:migrate`.
 
-Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or PowerShell helper `scripts/doppler-dev.ps1`.
+Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or PowerShell helper `scripts/secrets/doppler-dev.ps1`.
 
 **Cursor canvases:** [`canvases/project-overview.canvas.tsx`](canvases/project-overview.canvas.tsx) is the stakeholder review packet; [`canvases/outstanding-actions.canvas.tsx`](canvases/outstanding-actions.canvas.tsx) is the prioritised founder/operator queue (both are [Cursor Canvas](https://cursor.com) files — import `cursor/canvas`, not part of the Next.js build). Open them from the Cursor project `canvases/` directory beside the chat; the copies under `canvases/` in this repo are mirrors for version control.
 
@@ -36,23 +36,26 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 | `test:e2e:all` | Full Playwright suite including `@pixel` |
 | `check:openapi` | OpenAPI ↔ `route.ts` parity |
 | `schemas:export` | Regenerate `openapi/zod-schemas.json` from Zod |
-| `verify:stage0` | CI-shaped gate (lint + **check:rls-bypass** + OpenAPI + schema diff + **typecheck** + unit + build — no Playwright) |
+| `verify:fast` | Quick dev loop: lint + typecheck + unit tests |
+| `verify:contract` | OpenAPI / Zod / RLS-BYPASS / migration-files contract checks |
+| `verify:build` | Production Next.js build |
+| `verify:stage0` | Full CI-shaped gate (`verify:fast` → `verify:contract` → `verify:build`; no Playwright) |
 | `verify:stage0:clean` | **`clean:next`** then **`verify:stage0`** — helps Windows cloud-sync **`readlink`** failures |
-| `clean:next` | Deletes **`.next/`** (`scripts/clean-next.mjs`) |
+| `clean:next` | Deletes **`.next/`** (`scripts/build/clean-next.mjs`) |
 | `verify:staging` | Hit `STAGING_URL` health/hosts audit (`VERIFY_SECRETS_PROBE=1` optional) |
-| `audit:export-spaces` | List/download Spaces `audit/*.jsonl` (needs `DO_SPACES_*`; see [docs/audit-trail.md](docs/audit-trail.md)) |
+| `audit:export-spaces` | List/download Spaces `audit/*.jsonl` (needs `DO_SPACES_*`; see [docs/architecture/audit-trail.md](docs/architecture/audit-trail.md)) |
 | `audit:verify-jsonl` | Deterministic NDJSON integrity digest (`stdin` or file argument) |
 | `load:rate-local` | Burst `POST /api/v1/scans` until HTTP 429 (local dev; `BASE_URL`, `BURST_LIMIT`) |
 | `pen-test:smoke` | Print curl snippets for quick manual probes (`BASE_URL` optional) |
-| `blackglassctl` | Minimal health / scan CLI (`node scripts/blackglassctl.mjs help` pattern) |
+| `blackglassctl` | Minimal health / scan CLI (`node scripts/cli/blackglassctl.mjs help` pattern) |
 | `email:test` | Resend marketing/transactional template probe — `npm run email:test -- --to=you@example.com` (needs **`RESEND_API_KEY`** in env or `.env.local`; optional `EMAIL_FROM`, `NEXT_PUBLIC_APP_URL`) |
 | `email:marketing` | Resend **single-recipient** opt-in/warm note — `npm run email:marketing -- --to=you@example.com` (same key; optional `EMAIL_MARKETING_FROM`, `EMAIL_MARKETING_REPLY_TO`, `EMAIL_LIST_UNSUBSCRIBE_URL`) |
 | `secrets:init-local` | Create gitignored `.local/credentials.json` from `scripts/local-credentials.example.json` (then edit + `secrets:merge-local`) |
-| `secrets:merge-local` | Merge `RESEND_API_KEY` / `APOLLO_API_KEY` from `.local/credentials.json` into `.env.local`, then remove the JSON (use `--keep-source` on the inner script via `node scripts/merge-local-secrets.mjs --keep-source` if you prefer to keep it) |
+| `secrets:merge-local` | Merge `RESEND_API_KEY` / `APOLLO_API_KEY` from `.local/credentials.json` into `.env.local`, then remove the JSON (use `--keep-source` on the inner script via `node scripts/secrets/merge-local-secrets.mjs --keep-source` if you prefer to keep it) |
 | `secrets:verify` | HTTP check Resend domains + Apollo `/v1/auth/health` using env / `.env.local` — prints status only |
-| `ops:selfcheck` | Fail CI if any `.github/workflows` `node scripts/…` reference points at a missing file (`scripts/ops-automation-selfcheck.mjs`) |
+| `ops:selfcheck` | Fail CI if any `.github/workflows` `node scripts/…` reference points at a missing file (`scripts/verify/ops-automation-selfcheck.mjs`) |
 | `prune:webhooks` | Delete old `saas_webhook_idempotency` rows (`DATABASE_URL`, optional `--days=`) |
-| `stripe:setup` | Interactive Stripe webhook/price bootstrap ([script](scripts/stripe-setup.mjs)) |
+| `stripe:setup` | Interactive Stripe webhook/price bootstrap ([script](scripts/stripe/stripe-setup.mjs)) |
 | `do:apply-stage0` | Applies Stage-0 auth env on an existing DO app |
 
 **DigitalOcean App Platform:** deploy builds use `npm ci` and `next build` only; rely on your CI pipeline for `lint`. ESLint on DO builders is a common source of flaky or persistent failures if you add it to `build_command` — see [.do/README.md](.do/README.md#eslint-and-app-platform).
@@ -74,7 +77,7 @@ Optional: `npm run dev:doppler` via [Doppler](https://docs.doppler.com/), or Pow
 - **Lint:** **`eslint .`** + **`eslint.config.mjs`** (Next **`core-web-vitals`** flat preset); `next lint` is not used.
 - **SEO / discovery:** **`NEXT_PUBLIC_APP_URL`** feeds canonical/meta Open Graph (**no Twitter / social-account fields**); **`/sitemap.xml`** + **`/robots.txt`**; staging uses **`NEXT_PUBLIC_SITE_NOINDEX=true`** (see [.env.example](.env.example)).
 - **Next.js 16:** `main` ships **next@16**.
-- **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, RLS-BYPASS parity, OpenAPI, Zod schema diff, typecheck, unit tests, production build). Under OneDrive + Windows quirks, prefer **`npm run verify:stage0:clean`** (see [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)).
+- **`verify:stage0`:** Run before pushing substantive changes — same gates as CI (lint, RLS-BYPASS parity, OpenAPI, Zod schema diff, typecheck, unit tests, production build). Under OneDrive + Windows quirks, prefer **`npm run verify:stage0:clean`** (see [docs/operations/troubleshooting-local-build.md](docs/operations/troubleshooting-local-build.md)). For tight dev loops, **`npm run verify:fast`** runs just lint + typecheck + unit tests.
 
 ## Architecture overview
 
@@ -87,22 +90,22 @@ Multi-tenant SaaS console with:
 - **Outbound integrations** — **HMAC-signed** webhooks with key rotation; native dispatchers for Slack, PagerDuty, Datadog, Splunk, Sentinel, Linear, GitHub Issues, AWS Security Hub
 - **Secrets at rest** — **envelope encryption** (AES-256-GCM DEK wrapped by a KMS-managed KEK); KMS providers: `local` / `vault` / `awskms`; **per-tenant BYOK** for Enterprise (`BYOK_ENABLED`) — see [src/lib/server/secrets/README.md](src/lib/server/secrets/README.md)
 - **Air-gapped mode** — `BLACKGLASS_AIRGAPPED=true` short-circuits every outbound call; `/api/health/airgap?probe=true` actively exercises the gate against fixed public/internal URLs
-- **Charon** — optional cloud resource janitor: envelope-encrypted linked accounts, BullMQ scans on **ops-worker** (`blackglass-janitor` queue), suppressions, scan snapshot/diff, optional `charon.scan.completed` HMAC webhooks; operator reference [docs/charon.md](docs/charon.md)
+- **Charon** — optional cloud resource janitor: envelope-encrypted linked accounts, BullMQ scans on **ops-worker** (`blackglass-janitor` queue), suppressions, scan snapshot/diff, optional `charon.scan.completed` HMAC webhooks; operator reference [docs/operations/charon.md](docs/operations/charon.md)
 - **AI remediator** — separate Python/FastAPI service ([blackglass-remediator/](blackglass-remediator/)) that proposes drift fixes, sandbox-verifies them, and surfaces them for human approval; risk-tier policy is **enforced in code, not prompts** ([blackglass-remediator/app/agent/risk_policy.py](blackglass-remediator/app/agent/risk_policy.py)) and per-category confidence ceilings clamp LLM scores before they reach the operator
 - **Audit** — immutable **`saas_audit_events`** stream with JSONL export + integrity verification (`audit:verify-jsonl`)
 - **Edge security** — security-headers middleware applies CSP (Report-Only by default; flip with `SECURITY_HEADERS_CSP_ENFORCE=true`), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `COOP` on every response — see [src/lib/server/http/security-headers.ts](src/lib/server/http/security-headers.ts)
 - **Deployment** — **DigitalOcean App Platform** for hosted; **Helm chart** ([deploy/helm/blackglass](deploy/helm/blackglass)) with opt-in `sandbox-worker` for self-hosted Kubernetes
 
-See [docs/architecture-overview.md](docs/architecture-overview.md) for the layer map and rules between layers, and [docs/security-compliance.md](docs/security-compliance.md) for the buyer-facing security mapping (RLS, encryption, audit, vendor inventory, DR). Stakeholder **review packet**: open the **Project overview** canvas in Cursor (`canvases/project-overview.canvas.tsx`). **Live queue**: `canvases/outstanding-actions.canvas.tsx` (same Cursor canvases folder as other `.canvas.tsx` files).
+See [docs/architecture/architecture-overview.md](docs/architecture/architecture-overview.md) for the layer map and rules between layers, and [docs/security/security-compliance.md](docs/security/security-compliance.md) for the buyer-facing security mapping (RLS, encryption, audit, vendor inventory, DR). Stakeholder **review packet**: open the **Project overview** canvas in Cursor (`canvases/project-overview.canvas.tsx`). **Live queue**: `canvases/outstanding-actions.canvas.tsx` (same Cursor canvases folder as other `.canvas.tsx` files).
 
 ### Key data-flow invariants
 
 | Concern | Canonical file |
 |---------|---------------|
-| Tenant auth context | [`src/lib/saas/auth-context.ts`](src/lib/saas/auth-context.ts) — `requireTenantContext()` is the entry point for every authenticated route |
+| Tenant auth context | [`src/lib/saas/tenant-context.ts`](src/lib/saas/tenant-context.ts) — `requireTenantContext()` is the entry point for every authenticated route |
 | Authorization policy | [`src/lib/saas/operations.ts`](src/lib/saas/operations.ts) — `can*` checks + `ensure*` throwing wrappers; never duplicated in route handlers |
 | Data isolation (RLS) | [`src/db/index.ts`](src/db/index.ts) — `withTenantRls` for app reads/writes, `withBypassRls` for webhooks/migrations only |
-| Schema | [`src/db/schema.ts`](src/db/schema.ts) + Drizzle migrations in [`drizzle/`](drizzle/); apply via `npm run db:migrate` |
+| Schema | [`src/db/schema/`](src/db/schema/) (split per domain) + Drizzle migrations in [`drizzle/`](drizzle/); apply via `npm run db:migrate` |
 | Billing | [`src/lib/saas/stripe-sync.ts`](src/lib/saas/stripe-sync.ts) — idempotent status mapping from Stripe events |
 | Plan limits | [`src/lib/saas/plans.ts`](src/lib/saas/plans.ts) — only source of `hostLimit` / `paidSeatLimit` |
 | Observability | [`src/lib/observability/sentry-saas.ts`](src/lib/observability/sentry-saas.ts) — Sentry tags `tenant_id`, `user_id`, `plan`, `env` |
@@ -120,47 +123,47 @@ See [docs/architecture-overview.md](docs/architecture-overview.md) for the layer
 
 ## Stripe (go-live sanity)
 
-Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. Detailed live vs test steps: **[docs/stripe-live-cutover.md](docs/stripe-live-cutover.md)**. Extended live soak checklist: **[docs/stripe-live-soak.md](docs/stripe-live-soak.md)**. Before accepting paid traffic: **`STRIPE_SECRET_KEY`** (restricted live), **`STRIPE_WEBHOOK_SECRET`**, **`STRIPE_PRO_PRICE_ID`**, **`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`**, then confirm webhook → plan persistence — see [.env.example](.env.example) and [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md).
+Use **`npm run stripe:setup`** for dashboard objects and webhook scaffolding. Detailed live vs test steps: **[docs/saas/stripe-live-cutover.md](docs/saas/stripe-live-cutover.md)**. Extended live soak checklist: **[docs/saas/stripe-live-soak.md](docs/saas/stripe-live-soak.md)**. Before accepting paid traffic: **`STRIPE_SECRET_KEY`** (restricted live), **`STRIPE_WEBHOOK_SECRET`**, **`STRIPE_PRO_PRICE_ID`**, **`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`**, then confirm webhook → plan persistence — see [.env.example](.env.example) and [docs/operations/staging-deployment-checklist.md](docs/operations/staging-deployment-checklist.md).
 
 ## Operators
 
-- **Local Docker stack:** [docs/local-dev-docker.md](docs/local-dev-docker.md) · [docker-compose.dev.yml](docker-compose.dev.yml)
+- **Local Docker stack:** [docs/operations/local-dev-docker.md](docs/operations/local-dev-docker.md) · [docker-compose.dev.yml](docker-compose.dev.yml)
 - **Public roadmap:** [ROADMAP.md](ROADMAP.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) · **Security reporting:** [SECURITY.md](SECURITY.md)
 - **API integration examples:** [examples/api/README.md](examples/api/README.md)
 - **Terraform (optional DO managed Postgres / Valkey):** [terraform/digitalocean/README.md](terraform/digitalocean/README.md)
 - **Unattended ops checks:** [.github/workflows/ops-weekly-selfcheck.yml](.github/workflows/ops-weekly-selfcheck.yml) (weekly + manual) validates every workflow `node scripts/…` path exists and prints Resend domain verification; **`npm run ops:selfcheck`** runs the path check locally and in **CI** on every push
 - Deploy specs: [.do/](.do/) (see [.do/README.md](.do/README.md)) · Helm chart: [deploy/helm/blackglass](deploy/helm/blackglass)
-- Runbooks: [docs/operator-guide.md](docs/operator-guide.md), [docs/staging-deployment-checklist.md](docs/staging-deployment-checklist.md)
-- Local Windows / OneDrive builds: [docs/troubleshooting-local-build.md](docs/troubleshooting-local-build.md)
-- First CI pipeline setup (`gh workflow run`): [docs/github-actions-first-run.md](docs/github-actions-first-run.md)
+- Runbooks: [docs/operations/operator-guide.md](docs/operations/operator-guide.md), [docs/operations/staging-deployment-checklist.md](docs/operations/staging-deployment-checklist.md)
+- Local Windows / OneDrive builds: [docs/operations/troubleshooting-local-build.md](docs/operations/troubleshooting-local-build.md)
+- First CI pipeline setup (`gh workflow run`): [docs/operations/github-actions-first-run.md](docs/operations/github-actions-first-run.md)
 - Staging probe: [.github/workflows/staging-smoke.yml](.github/workflows/staging-smoke.yml) (secret **`STAGING_URL`** and/or **`staging_url_override`**; weekly cron when secret present) — also runs the lab-health check against `/api/admin/lab-health` and hard-fails when the demo VM is unreachable
-- ZAP passive DAST: [.github/workflows/dast-zap-baseline.yml](.github/workflows/dast-zap-baseline.yml) (optional **`target_url_override`**; **`fail_action`** off — review logs / ZAP report manually); rule tuning: [docs/zap-baseline-rules.md](docs/zap-baseline-rules.md)
-- **Security & compliance** mapping (RLS, encryption, audit, DR, vendor list): [docs/security-compliance.md](docs/security-compliance.md) · Pen checklist: [docs/security-pentest-checklist.md](docs/security-pentest-checklist.md) · Vendor inventory: [docs/vendor-inventory.md](docs/vendor-inventory.md)
+- ZAP passive DAST: [.github/workflows/dast-zap-baseline.yml](.github/workflows/dast-zap-baseline.yml) (optional **`target_url_override`**; **`fail_action`** off — review logs / ZAP report manually); rule tuning: [docs/security/zap-baseline-rules.md](docs/security/zap-baseline-rules.md)
+- **Security & compliance** mapping (RLS, encryption, audit, DR, vendor list): [docs/security/security-compliance.md](docs/security/security-compliance.md) · Pen checklist: [docs/security/security-pentest-checklist.md](docs/security/security-pentest-checklist.md) · Vendor inventory: [docs/architecture/vendor-inventory.md](docs/architecture/vendor-inventory.md)
 - **Health endpoints** — `/api/health` (uptime), `/api/health/airgap?probe=true` (active air-gap self-test), `/api/admin/lab-health` (sales-demo VM TCP+SSH probe)
 - **BYOK (Bring Your Own Key)** — Enterprise per-tenant KMS, gated by `BYOK_ENABLED`. Schema + envelope routing + UI all shipped; see [src/lib/server/secrets/README.md](src/lib/server/secrets/README.md) for the three-phase rollout and the round-trip verifier
-- **Sales demo VM** (`blackglass-rustdesk-demo`, 167.99.59.55 — same box you screen-share into via RustDesk): walkthrough script [docs/sales-demo-walkthrough.md](docs/sales-demo-walkthrough.md) · seed/reset drift: [scripts/lab/seed-drift.sh](scripts/lab/seed-drift.sh) / [scripts/lab/reset-drift.sh](scripts/lab/reset-drift.sh) · interactive live attack sim: [scripts/lab/live-attack-sim.sh](scripts/lab/live-attack-sim.sh)
-- Access review cadence: [docs/access-review-playbook.md](docs/access-review-playbook.md)
-- Audit trail: [docs/audit-trail.md](docs/audit-trail.md) (legacy append + optional Postgres + SaaS `saas_audit_events`)
-- Scaling: collectors [docs/collector-fleet-scaling.md](docs/collector-fleet-scaling.md) · Redis rate-limit (multi-instance): [docs/rate-limit-redis-adrs.md](docs/rate-limit-redis-adrs.md) · Limits table: [docs/http-rate-limit-budgets.md](docs/http-rate-limit-budgets.md)
-- Auth / billing matrix (Clerk vs legacy, Stripe): [docs/auth-clerk-legacy-matrix.md](docs/auth-clerk-legacy-matrix.md)
-- Clerk ops checklist: [docs/clerk-ops-checklist.md](docs/clerk-ops-checklist.md)
-- Session / CSRF notes: [docs/session-security-notes.md](docs/session-security-notes.md)
-- SaaS audit retention: [docs/data-retention-saas.md](docs/data-retention-saas.md)
-- Webhook semantics & failures: [docs/webhook-processing.md](docs/webhook-processing.md)
-- Residency: [docs/data-residency.md](docs/data-residency.md)
-- i18n prep: [docs/internationalization.md](docs/internationalization.md)
-- Architecture spine: [docs/architecture-flow.md](docs/architecture-flow.md)
-- Architecture decisions log: [docs/architecture-decisions.md](docs/architecture-decisions.md)
-- Architecture overview (services + data flow): [docs/architecture-overview.md](docs/architecture-overview.md)
+- **Sales demo VM** (`blackglass-rustdesk-demo`, 167.99.59.55 — same box you screen-share into via RustDesk): walkthrough script [docs/marketing/sales-demo-walkthrough.md](docs/marketing/sales-demo-walkthrough.md) · seed/reset drift: [scripts/lab/seed-drift.sh](scripts/lab/seed-drift.sh) / [scripts/lab/reset-drift.sh](scripts/lab/reset-drift.sh) · interactive live attack sim: [scripts/lab/live-attack-sim.sh](scripts/lab/live-attack-sim.sh)
+- Access review cadence: [docs/security/access-review-playbook.md](docs/security/access-review-playbook.md)
+- Audit trail: [docs/architecture/audit-trail.md](docs/architecture/audit-trail.md) (legacy append + optional Postgres + SaaS `saas_audit_events`)
+- Scaling: collectors [docs/operations/collector-fleet-scaling.md](docs/operations/collector-fleet-scaling.md) · Redis rate-limit (multi-instance): [docs/security/rate-limit-redis-adrs.md](docs/security/rate-limit-redis-adrs.md) · Limits table: [docs/security/http-rate-limit-budgets.md](docs/security/http-rate-limit-budgets.md)
+- Auth / billing matrix (Clerk vs legacy, Stripe): [docs/saas/auth-clerk-legacy-matrix.md](docs/saas/auth-clerk-legacy-matrix.md)
+- Clerk ops checklist: [docs/saas/clerk-ops-checklist.md](docs/saas/clerk-ops-checklist.md)
+- Session / CSRF notes: [docs/security/session-security-notes.md](docs/security/session-security-notes.md)
+- SaaS audit retention: [docs/security/data-retention-saas.md](docs/security/data-retention-saas.md)
+- Webhook semantics & failures: [docs/saas/webhook-processing.md](docs/saas/webhook-processing.md)
+- Residency: [docs/architecture/data-residency.md](docs/architecture/data-residency.md)
+- i18n prep: [docs/architecture/internationalization.md](docs/architecture/internationalization.md)
+- Architecture spine: [docs/architecture/architecture-flow.md](docs/architecture/architecture-flow.md)
+- Architecture decisions log: [docs/architecture/architecture-decisions.md](docs/architecture/architecture-decisions.md)
+- Architecture overview (services + data flow): [docs/architecture/architecture-overview.md](docs/architecture/architecture-overview.md)
 - AI remediator safety model: [blackglass-remediator/docs/safety-model.md](blackglass-remediator/docs/safety-model.md)
 
 ## Product front door (marketing vs console vs demo)
 
 - **`/`** — Public landing (no auth). Explains the product; primary CTAs point to **`/demo`** and trial/sign-up flows.
 - **`/product`** — Dedicated product summary page (public; also linked from the marketing nav).
-- **`/dashboard`** — Authenticated fleet console when [Clerk is configured](docs/saas-clerk-rbac.md); with Clerk off, local/dev uses legacy session or open access depending on **`AUTH_REQUIRED`**.
+- **`/dashboard`** — Authenticated fleet console when [Clerk is configured](docs/saas/saas-clerk-rbac.md); with Clerk off, local/dev uses legacy session or open access depending on **`AUTH_REQUIRED`**.
 - **`/demo`** — **Sample workspace only**: seeded fictional data (`src/lib/demo/`), no inventory or scan side effects. “Real” actions open an upgrade modal; never mixed with Postgres tenants.
-- **Pricing & seats** — Trial, paid-seat vs viewer model, and RBAC are documented in **[docs/saas-clerk-rbac.md](docs/saas-clerk-rbac.md)** (code sources: `src/lib/saas/plans.ts`, `permissions.ts`, `seats.ts`, `trial.ts`).
+- **Pricing & seats** — Trial, paid-seat vs viewer model, and RBAC are documented in **[docs/saas/saas-clerk-rbac.md](docs/saas/saas-clerk-rbac.md)** (code sources: `src/lib/saas/plans.ts`, `permissions.ts`, `seats.ts`, `trial.ts`).
 
 ### Authenticated request path (Clerk SaaS)
 

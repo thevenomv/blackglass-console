@@ -23,9 +23,9 @@ for (let i = 4; i <= 52; i++) {
   synthetic.push({
     id: `d-${String(i).padStart(3, "0")}`,
     hostId: `host-${String(hostNum).padStart(2, "0")}`,
-    category: categories[(i - 1) % categories.length],
-    severity: (["high", "medium", "low"] as const)[(i - 1) % 3],
-    lifecycle: lifecycles[(i - 1) % lifecycles.length],
+    category: categories[(i - 1) % categories.length]!,
+    severity: (["high", "medium", "low"] as const)[(i - 1) % 3]!,
+    lifecycle: lifecycles[(i - 1) % lifecycles.length]!,
     title: `Synthetic integrity delta · signal ${i}`,
     detectedAt: new Date(Date.UTC(2026, 4, 1, 10 - (i % 8), (i * 11) % 60, 0)).toISOString(),
     rationale:

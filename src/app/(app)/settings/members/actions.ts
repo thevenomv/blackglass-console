@@ -7,7 +7,7 @@ import {
   requireTenantAuth,
   requireRecentPrimaryVerification,
   SaasAuthError,
-} from "@/lib/saas/auth-context";
+} from "@/lib/saas/tenant-context";
 import { hasPermission, canAssignRole } from "@/lib/saas/permissions";
 import { canAddPaidSeat, getSeatUsage, canApplyRoleChange } from "@/lib/saas/seats";
 import { listMembershipsForTenant, upsertMembership } from "@/lib/saas/tenant-service";

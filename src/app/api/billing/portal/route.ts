@@ -21,7 +21,7 @@ import {
   requireTenantAuth,
   SaasAuthError,
   requireRecentPrimaryVerification,
-} from "@/lib/saas/auth-context";
+} from "@/lib/saas/tenant-context";
 import { hasPermission } from "@/lib/saas/permissions";
 import { canChangeBillingForTenant } from "@/lib/saas/operations";
 import { checkPortalRate, clientIp } from "@/lib/server/rate-limit";

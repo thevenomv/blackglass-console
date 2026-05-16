@@ -66,7 +66,7 @@ function loadLegacyAllowlist(): string[] {
  */
 function parseLegacyTokenExpiry(token: string): number | null {
   const m = /^tok_([0-9a-f]{10})_/.exec(token);
-  if (!m) return null;
+  if (!m || !m[1]) return null;
   return parseInt(m[1], 16) * 1000;
 }
 

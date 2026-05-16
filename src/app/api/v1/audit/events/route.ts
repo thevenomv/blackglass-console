@@ -11,7 +11,7 @@ import {
 } from "@/lib/server/http/saas-access";
 import { canAppendInvestigationAuditForTenant } from "@/lib/saas/operations";
 import { emitSaasAudit } from "@/lib/saas/event-log";
-import type { TenantAuthContext } from "@/lib/saas/auth-context";
+import type { TenantAuthContext } from "@/lib/saas/tenant-context";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

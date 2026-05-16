@@ -29,7 +29,7 @@ import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { jsonError } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
-import { PostgresDriftEventsRepository } from "@/lib/server/store/driftevents-pg";
+import { PostgresDriftEventsRepository } from "@/lib/server/store/legacy/driftevents-pg";
 import { withTenantRls, schema } from "@/db";
 
 interface TrendDay {

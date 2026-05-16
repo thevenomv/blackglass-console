@@ -6,7 +6,7 @@
 
 import { z } from "zod";
 
-/** AWS access-key object (optional multi-region list per docs/charon.md). */
+/** AWS access-key object (optional multi-region list per docs/operations/charon.md). */
 export const JanitorAwsCredentialJsonSchema = z
   .object({
     accessKeyId: z.string().min(16).max(128),

@@ -25,7 +25,7 @@ function reportAgeWarning(generatedAt: string): boolean {
 function filenameFromContentDisposition(header: string | null, fallback: string): string {
   if (!header) return fallback;
   const star = /filename\*=UTF-8''([^;]+)/i.exec(header);
-  if (star) {
+  if (star?.[1]) {
     try {
       return decodeURIComponent(star[1].replace(/["']/g, "").trim());
     } catch {
@@ -33,9 +33,9 @@ function filenameFromContentDisposition(header: string | null, fallback: string)
     }
   }
   const quoted = /filename="([^"]+)"/i.exec(header);
-  if (quoted) return quoted[1].trim();
+  if (quoted?.[1]) return quoted[1].trim();
   const plain = /filename=([^;\s]+)/i.exec(header);
-  if (plain) return plain[1].replace(/["']/g, "").trim();
+  if (plain?.[1]) return plain[1].replace(/["']/g, "").trim();
   return fallback;
 }
 

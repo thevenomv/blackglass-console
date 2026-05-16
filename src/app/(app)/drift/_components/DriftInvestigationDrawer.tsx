@@ -7,7 +7,7 @@ import type { DriftEvent } from "@/data/mock/types";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useSession } from "@/components/auth/SessionProvider";
 import { useToast } from "@/components/ui/Toast";
-import { getRemediationSnippet } from "@/lib/remediation-snippets";
+import { getRemediationSnippet } from "@/lib/client/remediation-snippets";
 import { scoreEvent } from "@/lib/server/risk-score";
 import { getCisControls } from "@/lib/cis-controls";
 import { RemediationRecommendation } from "./RemediationRecommendation";

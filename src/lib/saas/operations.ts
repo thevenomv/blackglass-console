@@ -1,6 +1,5 @@
 import type { SaasSubscription } from "@/db/schema";
-import { hasPermission } from "./permissions";
-import { canAssignRole } from "./permissions";
+import { hasPermission, canAssignRole } from "./permissions";
 import type { TenantRole } from "./tenant-role";
 import {
   isSubscriptionOperational,
@@ -9,7 +8,7 @@ import {
 import { TRIAL_READ_ONLY } from "./trial-messages";
 import { soleOwnerDemotionBlocked } from "./member-guards";
 import { canAddPaidSeat, canApplyRoleChange } from "./seats";
-import { SaasAuthError } from "./auth-context";
+import { SaasAuthError } from "./tenant-context";
 
 /**
  * Blocks operational mutations when the tenant is in a degraded state (`past_due`,

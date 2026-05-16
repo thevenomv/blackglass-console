@@ -27,7 +27,7 @@ import {
   GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { PostgresDriftEventsRepository } from "@/lib/server/store/driftevents-pg";
+import { PostgresDriftEventsRepository } from "@/lib/server/store/legacy/driftevents-pg";
 import { getRetentionPolicy } from "./retention-service";
 import { getTenantNotifications } from "./notifications-service";
 import { listSaasAudit } from "./audit-service";

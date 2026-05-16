@@ -4,7 +4,7 @@
 |------|----------|
 | `app-git.production.yaml` / `app-git.staging.yaml` | GitHub App–connected apps (deploy on push). **This is the live deploy path.** Replace `OWNER/REPO` with your fork before applying. |
 | `app-current.yaml` | **Template** exported spec shape — replace placeholders; do not treat as your live secrets source. Prefer Doppler / DO dashboard for values. |
-| `app-create.phase1.json` | **Minimal bootstrap** for `scripts/do_bootstrap_blackglass.py` (single `web` service, `NEXT_PUBLIC_USE_MOCK=true`). After bootstrap, apply `app-git.production.yaml` with `doctl` for workers, DB migrate job, and real secrets. Forks: set `BLACKGLASS_GITHUB_REPO` or edit the `repo` field. |
+| `app-create.phase1.json` | **Minimal bootstrap** for `scripts/do/do_bootstrap_blackglass.py` (single `web` service, `NEXT_PUBLIC_USE_MOCK=true`). After bootstrap, apply `app-git.production.yaml` with `doctl` for workers, DB migrate job, and real secrets. Forks: set `BLACKGLASS_GITHUB_REPO` or edit the `repo` field. |
 
 > The legacy `.do/app.yaml` (GitHub Container Registry deploy) and its
 > companion PowerShell helpers (`scripts/do-docker-push.ps1`,

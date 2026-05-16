@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const [host] = await withTenantRls(ctx.tenant.id, (db) =>
+  const inserted = await withTenantRls(ctx.tenant.id, (db) =>
     db
       .insert(saasCollectorHosts)
       .values({
@@ -109,6 +109,10 @@ export async function POST(request: Request) {
       })
       .returning(),
   );
+  const host = inserted[0];
+  if (!host) {
+    return jsonError(500, "insert_failed", "collector host insert returned no rows", requestId);
+  }
 
   await emitSaasAudit({
     tenantId: ctx.tenant.id,

@@ -78,7 +78,7 @@ export async function GET(request: Request) {
       tenantId: process.env.INGEST_SAAS_TENANT_ID?.trim() ?? null,
       requestId,
       outcome: "ok",
-      meta: { count: recent.length, newestHostId: recent[0].hostId },
+      meta: { count: recent.length, newestHostId: recent[0]!.hostId },
     });
   }
 

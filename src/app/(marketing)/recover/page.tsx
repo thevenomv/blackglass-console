@@ -164,7 +164,7 @@ export default async function RecoverPage({
 
           <p className="text-xs text-fg-faint">
             Advanced options (API / CLI / scripts): see{" "}
-            <span className="font-mono text-[11px]">docs/passphrase-recovery.md</span> in the source
+            <span className="font-mono text-[11px]">docs/security/passphrase-recovery.md</span> in the source
             repository.
           </p>
         </section>

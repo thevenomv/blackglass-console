@@ -452,7 +452,7 @@ against an ephemeral Droplet provisioned from the same `sandbox-provisioner`
 codepath (see § 4b — re-enable the sandbox subsystem if you need this).
 
 The canonical script for prospect demos lives at
-[`docs/sales-demo-walkthrough.md`](../sales-demo-walkthrough.md). It
+[`docs/marketing/sales-demo-walkthrough.md`](../sales-demo-walkthrough.md). It
 includes a deterministic seed-and-reset workflow:
 
 ```bash
@@ -498,7 +498,7 @@ When you get paged:
 6. **If you cannot triage in 30 minutes**, escalate via PagerDuty and
    start a comms incident:
    - File at `https://status.blackglasssec.com/`.
-   - Notify affected tenants per `docs/incident-notification.md`.
+   - Notify affected tenants per `docs/security/incident-notification.md`.
 7. **Once recovered**, run `node scripts/ops/verify-partition-integrity.mjs`
    to confirm no schema-level damage.
 8. **File a post-mortem** within 5 business days. Lead with: timeline,
@@ -510,10 +510,10 @@ When you get paged:
 
 ## 6. Related references
 
-- [`docs/security-compliance.md`](../security-compliance.md) — security control mapping.
-- [`docs/incident-notification.md`](../incident-notification.md) — customer notification policy.
-- [`docs/data-retention-saas.md`](../data-retention-saas.md) — retention configuration.
-- [`docs/architecture-overview.md`](../architecture-overview.md) — system architecture.
+- [`docs/security/security-compliance.md`](../security-compliance.md) — security control mapping.
+- [`docs/security/incident-notification.md`](../incident-notification.md) — customer notification policy.
+- [`docs/security/data-retention-saas.md`](../data-retention-saas.md) — retention configuration.
+- [`docs/architecture/architecture-overview.md`](../architecture-overview.md) — system architecture.
 - [`blackglass-remediator/docs/safety-model.md`](../../blackglass-remediator/docs/safety-model.md) — remediator safety model.
 - `src/lib/server/queue/config.ts` — queue configuration (source of truth).
 - `scripts/ops/verify-partition-integrity.mjs` — partition + RLS sanity check.

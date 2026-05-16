@@ -61,7 +61,7 @@ async function doRequest<T>(
 }
 
 // ---------------------------------------------------------------------------
-// Seed script (mirrored from scripts/sandbox-seed.sh — kept in sync manually)
+// Seed script (mirrored from scripts/collector/sandbox-seed.sh — kept in sync manually)
 // Embedded here so the worker can inject it via cloud-init without relying on
 // the filesystem path being available inside the Docker container at runtime.
 // IMPORTANT: any ${...} shell variable references are escaped as \${...} to
@@ -388,7 +388,7 @@ export async function provisionSandbox(tenantId: string): Promise<string> {
         ),
       ),
   );
-  if (existing.length > 0) {
+  if (existing[0]) {
     return existing[0].id;
   }
 
@@ -399,7 +399,7 @@ export async function provisionSandbox(tenantId: string): Promise<string> {
   const encrypted = await encryptKey(tenantId, privateKeyPem);
   const encryptedKeyJson = JSON.stringify(encrypted);
 
-  const [cred] = await withTenantRls(tenantId, (db) =>
+  const credRows = await withTenantRls(tenantId, (db) =>
     db
       .insert(tenantCredentials)
       .values({
@@ -421,9 +421,13 @@ export async function provisionSandbox(tenantId: string): Promise<string> {
       })
       .returning(),
   );
+  const cred = credRows[0];
+  if (!cred) {
+    throw new Error("tenant_credentials upsert returned no rows");
+  }
 
   // 4. Insert sandbox row
-  const [sandbox] = await withTenantRls(tenantId, (db) =>
+  const sandboxRows = await withTenantRls(tenantId, (db) =>
     db
       .insert(saasSandboxes)
       .values({
@@ -435,6 +439,10 @@ export async function provisionSandbox(tenantId: string): Promise<string> {
       })
       .returning(),
   );
+  const sandbox = sandboxRows[0];
+  if (!sandbox) {
+    throw new Error("saas_sandboxes insert returned no rows");
+  }
 
   // 5. Call DO API to create Droplet
   const cloudInit = buildCloudInit(pubKeyOpenSsh);
@@ -488,9 +496,10 @@ export async function activateSandbox(
 ): Promise<{ ip: string; hostId: string }> {
   // RLS-BYPASS: BullMQ activation handler; sandboxId/tenantId from the
   // verified job payload.
-  const [sandbox] = await withBypassRls((db) =>
+  const sandboxRows = await withBypassRls((db) =>
     db.select().from(saasSandboxes).where(eq(saasSandboxes.id, sandboxId)),
   );
+  const sandbox = sandboxRows[0];
   if (!sandbox?.dropletId) throw new Error("Sandbox has no dropletId — cannot activate");
 
   // Poll up to 5 minutes
@@ -513,7 +522,7 @@ export async function activateSandbox(
   if (!ip) throw new Error("Sandbox Droplet did not become active within 5 minutes");
 
   // Register host
-  const [host] = await withTenantRls(tenantId, (db) =>
+  const hostRows = await withTenantRls(tenantId, (db) =>
     db
       .insert(saasCollectorHosts)
       .values({
@@ -534,6 +543,10 @@ export async function activateSandbox(
       })
       .returning(),
   );
+  const host = hostRows[0];
+  if (!host) {
+    throw new Error("saas_collector_hosts upsert returned no rows");
+  }
 
   // Apply DO Cloud Firewall: inbound SSH (22) only — belt-and-suspenders on top of UFW.
   // This ensures no attack-scenario ports (e.g. 4444 from phase 1) are reachable from
@@ -588,9 +601,10 @@ export async function activateSandbox(
  */
 export async function destroySandbox(sandboxId: string): Promise<void> {
   // RLS-BYPASS: BullMQ cleanup handler; sandboxId from the verified job.
-  const [sandbox] = await withBypassRls((db) =>
+  const sandboxRows = await withBypassRls((db) =>
     db.select().from(saasSandboxes).where(eq(saasSandboxes.id, sandboxId)),
   );
+  const sandbox = sandboxRows[0];
   if (!sandbox) return;
 
   // RLS-BYPASS: status flip to "destroying" before any DO API call.

@@ -24,7 +24,7 @@ jobs:
           node-version-file: .nvmrc
 
       - name: Verify workflow → script references
-        run: node scripts/ops-automation-selfcheck.mjs
+        run: node scripts/verify/ops-automation-selfcheck.mjs
 
   resend-domains:
     runs-on: ubuntu-latest
@@ -44,4 +44,4 @@ jobs:
             echo "Skipped — \`RESEND_API_KEY\` repository secret is not set." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          node scripts/resend-domain-status.mjs
+          node scripts/email/resend-domain-status.mjs
