@@ -85,7 +85,7 @@
     "@types/react-dom": "^19.0.0",
     "@types/ssh2": "^1.15.5",
     "autoprefixer": "^10.4.20",
-    "bullmq": "^5.76.5",
+    "bullmq": "^5.76.10",
     "drizzle-orm": "^0.45.2",
     "google-auth-library": "^9.15.1",
     "ioredis": "^5.10.1",
