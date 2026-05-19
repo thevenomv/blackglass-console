@@ -60,10 +60,42 @@ export async function POST(request: Request) {
   }
 
   // ------------------------------------------------------------------
-  // Collect all events, find the ones being accepted, group by host
+  // Collect all events, find the ones being accepted, group by host.
+  // In SaaS mode, restrict to the authenticated tenant's hosts so a
+  // tenant cannot accept (and thus delete) another tenant's events.
   // ------------------------------------------------------------------
+  let tenantAllowedHostIds: Set<string> | null = null;
+  if (saasCtx) {
+    try {
+      const { eq } = await import("drizzle-orm");
+      const { withTenantRls, schema } = await import("@/db");
+      const rows = await withTenantRls(saasCtx.tenant.id, (db) =>
+        db
+          .select({
+            id: schema.saasCollectorHosts.id,
+            hostname: schema.saasCollectorHosts.hostname,
+          })
+          .from(schema.saasCollectorHosts)
+          .where(eq(schema.saasCollectorHosts.tenantId, saasCtx!.tenant.id)),
+      );
+      tenantAllowedHostIds = new Set<string>();
+      for (const r of rows) {
+        tenantAllowedHostIds.add(r.id);
+        if (r.hostname)
+          tenantAllowedHostIds.add(`host-${r.hostname.replace(/[^a-zA-Z0-9]/g, "-")}`);
+      }
+    } catch (err) {
+      console.error("[accept-baseline] Failed to load tenant host IDs:", err);
+      return jsonError(500, "internal_error", "Could not verify tenant host ownership.", requestId);
+    }
+  }
+
   const allEvents = await getDriftEventsAsync();
-  const accepted = allEvents.filter((e) => eventIds.has(e.id));
+  const accepted = allEvents.filter((e) => {
+    if (!eventIds.has(e.id)) return false;
+    if (tenantAllowedHostIds && !tenantAllowedHostIds.has(e.hostId)) return false;
+    return true;
+  });
   const affectedHostIds = [...new Set(accepted.map((e) => e.hostId))];
 
   if (accepted.length === 0) {
@@ -95,7 +127,11 @@ export async function POST(request: Request) {
     const batch = affectedHostIds.slice(i, i + FANOUT);
     const settled = await Promise.allSettled(
       batch.map(async (hostId) => {
-        const snap = await collectSnapshot({ hostIds: [hostId], reason: "baseline" });
+        const snap = await collectSnapshot({
+          hostIds: [hostId],
+          reason: "baseline",
+          ...(saasCtx ? { tenantId: saasCtx.tenant.id } : {}),
+        });
         await saveBaseline(snap);
         return hostId;
       }),

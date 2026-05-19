@@ -54,6 +54,24 @@ export class PostgresBaselineRepository implements BaselineRepository {
     }
   }
 
+  /** Insert a baseline only if one does not already exist for this host.
+   *  Returns true when the row was actually inserted, false when a row was
+   *  already present (concurrent bootstrap race — second caller is a no-op). */
+  async saveIfAbsent(snapshot: HostSnapshot): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        `INSERT INTO blackglass_baselines (host_id, hostname, collected_at, data)
+         VALUES ($1, $2, $3::timestamptz, $4::jsonb)
+         ON CONFLICT (host_id) DO NOTHING`,
+        [snapshot.hostId, snapshot.hostname, snapshot.collectedAt, JSON.stringify(snapshot)],
+      );
+      return (res.rowCount ?? 0) > 0;
+    } catch (err) {
+      console.error("[baseline-store/pg] Failed to saveIfAbsent:", err);
+      throw new StoreError("unavailable", "Postgres write failed", err);
+    }
+  }
+
   async get(hostId: string): Promise<HostSnapshot | undefined> {
     try {
       const res = await this.pool.query<{ data: string }>(

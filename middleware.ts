@@ -51,9 +51,18 @@ const clerkPublic = createRouteMatcher([
   "/vs(.*)",
   "/blog(.*)",
   "/glossary(.*)",
-  // All API routes manage their own auth (Clerk session, API keys, webhook sigs).
-  // Marking them public here means Clerk populates auth() context without force-redirecting.
-  "/api/(.*)",
+  // Truly-public API paths only. Clerk populates auth() context for all /api/* routes
+  // but only force-redirects paths NOT listed here. Each protected handler must still
+  // call requireTenantAuth / requireSaasOrLegacyPermission — this list is not the sole gate.
+  "/api/webhooks/(.*)",         // Stripe / Clerk webhooks — verified by payload signature
+  "/api/checkout/webhook(.*)",  // Stripe checkout webhook — verified by payload signature
+  "/api/health(.*)",            // Health & liveness probes
+  "/api/status",                // Public status endpoint
+  "/api/auth/invite(.*)",       // Invite redemption — token verified inside handler
+  "/api/public/(.*)",           // Explicitly public endpoints (egress IPs, demo data, etc.)
+  "/api/session",               // Returns {authenticated:false} for guests — must run unauthenticated
+  "/api/contact-sales(.*)",     // Public lead-capture form
+  "/api/tools/(.*)",            // Public tool endpoints (cloud waste report, etc.)
 ]);
 
 const clerkMw = clerkMiddleware(async (auth, request) => {
@@ -118,11 +127,15 @@ async function legacyMiddleware(request: NextRequest, requestId: string) {
     login.searchParams.set("next", pathname);
     login.searchParams.set("redirected", "1");
     const res = NextResponse.redirect(login);
+    // Mirror the exact attributes used when setting the cookie so browsers
+    // reliably clear httpOnly cookies (missing httpOnly on delete is ignored by
+    // some browsers, leaving a stale session cookie in place).
     res.cookies.set({
       name: SESSION,
       value: "",
       maxAge: 0,
       path: "/",
+      httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     });

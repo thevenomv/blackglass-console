@@ -9,7 +9,7 @@ import {
   getTenantIdByStripeCustomer,
   clearStripeSubscriptionForTenant,
 } from "@/lib/saas/stripe-sync";
-import { claimWebhookEvent } from "@/lib/saas/webhook-idempotency";
+import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/saas/webhook-idempotency";
 import { emitSaasSecurity } from "@/lib/saas/event-log";
 import type Stripe from "stripe";
 
@@ -62,7 +62,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const firstDelivery = await claimWebhookEvent("stripe", event.id);
+  // BILL-02: throw on DB error → 500 so Stripe retries; don't silently drop.
+  let firstDelivery: boolean;
+  try {
+    firstDelivery = await claimWebhookEvent("stripe", event.id);
+  } catch (claimErr) {
+    console.error("[stripe/webhook] idempotency claim failed", claimErr);
+    return NextResponse.json({ error: "db_error" }, { status: 500 });
+  }
   if (!firstDelivery) {
     console.info(`[stripe/webhook] duplicate event ${event.id} — skipping`);
     return NextResponse.json({ received: true });
@@ -80,7 +87,14 @@ export async function POST(request: Request) {
       if (tryGetDb() && subscriptionId !== "unknown" && customerId !== "unknown") {
         try {
           const meta = session.metadata ?? {};
-          const tenantId = typeof meta.saas_tenant_id === "string" ? meta.saas_tenant_id : null;
+          // BILL-03: try metadata first, then client_reference_id, then customer lookup.
+          let tenantId: string | null = typeof meta.saas_tenant_id === "string" ? meta.saas_tenant_id : null;
+          if (!tenantId && typeof session.client_reference_id === "string" && session.client_reference_id) {
+            tenantId = session.client_reference_id;
+          }
+          if (!tenantId && customerId !== "unknown") {
+            tenantId = await getTenantIdByStripeCustomer(customerId);
+          }
           if (tenantId) {
             const fullSub = await stripe.subscriptions.retrieve(subscriptionId);
             await syncSaasSubscriptionFromStripe({
@@ -139,8 +153,12 @@ export async function POST(request: Request) {
       // Renewal payment succeeded — re-assert plan in case a previous Spaces write failed.
       const invoice = event.data.object as Stripe.Invoice;
       const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "unknown";
-      const subRef = invoice.parent?.subscription_details?.subscription;
-      const subscriptionId = typeof subRef === "string" ? subRef : subRef?.id ?? null;
+      // BILL-08: fall back to invoice.subscription when parent.subscription_details is absent.
+      // invoice.subscription exists in the Stripe API but may not be typed in older SDK versions.
+      const subRefParent = invoice.parent?.subscription_details?.subscription;
+      const subRefLegacy = (invoice as unknown as { subscription?: string | { id?: string } }).subscription;
+      const subRef = subRefParent ?? subRefLegacy;
+      const subscriptionId = typeof subRef === "string" ? subRef : (subRef as { id?: string } | null)?.id ?? null;
       console.info(`[stripe/webhook] invoice.payment_succeeded — invoice=${invoice.id} customer=${customerId} amount=${invoice.amount_paid}`);
       if (subscriptionId) {
         // Re-assert pro plan so a prior Spaces outage doesn't leave the tenant on free.
@@ -162,8 +180,11 @@ export async function POST(request: Request) {
       console.warn(`[stripe/webhook] invoice.payment_failed — invoice=${invoice.id} customer=${customerId}`);
       appendAudit({ action: AUDIT_ACTIONS.INVOICE_PAYMENT_FAILED, detail: `invoice=${invoice.id} customer=${customerId} amount=${invoice.amount_due}` });
       // Sync subscription status (should become past_due) to the DB.
-      const subRef = invoice.parent?.subscription_details?.subscription;
-      const failedSubId = typeof subRef === "string" ? subRef : subRef?.id ?? null;
+      // BILL-08: fall back to invoice.subscription when parent.subscription_details is absent.
+      const failedSubRefParent = invoice.parent?.subscription_details?.subscription;
+      const failedSubRefLegacy = (invoice as unknown as { subscription?: string | { id?: string } }).subscription;
+      const failedSubRef = failedSubRefParent ?? failedSubRefLegacy;
+      const failedSubId = typeof failedSubRef === "string" ? failedSubRef : (failedSubRef as { id?: string } | null)?.id ?? null;
       if (failedSubId) {
         try {
           const failedSub = await stripe.subscriptions.retrieve(failedSubId);
@@ -192,6 +213,8 @@ export async function POST(request: Request) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[stripe/webhook] handler failed", event.type, msg);
+    // BILL-01: release the idempotency row so Stripe can retry successfully.
+    await releaseWebhookEvent("stripe", event.id);
     if (tryGetDb()) {
       try {
         const data = event.data.object as { customer?: string | { id?: string } | null };

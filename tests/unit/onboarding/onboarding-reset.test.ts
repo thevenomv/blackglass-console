@@ -36,6 +36,9 @@ vi.mock("@/lib/saas/event-log", () => ({
 vi.mock("@/lib/server/integrity-revalidate", () => ({
   revalidateIntegritySurfaces: vi.fn(),
 }));
+vi.mock("@/lib/server/onboarding/telemetry", () => ({
+  logOnboardingEvent: vi.fn(),
+}));
 vi.mock("@/lib/saas/clerk-mode", () => ({
   isClerkAuthEnabled: () => false,
 }));

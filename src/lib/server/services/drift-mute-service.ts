@@ -9,6 +9,7 @@
 
 import { withBypassRls, withTenantRls, schema, tryGetDb } from "@/db";
 import { and, asc, eq } from "drizzle-orm";
+import { normaliseHostId } from "@/lib/server/onboarding/host-id";
 
 const { saasDriftMutes } = schema;
 
@@ -29,6 +30,40 @@ export interface DriftMuteRule {
   mutedUntil: string | null;
   createdBy: string | null;
   createdAt: string;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Resolve a caller-supplied hostId to the canonical `host-*` form.
+ *  When the caller passes a UUID (saas_collector_hosts.id), look up the
+ *  row's hostname and convert.  Any non-UUID string is run through
+ *  normaliseHostId directly (idempotent for already-canonical IDs). */
+async function resolveCanonicalHostId(
+  tenantId: string,
+  hostId: string,
+): Promise<string> {
+  if (!UUID_RE.test(hostId)) {
+    try { return normaliseHostId(hostId); } catch { return hostId; }
+  }
+  try {
+    const rows = await withTenantRls(tenantId, (db) =>
+      db
+        .select({ hostname: schema.saasCollectorHosts.hostname })
+        .from(schema.saasCollectorHosts)
+        .where(
+          and(
+            eq(schema.saasCollectorHosts.tenantId, tenantId),
+            eq(schema.saasCollectorHosts.id, hostId),
+          ),
+        )
+        .limit(1),
+    );
+    const hostname = rows[0]?.hostname;
+    if (hostname) return normaliseHostId(hostname);
+  } catch { /* fall through */ }
+  // UUID that has no matching host row — return as-is so the mute is stored
+  // without silently dropping the host constraint.
+  return hostId;
 }
 
 function rowToView(row: typeof saasDriftMutes.$inferSelect): DriftMuteRule {
@@ -81,6 +116,13 @@ export async function createMute(
   actorUserId: string | null,
   input: DriftMuteInput,
 ): Promise<DriftMuteRule> {
+  // Normalise hostId to canonical form (converts UUIDs from saas_collector_hosts.id
+  // and plain IPs/hostnames to the `host-*` canonical form so mutes match
+  // drift events which always use the canonical ID).
+  const resolvedHostId = input.hostId
+    ? await resolveCanonicalHostId(tenantId, input.hostId)
+    : null;
+
   const [row] = await withTenantRls(tenantId, (db) =>
     db
       .insert(saasDriftMutes)
@@ -88,7 +130,7 @@ export async function createMute(
         tenantId,
         category: input.category,
         titlePattern: input.titlePattern.toLowerCase(),
-        hostId: input.hostId ?? null,
+        hostId: resolvedHostId,
         reason: input.reason ?? null,
         mutedUntil: input.mutedUntil ? new Date(input.mutedUntil) : null,
         createdBy: actorUserId,
@@ -121,7 +163,14 @@ export function applyMutes<T extends { category: string; title: string; hostId: 
   return events.map((e) => {
     const matched = mutes.find((m) => {
       if (m.category !== e.category) return false;
-      if (m.hostId && m.hostId !== e.hostId) return false;
+      if (m.hostId) {
+        // Match the stored hostId against both the event's canonical hostId and
+        // the canonical form of the stored hostId (handles legacy mutes that were
+        // stored with a UUID or un-normalised hostname before the fix).
+        let canonicalMuteHostId: string | null = null;
+        try { canonicalMuteHostId = normaliseHostId(m.hostId); } catch { /* ignore */ }
+        if (m.hostId !== e.hostId && canonicalMuteHostId !== e.hostId) return false;
+      }
       if (!e.title.toLowerCase().includes(m.titlePattern)) return false;
       return true;
     });

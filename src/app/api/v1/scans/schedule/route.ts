@@ -20,6 +20,7 @@ import {
   LEGACY_SCHEDULE_TENANT,
 } from "@/lib/server/queue/schedule";
 import { planGuard } from "@/lib/plan";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 
 const ScheduleBodySchema = z.object({
   enabled: z.boolean(),
@@ -42,8 +43,11 @@ export async function GET(request: Request) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const guard = planGuard("scheduledScans");
-  if (!guard.ok) return guard.response;
+  // BILL-04: skip global guard in SaaS mode (per-tenant plan via subscription row).
+  if (!isClerkAuthEnabled()) {
+    const guard = planGuard("scheduledScans");
+    if (!guard.ok) return guard.response;
+  }
 
   const access = await requireSaasOrLegacyPermission(
     "scans.run",
@@ -64,8 +68,11 @@ export async function PUT(request: Request) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const guard = planGuard("scheduledScans");
-  if (!guard.ok) return guard.response;
+  // BILL-04: skip global guard in SaaS mode (per-tenant plan via subscription row).
+  if (!isClerkAuthEnabled()) {
+    const guard = planGuard("scheduledScans");
+    if (!guard.ok) return guard.response;
+  }
 
   const access = await requireSaasOrLegacyPermission(
     "scans.run",

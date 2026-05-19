@@ -7,7 +7,7 @@
  *   sandbox:cleanup    — called when TTL expires; calls destroySandbox()
  */
 
-import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
+import { QUEUE_NAMES, RETRY_POLICIES, RETENTION, redisConnectionFromUrl } from "./config";
 
 export type SandboxJobProvision = {
   type: "sandbox:provision";
@@ -53,9 +53,8 @@ export async function getSandboxQueue(): Promise<
   if (!g[SANDBOX_QUEUE_KEY]) {
     const { Queue } = await import("bullmq");
     g[SANDBOX_QUEUE_KEY] = new Queue<SandboxJobPayload>(QUEUE_NAMES.SANDBOX, {
-      connection: { url: redisUrl },
+      connection: redisConnectionFromUrl(redisUrl),
       defaultJobOptions: {
-        ...RETRY_POLICIES.sandboxProvision,
         ...RETENTION.sandbox,
       },
     });
@@ -87,7 +86,8 @@ export async function enqueueSandboxProvision(
     // BullMQ rejects jobIds containing ":" (it's its own internal namespace
     // separator).  Use "-" so deduplication still works (one provision job
     // per sandbox row) without throwing on enqueue.
-    { jobId: `provision-${sandboxId}` },
+    // QUEUE-08: use the provision-specific retry policy (5 attempts, 5 s backoff).
+    { jobId: `provision-${sandboxId}`, ...RETRY_POLICIES.sandboxProvision },
   );
 }
 
@@ -106,7 +106,8 @@ export async function enqueueSandboxSeedDrift(
   await q.add(
     "sandbox:seed-drift",
     { type: "sandbox:seed-drift", sandboxId, tenantId, phase },
-    { jobId: `seed-${sandboxId}-${phase}`, delay: delayMs },
+    // QUEUE-08: use the seed-specific retry policy (3 attempts, 10 s backoff).
+    { jobId: `seed-${sandboxId}-${phase}`, delay: delayMs, ...RETRY_POLICIES.sandboxSeed },
   );
 }
 
@@ -124,6 +125,8 @@ export async function enqueueSandboxCleanup(
   await q.add(
     "sandbox:cleanup",
     { type: "sandbox:cleanup", sandboxId, tenantId },
-    { jobId: `cleanup-${sandboxId}`, delay: delayMs },
+    // QUEUE-08: use the cleanup-specific retry policy (10 attempts, 30 s backoff)
+    // — must eventually succeed to avoid orphaned Droplets.
+    { jobId: `cleanup-${sandboxId}`, delay: delayMs, ...RETRY_POLICIES.sandboxCleanup },
   );
 }

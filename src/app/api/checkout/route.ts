@@ -197,18 +197,41 @@ export async function POST(request: Request) {
     // (Remediator unlock) without re-parsing line items from Stripe.
     addons: addons.join(","),
   };
+  // BILL-03: resolve tenant so we can embed saas_tenant_id in session metadata
+  // and pass client_reference_id + existing customer ID to Stripe.
+  let tenantId: string | null = null;
+  let existingStripeCustomerId: string | null = null;
   if (isClerkAuthEnabled()) {
     const { orgId } = await auth();
     if (orgId) {
       const rows = await getTenantRowByClerkOrg(orgId);
       const tenant = rows[0];
       if (tenant) {
+        tenantId = tenant.id;
         sessionMetadata = {
           ...sessionMetadata,
           saas_tenant_id: tenant.id,
           clerk_org_id: orgId,
         };
       }
+    }
+  }
+
+  // Look up existing Stripe customer from the subscription row to avoid duplicates.
+  if (tenantId) {
+    try {
+      const { withBypassRls, schema: dbSchema } = await import("@/db");
+      const { eq } = await import("drizzle-orm");
+      const subRows = await withBypassRls((db) =>
+        db
+          .select({ stripeCustomerId: dbSchema.saasSubscriptions.stripeCustomerId })
+          .from(dbSchema.saasSubscriptions)
+          .where(eq(dbSchema.saasSubscriptions.tenantId, tenantId!))
+          .limit(1),
+      );
+      existingStripeCustomerId = subRows[0]?.stripeCustomerId ?? null;
+    } catch {
+      // Non-fatal — proceed without a pre-existing customer ID.
     }
   }
 
@@ -225,6 +248,11 @@ export async function POST(request: Request) {
       allow_promotion_codes: true,
       // Automatically send a receipt email after successful payment.
       payment_method_collection: "always",
+      // BILL-03: always set client_reference_id so the webhook can resolve the
+      // tenant even if metadata is somehow stripped.
+      ...(tenantId ? { client_reference_id: tenantId } : {}),
+      // BILL-03: reuse the existing Stripe customer to avoid duplicate customer records.
+      ...(existingStripeCustomerId ? { customer: existingStripeCustomerId } : {}),
       subscription_data: {
         // Pass metadata so the webhook can identify this subscription.
         metadata: { ...sessionMetadata },

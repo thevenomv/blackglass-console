@@ -17,13 +17,30 @@ type GuardFail = { ok: false; response: ReturnType<typeof jsonError> };
 export type GuardResult = GuardOk | GuardFail;
 
 /**
- * When AUTH_REQUIRED=false the guard always passes with role=admin (dev / demo mode).
- * When AUTH_REQUIRED=true the HMAC-signed session cookie is verified and the role
- * checked against `allowed`.
+ * Normalizes AUTH_REQUIRED to a boolean.
+ * Truthy values: "true", "1", "yes", "on" (case-insensitive).
+ * Explicit falsy: "false", "0", "no", "off".
+ * In production, anything other than an explicit falsy value is treated as required (fail-closed).
+ */
+function isAuthRequired(): boolean {
+  const raw = process.env.AUTH_REQUIRED?.toLowerCase().trim();
+  const explicit = { true: true, "1": true, yes: true, on: true, false: false, "0": false, no: false, off: false };
+  if (raw !== undefined && raw in explicit) {
+    return explicit[raw as keyof typeof explicit];
+  }
+  // In production fail closed when AUTH_REQUIRED is absent or unrecognized.
+  if (process.env.NODE_ENV === "production") return true;
+  return false;
+}
+
+/**
+ * When AUTH_REQUIRED is explicitly falsy AND not production, the guard passes in dev/demo mode.
+ * In production the HMAC-signed session cookie is always verified — no admin fallback.
  */
 export async function requireRole(allowed: Role[]): Promise<GuardResult> {
-  if (process.env.AUTH_REQUIRED !== "true") {
-    return { ok: true, role: "admin" };
+  if (!isAuthRequired() && process.env.NODE_ENV !== "production") {
+    // Dev/demo convenience only — never granted in production.
+    return { ok: true, role: "viewer" };
   }
 
   const jar = await cookies();

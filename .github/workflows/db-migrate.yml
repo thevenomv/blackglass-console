@@ -76,6 +76,17 @@ jobs:
         run: sleep 15
 
       # --- Run the migrator ----------------------------------------------------
+      # NOTE: migration-008 (ALTER TYPE subscription_status ADD VALUE 'past_due')
+      # must run BEFORE the main migrator because ALTER TYPE cannot run inside a
+      # transaction (which apply-migrations.mjs uses). run-migration-008.mjs is
+      # idempotent (IF NOT EXISTS) and safe to re-run on every deploy.
+      - name: Apply enum migration (past_due — must run outside transaction)
+        if: inputs.mode == 'apply'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_NO_WARNINGS: "1"
+        run: node scripts/db/run-migration-008.mjs
+
       - name: Run migrations (${{ inputs.mode }})
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

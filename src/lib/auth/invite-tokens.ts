@@ -152,7 +152,41 @@ export function validateInviteToken(candidate: string): boolean {
 }
 
 /**
+ * Atomically validate AND redeem a token in a single operation.
+ * Returns true if the token was valid and successfully claimed; false if invalid,
+ * expired, or already redeemed. Using this instead of separate validate+redeem
+ * calls prevents TOCTOU races where two concurrent requests both pass validation
+ * before either redeems.
+ */
+export function validateAndRedeemInviteToken(candidate: string): boolean {
+  if (!candidate || candidate.length < 8) return false;
+  // Check redeemed set before any crypto work — fast path
+  if (redeemed.has(candidate)) return false;
+
+  // Validate signature/expiry
+  let valid: boolean;
+  if (candidate.startsWith(IV1_PREFIX)) {
+    try {
+      valid = validateIv1Token(candidate);
+    } catch {
+      valid = false;
+    }
+  } else {
+    valid = validateLegacyAllowlistToken(candidate);
+  }
+
+  if (!valid) return false;
+
+  // Mark as redeemed BEFORE returning true — prevents replay within this process lifetime.
+  // Note: In a multi-process deployment, use a DB-backed atomic claim (INSERT … ON CONFLICT)
+  // for full replay protection across restarts.
+  redeemed.add(candidate);
+  return true;
+}
+
+/**
  * Mark a token as redeemed so it cannot be used again within this process.
+ * @deprecated Prefer `validateAndRedeemInviteToken` to avoid TOCTOU races.
  */
 export function redeemInviteToken(token: string): void {
   redeemed.add(token);

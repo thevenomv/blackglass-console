@@ -7,6 +7,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { rateLimitedResponse, zodErrorResponse } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { requireRole } from "@/lib/server/http/auth-guard";
@@ -15,8 +16,24 @@ import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { DriftQuerySchema } from "@/lib/server/http/schemas";
 import { resolveDriftEventsForDashboardAsync } from "@/lib/server/drift-resolve";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
+import { withTenantRls, schema } from "@/db";
 
 export const dynamic = "force-dynamic";
+
+async function tenantHostIds(tenantId: string): Promise<string[]> {
+  const rows = await withTenantRls(tenantId, (db) =>
+    db
+      .select({ id: schema.saasCollectorHosts.id, hostname: schema.saasCollectorHosts.hostname })
+      .from(schema.saasCollectorHosts)
+      .where(eq(schema.saasCollectorHosts.tenantId, tenantId)),
+  );
+  const ids = new Set<string>();
+  for (const r of rows) {
+    ids.add(r.id);
+    if (r.hostname) ids.add(`host-${r.hostname.replace(/[^a-zA-Z0-9]/g, "-")}`);
+  }
+  return Array.from(ids);
+}
 
 export async function GET(request: Request) {
   const requestId = getOrCreateRequestId(request);
@@ -24,6 +41,8 @@ export async function GET(request: Request) {
   if (!(await checkReadApiRate(ip))) {
     return rateLimitedResponse(requestId);
   }
+
+  let saasHostIds: string[] | undefined;
 
   if (isClerkAuthEnabled()) {
     const access = await requireSaasOrLegacyPermission("reports.view", [
@@ -33,6 +52,9 @@ export async function GET(request: Request) {
       "admin",
     ]);
     if (!access.ok) return access.response;
+    if (access.mode === "saas") {
+      saasHostIds = await tenantHostIds(access.ctx.tenant.id);
+    }
   } else {
     const guard = await requireRole(["viewer", "auditor", "operator", "admin"]);
     if (!guard.ok) return guard.response;
@@ -49,7 +71,7 @@ export async function GET(request: Request) {
 
   const { hostId, lifecycle: lifecycleFilter, limit, cursor } = parsed.data;
 
-  let events = await resolveDriftEventsForDashboardAsync(hostId);
+  let events = await resolveDriftEventsForDashboardAsync(hostId, saasHostIds);
 
   if (lifecycleFilter) {
     events = events.filter((e) => e.lifecycle === lifecycleFilter);

@@ -41,7 +41,7 @@ async function getSessionData(sessionId: string) {
         : undefined;
     const priceId = subPriceId ?? liPriceId;
     const planCode = priceIdToPlanCode(typeof priceId === "string" ? priceId : undefined);
-    const planDef = getPlanDefinition(planCode);
+    const planDef = planCode ? getPlanDefinition(planCode) : null;
     return {
       planLabel: planDef?.label ?? "Starter",
       email: customer && "email" in customer ? (customer.email ?? null) : null,

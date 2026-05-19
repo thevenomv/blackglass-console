@@ -19,6 +19,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const saveBaselineMock = vi.hoisted(() => vi.fn(async () => {}));
+const saveBaselineIfAbsentMock = vi.hoisted(() => vi.fn(async () => true));
 const getBaselineMock = vi.hoisted(() => vi.fn(async () => undefined as unknown));
 const listBaselineHostIdsMock = vi.hoisted(() => vi.fn(async () => [] as string[]));
 const storeDriftEventsMock = vi.hoisted(() => vi.fn());
@@ -33,6 +34,7 @@ const isHostTombstonedMock = vi.hoisted(() =>
 
 vi.mock("@/lib/server/baseline-store", () => ({
   saveBaseline: saveBaselineMock,
+  saveBaselineIfAbsent: saveBaselineIfAbsentMock,
   getBaseline: getBaselineMock,
   listBaselineHostIds: listBaselineHostIdsMock,
 }));
@@ -196,11 +198,13 @@ describe("/api/v1/ingest/agent", () => {
     expect(next.host_url).toContain("/hosts/host-127-0-0-1");
     expect(next.wizard_url).toContain("/onboarding");
 
-    expect(saveBaselineMock).toHaveBeenCalledTimes(1);
+    // DRIFT-06: first push uses saveBaselineIfAbsent for idempotent bootstrap.
+    expect(saveBaselineIfAbsentMock).toHaveBeenCalledTimes(1);
+    expect(saveBaselineMock).not.toHaveBeenCalled();
     expect(storeDriftEventsMock).toHaveBeenCalledWith("host-127-0-0-1", []);
     expect(processHostSnapshotDriftMock).not.toHaveBeenCalled();
 
-    const snapshot = (saveBaselineMock.mock.calls[0] as unknown as [unknown])[0] as {
+    const snapshot = (saveBaselineIfAbsentMock.mock.calls[0] as unknown as [unknown])[0] as {
       hostId: string;
       listeners: Array<{ port: number; process?: string }>;
       users: Array<{ username: string }>;

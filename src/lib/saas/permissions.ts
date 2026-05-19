@@ -14,6 +14,8 @@ export type SaasPermission =
   | "baselines.manage"
   | "drift.manage"
   | "reports.view"
+  /** Generate/export reports — a superset of reports.view. */
+  | "reports.generate"
   | "dashboards.view"
   | "alerts.view"
   | "evidence.view"
@@ -40,6 +42,7 @@ const matrix: Record<TenantRole, readonly SaasPermission[]> = {
     "baselines.manage",
     "drift.manage",
     "reports.view",
+    "reports.generate",
     "dashboards.view",
     "alerts.view",
     "evidence.view",
@@ -58,6 +61,7 @@ const matrix: Record<TenantRole, readonly SaasPermission[]> = {
     "baselines.manage",
     "drift.manage",
     "reports.view",
+    "reports.generate",
     "dashboards.view",
     "alerts.view",
     "evidence.view",
@@ -73,6 +77,7 @@ const matrix: Record<TenantRole, readonly SaasPermission[]> = {
     "hosts.manage_limited",
     "drift.manage",
     "reports.view",
+    "reports.generate",
     "dashboards.view",
     "alerts.view",
     "evidence.view",

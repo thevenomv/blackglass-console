@@ -29,3 +29,19 @@ export function parseServerEnv(
   }
   return { ok: true, data: r.data };
 }
+
+const TRUTHY_VALUES = new Set(["true", "1", "yes", "on"]);
+const FALSY_VALUES = new Set(["false", "0", "no", "off"]);
+
+/**
+ * Normalizes an env var string to a boolean.
+ * Truthy: "true", "1", "yes", "on" (case-insensitive).
+ * Falsy: "false", "0", "no", "off".
+ * Unknown: returns `defaultValue` (defaults to `false`).
+ */
+export function parseBoolEnv(value: string | undefined, defaultValue = false): boolean {
+  const normalized = value?.toLowerCase().trim();
+  if (normalized !== undefined && TRUTHY_VALUES.has(normalized)) return true;
+  if (normalized !== undefined && FALSY_VALUES.has(normalized)) return false;
+  return defaultValue;
+}

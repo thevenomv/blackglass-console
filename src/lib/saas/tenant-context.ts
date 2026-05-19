@@ -114,6 +114,25 @@ export async function requireTenantAuth(): Promise<TenantAuthContext> {
   if (!membership || membership.status !== "active") {
     await syncMembershipFromClerkOrg(userId, orgId, org.name ?? "Workspace");
     membership = await getMembership(tenant.id, userId);
+  } else {
+    // Re-sync when the Clerk app_role in public metadata disagrees with the DB role.
+    // This keeps the DB authoritative after role changes made directly in the Clerk dashboard.
+    const clerkList = await (await clerkClient()).users.getOrganizationMembershipList({ userId });
+    const clerkMembership = clerkList.data.find(
+      (x: { organization: { id: string } }) => x.organization.id === orgId,
+    );
+    if (clerkMembership) {
+      const meta = clerkMembership.publicMetadata as { app_role?: string };
+      const clerkRole = typeof meta.app_role === "string" && isTenantRole(meta.app_role)
+        ? meta.app_role
+        : clerkMembership.role === "org:admin"
+          ? "owner"
+          : "viewer";
+      if (clerkRole !== membership.role) {
+        await syncMembershipFromClerkOrg(userId, orgId, org.name ?? "Workspace");
+        membership = await getMembership(tenant.id, userId);
+      }
+    }
   }
   if (!membership || membership.status !== "active") {
     throw new SaasAuthError(403, "not_member", "You are not a member of this workspace.");

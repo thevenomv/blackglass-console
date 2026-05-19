@@ -51,8 +51,14 @@ export async function POST(request: Request) {
       if (!gate.ok) {
         return jsonError(403, gate.code, gate.detail);
       }
+      // BILL-09: require that the tenant already has a Stripe customer and that
+      // it matches the submitted customerId. Reject if the tenant has no
+      // customer yet (prevents forwarding an arbitrary cus_… to Stripe).
       const expected = ctx.subscription.stripeCustomerId?.trim();
-      if (expected && expected !== customerId) {
+      if (!expected) {
+        return jsonError(400, "no_stripe_customer", "This workspace does not have a Stripe customer yet. Complete a checkout first.");
+      }
+      if (expected !== customerId) {
         return jsonError(403, "customer_mismatch", "Stripe customer does not match this workspace.");
       }
     } catch (e) {

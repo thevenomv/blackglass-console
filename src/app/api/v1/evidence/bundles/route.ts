@@ -13,6 +13,7 @@ import { jsonWithRequestId } from "@/lib/server/http/saas-api-request";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { planGuard } from "@/lib/plan";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import {
   listEvidenceBundles,
   generateEvidenceBundle,
@@ -52,8 +53,11 @@ export async function GET(request: Request) {
     return jsonError(429, "rate_limited", "Too many requests.", requestId);
   }
 
-  const guard = planGuard("evidenceExport");
-  if (!guard.ok) return guard.response;
+  // BILL-04: skip global guard in SaaS mode (per-tenant plan via subscription row).
+  if (!isClerkAuthEnabled()) {
+    const guard = planGuard("evidenceExport");
+    if (!guard.ok) return guard.response;
+  }
 
   const access = await requireSaasOrLegacyPermission("reports.view", ["viewer", "operator", "admin"]);
   if (!access.ok) return access.response;
@@ -82,8 +86,11 @@ const generateSchema = z.object({
 export async function POST(request: Request) {
   const requestId = getOrCreateRequestId(request);
 
-  const guard = planGuard("evidenceExport");
-  if (!guard.ok) return guard.response;
+  // BILL-04: skip global guard in SaaS mode (per-tenant plan via subscription row).
+  if (!isClerkAuthEnabled()) {
+    const guard = planGuard("evidenceExport");
+    if (!guard.ok) return guard.response;
+  }
 
   const access = await requireSaasOrLegacyPermission("reports.view", ["operator", "admin"]);
   if (!access.ok) return access.response;

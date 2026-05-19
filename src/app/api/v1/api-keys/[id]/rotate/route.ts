@@ -12,14 +12,15 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { jsonError } from "@/lib/server/http/json-error";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
 import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
-import { checkScanPostRate, clientIp } from "@/lib/server/rate-limit";
+import { checkKeyRotateRate, clientIp } from "@/lib/server/rate-limit";
 import { withTenantRls, schema } from "@/db";
 import { generateApiKey } from "@/lib/server/api-key-auth";
 import { planGuard } from "@/lib/plan";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 import { emitSaasAudit } from "@/lib/saas/event-log";
 
 const { saasApiKeys } = schema;
@@ -34,12 +35,15 @@ export async function POST(
   if (!id || !/^[\w-]{36}$/.test(id)) {
     return jsonError(400, "invalid_id", "Invalid key ID.", requestId);
   }
-  if (!(await checkScanPostRate(clientIp(request)))) {
+  if (!(await checkKeyRotateRate(clientIp(request)))) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const guard = planGuard("apiAccess");
-  if (!guard.ok) return guard.response;
+  // BILL-04: skip global guard in SaaS mode (per-tenant plan via subscription row).
+  if (!isClerkAuthEnabled()) {
+    const guard = planGuard("apiAccess");
+    if (!guard.ok) return guard.response;
+  }
 
   const access = await requireSaasOrLegacyPermission("apikeys.manage", ["admin"]);
   if (!access.ok) return access.response;
@@ -53,7 +57,7 @@ export async function POST(
     const existing = await db
       .select()
       .from(saasApiKeys)
-      .where(eq(saasApiKeys.id, id))
+      .where(and(eq(saasApiKeys.id, id), eq(saasApiKeys.tenantId, tenantId)))
       .limit(1);
     const old = existing[0];
     if (!old) return null;

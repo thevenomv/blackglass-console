@@ -88,8 +88,15 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
     const payloadBytes = fromB64url(encodedPayload);
     const payloadStr = new TextDecoder().decode(payloadBytes);
     const payload = JSON.parse(payloadStr) as SessionPayload;
+
+    const now = Date.now();
+    // Reject tokens whose iat is missing, non-finite, or set in the future
+    // (future iat means the signature check passed but the clock is wrong or the token was crafted).
+    if (typeof payload.iat !== "number" || !Number.isFinite(payload.iat) || payload.iat > now) {
+      return null;
+    }
     // Reject tokens older than SESSION_MAX_AGE_MS
-    if (Date.now() - payload.iat > SESSION_MAX_AGE_MS) return null;
+    if (now - payload.iat > SESSION_MAX_AGE_MS) return null;
     return payload;
   } catch {
     return null;

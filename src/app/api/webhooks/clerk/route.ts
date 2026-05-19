@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { tryGetDb } from "@/db";
 import { checkClerkWebhookRate, clientIpFromHeaders } from "@/lib/server/rate-limit";
+import { stripe } from "@/lib/stripe";
 import {
   deleteMembership,
   ensureTenantForClerkOrg,
@@ -189,7 +190,22 @@ export async function POST(request: Request) {
         if (orgId) {
           const rows = await getTenantRowByClerkOrg(orgId);
           const tenantId = rows[0]?.id;
-          await cancelTenantByClerkOrg(orgId);
+          // BILL-07: cancel the Stripe subscription before clearing local fields.
+          const { stripeSubscriptionId } = await cancelTenantByClerkOrg(orgId);
+          if (stripeSubscriptionId) {
+            try {
+              await stripe.subscriptions.cancel(stripeSubscriptionId);
+              console.info(
+                `[clerk-webhook] canceled Stripe subscription ${stripeSubscriptionId} for org ${orgId}`,
+              );
+            } catch (stripeErr) {
+              // Log but don't fail the webhook — the local DB is already canceled.
+              console.error(
+                `[clerk-webhook] failed to cancel Stripe subscription ${stripeSubscriptionId}:`,
+                stripeErr,
+              );
+            }
+          }
           if (tenantId) {
             await emitSaasAudit({
               tenantId,
@@ -197,7 +213,11 @@ export async function POST(request: Request) {
               action: "tenant.canceled",
               targetType: "organization",
               targetId: orgId,
-              metadata: { source: "clerk_webhook", clerkEvent: "organization.deleted" },
+              metadata: {
+                source: "clerk_webhook",
+                clerkEvent: "organization.deleted",
+                stripeSubscriptionId: stripeSubscriptionId ?? undefined,
+              },
             });
           }
         }

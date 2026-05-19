@@ -238,13 +238,61 @@ async function tryApiKeyAccess(
   return { ok: true, ctx, apiKey };
 }
 
+/**
+ * Explicit mapping from SaasPermission to the API-key scope string that grants it.
+ * This prevents scope names from accidentally matching permission names by coincidence.
+ *
+ * Rules:
+ * - Each permission must appear here for API-key access to be valid.
+ * - The wildcard scope "*" is never accepted unless ALLOW_WILDCARD_API_SCOPE=true is set
+ *   (reserved for internal tooling; never expose to user-created keys).
+ */
+const PERMISSION_TO_SCOPE: Record<SaasPermission, string> = {
+  "billing.manage":             "billing.manage",
+  "members.manage":             "members.manage",
+  "members.invite_non_owner":   "members.manage",
+  "roles.assign_all":           "members.manage",
+  "roles.assign_non_owner":     "members.manage",
+  "secrets.manage":             "secrets.manage",
+  "hosts.manage":               "hosts.manage",
+  "hosts.manage_limited":       "hosts.manage",
+  "scans.run":                  "scans.run",
+  "baselines.manage":           "baselines.manage",
+  "drift.manage":               "drift.manage",
+  "reports.view":               "reports.view",
+  "reports.generate":           "reports.generate",
+  "dashboards.view":            "dashboards.view",
+  "alerts.view":                "alerts.view",
+  "evidence.view":              "evidence.view",
+  "apikeys.manage":             "apikeys.manage",
+  "policies.manage":            "policies.manage",
+  "settings.write":             "settings.write",
+  "janitor.manage":             "janitor.manage",
+  "janitor.read":               "janitor.read",
+};
+
+/**
+ * Resolves the API-key scope required for a given permission.
+ * An explicitly provided `scope` overrides the mapping but is still validated
+ * against the wildcard guard. Returns null if the scope would be a wildcard
+ * and the override env var is not set.
+ */
+function resolveScope(permission: SaasPermission, explicitScope?: string): string | null {
+  const scope = explicitScope ?? PERMISSION_TO_SCOPE[permission];
+  if (scope === "*" && process.env.ALLOW_WILDCARD_API_SCOPE !== "true") {
+    console.error(`[saas-access] Wildcard scope "*" rejected for permission "${permission}". Set ALLOW_WILDCARD_API_SCOPE=true only for internal tooling.`);
+    return null;
+  }
+  return scope;
+}
+
 export async function requireSaasOrLegacyPermission(
   permission: SaasPermission,
   legacyAllowed: Role[],
   options?: {
     /** Pass the incoming Request to enable Bearer bg_live_* API-key auth. */
     request?: Request;
-    /** Required API-key scope (default: derive from the permission name). */
+    /** Required API-key scope (default: derived from PERMISSION_TO_SCOPE mapping). */
     scope?: string;
   },
 ): Promise<
@@ -253,7 +301,10 @@ export async function requireSaasOrLegacyPermission(
   | { ok: false; response: ReturnType<typeof jsonError> }
 > {
   if (options?.request) {
-    const scope = options.scope ?? permission;
+    const scope = resolveScope(permission, options.scope);
+    if (scope === null) {
+      return { ok: false, response: jsonError(403, "invalid_scope", "Wildcard API key scope is not permitted.") };
+    }
     const apiKeyAttempt = await tryApiKeyAccess(options.request, scope);
     if (apiKeyAttempt) {
       if (!apiKeyAttempt.ok) return apiKeyAttempt;

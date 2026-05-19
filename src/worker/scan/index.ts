@@ -34,7 +34,7 @@
 import { Worker, Queue, QueueEvents } from "bullmq";
 import { executeDriftScanJob } from "@/lib/server/services/scan-drift-job";
 import { QUEUE_NAMES, type ScanJobPayload } from "@/lib/server/queue/scan-queue";
-import { resolveWorkerConcurrency } from "@/lib/server/queue/config";
+import { resolveWorkerConcurrency, redisConnectionFromUrl } from "@/lib/server/queue/config";
 import { logStructured } from "@/lib/server/log";
 
 const redisUrl = process.env.REDIS_QUEUE_URL?.trim();
@@ -46,8 +46,10 @@ if (!redisUrl) {
 const concurrency = resolveWorkerConcurrency();
 console.info(`[scan-worker] Starting — queue=${QUEUE_NAMES.SCANS} concurrency=${concurrency}`);
 
+const redisConn = redisConnectionFromUrl(redisUrl);
+
 const metricsQueue = new Queue<ScanJobPayload>(QUEUE_NAMES.SCANS, {
-  connection: { url: redisUrl },
+  connection: redisConn,
 });
 
 const worker = new Worker<ScanJobPayload>(
@@ -76,7 +78,7 @@ const worker = new Worker<ScanJobPayload>(
     await executeDriftScanJob(jobId, enrichedOpts);
   },
   {
-    connection: { url: redisUrl },
+    connection: redisConn,
     concurrency,
     // Retry up to 3 times with exponential back-off (2 s, 4 s, 8 s)
     settings: {
@@ -121,7 +123,7 @@ worker.on("stalled", (jobId) => {
 // workers/processes (e.g. web tier enqueue, Redis-side delayed/failed).
 // ---------------------------------------------------------------------------
 const queueEvents = new QueueEvents(QUEUE_NAMES.SCANS, {
-  connection: { url: redisUrl },
+  connection: redisConn,
 });
 
 queueEvents.on("waiting", ({ jobId }) => {

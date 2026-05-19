@@ -123,9 +123,18 @@ export function extractBearerToken(request: Request): string | null {
 
 /**
  * Returns true if the API key context has the requested scope.
- * Wildcard scopes ("*") grant everything; exact-match otherwise.
+ *
+ * Wildcard scopes ("*") only grant full access in non-production environments
+ * when ALLOW_WILDCARD_API_SCOPE=true. In production the wildcard is treated as
+ * no scope at all — a key must carry explicit scopes.
  */
 export function hasScope(ctx: ApiKeyContext, requiredScope: string): boolean {
-  if (ctx.scopes.includes("*")) return true;
+  if (ctx.scopes.includes("*")) {
+    const wildcardAllowed =
+      process.env.NODE_ENV !== "production" &&
+      process.env.ALLOW_WILDCARD_API_SCOPE === "true";
+    if (!wildcardAllowed) return false;
+    return true;
+  }
   return ctx.scopes.includes(requiredScope);
 }

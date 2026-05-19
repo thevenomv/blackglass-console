@@ -20,11 +20,19 @@ export function resolveDriftEventsForDashboard(hostId?: string): DriftEvent[] {
   return getDriftEvents(hostId);
 }
 
-export async function resolveDriftEventsForDashboardAsync(hostId?: string): Promise<DriftEvent[]> {
+export async function resolveDriftEventsForDashboardAsync(
+  hostId?: string,
+  hostIds?: string[],
+): Promise<DriftEvent[]> {
   const sampleEnabled = await isSampleDataEnabled();
   if ((apiConfig.useMock || sampleEnabled) && !collectorConfigured()) {
     const all = mockDriftEvents;
+    if (hostIds && hostIds.length > 0) {
+      const allowed = new Set(hostIds);
+      const filtered = all.filter((e) => allowed.has(e.hostId));
+      return hostId ? filtered.filter((e) => e.hostId === hostId) : filtered;
+    }
     return hostId ? all.filter((e) => e.hostId === hostId) : all;
   }
-  return getDriftEventsAsync(hostId);
+  return getDriftEventsAsync(hostId, hostIds);
 }

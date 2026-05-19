@@ -65,13 +65,20 @@ function isPolicyCategory(value: string): value is PolicyCategory {
 // CRUD
 // ---------------------------------------------------------------------------
 
-export async function listPolicies(tenantId: string): Promise<PolicyRule[]> {
-  const rows = await withTenantRls(tenantId, (db) =>
-    db
+export async function listPolicies(
+  tenantId: string,
+  opts: { includeDisabled?: boolean } = {},
+): Promise<PolicyRule[]> {
+  const rows = await withTenantRls(tenantId, (db) => {
+    const conditions = [eq(saasHostPolicies.tenantId, tenantId)];
+    if (!opts.includeDisabled) {
+      conditions.push(eq(saasHostPolicies.enabled, true));
+    }
+    return db
       .select()
       .from(saasHostPolicies)
-      .where(and(eq(saasHostPolicies.tenantId, tenantId), eq(saasHostPolicies.enabled, true))),
-  );
+      .where(and(...conditions));
+  });
   return rows.map(rowToRule);
 }
 

@@ -65,7 +65,13 @@ for (const name of numbered) {
   if (!/\b(CREATE|ALTER|DROP|DO|INSERT|UPDATE|GRANT|REVOKE)\b/i.test(body)) {
     warnings.push(`${name} contains no DDL/DML keywords — is this intentional?`);
   }
-  const hash = crypto.createHash("sha256").update(buf).digest("hex");
+  // Normalise CRLF → LF before hashing so Windows working trees (where
+  // core.autocrlf may add \r\n) produce the same hash as the Linux build
+  // containers that apply-migrations.mjs runs in.  Without this, a dev
+  // who baselines locally on Windows records a CRLF hash; the CI container
+  // then sees a different LF hash and reports every migration as "new".
+  const normalised = body.replace(/\r\n/g, "\n");
+  const hash = crypto.createHash("sha256").update(normalised).digest("hex");
   if (seenHashes.has(hash)) {
     errors.push(`${name} is byte-identical to ${seenHashes.get(hash)} (duplicate hash ${hash.slice(0, 8)})`);
   } else {

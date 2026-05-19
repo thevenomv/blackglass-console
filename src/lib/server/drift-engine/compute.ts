@@ -123,6 +123,41 @@ export function computeDrift(
     }
   }
 
+  // Detect users removed since baseline — unexpected account removal can
+  // indicate an attacker covering tracks or a misconfiguration.
+  const currentUsernames = new Set(current.users.map((u) => u.username));
+  for (const [username, user] of baselineUsers) {
+    if (!currentUsernames.has(username)) {
+      events.push({
+        id: id("drift-user-removed", username),
+        hostId,
+        category: "identity",
+        severity: "medium",
+        lifecycle: "new",
+        title: `System user removed: ${username} (uid ${user.uid})`,
+        detectedAt: now(),
+        rationale: `User account "${username}" (UID ${user.uid}) was present in the baseline but no longer exists. Unexpected account removal may indicate an attacker covering tracks or a misconfiguration.`,
+        evidenceSummary: JSON.stringify({
+          username,
+          uid: user.uid,
+          source: "/etc/passwd",
+          current: "not present",
+        }),
+        suggestedActions: [
+          `Confirm the removal of account "${username}" was authorised`,
+          "Check audit logs for who deleted the account",
+          "Update baseline if removal is intentional",
+        ],
+        provenance: {
+          collector: "ssh/passwd",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
   // --- Sudoers ---
   const baselineSudoers = new Set(baseline.sudoers);
   for (const member of current.sudoers) {
@@ -149,6 +184,39 @@ export function computeDrift(
         provenance: {
           collector: "ssh/getent",
           confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    }
+  }
+
+  // Detect sudo members removed since baseline.
+  const currentSudoersSet = new Set(current.sudoers);
+  for (const member of baselineSudoers) {
+    if (!currentSudoersSet.has(member)) {
+      events.push({
+        id: id("drift-sudo-removed", member),
+        hostId,
+        category: "identity",
+        severity: "medium",
+        lifecycle: "new",
+        title: `Sudo membership removed: "${member}" no longer in sudo group`,
+        detectedAt: now(),
+        rationale: `"${member}" was in the sudo group at baseline but is no longer a member. This may be intentional hardening or could indicate account manipulation.`,
+        evidenceSummary: JSON.stringify({
+          user: member,
+          group: "sudo",
+          current: "not a member",
+        }),
+        suggestedActions: [
+          `Confirm the sudo removal of "${member}" was authorised`,
+          "Check audit logs for membership changes",
+          "Update baseline if removal is intentional",
+        ],
+        provenance: {
+          collector: "ssh/getent",
+          confidenceLabel: "medium",
           modelVersion: "drift-engine-v1",
           verifiedAt: now(),
         },
@@ -417,6 +485,34 @@ export function computeDrift(
     });
   }
 
+  if (!baseline.firewall.active && current.firewall.active) {
+    events.push({
+      id: `drift-fw-enabled-${hostId}`,
+      hostId,
+      category: "firewall",
+      severity: "medium",
+      lifecycle: "new",
+      title: "Firewall re-enabled",
+      detectedAt: now(),
+      rationale:
+        "The host firewall (ufw) was inactive at baseline but is now active. Verify that the rule set is correct and that the change was intentional.",
+      evidenceSummary: JSON.stringify({
+        baseline: "inactive",
+        current: "active",
+      }),
+      suggestedActions: [
+        "Review current rules: `sudo ufw status verbose`",
+        "Update baseline if the change is intentional",
+      ],
+      provenance: {
+        collector: "ssh/ufw",
+        confidenceLabel: "high",
+        modelVersion: "drift-engine-v1",
+        verifiedAt: now(),
+      },
+    });
+  }
+
   // --- Firewall rules (new rules added while firewall stays active) ---
   if (current.firewall.active) {
     const baselineRules = new Set(baseline.firewall.rules.map((r) => r.toLowerCase().trim()));
@@ -594,6 +690,36 @@ export function computeDrift(
           "Check file modification time: stat " + fh.path,
           "Audit recent auth activity in /var/log/auth.log",
           "Update baseline if change is authorised",
+        ],
+        provenance: {
+          collector: "ssh/md5sum",
+          confidenceLabel: "high",
+          modelVersion: "drift-engine-v1",
+          verifiedAt: now(),
+        },
+      });
+    } else if (baseHash === undefined) {
+      // New file in a watched path that was not present at baseline capture.
+      const isCritical =
+        fh.path.includes("shadow") || fh.path.includes("sudoers");
+      events.push({
+        id: id("drift-filehash-new", fh.path),
+        hostId,
+        category: "integrity",
+        severity: isCritical ? "high" : "medium",
+        lifecycle: "new",
+        title: `New critical file appeared: ${fh.path}`,
+        detectedAt: now(),
+        rationale: `"${fh.path}" was not present in the baseline but is now tracked. Unexpected new files in sensitive paths may indicate privilege escalation or configuration injection.`,
+        evidenceSummary: JSON.stringify({
+          path: fh.path,
+          currentHash: fh.hash,
+          baseline: "not present",
+        }),
+        suggestedActions: [
+          `Verify the file is expected: ls -la ${fh.path}`,
+          "Check who created it: stat " + fh.path,
+          "Update baseline if the file is authorised",
         ],
         provenance: {
           collector: "ssh/md5sum",

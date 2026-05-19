@@ -25,7 +25,8 @@
  */
 
 import { Worker } from "bullmq";
-import { QUEUE_NAMES } from "@/lib/server/queue/config";
+import Redis from "ioredis";
+import { QUEUE_NAMES, redisConnectionFromUrl } from "@/lib/server/queue/config";
 import { deliverWebhookInline } from "@/lib/server/outbound-webhook";
 import type { WebhookJobPayload } from "@/lib/server/queue/webhook-queue";
 import type { ExportJobPayload } from "@/lib/server/queue/export-queue";
@@ -61,9 +62,7 @@ const concurrency = (() => {
   return 4;
 })();
 
-const redisTlsOpts = redisUrl.startsWith("rediss://")
-  ? { tls: { rejectUnauthorized: false } }
-  : {};
+const opsRedisConn = redisConnectionFromUrl(redisUrl);
 
 console.info(
   `[ops-worker] Starting — queues=${QUEUE_NAMES.WEBHOOKS},${QUEUE_NAMES.EXPORTS},${QUEUE_NAMES.MAINTENANCE},${QUEUE_NAMES.JANITOR} concurrency=${concurrency}`,
@@ -86,7 +85,7 @@ const webhookWorker = new Worker<WebhookJobPayload>(
     await deliverWebhookInline(url, body, headers);
   },
   {
-    connection: { url: redisUrl, ...redisTlsOpts },
+    connection: opsRedisConn,
     concurrency,
   },
 );
@@ -131,7 +130,7 @@ const exportWorker = new Worker<ExportJobPayload>(
     await runExportJob(exportId, tenantId);
   },
   {
-    connection: { url: redisUrl, ...redisTlsOpts },
+    connection: opsRedisConn,
     // Bundle assembly + Spaces upload is I/O bound but each job collects
     // every drift event for the tenant; cap below the webhook concurrency.
     concurrency: Math.max(1, Math.floor(concurrency / 2)),
@@ -255,7 +254,7 @@ const maintenanceWorker = new Worker<MaintenanceJobPayload>(
     }
   },
   {
-    connection: { url: redisUrl, ...redisTlsOpts },
+    connection: opsRedisConn,
     concurrency: 1, // never want two retention sweeps overlapping
   },
 );
@@ -285,7 +284,7 @@ const janitorWorker = new Worker<JanitorScanJobPayload>(
     await executeJanitorScanJob(job.data);
   },
   {
-    connection: { url: redisUrl, ...redisTlsOpts },
+    connection: opsRedisConn,
     concurrency: Math.max(1, Math.floor(concurrency / 2)),
   },
 );
@@ -300,62 +299,101 @@ janitorWorker.on("failed", (job, err) =>
 );
 
 // ---------------------------------------------------------------------------
-// Install retention repeatable on boot (idempotent)
+// Install repeatable crons on boot — guarded by a Redis distributed lock
+// (QUEUE-06) so multiple ops-worker instances starting simultaneously don't
+// race and create duplicate repeatables. The lock TTL (60 s) covers the
+// worst-case time to register all four repeatables; the winner runs all
+// installs and losers skip them (the queue already has the repeatables from
+// the winner, so no install is needed).
 // ---------------------------------------------------------------------------
 
-void installRetentionRepeatable()
-  .then((res) => {
-    if (res.installed) {
-      logStructured("info", "retention_repeatable_installed", {
-        everyMs: res.everyMs,
-      });
-    }
-  })
-  .catch((err) =>
-    logStructured("error", "retention_repeatable_install_failed", {
-      error: err instanceof Error ? err.message : String(err),
-    }),
-  );
+const SCHEDULER_LOCK_KEY = "ops:scheduler:lock";
+const SCHEDULER_LOCK_TTL_SECS = 60;
+const schedulerWorkerId = `ops-worker-${process.pid}-${Date.now()}`;
 
-void installPartitionMaintenanceRepeatable()
-  .then((res) => {
-    if (res.installed) {
-      logStructured("info", "partition_maintenance_repeatable_installed", {
-        everyMs: res.everyMs,
-      });
-    }
-  })
-  .catch((err) =>
-    logStructured("error", "partition_maintenance_repeatable_install_failed", {
-      error: err instanceof Error ? err.message : String(err),
-    }),
-  );
+void (async () => {
+  // Use a dedicated short-lived ioredis client for the lock so BullMQ
+  // worker connections aren't reused for raw commands.
+  const lockClient = new Redis({ ...opsRedisConn, lazyConnect: false });
+  try {
+    // SET key value NX EX ttl — returns "OK" when acquired, null when not.
+    const acquired = await lockClient.set(
+      SCHEDULER_LOCK_KEY,
+      schedulerWorkerId,
+      "EX",
+      SCHEDULER_LOCK_TTL_SECS,
+      "NX",
+    );
 
-void installDriftDigestRepeatable()
-  .then((res) => {
-    logStructured("info", "drift_digest_repeatable", {
-      installed: res.installed,
-      everyMs: res.everyMs,
-      interval: res.interval,
+    if (acquired !== "OK") {
+      logStructured("info", "scheduler_lock_skipped", {
+        workerId: schedulerWorkerId,
+        reason: "another worker holds the lock",
+      });
+      return;
+    }
+
+    logStructured("info", "scheduler_lock_acquired", { workerId: schedulerWorkerId });
+
+    await installRetentionRepeatable()
+      .then((res) => {
+        if (res.installed) {
+          logStructured("info", "retention_repeatable_installed", { everyMs: res.everyMs });
+        }
+      })
+      .catch((err) =>
+        logStructured("error", "retention_repeatable_install_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+
+    await installPartitionMaintenanceRepeatable()
+      .then((res) => {
+        if (res.installed) {
+          logStructured("info", "partition_maintenance_repeatable_installed", {
+            everyMs: res.everyMs,
+          });
+        }
+      })
+      .catch((err) =>
+        logStructured("error", "partition_maintenance_repeatable_install_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+
+    await installDriftDigestRepeatable()
+      .then((res) => {
+        logStructured("info", "drift_digest_repeatable", {
+          installed: res.installed,
+          everyMs: res.everyMs,
+          interval: res.interval,
+        });
+      })
+      .catch((err) =>
+        logStructured("error", "drift_digest_repeatable_install_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+
+    await installCharonScheduleRepeatable()
+      .then((res) => {
+        if (res.installed) {
+          logStructured("info", "charon_schedule_repeatable_installed", { everyMs: res.everyMs });
+        }
+      })
+      .catch((err) =>
+        logStructured("error", "charon_schedule_repeatable_install_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+  } catch (err) {
+    logStructured("error", "scheduler_lock_error", {
+      error: err instanceof Error ? err.message : String(err),
     });
-  })
-  .catch((err) =>
-    logStructured("error", "drift_digest_repeatable_install_failed", {
-      error: err instanceof Error ? err.message : String(err),
-    }),
-  );
-
-void installCharonScheduleRepeatable()
-  .then((res) => {
-    if (res.installed) {
-      logStructured("info", "charon_schedule_repeatable_installed", { everyMs: res.everyMs });
-    }
-  })
-  .catch((err) =>
-    logStructured("error", "charon_schedule_repeatable_install_failed", {
-      error: err instanceof Error ? err.message : String(err),
-    }),
-  );
+  } finally {
+    await lockClient.quit().catch(() => {});
+  }
+})();
 
 // ---------------------------------------------------------------------------
 // Helpers

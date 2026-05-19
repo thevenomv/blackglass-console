@@ -104,11 +104,17 @@ describe("security headers", () => {
     }
   });
 
-  it("opting out via SECURITY_HEADERS_DISABLED skips ALL headers", () => {
+  it("SECURITY_HEADERS_DISABLED only suppresses CSP — core security headers always apply", () => {
+    // SEC-10: SECURITY_HEADERS_DISABLED=true must not remove X-Content-Type-Options,
+    // COOP, Referrer-Policy, or Permissions-Policy — only CSP is skipped so
+    // operators can debug CSP issues without stripping all browser protections.
     process.env.SECURITY_HEADERS_DISABLED = "true";
     const res = applySecurityHeaders(NextResponse.next());
-    expect(res.headers.get("X-Content-Type-Options")).toBeNull();
-    expect(res.headers.get("Permissions-Policy")).toBeNull();
+    // Core headers still present
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(res.headers.get("Permissions-Policy")).not.toBeNull();
+    // CSP is suppressed
+    expect(res.headers.get("Content-Security-Policy")).toBeNull();
     expect(res.headers.get("Content-Security-Policy-Report-Only")).toBeNull();
   });
 });

@@ -13,6 +13,7 @@ import { checkScanPostRate, clientIp } from "@/lib/server/rate-limit";
 import { withTenantRls, schema } from "@/db";
 import { and, eq } from "drizzle-orm";
 import { planGuard } from "@/lib/plan";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 
 const { saasApiKeys } = schema;
 
@@ -31,8 +32,11 @@ export async function DELETE(
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const guard = planGuard("apiAccess");
-  if (!guard.ok) return guard.response;
+  // BILL-04: skip global guard in SaaS mode (per-tenant plan via subscription row).
+  if (!isClerkAuthEnabled()) {
+    const guard = planGuard("apiAccess");
+    if (!guard.ok) return guard.response;
+  }
 
   const access = await requireSaasOrLegacyPermission("apikeys.manage", ["admin"]);
   if (!access.ok) return access.response;

@@ -57,7 +57,7 @@ export function persist(): void {
   if (fp) saveToFile(fp, eventStore());
 }
 
-export function storeDriftEvents(hostId: string, events: DriftEvent[]): void {
+export function storeDriftEvents(hostId: string, events: DriftEvent[], tenantId?: string): void {
   eventStore().set(hostId, events);
   persist();
   // Replicate to Postgres when DATABASE_URL is configured so multi-instance
@@ -66,7 +66,47 @@ export function storeDriftEvents(hostId: string, events: DriftEvent[]): void {
     void import("../store/legacy/driftevents-pg")
       .then(({ PostgresDriftEventsRepository: repo }) => repo.store(hostId, events))
       .catch((err) => console.error("[drift-engine] Postgres store failed:", err));
+
+    // Also append to the partitioned drift_events table (tenant-scoped) so the
+    // baseline-suggestions and drift-digest services have data to query.
+    if (tenantId && events.length > 0) {
+      void appendToPartitionedDriftEvents(tenantId, hostId, events).catch((err) =>
+        console.error("[drift-engine] Partitioned drift_events write failed:", err),
+      );
+    }
   }
+}
+
+async function appendToPartitionedDriftEvents(
+  tenantId: string,
+  _hostId: string,
+  events: DriftEvent[],
+): Promise<void> {
+  const { withTenantRls } = await import("@/db");
+  const { sql } = await import("drizzle-orm");
+  await withTenantRls(tenantId, async (db) => {
+    for (const e of events) {
+      await db.execute(sql`
+        INSERT INTO drift_events (
+          tenant_id, host_id, category, severity, lifecycle,
+          title, rationale, evidence_summary, suggested_actions,
+          provenance, detected_at
+        ) VALUES (
+          ${tenantId}::uuid,
+          ${e.hostId},
+          ${e.category},
+          ${e.severity},
+          ${e.lifecycle},
+          ${e.title},
+          ${e.rationale ?? ""},
+          ${e.evidenceSummary ?? ""},
+          ${JSON.stringify(e.suggestedActions ?? [])}::jsonb,
+          ${e.provenance ? JSON.stringify(e.provenance) : null}::jsonb,
+          ${e.detectedAt}::timestamptz
+        )
+      `);
+    }
+  });
 }
 
 export function getDriftEvents(hostId?: string): DriftEvent[] {

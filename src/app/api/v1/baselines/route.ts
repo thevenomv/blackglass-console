@@ -158,7 +158,28 @@ export async function GET(request: Request) {
   if (!access.ok) return access.response;
 
   const { listBaselineHostIds, getBaseline } = await import("@/lib/server/baseline-store");
-  const ids = await listBaselineHostIds();
+  const allIds = await listBaselineHostIds();
+
+  // In SaaS mode, restrict the list to host IDs belonging to this tenant.
+  let ids = allIds;
+  if (access.mode === "saas") {
+    const { withTenantRls, schema } = await import("@/db");
+    const { eq } = await import("drizzle-orm");
+    const tenantId = access.ctx.tenant.id;
+    const rows = await withTenantRls(tenantId, (db) =>
+      db
+        .select({ id: schema.saasCollectorHosts.id, hostname: schema.saasCollectorHosts.hostname })
+        .from(schema.saasCollectorHosts)
+        .where(eq(schema.saasCollectorHosts.tenantId, tenantId)),
+    );
+    const allowed = new Set<string>();
+    for (const r of rows) {
+      allowed.add(r.id);
+      if (r.hostname) allowed.add(`host-${r.hostname.replace(/[^a-zA-Z0-9]/g, "-")}`);
+    }
+    ids = allIds.filter((id) => allowed.has(id));
+  }
+
   const baselines = await Promise.all(
     ids.map(async (id) => {
       const b = await getBaseline(id);

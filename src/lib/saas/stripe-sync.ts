@@ -14,7 +14,7 @@ import { emitSaasAudit } from "@/lib/saas/event-log";
 type SubRow = typeof schema.saasSubscriptions.$inferSelect;
 
 /**
- * Resolve a Stripe price id to one of our plan codes.
+ * Resolve a Stripe price id to one of our plan codes, or null if unknown.
  *
  * Iterates the central STRIPE_PRICE_ENV_VARS table so adding a new tier
  * (e.g. `scale`) doesn't require touching this file beyond declaring
@@ -24,9 +24,13 @@ type SubRow = typeof schema.saasSubscriptions.$inferSelect;
  * Legacy `STRIPE_PRO_PRICE_ID` falls back to Starter so customers on
  * the old "pro" SKU continue to load with sane defaults until they
  * resubscribe.
+ *
+ * BILL-05: returns null for unrecognised price IDs instead of silently
+ * defaulting to "starter", so callers can skip the sync rather than
+ * inadvertently downgrading the tenant.
  */
-export function priceIdToPlanCode(priceId: string | undefined): CommercialPlanCode {
-  if (!priceId) return "starter";
+export function priceIdToPlanCode(priceId: string | undefined): CommercialPlanCode | null {
+  if (!priceId) return null;
   for (const [code, vars] of Object.entries(STRIPE_PRICE_ENV_VARS) as Array<
     [CommercialPlanCode, { monthly: string; annual: string }]
   >) {
@@ -37,7 +41,9 @@ export function priceIdToPlanCode(priceId: string | undefined): CommercialPlanCo
   }
   const legacyPro = process.env.STRIPE_PRO_PRICE_ID?.trim();
   if (legacyPro && priceId === legacyPro) return "starter";
-  return "starter";
+  // BILL-05: unknown price ID — warn and return null so the caller skips sync.
+  console.warn(`[stripe-sync] unrecognised Stripe price ID "${priceId}" — skipping plan sync`);
+  return null;
 }
 
 function subscriptionHasCharonLineItem(subscription: Stripe.Subscription): boolean {
@@ -72,8 +78,27 @@ export async function syncSaasSubscriptionFromStripe(input: {
   stripeSubscriptionId: string;
   subscription: Stripe.Subscription;
 }): Promise<void> {
-  const priceId = input.subscription.items.data[0]?.price?.id;
-  const planCode = priceIdToPlanCode(typeof priceId === "string" ? priceId : undefined);
+  // BILL-06: iterate all line items and pick the first one whose price ID
+  // maps to a known base plan. Add-ons (Remediator, Charon) are separate
+  // price IDs that priceIdToPlanCode returns null for, so they are skipped.
+  let planCode: CommercialPlanCode | null = null;
+  let priceId: string | undefined;
+  for (const item of input.subscription.items.data) {
+    const pid = typeof item.price?.id === "string" ? item.price.id : undefined;
+    const code = priceIdToPlanCode(pid);
+    if (code !== null) {
+      planCode = code;
+      priceId = pid;
+      break;
+    }
+  }
+  // BILL-05: if no recognised base-plan price ID was found, skip sync entirely.
+  if (planCode === null) {
+    console.warn(
+      `[stripe-sync] no known base-plan price found in subscription ${input.stripeSubscriptionId} — skipping sync`,
+    );
+    return;
+  }
   const def = getPlanDefinition(planCode);
   const hostLimit = def?.hostLimit ?? 25;
   const paidSeatLimit = def?.paidSeatLimit ?? 3;

@@ -84,8 +84,15 @@ const EXEC_TIMEOUT_MS = 8_000;
 /** Timeout for the single bundled collection script (all checks sequential in one channel). */
 const BUNDLE_EXEC_TIMEOUT_MS = 60_000;
 
-/** Run a single remote command and resolve with its stdout. Rejects on error or after timeoutMs. */
-function exec(conn: Client, command: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> {
+/** Run a single remote command and resolve with its stdout. Rejects on error or after timeoutMs.
+ *  When `tolerateNonZeroExit` is true the promise resolves even if the command exits with a
+ *  non-zero code — useful for bundled scripts where individual sub-commands may fail. */
+function exec(
+  conn: Client,
+  command: string,
+  timeoutMs = EXEC_TIMEOUT_MS,
+  tolerateNonZeroExit = false,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     conn.exec(command, (err, stream) => {
       if (err) {
@@ -93,6 +100,8 @@ function exec(conn: Client, command: string, timeoutMs = EXEC_TIMEOUT_MS): Promi
         return;
       }
       let out = "";
+      let errOut = "";
+      let exitCode: number | null = null;
       let settled = false;
       const settle = (fn: () => void) => {
         if (settled) return;
@@ -106,9 +115,38 @@ function exec(conn: Client, command: string, timeoutMs = EXEC_TIMEOUT_MS): Promi
           reject(new Error(`exec timed out (${timeoutMs / 1000}s): ${command.slice(0, 60)}`));
         });
       }, timeoutMs);
-      stream.on("close", () => settle(() => resolve(out)));
-      stream.stdout.on("data", (d: Buffer) => { out += d.toString(); });
-      stream.stderr.on("data", () => {});
+      stream.on("exit", (code: number | null) => {
+        exitCode = code;
+      });
+      stream.on("close", () =>
+        settle(() => {
+          if (exitCode !== null && exitCode !== 0) {
+            // Redact potential credentials from stderr before logging.
+            const redacted = errOut
+              .replace(/(?:key|password|secret|token)[^\n]{0,120}/gi, "[redacted]")
+              .slice(0, 300);
+            if (tolerateNonZeroExit) {
+              console.warn(
+                `[ssh/exec] non-zero exit (${exitCode}): ${command.slice(0, 60)} — stderr: ${redacted}`,
+              );
+              resolve(out);
+            } else {
+              console.warn(
+                `[ssh/exec] command failed (exit ${exitCode}): ${command.slice(0, 60)} — stderr: ${redacted}`,
+              );
+              reject(new Error(`exec exited ${exitCode}: ${command.slice(0, 60)}`));
+            }
+          } else {
+            resolve(out);
+          }
+        }),
+      );
+      stream.stdout.on("data", (d: Buffer) => {
+        out += d.toString();
+      });
+      stream.stderr.on("data", (d: Buffer) => {
+        errOut += d.toString();
+      });
     });
   });
 }
@@ -273,7 +311,7 @@ export async function runCollection(
         // All 14 checks run sequentially in one SSH channel via the bundled script.
         // This avoids the ssh2 MaxSessions limit (default: 10) that the original
         // 14-parallel-channel approach would breach on stock sshd configurations.
-        const combined = await exec(conn, BUNDLE_CMD, BUNDLE_EXEC_TIMEOUT_MS);
+        const combined = await exec(conn, BUNDLE_CMD, BUNDLE_EXEC_TIMEOUT_MS, true);
         const s = parseBundleOutput(combined);
 
         settle(() => {

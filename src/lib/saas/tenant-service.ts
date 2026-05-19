@@ -210,8 +210,14 @@ export async function getMembership(tenantId: string, userId: string) {
  * Cancel a tenant's subscription when the Clerk organization is deleted.
  * Deactivates all memberships and marks the subscription as "canceled".
  * The tenant row and audit history are preserved for compliance.
+ *
+ * Returns the Stripe subscription ID (if any) so the caller can cancel it
+ * via the Stripe API before this function clears the local Stripe fields
+ * (BILL-07).
  */
-export async function cancelTenantByClerkOrg(clerkOrgId: string): Promise<void> {
+export async function cancelTenantByClerkOrg(
+  clerkOrgId: string,
+): Promise<{ stripeSubscriptionId: string | null }> {
   // RLS-BYPASS: Clerk organization.deleted webhook; cancels the tenant
   // subscription and deactivates memberships in one transaction.
   return withBypassRls(async (db) => {
@@ -221,15 +227,34 @@ export async function cancelTenantByClerkOrg(clerkOrgId: string): Promise<void> 
       .where(eq(saasTenants.clerkOrgId, clerkOrgId))
       .limit(1);
     const tenantId = tenantRows[0]?.id;
-    if (!tenantId) return;
+    if (!tenantId) return { stripeSubscriptionId: null };
+
+    // Fetch the Stripe subscription ID before clearing it so the caller
+    // can cancel it via the Stripe API.
+    const subRows = await db
+      .select({
+        stripeSubscriptionId: saasSubscriptions.stripeSubscriptionId,
+      })
+      .from(saasSubscriptions)
+      .where(eq(saasSubscriptions.tenantId, tenantId))
+      .limit(1);
+    const stripeSubscriptionId = subRows[0]?.stripeSubscriptionId ?? null;
+
     await db
       .update(saasSubscriptions)
-      .set({ status: "canceled", updatedAt: new Date() })
+      .set({
+        status: "canceled",
+        stripeSubscriptionId: null,
+        stripeCustomerId: null,
+        updatedAt: new Date(),
+      })
       .where(eq(saasSubscriptions.tenantId, tenantId));
     await db
       .update(saasTenantMemberships)
       .set({ status: "deactivated" })
       .where(eq(saasTenantMemberships.tenantId, tenantId));
+
+    return { stripeSubscriptionId };
   });
 }
 

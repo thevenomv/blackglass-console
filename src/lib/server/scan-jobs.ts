@@ -305,11 +305,60 @@ export function resolveScan(
 ): void {
   const rec = jobs().get(id);
   if (!rec) return;
+  // QUEUE-04: guard — never overwrite a terminal status (e.g. deadline-fired
+  // "failed" must not be overwritten by a late real-completion call).
+  if (rec.resolvedStatus) return;
   rec.resolvedStatus = status;
   rec.resolvedAt = Date.now();
   rec.resolvedDetail = detail;
   rec.updatedAt = Date.now();
   if (driftCount !== undefined) rec.driftCount = driftCount;
+  persist();
+  markScanDone(id);
+  publishScanRecordToRedis(rec);
+}
+
+/**
+ * Async variant of `resolveScan` for use in the BullMQ worker process where
+ * the in-process Map is always empty. Falls back to loading the current record
+ * from Redis, merges the terminal fields, and publishes the updated record back
+ * so all web instances and the polling client see the resolution.
+ *
+ * Also applies the QUEUE-04 terminal-status guard: if a record already has a
+ * `resolvedStatus` (e.g. set by the wall-clock deadline), this is a no-op so
+ * late completions cannot overwrite deadline-fired failures.
+ */
+export async function resolveScanAsync(
+  id: string,
+  status: "succeeded" | "failed",
+  detail?: string,
+  driftCount?: number,
+): Promise<void> {
+  // Prefer the local Map (web process path).
+  let rec = jobs().get(id);
+
+  // Worker process path: Map is empty — load from Redis.
+  if (!rec) {
+    rec = await fetchScanFromRedis(id);
+  }
+
+  // If still not found, synthesise a minimal record so we can at least
+  // publish the terminal status to Redis for the polling client.
+  if (!rec) {
+    rec = { id, createdAt: Date.now(), hostIds: [], updatedAt: Date.now() };
+  }
+
+  // QUEUE-04: guard — never overwrite an already-terminal status.
+  if (rec.resolvedStatus) return;
+
+  rec.resolvedStatus = status;
+  rec.resolvedAt = Date.now();
+  rec.resolvedDetail = detail;
+  rec.updatedAt = Date.now();
+  if (driftCount !== undefined) rec.driftCount = driftCount;
+
+  // Mirror back into local Map (no-op in worker where Map is always empty).
+  jobs().set(id, rec);
   persist();
   markScanDone(id);
   publishScanRecordToRedis(rec);
@@ -347,12 +396,29 @@ export function markScanReal(id: string): void {
  */
 export function updateScanProgress(id: string, detail: string): void {
   const rec = jobs().get(id);
-  if (!rec || rec.resolvedStatus) return;
-  rec.progressDetail = detail;
-  rec.updatedAt = Date.now();
-  // Skip the disk persist — progress updates are high-frequency and
-  // we already publish to Redis (which polling clients consult).
-  publishScanRecordToRedis(rec);
+  if (rec) {
+    if (rec.resolvedStatus) return;
+    rec.progressDetail = detail;
+    rec.updatedAt = Date.now();
+    // Skip the disk persist — progress updates are high-frequency and
+    // we already publish to Redis (which polling clients consult).
+    publishScanRecordToRedis(rec);
+    return;
+  }
+
+  // Worker process path: local Map is empty. Load from Redis, apply the
+  // progress update, and republish — all fire-and-forget so callers stay sync.
+  void (async () => {
+    try {
+      const remote = await fetchScanFromRedis(id);
+      if (!remote || remote.resolvedStatus) return;
+      remote.progressDetail = detail;
+      remote.updatedAt = Date.now();
+      publishScanRecordToRedis(remote);
+    } catch (err) {
+      console.error("[scan-jobs] updateScanProgress Redis fallback failed:", err);
+    }
+  })();
 }
 
 export function getScanRecord(id: string): ScanJobRecord | undefined {

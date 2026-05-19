@@ -45,7 +45,7 @@ import {
 } from "@/lib/server/collector/parsers";
 import type { HostSnapshot } from "@/lib/server/collector";
 import { appendAudit, AUDIT_ACTIONS } from "@/lib/server/audit-log";
-import { getBaseline, saveBaseline, listBaselineHostIds } from "@/lib/server/baseline-store";
+import { getBaseline, saveBaseline, saveBaselineIfAbsent, listBaselineHostIds } from "@/lib/server/baseline-store";
 import { storeDriftEvents } from "@/lib/server/drift-engine";
 import { processHostSnapshotDrift } from "@/lib/server/services/scan-drift-job";
 import {
@@ -332,9 +332,13 @@ export async function POST(request: Request) {
   try {
     const existing = await getBaseline(hostId);
     if (!existing) {
-      await saveBaseline(snapshot);
-      storeDriftEvents(hostId, []);
-      bootstrap = true;
+      // Use insert-if-absent to guard against concurrent first pushes for the
+      // same host: only the winner sets the bootstrap baseline and clears events.
+      const wrote = await saveBaselineIfAbsent(snapshot);
+      if (wrote) {
+        storeDriftEvents(hostId, []);
+        bootstrap = true;
+      }
     } else {
       const tenantId = process.env.INGEST_SAAS_TENANT_ID?.trim() || undefined;
       const result = await processHostSnapshotDrift({

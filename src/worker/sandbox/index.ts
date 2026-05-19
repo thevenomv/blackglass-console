@@ -18,7 +18,7 @@
  */
 
 import { Worker } from "bullmq";
-import { QUEUE_NAMES, DEFAULT_CONCURRENCY } from "@/lib/server/queue/config";
+import { QUEUE_NAMES, DEFAULT_CONCURRENCY, redisConnectionFromUrl } from "@/lib/server/queue/config";
 import {
   activateSandbox,
   destroySandbox,
@@ -249,6 +249,8 @@ async function handleCleanup(sandboxId: string, tenantId: string): Promise<void>
 // Worker
 // ---------------------------------------------------------------------------
 
+const sandboxRedisConn = redisConnectionFromUrl(redisUrl);
+
 const worker = new Worker<SandboxJobPayload>(
   QUEUE_NAMES.SANDBOX,
   async (job) => {
@@ -270,7 +272,7 @@ const worker = new Worker<SandboxJobPayload>(
     }
   },
   {
-    connection: { url: redisUrl },
+    connection: sandboxRedisConn,
     concurrency: sandboxConcurrency,
   },
 );

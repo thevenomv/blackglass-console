@@ -5,6 +5,7 @@
 
 import Redis from "ioredis";
 import { randomBytes } from "node:crypto";
+import { redisConnectionFromUrl } from "@/lib/server/queue/config";
 
 const REDIS_KEY = "__bgRateLimitRedis_v1" as const;
 type G = typeof globalThis & { [REDIS_KEY]?: Redis };
@@ -30,19 +31,22 @@ function singleton(): Redis | null {
   if (!url || process.env.NODE_ENV === "test") return null;
   const g = globalThis as G;
   if (!g[REDIS_KEY]) {
-    // DO managed Valkey uses a self-signed CA with TLS (rediss://).
-    // Pass tls.rejectUnauthorized=false so ioredis can verify the server.
-    const tlsOpts = url.startsWith("rediss://") ? { tls: { rejectUnauthorized: false } } : {};
-    g[REDIS_KEY] = new Redis(url, {
+    g[REDIS_KEY] = new Redis({
+      ...redisConnectionFromUrl(url),
       maxRetriesPerRequest: 2,
       lazyConnect: true,
-      ...tlsOpts,
     });
   }
   return g[REDIS_KEY]!;
 }
 
-/** `true` = allowed; `false` = denied; **`null`** = Redis not configured. */
+/**
+ * `true` = allowed; `false` = denied; **`null`** = Redis not configured or
+ * error with fail-open behaviour. When `RATE_LIMIT_FAIL_CLOSED=true` and
+ * Redis is configured but unavailable, returns `false` (deny) instead of
+ * `null` (fall through to in-memory) so multi-replica deployments don't
+ * silently multiply their effective rate limits per replica.
+ */
 export async function allowRedisSlidingWindow(
   key: string,
   limit: number,
@@ -67,6 +71,12 @@ export async function allowRedisSlidingWindow(
     const n = typeof raw === "number" ? raw : Number(raw);
     return n === 1;
   } catch {
+    // Redis is configured but errored. When RATE_LIMIT_FAIL_CLOSED is set,
+    // deny the request rather than falling back to per-process in-memory
+    // buckets (which would give each replica its own independent limit).
+    if (process.env.RATE_LIMIT_FAIL_CLOSED === "true") {
+      return false;
+    }
     return null;
   }
 }

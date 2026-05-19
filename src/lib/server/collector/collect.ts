@@ -243,7 +243,7 @@ function effectiveScanStartedAt(opts?: CollectScanOptions): number | undefined {
 const COLLECTION_TIMEOUT_MS = (() => {
   const n = parseInt(process.env.COLLECTION_TIMEOUT_MS ?? "75000", 10);
   // Clamp to [5 s, 120 s] to prevent hangs or false quick timeouts.
-  return Number.isFinite(n) && n > 0 ? Math.max(5_000, Math.min(120_000, n)) : 25_000;
+  return Number.isFinite(n) && n > 0 ? Math.max(5_000, Math.min(120_000, n)) : 75_000;
 })();
 
 async function collectAllSnapshotsWithAuth(

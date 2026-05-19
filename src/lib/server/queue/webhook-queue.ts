@@ -12,7 +12,7 @@
  * src/worker/webhook-worker.ts once the operational appetite is there.
  */
 
-import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
+import { QUEUE_NAMES, RETRY_POLICIES, RETENTION, redisConnectionFromUrl } from "./config";
 
 export interface WebhookJobPayload {
   url: string;
@@ -24,6 +24,13 @@ export interface WebhookJobPayload {
   tenantId?: string;
   /** Scan id for correlation with the originating scan job. */
   scanId: string;
+  /**
+   * Host id within the scan. Required for correct BullMQ deduplication:
+   * N hosts sharing one webhook URL each need their own queue entry.
+   * Without this, all N jobs get the same jobId and BullMQ only delivers
+   * the first host's findings (QUEUE-02).
+   */
+  hostId?: string;
 }
 
 const QUEUE_KEY = "__blackglass_webhook_queue_v1" as const;
@@ -37,7 +44,7 @@ export async function getWebhookQueue(): Promise<import("bullmq").Queue<WebhookJ
   if (!g[QUEUE_KEY]) {
     const { Queue } = await import("bullmq");
     g[QUEUE_KEY] = new Queue<WebhookJobPayload>(QUEUE_NAMES.WEBHOOKS, {
-      connection: { url: redisUrl },
+      connection: redisConnectionFromUrl(redisUrl),
       defaultJobOptions: {
         ...RETRY_POLICIES.webhook,
         ...RETENTION.webhooks,
@@ -54,8 +61,12 @@ export async function getWebhookQueue(): Promise<import("bullmq").Queue<WebhookJ
 export async function enqueueWebhookDelivery(payload: WebhookJobPayload): Promise<boolean> {
   const queue = await getWebhookQueue();
   if (!queue) return false;
+  const urlHash = Buffer.from(payload.url).toString("base64url").slice(0, 16);
   await queue.add("deliver", payload, {
-    jobId: `${payload.scanId}-${Buffer.from(payload.url).toString("base64url").slice(0, 16)}`,
+    // QUEUE-02: include hostId so N hosts sharing one webhook URL each get a
+    // distinct jobId. Without hostId, BullMQ deduplicates all N to the first
+    // host's job and discards the remaining hosts' findings.
+    jobId: `${payload.scanId}-${payload.hostId ?? "all"}-${urlHash}`,
   });
   return true;
 }

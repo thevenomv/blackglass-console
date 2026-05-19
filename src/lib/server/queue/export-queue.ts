@@ -10,7 +10,7 @@
  * path — keeps small / dev deployments working with zero infra.
  */
 
-import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
+import { QUEUE_NAMES, RETRY_POLICIES, RETENTION, redisConnectionFromUrl } from "./config";
 
 export interface ExportJobPayload {
   exportId: string;
@@ -28,7 +28,7 @@ export async function getExportQueue(): Promise<import("bullmq").Queue<ExportJob
   if (!g[QUEUE_KEY]) {
     const { Queue } = await import("bullmq");
     g[QUEUE_KEY] = new Queue<ExportJobPayload>(QUEUE_NAMES.EXPORTS, {
-      connection: { url: redisUrl },
+      connection: redisConnectionFromUrl(redisUrl),
       defaultJobOptions: {
         ...RETRY_POLICIES.export,
         ...RETENTION.exports,

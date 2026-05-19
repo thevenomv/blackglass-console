@@ -46,7 +46,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ policies: [] });
   }
 
-  const policies = await listPolicies(access.ctx.tenant.id);
+  // Owners and admins can request disabled policies via ?includeDisabled=true
+  // to audit and re-enable rules. Viewers only see active policies.
+  const url = new URL(request.url);
+  const includeDisabled =
+    url.searchParams.get("includeDisabled") === "true" &&
+    (access.ctx?.role === "owner" || access.ctx?.role === "admin");
+
+  const policies = await listPolicies(access.ctx.tenant.id, { includeDisabled });
   return NextResponse.json({ policies });
 }
 

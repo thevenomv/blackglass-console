@@ -9,7 +9,7 @@
  * Migration: drizzle/0026_tenant_scan_usage.sql
  */
 import { sql } from "drizzle-orm";
-import { tryGetDb, schema } from "@/db";
+import { databaseUrl, withTenantRls, schema } from "@/db";
 
 const { saasScanUsage } = schema;
 
@@ -27,8 +27,7 @@ export async function recordScanUsage(args: {
   /** Number of hosts successfully scanned in this job. */
   hostScans: number;
 }): Promise<void> {
-  const db = tryGetDb();
-  if (!db) return;
+  if (!databaseUrl()) return;
 
   const { tenantId, hostScans } = args;
 
@@ -37,22 +36,24 @@ export async function recordScanUsage(args: {
   const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
   try {
-    await db
-      .insert(saasScanUsage)
-      .values({
-        tenantId,
-        periodStart,
-        scanJobs: 1,
-        hostScans,
-      })
-      .onConflictDoUpdate({
-        target: [saasScanUsage.tenantId, saasScanUsage.periodStart],
-        set: {
-          scanJobs: sql`${saasScanUsage.scanJobs} + 1`,
-          hostScans: sql`${saasScanUsage.hostScans} + ${hostScans}`,
-          updatedAt: sql`now()`,
-        },
-      });
+    await withTenantRls(tenantId, async (db) => {
+      await db
+        .insert(saasScanUsage)
+        .values({
+          tenantId,
+          periodStart,
+          scanJobs: 1,
+          hostScans,
+        })
+        .onConflictDoUpdate({
+          target: [saasScanUsage.tenantId, saasScanUsage.periodStart],
+          set: {
+            scanJobs: sql`${saasScanUsage.scanJobs} + 1`,
+            hostScans: sql`${saasScanUsage.hostScans} + ${hostScans}`,
+            updatedAt: sql`now()`,
+          },
+        });
+    });
   } catch (err) {
     // Never let telemetry failure affect the scan result.
     console.error("[scan-usage] Failed to record scan usage:", err);

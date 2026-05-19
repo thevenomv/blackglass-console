@@ -34,13 +34,27 @@ export async function deleteDriftEvents(hostId: string): Promise<boolean> {
  * store was hydrated once, new worker-written events were never picked up
  * until the process restarted.
  */
-export async function getDriftEventsAsync(hostId?: string): Promise<DriftEvent[]> {
+export async function getDriftEventsAsync(
+  hostId?: string,
+  hostIds?: string[],
+): Promise<DriftEvent[]> {
   const store = eventStore();
 
   if (process.env.DATABASE_URL?.trim()) {
     // Always refresh from Postgres so cross-process writes are visible.
     try {
       const { PostgresDriftEventsRepository: repo } = await import("../store/legacy/driftevents-pg");
+
+      if (hostIds && hostIds.length > 0) {
+        // Tenant-scoped path: only load events for the caller's hosts.
+        // Do NOT hydrate the global store to avoid cross-tenant data leaking
+        // into synchronous getDriftEvents() callers in the same process.
+        const events = await repo.listByHostIds(hostIds);
+        return hostId ? events.filter((e) => e.hostId === hostId) : events;
+      }
+
+      // Legacy / single-tenant path: hydrate the global in-memory store so
+      // synchronous getDriftEvents() callers in this request see fresh data.
       const all = await repo.getAll();
       const byHost = new Map<string, DriftEvent[]>();
       for (const evt of all) {
@@ -48,8 +62,6 @@ export async function getDriftEventsAsync(hostId?: string): Promise<DriftEvent[]
         list.push(evt);
         byHost.set(evt.hostId, list);
       }
-      // Replace the in-memory store wholesale so synchronous getDriftEvents()
-      // callers in this request also see the fresh data.
       store.clear();
       for (const [hid, evts] of byHost) store.set(hid, evts);
     } catch (err) {
@@ -64,6 +76,19 @@ export async function getDriftEventsAsync(hostId?: string): Promise<DriftEvent[]
       const fromFile = loadFromFile(fp);
       store.clear();
       for (const [hid, evts] of fromFile) store.set(hid, evts);
+    }
+
+    // Apply tenant host filter from the in-memory / file store.
+    if (hostIds && hostIds.length > 0) {
+      const allowed = new Set(hostIds);
+      const filtered: DriftEvent[] = [];
+      for (const [hid, evts] of store) {
+        if (allowed.has(hid)) filtered.push(...evts);
+      }
+      const sorted = filtered.sort(
+        (a, b) => new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime(),
+      );
+      return hostId ? sorted.filter((e) => e.hostId === hostId) : sorted;
     }
   }
 

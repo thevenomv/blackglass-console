@@ -9,5 +9,5 @@ export const apiConfig = {
 };
 
 export function defaultGuestRole(): Role {
-  return "operator";
+  return "viewer";
 }

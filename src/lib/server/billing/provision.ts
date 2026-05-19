@@ -12,6 +12,7 @@
 
 import type { Plan } from "@/lib/plan";
 import { setAndPersistPlan } from "@/lib/server/plan-store";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 
 interface StripeContext {
   stripeCustomerId: string;
@@ -23,6 +24,13 @@ interface StripeContext {
 // ---------------------------------------------------------------------------
 
 export async function provisionPlan(plan: Plan, _ctx: StripeContext): Promise<void> {
+  // BILL-04: in SaaS/Clerk mode the plan is per-tenant (stored in
+  // saas_subscriptions and synced by syncSaasSubscriptionFromStripe).
+  // The global Spaces-backed plan store is only used in single-tenant mode.
+  if (isClerkAuthEnabled()) {
+    console.info(`[provision] SaaS mode — skipping global plan write for "${plan}"`);
+    return;
+  }
   try {
     await setAndPersistPlan(plan);
     console.info(`[provision] Plan set to "${plan}" (persisted to Spaces)`);
@@ -33,6 +41,12 @@ export async function provisionPlan(plan: Plan, _ctx: StripeContext): Promise<vo
 }
 
 export async function deprovisionPlan(_ctx: StripeContext): Promise<void> {
+  // BILL-04: in SaaS/Clerk mode the plan is per-tenant (stored in
+  // saas_subscriptions). Skip the global store write.
+  if (isClerkAuthEnabled()) {
+    console.info(`[provision] SaaS mode — skipping global deprovision`);
+    return;
+  }
   try {
     await setAndPersistPlan("free");
     console.info(`[provision] Plan reverted to "free" (persisted to Spaces)`);

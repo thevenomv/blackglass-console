@@ -109,7 +109,9 @@ export function canGenerateReportsForTenant(
   role: TenantRole,
   subscription: SaasSubscription,
 ): { ok: true } | { ok: false; code: string; detail: string } {
-  if (!hasPermission(role, "drift.manage")) {
+  // Use reports.generate (write) permission — drift.manage was too narrow and
+  // excluded viewer-plus roles that should be able to generate reports.
+  if (!hasPermission(role, "reports.generate")) {
     return { ok: false, code: "forbidden", detail: "Role cannot generate reports." };
   }
   const gate = subscriptionMutationGate(subscription);
@@ -202,7 +204,12 @@ type PolicyCtx = { role: TenantRole; subscription: SaasSubscription };
 
 function throwPolicy(result: { ok: true } | { ok: false; code: string; detail: string }): void {
   if (!result.ok) {
-    const status = result.code === "host_cap" || result.code === "seat_cap_exceeded" ? 402 : 403;
+    // 402 for quota/billing-related failures; 403 for permission/role failures.
+    // Include host_cap_exceeded here so canAddHostForTenant and withinHostAllowance
+    // both produce 402 (previously host_cap_exceeded produced 403, inconsistent
+    // with host_cap which produced 402).
+    const quotaCodes = new Set(["host_cap", "host_cap_exceeded", "seat_cap_exceeded"]);
+    const status = quotaCodes.has(result.code) ? 402 : 403;
     throw new SaasAuthError(status, result.code, result.detail);
   }
 }

@@ -5,7 +5,7 @@ import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
-import { requireTenantAuth } from "@/lib/saas/tenant-context";
+import { requireTenantAuth, SaasAuthError } from "@/lib/saas/tenant-context";
 import { toLegacyApiRole } from "@/lib/saas/plans";
 import { checkSaasContextRate, clientIpFromHeaders } from "@/lib/server/rate-limit";
 
@@ -41,15 +41,45 @@ export async function GET() {
         authRequired: true,
         clerk: true,
       });
-    } catch {
-      return NextResponse.json({
-        authenticated: true,
-        role: "viewer" as Role,
-        tenantRole: null,
-        authRequired: true,
-        clerk: true,
-        needsOrg: true,
-      });
+    } catch (e) {
+      if (!(e instanceof SaasAuthError)) {
+        // Unexpected error — do not swallow; surface as 500 so monitoring can catch it.
+        console.error("[session] requireTenantAuth unexpected error", e);
+        return NextResponse.json({ error: "internal_error" }, { status: 500 });
+      }
+      // Map known SaasAuthError codes to distinct, informative responses.
+      if (e.code === "no_organization") {
+        return NextResponse.json({
+          authenticated: true,
+          role: "viewer" as Role,
+          tenantRole: null,
+          authRequired: true,
+          clerk: true,
+          needsOrg: true,
+        });
+      }
+      if (e.code === "not_member") {
+        return NextResponse.json({
+          authenticated: true,
+          role: "viewer" as Role,
+          tenantRole: null,
+          authRequired: true,
+          clerk: true,
+          notMember: true,
+        });
+      }
+      if (e.code === "mfa_required") {
+        return NextResponse.json({
+          authenticated: true,
+          role: "viewer" as Role,
+          tenantRole: null,
+          authRequired: true,
+          clerk: true,
+          mfaRequired: true,
+        }, { status: 403 });
+      }
+      // clerk_disabled, database_unavailable, no_subscription, etc.
+      return NextResponse.json({ error: e.code }, { status: e.status });
     }
   }
 

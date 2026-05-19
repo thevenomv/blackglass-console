@@ -7,7 +7,7 @@ import { collectAllSnapshots, type CollectScanOptions } from "@/lib/server/colle
 import { computeDrift, storeDriftEvents } from "@/lib/server/drift-engine";
 import { recordDriftScanDayStamp } from "@/lib/server/drift-history";
 import { revalidateIntegritySurfaces } from "@/lib/server/integrity-revalidate";
-import { markScanDone, resolveScan } from "@/lib/server/scan-jobs";
+import { markScanDone, resolveScan, resolveScanAsync } from "@/lib/server/scan-jobs";
 import { dispatchDriftWebhook } from "@/lib/server/outbound-webhook";
 import { sendEmail } from "@/lib/email/send";
 import { driftAlertHtml, driftAlertText } from "@/lib/email/templates/drift-alert";
@@ -242,7 +242,7 @@ export async function processHostSnapshotDrift(args: {
     }
   }
 
-  storeDriftEvents(current.hostId, events);
+  storeDriftEvents(current.hostId, events, tenantId);
 
   const highEvents = events.filter(
     (e) => e.severity === "high" && e.lifecycle !== "accepted_risk",
@@ -343,7 +343,9 @@ export async function executeDriftScanJob(
       console.error(
         `[scan-drift-job] DEADLINE jobId=${jobId} exceeded ${SCAN_JOB_DEADLINE_MS}ms — force-resolving as failed`,
       );
-      resolveScan(
+      // Use resolveScanAsync (fire-and-forget) so the deadline works correctly
+      // in the BullMQ worker process where the in-process Map is always empty.
+      void resolveScanAsync(
         jobId,
         "failed",
         `Scan exceeded ${Math.round(SCAN_JOB_DEADLINE_MS / 1000)}s wall-clock deadline. ` +
@@ -360,11 +362,12 @@ export async function executeDriftScanJob(
     }, SCAN_JOB_DEADLINE_MS).unref?.();
   });
 
+  // Track any error thrown by the impl so we can rethrow it after the race
+  // settles, letting BullMQ see a failure and schedule a retry.
+  let implError: unknown = undefined;
   await Promise.race([
     executeDriftScanJobImpl(jobId, collectOpts).catch((err) => {
-      // Catch unexpected throws from the inner pipeline so the
-      // deadline race always settles cleanly. The inner function has
-      // its own try/catch + resolveScan call, so this is belt+braces.
+      implError = err;
       console.error(`[scan-drift-job] unexpected error in jobId=${jobId}:`, err);
     }),
     deadline,
@@ -373,10 +376,14 @@ export async function executeDriftScanJob(
   if (deadlineFired) {
     // The deadline branch already published the failure; nothing to do.
     // The inner function may still be running in the background but
-    // its eventual resolveScan() call is a no-op once the record is
-    // already marked terminal.
+    // its eventual resolveScanAsync() call is a no-op once the record is
+    // already marked terminal (QUEUE-04 guard).
     return;
   }
+
+  // QUEUE-05: rethrow infrastructure errors so BullMQ sees a failure and
+  // schedules a retry with exponential back-off.
+  if (implError !== undefined) throw implError;
 }
 
 async function executeDriftScanJobImpl(
@@ -428,7 +435,7 @@ async function executeDriftScanJobImpl(
     }
 
     if (failures.length === results.length) {
-      resolveScan(jobId, "failed", failures.join("; "));
+      await resolveScanAsync(jobId, "failed", failures.join("; "));
       appendAudit({
         action: AUDIT_ACTIONS.SCAN_FAILED,
         detail: `Scan ${jobId} failed: ${failures.join("; ")}`,
@@ -437,7 +444,7 @@ async function executeDriftScanJobImpl(
       void alertSlack(`:x: *Scan failed* \`${jobId}\`\n${failures.join("\n")}`, collectOpts.tenantId);
     } else {
       await recordDriftScanDayStamp(totalDrift);
-      resolveScan(jobId, "succeeded", failures.length ? failures.join("; ") : undefined, totalDrift);
+      await resolveScanAsync(jobId, "succeeded", failures.length ? failures.join("; ") : undefined, totalDrift);
 
       // Per-tenant scan-cost telemetry — fire-and-forget, never blocks the pipeline.
       if (collectOpts.tenantId) {
@@ -467,13 +474,21 @@ async function executeDriftScanJobImpl(
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    resolveScan(jobId, "failed", `Collection error: ${message}`);
+    // QUEUE-01: resolveScanAsync works in the worker process (empty local Map)
+    // by falling back to Redis.
+    // QUEUE-05: all unexpected throws here are infrastructure failures (DB,
+    // Redis, network) — business-logic failures are handled inline via the
+    // `failures` array above. Rethrow after recording so BullMQ schedules a
+    // retry with exponential back-off; the QUEUE-04 guard in resolveScanAsync
+    // ensures that if the deadline already fired, this is a no-op.
+    await resolveScanAsync(jobId, "failed", `Collection error: ${message}`);
     appendAudit({
       action: AUDIT_ACTIONS.SCAN_FAILED,
       detail: `Scan ${jobId} failed: ${message}`,
       scan_id: jobId,
     });
     void alertSlack(`:x: *Scan exception* \`${jobId}\`\n${message}`, collectOpts.tenantId);
+    throw err; // let BullMQ retry
   } finally {
     // Always drain the running-scans registry so SIGTERM doesn't hang.
     markScanDone(jobId);

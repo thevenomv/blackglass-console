@@ -16,12 +16,49 @@ import { generateApiKey } from "@/lib/server/api-key-auth";
 import { withTenantRls, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import { planGuard } from "@/lib/plan";
+import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
 
 const { saasApiKeys } = schema;
 
+/**
+ * Exhaustive list of valid API key scopes. Any scope not on this list is
+ * rejected at creation time so callers can never mint tokens with arbitrary
+ * or wildcard access. Keep in sync with the hasScope() checks scattered
+ * through the codebase.
+ *
+ * The wildcard "*" scope is intentionally absent. It may only be issued in
+ * non-production environments when ALLOW_WILDCARD_API_SCOPE=true, and only
+ * via direct DB insertion — it cannot be requested through the API.
+ */
+export const ALLOWED_API_KEY_SCOPES = [
+  "scans.run",
+  "drift.read",
+  "drift.write",
+  "hosts.read",
+  "hosts.write",
+  "api-keys.read",
+  "janitor.read",
+  "evidence.read",
+  "exports.create",
+  "baselines.write",
+] as const;
+
+export type ApiKeyScope = (typeof ALLOWED_API_KEY_SCOPES)[number];
+
+const ScopeSchema = z
+  .string()
+  .refine(
+    (s: string) => s !== "*" || (process.env.NODE_ENV !== "production" && process.env.ALLOW_WILDCARD_API_SCOPE === "true"),
+    { message: 'Wildcard scope "*" is not permitted in production.' },
+  )
+  .refine(
+    (s: string) => s === "*" || (ALLOWED_API_KEY_SCOPES as readonly string[]).includes(s),
+    { message: `Invalid scope. Allowed: ${ALLOWED_API_KEY_SCOPES.join(", ")}` },
+  );
+
 const CreateKeySchema = z.object({
   label: z.string().min(1).max(100),
-  scopes: z.array(z.string().min(1).max(50)).max(20).default(["scans.run", "drift.read"]),
+  scopes: z.array(ScopeSchema).min(1).max(20).default(["scans.run", "drift.read"]),
   expiresInDays: z.number().int().min(1).max(3650).optional(),
 });
 
@@ -33,8 +70,13 @@ export async function GET(request: Request) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const guard = planGuard("apiAccess");
-  if (!guard.ok) return guard.response;
+  // BILL-04: in SaaS mode the global plan guard reads the single-tenant env var
+  // which defaults to "free" and would incorrectly block all tenants. Skip it;
+  // per-tenant plan enforcement happens via the subscription row.
+  if (!isClerkAuthEnabled()) {
+    const guard = planGuard("apiAccess");
+    if (!guard.ok) return guard.response;
+  }
 
   const access = await requireSaasOrLegacyPermission("apikeys.manage", ["admin"]);
   if (!access.ok) return access.response;
@@ -78,8 +120,11 @@ export async function POST(request: Request) {
     return jsonError(429, "rate_limited", undefined, requestId);
   }
 
-  const guard = planGuard("apiAccess");
-  if (!guard.ok) return guard.response;
+  // BILL-04: skip global guard in SaaS mode (per-tenant plan via subscription row).
+  if (!isClerkAuthEnabled()) {
+    const guard = planGuard("apiAccess");
+    if (!guard.ok) return guard.response;
+  }
 
   const access = await requireSaasOrLegacyPermission("apikeys.manage", ["admin"]);
   if (!access.ok) return access.response;

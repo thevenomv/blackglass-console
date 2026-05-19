@@ -34,7 +34,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [state, setState] = useState<SessionState>({
     loading: true,
-    role: "operator",
+    // Use the least-privileged role as the initial/fallback state so that
+    // permission checks fail closed while the session is loading or on network errors.
+    role: "viewer",
     authenticated: false,
     tenantRole: null,
   });
@@ -47,8 +49,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       res = await fetch("/api/session", { cache: "no-store", signal: controller.signal });
       window.clearTimeout(timeout);
     } catch {
-      // Network error or timeout — fall back to operator so the UI stays functional.
-      setState((prev) => ({ ...prev, loading: false, role: "operator", authenticated: false }));
+      // Network error or timeout — preserve the last known good role rather than
+      // granting operator access. Keep authenticated: false so UI shows loading state.
+      setState((prev) => ({ ...prev, loading: false, authenticated: false }));
       return;
     }
 

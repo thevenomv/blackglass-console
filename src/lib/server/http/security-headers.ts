@@ -40,7 +40,13 @@ function cspReportUri(): string | null {
 }
 
 function cspEnforce(): boolean {
-  return process.env.SECURITY_HEADERS_CSP_ENFORCE?.trim().toLowerCase() === "true";
+  // Enforce when explicitly enabled, OR when running in production and the
+  // operator has NOT opted into report-only mode for gradual rollout.
+  if (process.env.SECURITY_HEADERS_CSP_ENFORCE?.trim().toLowerCase() === "true") return true;
+  if (process.env.NODE_ENV === "production") {
+    return process.env.SECURITY_HEADERS_CSP_REPORT_ONLY?.trim().toLowerCase() !== "true";
+  }
+  return false;
 }
 
 /**
@@ -85,11 +91,17 @@ function buildCsp(nonce?: string): string {
     // emits inline boot scripts. A nonce-based rollout is the proper
     // fix; tracked in src/lib/server/http/security-headers.ts. Until
     // then we accept the looser policy AND ship CSP in Report-Only
-    // mode so we can find any violations before flipping enforce.
+    // mode in development so we can find violations before enforcing.
+    //
+    // TODO: replace 'unsafe-inline' with a per-request nonce once
+    // Next.js middleware nonce propagation is wired end-to-end.
+    //
+    // 'unsafe-eval' has been removed. Next.js 14+ no longer requires it
+    // in production; Sentry source maps work without it. If a third-party
+    // script re-introduces the need, add a comment here explaining why.
     "script-src": [
       "'self'",
       "'unsafe-inline'",
-      "'unsafe-eval'", // Next/Sentry needs this in dev; harmless in prod with the rest of the policy.
       "https://js.stripe.com", // Stripe Checkout + Elements
       "https://*.clerk.accounts.dev",
       "https://*.clerk.com",
@@ -171,25 +183,32 @@ export function applySecurityHeaders(
   res: NextResponse,
   _request?: NextRequest,
 ): NextResponse {
-  // Skip when the operator opts out — useful for debugging in staging
-  // without having to redeploy. Default is "on".
-  if (process.env.SECURITY_HEADERS_DISABLED === "true") {
-    return res;
+  const headersDisabled = process.env.SECURITY_HEADERS_DISABLED === "true";
+
+  if (headersDisabled && process.env.NODE_ENV === "production") {
+    console.warn(
+      "[security-headers] SECURITY_HEADERS_DISABLED=true in production. " +
+        "Only CSP will be skipped; all other security headers remain active.",
+    );
   }
 
+  // These baseline headers are ALWAYS applied — SECURITY_HEADERS_DISABLED
+  // only suppresses the CSP header (useful for debugging CSP violations
+  // without rolling back the entire policy).
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   res.headers.set("Permissions-Policy", PERMISSIONS_POLICY);
   res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
 
-  // CSP — Report-Only by default so a missing whitelist doesn't break
-  // the page. Flip to enforce only after the report endpoint shows
-  // zero violations for a sustained window.
-  const csp = buildCsp();
-  if (cspEnforce()) {
-    res.headers.set("Content-Security-Policy", csp);
-  } else {
-    res.headers.set("Content-Security-Policy-Report-Only", csp);
+  // CSP — skip entirely when SECURITY_HEADERS_DISABLED is set so operators
+  // can debug CSP violations without removing all other protections.
+  if (!headersDisabled) {
+    const csp = buildCsp();
+    if (cspEnforce()) {
+      res.headers.set("Content-Security-Policy", csp);
+    } else {
+      res.headers.set("Content-Security-Policy-Report-Only", csp);
+    }
   }
 
   return res;

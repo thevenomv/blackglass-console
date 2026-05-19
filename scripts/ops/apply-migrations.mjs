@@ -65,7 +65,21 @@ function loadMigration(name) {
   // because it sees the LF version. (This bit prod once; never again.)
   const sql = raw.replace(/\r\n/g, "\n");
   const hash = crypto.createHash("sha256").update(sql).digest("hex");
-  return { name, sql, hash };
+
+  // Split on the optional `-- @pre-tx-end` marker.
+  // SQL above the marker runs OUTSIDE a transaction (required for statements
+  // like `ALTER TYPE … ADD VALUE` on PostgreSQL < 12 which cannot execute
+  // inside a transaction block).  Everything below the marker is the normal
+  // transactional body.  Migrations without the marker behave exactly as
+  // before — the entire SQL runs inside BEGIN … COMMIT.
+  const PRETX_MARKER = /^--\s*@pre-tx-end\s*$/m;
+  const markerMatch = PRETX_MARKER.exec(sql);
+  if (markerMatch) {
+    const preTxSql = sql.slice(0, markerMatch.index).trim();
+    const txSql = sql.slice(markerMatch.index + markerMatch[0].length).trim();
+    return { name, sql, hash, preTxSql: preTxSql || null, txSql };
+  }
+  return { name, sql, hash, preTxSql: null, txSql: sql };
 }
 
 /**
@@ -240,8 +254,13 @@ async function main() {
     for (const m of pending) {
       console.log(`  → ${m.name} (${m.hash.slice(0, 8)})`);
       try {
+        // Run any pre-transaction SQL (e.g. ALTER TYPE … ADD VALUE) outside
+        // the transaction block so it works on PostgreSQL < 12.
+        if (m.preTxSql) {
+          await c.query(m.preTxSql);
+        }
         await c.query("BEGIN");
-        await c.query(m.sql);
+        await c.query(m.txSql);
         await recordApplied(c, m);
         await c.query("COMMIT");
         console.log(`     ✓ applied`);

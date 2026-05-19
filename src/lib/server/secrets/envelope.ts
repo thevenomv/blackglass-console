@@ -194,6 +194,22 @@ export function envelopeEncryptionEnabled(): boolean {
 }
 
 /**
+ * Startup guard — call once at app boot (e.g. in instrumentation.ts or the
+ * first request handler). Throws a hard error in production when KMS is
+ * disabled so the process refuses to start rather than silently persisting
+ * credentials as base64 plaintext.
+ */
+export function validateEnvelopeEncryptionConfig(): void {
+  if (process.env.NODE_ENV === "production" && kmsProvider() === "none") {
+    throw new Error(
+      "FATAL: KMS_PROVIDER must be configured in production. " +
+        'Set KMS_PROVIDER to "aws", "gcp", "vault", or "local" (with KMS_LOCAL_SECRET). ' +
+        "Storing credentials as plaintext is not permitted in production.",
+    );
+  }
+}
+
+/**
  * Resolve the BYOK config for a tenant if (and only if) the feature
  * flag is on AND the tenant has an enabled row. Imported lazily so this
  * module stays decoupled from the DB layer for unit tests / scripts
@@ -294,6 +310,13 @@ export async function encryptKey(
   const globalProvider = kmsProvider();
 
   if (globalProvider === "none") {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "FATAL: KMS_PROVIDER must be configured in production. " +
+          'Set KMS_PROVIDER to "aws", "gcp", "vault", or "local" (with KMS_LOCAL_SECRET). ' +
+          "Storing credentials as plaintext is not permitted in production.",
+      );
+    }
     console.warn(
       "[envelope] KMS_PROVIDER is not set — storing SSH key WITHOUT envelope encryption. " +
         "Set KMS_PROVIDER=local|vault|awskms in production.",
@@ -368,13 +391,23 @@ export async function encryptKey(
  * re-encrypt the credential explicitly.
  */
 export async function decryptKey(
-  _workspaceId: string,
+  workspaceId: string,
   encKey: EncryptedKey,
 ): Promise<Buffer> {
-  const { ciphertext, wrappedDek, kmsProvider: provider, tenantId } = encKey;
+  const { ciphertext, wrappedDek, kmsProvider: provider, tenantId, kmsKeyRef: storedKeyRef } = encKey;
 
   if (provider === "none") {
     return Buffer.from(ciphertext, "base64");
+  }
+
+  // SEC-09: Reject blobs whose embedded tenantId doesn't match the caller's
+  // workspace. A mismatch means the blob was encrypted for a different tenant
+  // and should never be decryptable in this context.
+  if (tenantId && workspaceId && tenantId !== workspaceId) {
+    throw new Error(
+      `Security violation: EncryptedKey tenantId (${tenantId}) does not match ` +
+        `the caller workspaceId (${workspaceId}). Refusing to decrypt.`,
+    );
   }
 
   let dek: Buffer;
@@ -405,7 +438,20 @@ export async function decryptKey(
         `EncryptedKey provider (${provider}) doesn't match current tenant config (${cfg.provider}).`,
       );
     }
-    dek = await unwrapWithKeyRef(provider, wrappedDek, cfg.keyRef);
+    // SEC-06: Prefer the keyRef stored on the blob at encrypt time; fall back
+    // to the current cfg.keyRef only if the stored ref fails. This allows key
+    // rotation without permanently breaking decryption of previously-wrapped DEKs.
+    const primaryKeyRef = storedKeyRef || cfg.keyRef;
+    try {
+      dek = await unwrapWithKeyRef(provider, wrappedDek, primaryKeyRef);
+    } catch (primaryErr) {
+      if (primaryKeyRef !== cfg.keyRef) {
+        // Fall back to the current configured keyRef (post-rotation path).
+        dek = await unwrapWithKeyRef(provider, wrappedDek, cfg.keyRef);
+      } else {
+        throw primaryErr;
+      }
+    }
   } else if (provider === "local") {
     dek = await localUnwrapDek(wrappedDek);
   } else if (provider === "vault") {

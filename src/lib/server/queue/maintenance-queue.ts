@@ -13,7 +13,7 @@
  * longer matches the configured cadence.
  */
 
-import { QUEUE_NAMES, RETRY_POLICIES, RETENTION } from "./config";
+import { QUEUE_NAMES, RETRY_POLICIES, RETENTION, redisConnectionFromUrl } from "./config";
 import { digestEveryMs, digestInterval } from "@/lib/server/services/drift-digest-service";
 import { partitionMaintenanceEveryMs } from "@/lib/server/services/partition-maintenance-service";
 import { charonScheduleTickEveryMs } from "@/lib/server/services/charon-scheduled-scan-service";
@@ -61,7 +61,7 @@ export async function getMaintenanceQueue(): Promise<import("bullmq").Queue<Main
   if (!g[QUEUE_KEY]) {
     const { Queue } = await import("bullmq");
     g[QUEUE_KEY] = new Queue<MaintenanceJobPayload>(QUEUE_NAMES.MAINTENANCE, {
-      connection: { url: redisUrl },
+      connection: redisConnectionFromUrl(redisUrl),
       defaultJobOptions: {
         ...RETRY_POLICIES.maintenance,
         ...RETENTION.maintenance,

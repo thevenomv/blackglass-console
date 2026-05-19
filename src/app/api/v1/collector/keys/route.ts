@@ -2,9 +2,7 @@
  * GET /api/v1/collector/keys — masked push-ingest credentials (INGEST_API_KEY / per-host map).
  */
 
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/server/http/auth-guard";
-import { isClerkAuthEnabled } from "@/lib/saas/clerk-mode";
+import { requireSaasOrLegacyPermission } from "@/lib/server/http/saas-access";
 import { checkReadApiRate, clientIp } from "@/lib/server/rate-limit";
 import { getIngestCredentialSummary } from "@/lib/server/ingest-credentials";
 import { getOrCreateRequestId } from "@/lib/server/http/request-id";
@@ -20,16 +18,10 @@ export async function GET(request: Request) {
     return rateLimitedResponse(requestId);
   }
 
-  // This endpoint only reads env var status — no DB query needed.
-  // Use a lightweight session check rather than full tenant+subscription auth.
-  if (isClerkAuthEnabled()) {
-    const { userId, orgId } = await auth();
-    if (!userId) return jsonError(401, "unauthenticated", "Sign in required.", requestId);
-    if (!orgId) return jsonError(400, "no_organization", "Select a workspace first.", requestId);
-  } else {
-    const guard = await requireRole(["viewer", "auditor", "operator", "admin"]);
-    if (!guard.ok) return guard.response;
-  }
+  // Ingest credentials reveal deployment secrets — require secrets.manage so only
+  // owners/admins/operators can read them (not viewers or guest_auditors).
+  const access = await requireSaasOrLegacyPermission("secrets.manage", ["operator", "admin"]);
+  if (!access.ok) return access.response;
 
   const summary = getIngestCredentialSummary();
   return jsonWithRequestId(

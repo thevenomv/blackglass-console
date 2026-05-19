@@ -143,6 +143,28 @@ export const RETENTION = {
 // Memory-based SSH concurrency helper
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Shared Redis connection helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a BullMQ / ioredis connection options object from a Redis URL.
+ * Adds `tls: { rejectUnauthorized: false }` for `rediss://` URLs so
+ * managed-Redis deployments (DO Valkey, Redis Cloud, etc.) that present
+ * self-signed certificates connect successfully. Import this helper in
+ * every place that creates a Redis or BullMQ connection so TLS behaviour
+ * is consistent across all workers and queue producers.
+ */
+export function redisConnectionFromUrl(url: string): { url: string; tls?: { rejectUnauthorized: false } } {
+  return url.startsWith("rediss://")
+    ? { url, tls: { rejectUnauthorized: false as const } }
+    : { url };
+}
+
+// ---------------------------------------------------------------------------
+// Memory-based SSH concurrency helper
+// ---------------------------------------------------------------------------
+
 /**
  * Calculates the maximum number of concurrent scan jobs this worker process
  * should run, capped by available memory.

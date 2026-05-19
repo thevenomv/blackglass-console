@@ -67,12 +67,12 @@ export async function GET(request: Request) {
   let authenticated = !authRequired; // dev/demo mode: always full response
   if (authRequired) {
     if (isClerkAuthEnabled()) {
-      // In Clerk mode, check the Clerk session. Import lazily to avoid loading
-      // Clerk on every health check when not needed.
+      // In Clerk mode, require both a valid userId AND an active orgId — any
+      // signed-in user without an org would otherwise get operational details.
       try {
         const { auth } = await import("@clerk/nextjs/server");
-        const { userId } = await auth();
-        authenticated = userId != null;
+        const { userId, orgId } = await auth();
+        authenticated = userId != null && orgId != null;
       } catch {
         authenticated = false;
       }
