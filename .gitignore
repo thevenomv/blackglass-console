@@ -92,3 +92,7 @@ __pycache__/
 crash.log
 override.tf
 override.tf.json
+
+# Mothball / ops artefacts — contain cluster IDs and backup references; store in 1Password
+scripts/do/mothball-config.json
+backups/
