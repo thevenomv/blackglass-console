@@ -73,6 +73,7 @@ jobs:
           name: cyclonedx-sbom
           path: cyclonedx-sbom.json
 
+name:  retention-days: 7
       - name: Build
         run: npm run build
 
