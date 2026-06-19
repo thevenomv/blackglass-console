@@ -39,7 +39,7 @@ on:
 
 jobs:
   prune-audit-events:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     if: >-
       github.event_name == 'schedule' ||
       github.event.inputs.job == 'both' ||
@@ -65,7 +65,7 @@ jobs:
           AUDIT_RETENTION_DAYS: ${{ secrets.AUDIT_RETENTION_DAYS }}
 
   prune-webhook-idempotency:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     if: >-
       github.event_name == 'schedule' ||
       github.event.inputs.job == 'both' ||
@@ -87,7 +87,7 @@ jobs:
           WEBHOOK_RETENTION_DAYS: ${{ secrets.WEBHOOK_RETENTION_DAYS }}
 
   reconcile-billing:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     # Runs on schedule (Sundays) and on manual dispatch with job=both or job=billing.
     if: >-
       github.event_name == 'schedule' ||
@@ -122,7 +122,7 @@ jobs:
           SLACK_ALERT_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }}
 
   trial-lifecycle-emails:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     # Runs every day (08:00 UTC schedule) and on manual dispatch.
     # The script uses time-window queries so running on the Sunday prune schedule
     # is harmless — Resend idempotency keys prevent duplicate sends on the same day.

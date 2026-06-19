@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     timeout-minutes: 40
     env:
       # Passed through Next/Sentry builds so browser + server errors group by deploy.
@@ -92,7 +92,7 @@ jobs:
 
   migrations-end-to-end:
     name: Migrations apply cleanly to fresh Postgres
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     timeout-minutes: 8
     services:
       postgres:
@@ -186,7 +186,7 @@ jobs:
 
   helm-template:
     name: Helm chart renders cleanly (web + 3 workers)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     timeout-minutes: 5
     env:
       # azure/setup-helm runs on Node 20 until upstream moves; opt into Node 24 per Actions guidance.
@@ -241,7 +241,7 @@ jobs:
 
   staging-smoke:
     name: Staging smoke (post-deploy)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     needs: build-and-test
     # Only runs on pushes to main — not PRs — and only when STAGING_URL secret is set.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

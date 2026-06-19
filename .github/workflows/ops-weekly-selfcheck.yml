@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   script-path-parity:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     steps:
       - uses: actions/checkout@v6
 
@@ -27,7 +27,7 @@ jobs:
         run: node scripts/verify/ops-automation-selfcheck.mjs
 
   resend-domains:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     steps:
       - uses: actions/checkout@v6
 

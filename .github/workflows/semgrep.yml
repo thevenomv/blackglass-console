@@ -18,7 +18,7 @@ concurrency:
 jobs:
   semgrep:
     name: Semgrep (OWASP Top Ten + JS/TS quality)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     timeout-minutes: 10
     permissions:
       contents: read

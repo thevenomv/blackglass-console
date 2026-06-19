@@ -28,7 +28,7 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     # For workflow_run events only run when CI succeeded (not on failure/cancellation).
     if: >-
       github.event_name != 'workflow_run' ||

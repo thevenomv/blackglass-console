@@ -33,7 +33,7 @@ on:
 
 jobs:
   migrate:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, obsidian]
     env:
       DO_DB_CLUSTER_ID: "4d063be8-1cc1-4b45-8b57-2a96a9c77161"
 
