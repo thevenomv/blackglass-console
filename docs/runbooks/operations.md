@@ -16,6 +16,11 @@ checklist) at the bottom.
 [`data-breach-response.md`](./data-breach-response.md) (ICO notification,
 customer comms, subprocessor escalation).
 
+**Mothballing or reactivating the DigitalOcean stack:** see
+[`../operations/digitalocean-product-inventory.md`](../operations/digitalocean-product-inventory.md),
+[`../operations/mothballing-digitalocean.md`](../operations/mothballing-digitalocean.md), and
+[`../operations/reactivating-digitalocean.md`](../operations/reactivating-digitalocean.md).
+
 ---
 
 ## 1. Queues — what's normal, what's degraded

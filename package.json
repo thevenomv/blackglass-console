@@ -26,6 +26,7 @@
     "clean:next": "node scripts/build/clean-next.mjs",
     "build:optimize-og": "node scripts/build/optimize-og-images.mjs",
     "do:apply-stage0": "node scripts/do/run-do-apply-stage0.mjs",
+    "do:inventory": "node scripts/do/inventory-do-resources.mjs",
     "stripe:setup": "node scripts/stripe/stripe-setup.mjs",
     "audit:export-spaces": "node scripts/audit/export-audit-spaces.mjs",
     "audit:verify-jsonl": "node scripts/audit/verify-audit-jsonl-integrity.mjs",

@@ -89,5 +89,8 @@ GitHub push (main / staging)
 - [`operations/staging-deployment-checklist.md`](../operations/staging-deployment-checklist.md) — pre-flight before each staging cutover.
 - [`operations/release-checklist.md`](../operations/release-checklist.md) — what must be true before tagging a release.
 - [`operations/doppler-digitalocean-setup.md`](../operations/doppler-digitalocean-setup.md) — env wiring.
+- [`operations/digitalocean-product-inventory.md`](../operations/digitalocean-product-inventory.md) — all DO products + discovery script.
+- [`operations/mothballing-digitalocean.md`](../operations/mothballing-digitalocean.md) — pause/shutdown order.
+- [`operations/reactivating-digitalocean.md`](../operations/reactivating-digitalocean.md) — bring DO stack back online.
 - [`runbooks/deploy-scan-worker.md`](../runbooks/deploy-scan-worker.md) — worker-specific rollout.
 - [`operations/operator-guide.md`](../operations/operator-guide.md) — day-2 ops.
