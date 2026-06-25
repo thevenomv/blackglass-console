@@ -20,12 +20,14 @@ const PROJECT_ID =
 
 const NAME_HINTS = [
   "blackglass",
-  "rustdesk",
-  "blackglasssec",
+  "rustdesk-server",
   "blackglass-rustdesk-demo",
   "blackglass-lab",
   "blackglass-sandbox",
 ];
+
+/** Droplets excluded from Blackglass mothball scope (still may appear if tagged). */
+const DROPLET_EXCLUDE_NAMES = new Set(["obsidian-github-runner"]);
 
 function matchesHint(value) {
   const s = String(value ?? "").toLowerCase();
@@ -74,7 +76,7 @@ function summarizeApp(a) {
     custom_domains: (a.spec?.domains ?? []).map((d) => d.domain),
     components,
     updated_at: a.updated_at,
-    likely_archived: /archived/i.test(latestCause),
+    likely_archived: archived,
     active_deployment_cause: latestCause || undefined,
   };
 }
@@ -126,6 +128,7 @@ async function main() {
     firewalls: [],
     ssh_keys: [],
     project_resources: [],
+    excluded_droplets: [],
     domains: [],
     notes: [],
   };
@@ -135,8 +138,16 @@ async function main() {
 
   const droplets = await paginate("/droplets", "droplets");
   report.droplets = droplets
-    .filter((d) => matchesHint(d.name) || (d.tags ?? []).some(matchesHint))
+    .filter(
+      (d) =>
+        !DROPLET_EXCLUDE_NAMES.has(d.name) &&
+        (matchesHint(d.name) || (d.tags ?? []).some(matchesHint)),
+    )
     .map(summarizeDroplet);
+
+  report.excluded_droplets = droplets
+    .filter((d) => DROPLET_EXCLUDE_NAMES.has(d.name))
+    .map((d) => ({ ...summarizeDroplet(d), note: "Not Blackglass — do not mothball" }));
 
   const databases = await paginate("/databases", "databases");
   report.databases = databases
@@ -224,6 +235,14 @@ async function main() {
   console.log(`Project ID hint: ${PROJECT_ID}`);
   for (const r of report.project_resources) {
     console.log(`  ${r.urn}`);
+  }
+
+  if (report.excluded_droplets?.length) {
+    console.log(`\n## Excluded from Blackglass scope (${report.excluded_droplets.length})`);
+    for (const item of report.excluded_droplets) {
+      console.log(JSON.stringify(item, null, 2));
+      console.log("");
+    }
   }
 
   console.log("\n## Notes");

@@ -153,34 +153,23 @@ doctl compute firewall delete <id>
 
 Ensure App env has `SHOWCASE_AUTO_PROVISION_DISABLED=true` (already retired in prod per runbook §4b).
 
-### 4b. Sales-demo VM (`blackglass-rustdesk-demo`, 167.99.59.55)
+### 4b. RustDesk relay (`rustdesk-server`, 206.189.114.207)
 
-**Recommended:** **Power off**, do not delete — reactivation needs this host for live demos.
-
-```bash
-doctl compute droplet list | grep -E 'rustdesk|blackglass'
-doctl compute droplet-action power-off <demo-droplet-id>
-```
-
-Before power-off, note:
-
-- Root/`blackglass` SSH access and key location
-- `/etc/blackglass-agent.env` on the VM
-- `scripts/systemd/blackglass-agent.timer` status
-
-Optional snapshot (small cost, fast restore):
+Power off when Blackglass demos are fully paused:
 
 ```bash
-doctl compute droplet-action snapshot <demo-droplet-id> --snapshot-name blackglass-demo-mothball-$(date +%Y%m%d)
+doctl compute droplet-action power-off 564711799
 ```
 
-### 4c. RustDesk relay (`rustdesk-server`, 206.189.114.207)
+### 4c. `obsidian-github-runner` — **NOT Blackglass**
 
-Power off if demos are fully paused:
+**Do not** power off, snapshot, or delete Droplet **`obsidian-github-runner`** (`568869333`, `167.99.59.55`) as part of a Blackglass mothball. It is Obsidian/GitHub runner infrastructure. The Blackglass App Platform env may still list `COLLECTOR_HOST_1=167.99.59.55` for legacy demo wiring — that does not make the Droplet part of the mothball scope.
 
-```bash
-doctl compute droplet-action power-off <relay-droplet-id>
-```
+If you need a dedicated Blackglass demo VM, provision a **separate** Droplet (see `scripts/do/create-do-droplet.ps1`) rather than reusing the runner.
+
+### 4d. Sales-demo VM (`blackglass-rustdesk-demo`) — historical docs only
+
+Docs and `.do/app-git.production.yaml` refer to a host at **`167.99.59.55`** named `blackglass-rustdesk-demo`. In this account that IP is currently **`obsidian-github-runner`**, which is **not** a Blackglass-managed demo box. Treat sales-demo runbooks as optional/lab-only unless you provision a dedicated demo Droplet.
 
 ---
 
