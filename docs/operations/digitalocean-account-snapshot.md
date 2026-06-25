@@ -11,15 +11,15 @@
 
 | Signal | Status |
 |--------|--------|
-| App Platform `blackglass` | **Archived** — `https://blackglass-j9imo.ondigitalocean.app/api/health` returns **503**; latest deploy cause: *"app spec updated, app archived"* |
+| App Platform `blackglass` | **Mothballed 2026-06-25** — `maintenance.archive: true`; health **503** |
 | Custom domains on app | `blackglasssec.com`, `www.blackglasssec.com` (PRIMARY) |
-| Managed Postgres / Valkey in this DO account | **None** (`0` clusters) — `DATABASE_URL` / `REDIS_*` in App secrets point **outside** this account or to deleted clusters |
+| Deploy on push | **Disabled** via API spec update |
+| Managed Postgres / Valkey in this DO account | **None** (`0` clusters) |
 | Public showcase | **Disabled** (`SHOWCASE_AUTO_PROVISION_DISABLED=true`) |
-| Spaces bucket (project) | `blackglass-state` (region **nyc3**) |
-| Demo / sales host | Droplet **`obsidian-github-runner`** @ **167.99.59.55** (tags: `blackglass`, `rustdesk-demo`) — still **powered on** |
-| RustDesk relay | **`rustdesk-server`** @ **206.189.114.207** (lon1) — **powered on** |
-
-**Billing still running:** archived App Platform stops app compute, but **Droplets**, **Spaces**, and **DO domain registration** may still incur charges until you power off or delete them.
+| Spaces bucket (project) | `blackglass-state` (region **nyc3**) — **kept** (data retention) |
+| Demo / sales host | `obsidian-github-runner` @ **167.99.59.55** — **powered off** |
+| RustDesk relay | `rustdesk-server` @ **206.189.114.207** — **powered off** |
+| Unrelated droplet | `zero-hour-worker` @ 188.166.170.255 — **still running** (not in Blackglass project) |
 
 ---
 

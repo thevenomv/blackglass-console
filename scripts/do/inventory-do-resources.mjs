@@ -64,6 +64,7 @@ function summarizeApp(a) {
     }
   }
   const latestCause = a.active_deployment?.cause ?? "";
+  const archived = Boolean(a.spec?.maintenance?.archive) || /archived/i.test(latestCause);
   return {
     id: a.id,
     name: a.spec?.name,
