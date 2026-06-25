@@ -18,7 +18,7 @@ Compliance posture, pentest checklist, session/cookie security, ZAP rules, rate-
 
 ### [`operations/`](operations/)
 
-Day-2 runbooks for operators: local dev (Docker), backup/restore drill, release checklist, baseline runbook, troubleshooting, collector fleet scaling, Doppler + DigitalOcean setup, GitHub Actions first run, staging deployment checklist, operator guide, Charon/janitor, wiring & exports.
+Day-2 runbooks for operators: local dev (Docker), backup/restore drill, release checklist, baseline runbook, troubleshooting, collector fleet scaling, Doppler + DigitalOcean setup, **DigitalOcean inventory / mothball / reactivation**, GitHub Actions first run, staging deployment checklist, operator guide, Charon/janitor, wiring & exports.
 
 ### [`runbooks/`](runbooks/)
 
