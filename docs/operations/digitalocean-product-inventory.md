@@ -7,6 +7,7 @@ Single reference for **every DigitalOcean product** this repository touches, whe
 
 Related runbooks:
 
+- [Account snapshot (live IDs)](./digitalocean-account-snapshot.md) — verified resource IDs for the Obsidian account (refresh with `npm run do:inventory`)
 - [Mothballing DigitalOcean](./mothballing-digitalocean.md) — safe shutdown order and cost reduction
 - [Reactivating DigitalOcean](./reactivating-digitalocean.md) — bring the stack back online
 - [Backup & restore drill](./backup-restore-drill.md) — Postgres/Spaces recovery

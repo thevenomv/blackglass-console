@@ -63,14 +63,18 @@ function summarizeApp(a) {
       components.push({ kind, name: c.name, instance_count: c.instance_count ?? 1 });
     }
   }
+  const latestCause = a.active_deployment?.cause ?? "";
   return {
     id: a.id,
     name: a.spec?.name,
     region: a.spec?.region,
     live_url: a.live_url,
     default_ingress: a.default_ingress,
+    custom_domains: (a.spec?.domains ?? []).map((d) => d.domain),
     components,
     updated_at: a.updated_at,
+    likely_archived: /archived/i.test(latestCause),
+    active_deployment_cause: latestCause || undefined,
   };
 }
 
@@ -121,6 +125,7 @@ async function main() {
     firewalls: [],
     ssh_keys: [],
     project_resources: [],
+    domains: [],
     notes: [],
   };
 
@@ -168,15 +173,21 @@ async function main() {
     report.notes.push(`Could not list project ${PROJECT_ID}: ${e.message}`);
   }
 
+  const domains = await paginate("/domains", "domains");
+  report.domains = domains
+    .filter((d) => matchesHint(d.name))
+    .map((d) => ({ name: d.name, ttl: d.ttl }));
+
   report.notes.push(
     "Spaces buckets are not listed by this script — record DO_SPACES_BUCKET from Doppler/1Password.",
   );
   report.notes.push(
-    "DNS for blackglasssec.com is Cloudflare, not DO Domains — see docs/operations/reactivating-digitalocean.md.",
+    "DO Domains zones may coexist with Cloudflare — export both before mothballing.",
   );
   report.notes.push(
     "Committed App Platform spec may omit ops-worker/sandbox-worker; compare live spec via: doctl apps spec get <app-id>",
   );
+  report.notes.push("If likely_archived is true, unarchive the app in DO console before reactivation.");
 
   if (JSON_OUT) {
     console.log(JSON.stringify(report, null, 2));
@@ -193,6 +204,7 @@ async function main() {
     ["Block volumes", report.volumes],
     ["Cloud firewalls", report.firewalls],
     ["Account SSH keys", report.ssh_keys],
+    ["DO Domains (zones)", report.domains],
   ];
 
   for (const [title, items] of sections) {
