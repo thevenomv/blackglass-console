@@ -17,16 +17,15 @@
 | Managed Postgres / Valkey in this DO account | **None** (`0` clusters) |
 | Public showcase | **Disabled** (`SHOWCASE_AUTO_PROVISION_DISABLED=true`) |
 | Spaces bucket (project) | `blackglass-state` (region **nyc3**) — **kept** (data retention) |
-| Demo host IP in app env (`COLLECTOR_HOST_1`) | `167.99.59.55` — legacy/demo wiring only |
-| RustDesk relay (Blackglass demos) | `rustdesk-server` @ **206.189.114.207** — **powered off** (mothballed) |
 
 ### Not Blackglass — do not mothball
 
-| Droplet | IP | Status |
-|---------|-----|--------|
-| **`obsidian-github-runner`** (`568869333`) | `167.99.59.55` | **Active** — shared GitHub runner / Obsidian infra; wrongly powered off during 2026-06-25 mothball; **restored same day** |
+| Droplet | ID | IP | Status |
+|---------|-----|-----|--------|
+| **`obsidian-github-runner`** | `568869333` | `167.99.59.55` | **Active** — Obsidian GitHub runner |
+| **`rustdesk-server`** | `564711799` | `206.189.114.207` | **Active** — RustDesk relay (Obsidian); restored after mistaken mothball |
 
-The Blackglass app env still references `167.99.59.55` as `COLLECTOR_HOST_1` / demo collector — that is **configuration**, not ownership of the Droplet. Mothballing Blackglass must **not** stop this VM.
+Blackglass mothball scope is **App Platform + Spaces + domain** in the Blackglass project — **not** these Droplets. The app env may still reference `167.99.59.55` as `COLLECTOR_HOST_1`; that is legacy config, not a license to stop unrelated VMs.
 
 ---
 
@@ -98,8 +97,8 @@ doctl apps spec get 526a574e-48c6-48a8-94ff-b64b93fa70df > live-blackglass-spec.
 
 | ID | Name | IP | Region | Blackglass? |
 |----|------|-----|--------|-------------|
-| `568869333` | `obsidian-github-runner` | `167.99.59.55` | nyc3 | **No** — Obsidian GitHub runner; app env may reference this IP for legacy demo collector only |
-| `564711799` | `rustdesk-server` | `206.189.114.207` | lon1 | **Yes** (demo support) — mothballed (off) |
+| `568869333` | `obsidian-github-runner` | `167.99.59.55` | nyc3 | **No** |
+| `564711799` | `rustdesk-server` | `206.189.114.207` | lon1 | **No** — RustDesk relay |
 | `574766123` | `zero-hour-worker` | `188.166.170.255` | lon1 | **No** |
 
 ---
@@ -172,8 +171,7 @@ Already done:
 
 Still billable / action needed:
 
-- [ ] **Power off** `rustdesk-server` only (`564711799`) — snapshot first if needed
-- [ ] **Do not** power off `obsidian-github-runner` (`568869333`) — not Blackglass infra
+- [ ] **Do not** power off `obsidian-github-runner` (`568869333`) or `rustdesk-server` (`564711799`) — not Blackglass infra
 - [ ] Decide fate of `574766123` (`zero-hour-worker`)
 - [ ] **Disable deploy-on-push** on app (still enabled in spec)
 - [ ] Export `live-blackglass-spec.yaml` + Doppler/DO secrets backup
@@ -192,7 +190,7 @@ See [mothballing-digitalocean.md](./mothballing-digitalocean.md).
 2. Confirm **Postgres + Redis** URLs in secrets still work; recreate managed DBs if not.
 3. Set `instance_count: 1` on `web` (and workers you need).
 4. Consider adding **`scan-worker`** if you want SSH/BullMQ scans (missing from live spec).
-5. Power on **`rustdesk-server`** if resuming screen-share demos; **`obsidian-github-runner`** is unrelated — leave running.
+5. Leave **`obsidian-github-runner`** and **`rustdesk-server`** running — unrelated to Blackglass reactivation.
 6. Redeploy; run `npm run db:migrate` via PRE_DEPLOY job.
 7. Verify `https://blackglasssec.com/api/health` → 200.
 8. Re-enable CI secrets: `DO_APP_ID=526a574e-48c6-48a8-94ff-b64b93fa70df`.

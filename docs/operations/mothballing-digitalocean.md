@@ -153,21 +153,18 @@ doctl compute firewall delete <id>
 
 Ensure App env has `SHOWCASE_AUTO_PROVISION_DISABLED=true` (already retired in prod per runbook §4b).
 
-### 4b. RustDesk relay (`rustdesk-server`, 206.189.114.207)
+### 4b. Droplets — **do not touch** (not Blackglass)
 
-Power off when Blackglass demos are fully paused:
+These VMs are **Obsidian** infrastructure. Never power off, snapshot, or delete them as part of a Blackglass mothball:
 
-```bash
-doctl compute droplet-action power-off 564711799
-```
+| Droplet | ID | IP |
+|---------|-----|-----|
+| `obsidian-github-runner` | `568869333` | `167.99.59.55` |
+| `rustdesk-server` | `564711799` | `206.189.114.207` |
 
-### 4c. `obsidian-github-runner` — **NOT Blackglass**
+Blackglass mothball = archive App Platform app, disable deploy-on-push, keep Spaces/domain as needed — **only**.
 
-**Do not** power off, snapshot, or delete Droplet **`obsidian-github-runner`** (`568869333`, `167.99.59.55`) as part of a Blackglass mothball. It is Obsidian/GitHub runner infrastructure. The Blackglass App Platform env may still list `COLLECTOR_HOST_1=167.99.59.55` for legacy demo wiring — that does not make the Droplet part of the mothball scope.
-
-If you need a dedicated Blackglass demo VM, provision a **separate** Droplet (see `scripts/do/create-do-droplet.ps1`) rather than reusing the runner.
-
-### 4d. Sales-demo VM (`blackglass-rustdesk-demo`) — historical docs only
+### 4c. Sales-demo VM (`blackglass-rustdesk-demo`) — historical docs only
 
 Docs and `.do/app-git.production.yaml` refer to a host at **`167.99.59.55`** named `blackglass-rustdesk-demo`. In this account that IP is currently **`obsidian-github-runner`**, which is **not** a Blackglass-managed demo box. Treat sales-demo runbooks as optional/lab-only unless you provision a dedicated demo Droplet.
 
@@ -267,11 +264,10 @@ Manual checks:
 3. Disable deploy-on-push  
 4. Scale App Platform to 0 (or delete app)  
 5. Stop/delete workers; optional destroy Valkey  
-6. Destroy sandbox Droplets + orphan firewalls  
-7. Power off demo + relay Droplets (snapshot first)  
-8. Decide Postgres + Spaces retention  
-9. Revoke/rotate API tokens  
-10. Disable CI workflows that touch production  
+6. Destroy sandbox Droplets + orphan firewalls (**not** `obsidian-github-runner` or `rustdesk-server`)  
+7. Decide Postgres + Spaces retention  
+8. Revoke/rotate API tokens  
+9. Disable CI workflows that touch production  
 
 ---
 

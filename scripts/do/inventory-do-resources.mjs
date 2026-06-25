@@ -27,7 +27,7 @@ const NAME_HINTS = [
 ];
 
 /** Droplets excluded from Blackglass mothball scope (still may appear if tagged). */
-const DROPLET_EXCLUDE_NAMES = new Set(["obsidian-github-runner"]);
+const DROPLET_EXCLUDE_NAMES = new Set(["obsidian-github-runner", "rustdesk-server"]);
 
 function matchesHint(value) {
   const s = String(value ?? "").toLowerCase();
